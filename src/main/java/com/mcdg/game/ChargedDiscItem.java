@@ -95,22 +95,27 @@ public final class ChargedDiscItem extends Item {
             return;
         }
 
-        var state = roundStateManager.getState(serverPlayer.getUuid()).orElse(null);
-        if (state != null) {
-            int distanceFromLie = manhattanDistance(serverPlayer.getBlockPos(), state.lie());
-            int allowedDistance = rulesetManager.allowedLieToleranceBlocks();
-            if (distanceFromLie > allowedDistance) {
-                String mode = rulesetManager.getActiveRuleset().name().toLowerCase();
-                serverPlayer.sendMessage(
-                        Text.literal(
-                                "Move back to your lie before throwing. "
-                                        + "Distance=" + distanceFromLie
-                                        + " blocks, allowed=" + allowedDistance
-                                        + " (" + mode + ")."
-                        ).formatted(Formatting.RED),
-                        true
-                );
-                return;
+        // Lie-distance enforcement is a strict-mode rule only.
+        // In casual mode there is no enforcement — and even in strict mode we must only
+        // check AFTER the tracker has had a chance to update the lie from the previous
+        // pearl landing, otherwise the player is always blocked on throw #2+.
+        if (rulesetManager.isStrict()) {
+            var state = roundStateManager.getState(serverPlayer.getUuid()).orElse(null);
+            if (state != null && state.totalStrokes() > 0) {
+                int distanceFromLie = horizontalDistance(serverPlayer.getBlockPos(), state.lie());
+                int allowedDistance = rulesetManager.allowedLieToleranceBlocks();
+                if (distanceFromLie > allowedDistance) {
+                    serverPlayer.sendMessage(
+                            Text.literal(
+                                    "Move back to your lie before throwing. "
+                                    + "Distance=" + distanceFromLie
+                                    + " blocks, allowed=" + allowedDistance
+                                    + " (strict)."
+                            ).formatted(Formatting.RED),
+                            true
+                    );
+                    return;
+                }
             }
         }
 
@@ -168,9 +173,9 @@ public final class ChargedDiscItem extends Item {
         return Text.literal("Disc thrown at " + percent + "% power").formatted(Formatting.YELLOW);
     }
 
-    private static int manhattanDistance(net.minecraft.util.math.BlockPos from, net.minecraft.util.math.BlockPos to) {
-        return Math.abs(from.getX() - to.getX())
-                + Math.abs(from.getY() - to.getY())
-                + Math.abs(from.getZ() - to.getZ());
+    private static int horizontalDistance(net.minecraft.util.math.BlockPos from, net.minecraft.util.math.BlockPos to) {
+        int dx = Math.abs(from.getX() - to.getX());
+        int dz = Math.abs(from.getZ() - to.getZ());
+        return Math.max(dx, dz);
     }
 }
