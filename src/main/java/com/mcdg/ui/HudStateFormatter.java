@@ -19,8 +19,9 @@ public final class HudStateFormatter {
             int cumulativeParDelta,
             String playerStatus,
             String basketHeading,
-            int basketDistanceBlocks
-    ) {
+            int basketDistanceBlocks,
+            String signatureLabel
+        ) {
         MutableText text = Text.empty();
         text.append(Text.literal("H").formatted(Formatting.GRAY));
         text.append(Text.literal(Integer.toString(hole)).formatted(Formatting.GOLD));
@@ -53,6 +54,10 @@ public final class HudStateFormatter {
         text.append(Text.literal("(").formatted(Formatting.GRAY));
         text.append(formatParDelta(cumulativeParDelta));
         text.append(Text.literal(")").formatted(Formatting.GRAY));
+        if (!signatureLabel.isEmpty()) {
+            text.append(Text.literal("\n").formatted(Formatting.DARK_GRAY));
+            text.append(Text.literal("\u2605 " + signatureLabel).formatted(Formatting.YELLOW));
+        }
         return text;
     }
 

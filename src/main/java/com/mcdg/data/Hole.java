@@ -8,7 +8,8 @@ public record Hole(
         int distanceFeet,
         TeePoint tee,
         BasketPoint basket,
-        List<FairwaySegment> fairwaySegments
+        List<FairwaySegment> fairwaySegments,
+        SignatureHoleType signatureType
 ) {
     public Hole {
         if (index < 1) {
@@ -25,5 +26,12 @@ public record Hole(
         }
 
         fairwaySegments = List.copyOf(fairwaySegments);
+        if (signatureType == null) {
+            signatureType = SignatureHoleType.NONE;
+        }
+    }
+
+    public boolean isSignature() {
+        return signatureType != SignatureHoleType.NONE;
     }
 }

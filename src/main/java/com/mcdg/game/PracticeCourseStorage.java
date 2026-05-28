@@ -9,6 +9,7 @@ import com.mcdg.data.BasketPoint;
 import com.mcdg.data.Course;
 import com.mcdg.data.FairwaySegment;
 import com.mcdg.data.Hole;
+import com.mcdg.data.SignatureHoleType;
 import com.mcdg.data.TeePoint;
 import com.mojang.serialization.JsonOps;
 import java.io.IOException;
@@ -233,7 +234,7 @@ public final class PracticeCourseStorage {
                     segments.add(snapshot.toFairwaySegment());
                 }
             }
-            return new Hole(index, par, distanceFeet, tee.toTeePoint(), basket.toBasketPoint(), segments);
+            return new Hole(index, par, distanceFeet, tee.toTeePoint(), basket.toBasketPoint(), segments, SignatureHoleType.NONE);
         }
     }
 

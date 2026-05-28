@@ -146,15 +146,12 @@ public final class CoursePlacementService {
             int[] teeForward = teeForwardUnit(teeSurface, basketSurface);
             BlockPos teeLampGround = teeSurface.add(-teeForward[0], 0, -teeForward[1]);
             placeLanternPost(world, teeLampGround, 2, originalBlocks);
-                placeTeeHoleBanner(
-                    world,
-                    teeSurface,
-                    basketSurface,
-                    hole.index(),
-                    hole.par(),
-                    hole.distanceFeet(),
-                    originalBlocks
-                );
+            placeTeeHoleBanner(
+                world, teeSurface, basketSurface,
+                hole.index(), hole.par(), hole.distanceFeet(),
+                hole.signatureType().displayName(),
+                originalBlocks
+            );
             placeBasketMarker(world, basketSurface, originalBlocks, hole.basket().basketHeight());
 
             progressCallback.accept(hole.index());
@@ -752,6 +749,7 @@ public final class CoursePlacementService {
             int holeNumber,
             int par,
             int distanceFeet,
+            String signatureName,
             Map<BlockPos, BlockState> originalBlocks
     ) {
         int[] forward = teeForwardUnit(teeCenter, basketSurface);
@@ -766,6 +764,7 @@ public final class CoursePlacementService {
         BlockPos bannerPos = bannerGround.up(2);
         setTrackedBlock(world, bannerPos, Blocks.WHITE_BANNER.getDefaultState(), originalBlocks);
         String hazardNote = teeHazardNote(world, teeCenter, basketSurface);
+        String noteToShow = signatureName.isEmpty() ? hazardNote : "\u2605 " + signatureName;
         placeTeeHoleSign(
             world,
             signGround,
@@ -774,7 +773,7 @@ public final class CoursePlacementService {
             holeNumber,
             par,
             distanceFeet,
-            hazardNote,
+            noteToShow,
             originalBlocks
         );
     }

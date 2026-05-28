@@ -4,6 +4,7 @@ import com.mcdg.data.BasketPoint;
 import com.mcdg.data.Course;
 import com.mcdg.data.FairwaySegment;
 import com.mcdg.data.Hole;
+import com.mcdg.data.SignatureHoleType;
 import com.mcdg.data.TeePoint;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +35,27 @@ public final class SeededCourseGenerator implements CourseGenerator {
         for (int i = 1; i <= holeCount; i++) {
             Hole hole = generateHoleWithRetries(random, baseX, baseZ, i, holes);
             holes.add(hole);
+        }
+
+        // Pick exactly one signature hole per course, seeded for determinism.
+        if (holeCount >= 1) {
+            SignatureHoleType[] types = {
+                SignatureHoleType.ISLAND_GREEN,
+                SignatureHoleType.TUNNEL_GAP,
+                SignatureHoleType.DOWNHILL_BOMBER
+            };
+            int sigIndex = random.nextInt(holeCount);
+            SignatureHoleType sigType = types[random.nextInt(types.length)];
+            Hole original = holes.get(sigIndex);
+            holes.set(sigIndex, new Hole(
+                original.index(),
+                original.par(),
+                original.distanceFeet(),
+                original.tee(),
+                original.basket(),
+                original.fairwaySegments(),
+                sigType
+            ));
         }
 
         String name = generateCourseName(random);
@@ -79,7 +101,8 @@ public final class SeededCourseGenerator implements CourseGenerator {
                     actualDistanceFeet,
                     new TeePoint(teeX, BASE_HEIGHT, teeZ),
                     new BasketPoint(basketX, BASE_HEIGHT, basketZ, basketHeight),
-                    List.of(new FairwaySegment(teeX, teeZ, basketX, basketZ, fairwayWidth))
+                    List.of(new FairwaySegment(teeX, teeZ, basketX, basketZ, fairwayWidth)),
+                    SignatureHoleType.NONE
             );
 
             if (validator.isNonOverlapping(candidate, placedHoles)) {

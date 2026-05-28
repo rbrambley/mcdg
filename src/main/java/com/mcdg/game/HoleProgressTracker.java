@@ -132,8 +132,9 @@ public final class HoleProgressTracker {
                                     cumulativeParDelta,
                                     status,
                                     heading,
-                                    dist
-                            ),
+                                    dist,
+                                    currentHole.signatureType().displayName()
+                                ),
                             true
                     );
                 }
