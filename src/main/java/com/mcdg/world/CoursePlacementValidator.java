@@ -21,6 +21,7 @@ import net.minecraft.world.biome.Biome;
 public final class CoursePlacementValidator {
     private static final int LANDING_GAP_WARNING_BLOCKS = 95;
     private static final int LANDING_GAP_FAIL_BLOCKS = 115;
+    private static final int ALT_ROUTE_REQUIRED_CARRY_BLOCKS = 72;
     private static final int LANDING_SCAN_RADIUS = 6;
     private static final int TEE_LAUNCH_CHECK_DISTANCE = 22;
     private static final int TEE_LAUNCH_CHECK_HALF_WIDTH = 3;
@@ -94,6 +95,16 @@ public final class CoursePlacementValidator {
 
             int longestGap = computeLongestWaterCarryGap(world, teePos, basketPos.down());
             maxLandingGapObserved = Math.max(maxLandingGapObserved, longestGap);
+            BlockPos alternateAnchor = placedCourseState.holeAlternateAnchors().get(holeIndex);
+            if (longestGap > ALT_ROUTE_REQUIRED_CARRY_BLOCKS && alternateAnchor == null) {
+                issues.add(new ValidationIssue(
+                        holeIndex,
+                        "alternate_route_missing",
+                        "Long water carry (" + longestGap + " blocks) requires alternate fairway anchor.",
+                        midpoint(teePos, basketPos.down())
+                ));
+                holeFailed = true;
+            }
             if (longestGap > LANDING_GAP_FAIL_BLOCKS) {
                 issues.add(new ValidationIssue(
                         holeIndex,

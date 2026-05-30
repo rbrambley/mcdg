@@ -251,26 +251,29 @@ public final class McdgClientMod implements ClientModInitializer {
         int qualityTextWidth = client.textRenderer.getWidth(qualityLabel);
         drawContext.drawTextWithShadow(client.textRenderer, Text.literal(qualityLabel).formatted(Formatting.AQUA), panelX + headerW - qualityTextWidth - 4, panelY + 2, withAlpha(0x9AE6FF, hudAlpha));
 
-        // Circular map area — standalone, no surrounding rectangle
+        // Square map area with overscan so rotated corners stay filled.
         int mapX = panelX;
         int mapY = panelY + headerH + 2;
-        float mapScale = miniMapSize / Math.max(1.0f, (float) state.mapSpan());
-        int mapOriginScreenX = mapX;
-        int mapOriginScreenY = mapY;
+        int renderSize = Math.max(miniMapSize, Math.round(miniMapSize * HoleMiniMapSync.MAP_OVERSCAN_FACTOR));
+        int renderOffset = (renderSize - miniMapSize) / 2;
+        int renderX = mapX - renderOffset;
+        int renderY = mapY - renderOffset;
+        int mapCenterX = mapX + (miniMapSize / 2);
+        int mapCenterY = mapY + (miniMapSize / 2);
+        float mapScale = renderSize / Math.max(1.0f, (float) state.mapSpan());
+        int rawLiePx = renderX + Math.round((state.lieX() - state.mapOriginX()) * mapScale);
+        int rawLiePz = renderY + Math.round((state.lieZ() - state.mapOriginZ()) * mapScale);
+        int shiftX = Math.max(-renderOffset, Math.min(renderOffset, mapCenterX - rawLiePx));
+        int shiftY = Math.max(-renderOffset, Math.min(renderOffset, mapCenterY - rawLiePz));
+        int drawRenderX = renderX + shiftX;
+        int drawRenderY = renderY + shiftY;
+        int mapOriginScreenX = drawRenderX;
+        int mapOriginScreenY = drawRenderY;
         int liePx = mapOriginScreenX + Math.round((state.lieX() - state.mapOriginX()) * mapScale);
         int liePz = mapOriginScreenY + Math.round((state.lieZ() - state.mapOriginZ()) * mapScale);
-        drawFilledCircle(
-            drawContext,
-            mapX + (miniMapSize / 2),
-            mapY + (miniMapSize / 2),
-            Math.max(2, (miniMapSize / 2) - 1),
-            withAlpha((surfaceAlpha << 24) | 0x121212, hudAlpha)
-        );
+        drawContext.fill(mapX, mapY, mapX + miniMapSize, mapY + miniMapSize, withAlpha((surfaceAlpha << 24) | 0x121212, hudAlpha));
 
         if (miniMapRenderCache != null && miniMapRenderCache.textureId() != null) {
-            int mapCenterX = mapX + (miniMapSize / 2);
-            int mapCenterY = mapY + (miniMapSize / 2);
-            int mapRadius = Math.max(2, (miniMapSize / 2) - 1);
             float headingRotation = -(client.player.getYaw() + 180.0f);
             int playerPx = mapOriginScreenX + Math.round(((float) client.player.getX() - state.mapOriginX()) * mapScale);
             int playerPz = mapOriginScreenY + Math.round(((float) client.player.getZ() - state.mapOriginZ()) * mapScale);
@@ -280,7 +283,7 @@ public final class McdgClientMod implements ClientModInitializer {
             matrices.translate(mapCenterX, mapCenterY, 0.0f);
             matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(headingRotation));
             matrices.translate(-mapCenterX, -mapCenterY, 0.0f);
-            drawContext.drawTexture(miniMapRenderCache.textureId(), mapX, mapY, 0, 0, miniMapSize, miniMapSize, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE);
+            drawContext.drawTexture(miniMapRenderCache.textureId(), drawRenderX, drawRenderY, 0, 0, renderSize, renderSize, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE);
 
             int teePx = mapOriginScreenX + Math.round((state.teeX() - state.mapOriginX()) * mapScale);
             int teePz = mapOriginScreenY + Math.round((state.teeZ() - state.mapOriginZ()) * mapScale);
@@ -293,30 +296,51 @@ public final class McdgClientMod implements ClientModInitializer {
             if (state.hasAlternateAnchor()) {
                 anchorPx = mapOriginScreenX + Math.round((state.alternateAnchorX() - state.mapOriginX()) * mapScale);
                 anchorPz = mapOriginScreenY + Math.round((state.alternateAnchorZ() - state.mapOriginZ()) * mapScale);
-                drawLineCircleClipped(drawContext, teePx, teePz, anchorPx, anchorPz, 0xFF4CC9F0, mapCenterX, mapCenterY, mapRadius);
-                drawLineCircleClipped(drawContext, anchorPx, anchorPz, basketPx, basketPz, 0xFF4CC9F0, mapCenterX, mapCenterY, mapRadius);
-                drawDotCircleClipped(drawContext, anchorPx, anchorPz, 1, 0xFF4CC9F0, mapCenterX, mapCenterY, mapRadius);
+                drawLine(drawContext, teePx, teePz, anchorPx, anchorPz, 0xFF4CC9F0);
+                drawLine(drawContext, anchorPx, anchorPz, basketPx, basketPz, 0xFF4CC9F0);
+                drawDot(drawContext, anchorPx, anchorPz, 1, 0xFF4CC9F0);
             } else {
-                drawLineCircleClipped(drawContext, teePx, teePz, basketPx, basketPz, 0xFF3AC25B, mapCenterX, mapCenterY, mapRadius);
+                drawLine(drawContext, teePx, teePz, basketPx, basketPz, 0xFF3AC25B);
             }
 
-            drawDotCircleClipped(drawContext, teePx, teePz, 2, 0xFF28A745, mapCenterX, mapCenterY, mapRadius);
-            drawDotCircleClipped(drawContext, basketPx, basketPz, 2, 0xFFFFCC33, mapCenterX, mapCenterY, mapRadius);
-            drawDotCircleClipped(drawContext, playerPx, playerPz, 2, 0xFFFFFFFF, mapCenterX, mapCenterY, mapRadius);
-            drawMiniMapDistanceRings(drawContext, client, basketPx, basketPz, mapX, mapY, miniMapSize, mapScale, hudAlpha, mapCenterX, mapCenterY, mapRadius);
+            drawDot(drawContext, teePx, teePz, 2, 0xFF28A745);
+            drawDot(drawContext, basketPx, basketPz, 2, 0xFFFFCC33);
+            drawMiniMapDistanceRings(drawContext, client, basketPx, basketPz, mapX, mapY, miniMapSize, mapScale, hudAlpha, mapCenterX, mapCenterY, miniMapSize / 2.0f);
             drawMiniMapCardinalLabels(drawContext, client, mapCenterX, mapCenterY, miniMapSize, hudAlpha);
             matrices.pop();
             drawContext.disableScissor();
 
+            double headingRadians = Math.toRadians(headingRotation);
+            double cosHeading = Math.cos(headingRadians);
+            double sinHeading = Math.sin(headingRadians);
+
+            // Rotate player marker into the same space as the rotated map texture.
+            float relPlayerX = playerPx - mapCenterX;
+            float relPlayerZ = playerPz - mapCenterY;
+            int markerX = Math.round((float) ((relPlayerX * cosHeading) - (relPlayerZ * sinHeading)) + mapCenterX);
+            int markerZ = Math.round((float) ((relPlayerX * sinHeading) + (relPlayerZ * cosHeading)) + mapCenterY);
+
+            // Build player forward vector from yaw, then rotate it with the map transform.
+            double yawRadians = Math.toRadians(client.player.getYaw());
+            float forwardX = (float) -Math.sin(yawRadians);
+            float forwardZ = (float) Math.cos(yawRadians);
+            float rotatedForwardX = (float) ((forwardX * cosHeading) - (forwardZ * sinHeading));
+            float rotatedForwardZ = (float) ((forwardX * sinHeading) + (forwardZ * cosHeading));
+
             int arrowLen = Math.max(7, Math.round(8.0f * mapScale));
-            int arrowX = playerPx;
-            int arrowZ = playerPz - arrowLen;
-            drawLineCircleClipped(drawContext, playerPx, playerPz, arrowX, arrowZ, withAlpha(0xFFDDEEFF, hudAlpha), mapCenterX, mapCenterY, mapRadius);
-            drawDotCircleClipped(drawContext, arrowX, arrowZ, 1, withAlpha(0xFFFFFFFF, hudAlpha), mapCenterX, mapCenterY, mapRadius);
+            int arrowX = Math.round(markerX + (rotatedForwardX * arrowLen));
+            int arrowZ = Math.round(markerZ + (rotatedForwardZ * arrowLen));
+
+            drawDot(drawContext, markerX, markerZ, 2, withAlpha(0xFFFFFFFF, hudAlpha));
+            drawLine(drawContext, markerX, markerZ, arrowX, arrowZ, withAlpha(0xFFDDEEFF, hudAlpha));
+            drawDot(drawContext, arrowX, arrowZ, 1, withAlpha(0xFFFFFFFF, hudAlpha));
         }
 
-        // Circle border only — corners are transparent because they are baked into the texture
-        drawCircleOutline(drawContext, mapX + (miniMapSize / 2), mapY + (miniMapSize / 2), Math.max(2, (miniMapSize / 2) - 1), withAlpha(HUD_CARD_BORDER, hudAlpha));
+        // Square border around the visible viewport.
+        drawContext.fill(mapX - 1, mapY - 1, mapX + miniMapSize + 1, mapY, withAlpha(HUD_CARD_BORDER, hudAlpha));
+        drawContext.fill(mapX - 1, mapY + miniMapSize, mapX + miniMapSize + 1, mapY + miniMapSize + 1, withAlpha(HUD_CARD_BORDER, hudAlpha));
+        drawContext.fill(mapX - 1, mapY, mapX, mapY + miniMapSize, withAlpha(HUD_CARD_BORDER, hudAlpha));
+        drawContext.fill(mapX + miniMapSize, mapY, mapX + miniMapSize + 1, mapY + miniMapSize, withAlpha(HUD_CARD_BORDER, hudAlpha));
 
         // Separate info card below the circle
         int distFeet = Math.max(0, Math.round(displayedDistanceFeet));
@@ -582,50 +606,53 @@ public final class McdgClientMod implements ClientModInitializer {
     private static void drawMiniMapDistanceRings(
             DrawContext drawContext,
             MinecraftClient client,
-            int centerX,
-            int centerY,
+            float centerX,
+            float centerY,
             int mapX,
             int mapY,
             int miniMapSize,
             float mapScale,
             float hudAlpha,
-            int clipCenterX,
-            int clipCenterY,
-            int clipRadius
+            float clipCenterX,
+            float clipCenterY,
+            float clipRadius
     ) {
         int[] ringFeet = { 50, 100, 150 };
         for (int feet : ringFeet) {
             float radiusBlocks = feet / 3.28084f;
             int radiusPx = Math.max(2, Math.round(radiusBlocks * mapScale));
             int color = withAlpha(0x66BFD5E9, hudAlpha);
-            drawCircleOutlineClipped(drawContext, centerX, centerY, radiusPx, color, clipCenterX, clipCenterY, clipRadius);
+            drawCircleOutline(drawContext, centerX, centerY, radiusPx, color);
         }
     }
 
-    private static void drawCircleOutline(DrawContext drawContext, int centerX, int centerY, int radius, int color) {
+    private static void drawCircleOutline(DrawContext drawContext, float centerX, float centerY, float radius, int color) {
         for (int degrees = 0; degrees < 360; degrees += 8) {
             double radians = Math.toRadians(degrees);
-            int px = centerX + (int) Math.round(Math.cos(radians) * radius);
-            int py = centerY + (int) Math.round(Math.sin(radians) * radius);
+            int px = Math.round(centerX + (float) Math.cos(radians) * radius);
+            int py = Math.round(centerY + (float) Math.sin(radians) * radius);
             drawContext.fill(px, py, px + 1, py + 1, color);
         }
     }
 
-    private static void drawFilledCircle(DrawContext drawContext, int centerX, int centerY, int radius, int color) {
-        if (radius <= 0) {
+    private static void drawFilledCircle(DrawContext drawContext, float centerX, float centerY, float radius, int color) {
+        if (radius <= 0.0f) {
             return;
         }
 
-        for (int y = -radius; y <= radius; y++) {
-            int span = (int) Math.floor(Math.sqrt(Math.max(0, (radius * radius) - (y * y))));
-            int left = centerX - span;
-            int right = centerX + span + 1;
-            int py = centerY + y;
+        int minY = (int) Math.ceil(centerY - radius);
+        int maxY = (int) Math.floor(centerY + radius);
+        float radiusSq = radius * radius;
+        for (int py = minY; py <= maxY; py++) {
+            float dy = py - centerY;
+            int span = (int) Math.floor(Math.sqrt(Math.max(0.0f, radiusSq - (dy * dy))));
+            int left = (int) Math.floor(centerX - span);
+            int right = (int) Math.ceil(centerX + span) + 1;
             drawContext.fill(left, py, right, py + 1, color);
         }
     }
 
-    private static void drawMiniMapCardinalLabels(DrawContext drawContext, MinecraftClient client, int centerX, int centerY, int miniMapSize, float hudAlpha) {
+    private static void drawMiniMapCardinalLabels(DrawContext drawContext, MinecraftClient client, float centerX, float centerY, int miniMapSize, float hudAlpha) {
         int radius = Math.max(8, (miniMapSize / 2) - 8);
         drawCardinalLabel(drawContext, client, "N", centerX, centerY - radius, 0xFFDDEEFF, hudAlpha);
         drawCardinalLabel(drawContext, client, "E", centerX + radius, centerY, 0xFFDDEEFF, hudAlpha);
@@ -633,9 +660,9 @@ public final class McdgClientMod implements ClientModInitializer {
         drawCardinalLabel(drawContext, client, "W", centerX - radius, centerY, 0xFFDDEEFF, hudAlpha);
     }
 
-    private static void drawCardinalLabel(DrawContext drawContext, MinecraftClient client, String label, int x, int y, int color, float hudAlpha) {
+    private static void drawCardinalLabel(DrawContext drawContext, MinecraftClient client, String label, float x, float y, int color, float hudAlpha) {
         int textWidth = client.textRenderer.getWidth(label);
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(label), x - (textWidth / 2), y - 4, withAlpha(color, hudAlpha));
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(label), Math.round(x - (textWidth / 2.0f)), Math.round(y - 4.0f), withAlpha(color, hudAlpha));
     }
 
     private static void drawMiniMapCircularMask(DrawContext drawContext, int left, int top, int size, int fillColor) {
@@ -696,8 +723,11 @@ public final class McdgClientMod implements ClientModInitializer {
         int elevationBand = (packed >>> 6) & 0x03;
 
         int baseColor = miniMapTerrainColor(terrainClass);
-        if (baseColor == 0) {
-            baseColor = 0xFF1A1F27;
+        if (terrainClass == 0) {
+            // Unknown cells can occur at sample edges; keep them readable instead of near-black.
+            baseColor = 0xFF5E6F86;
+        } else if (baseColor == 0) {
+            baseColor = 0xFF6B7C93;
         }
 
         if (riskCode == 1) {
@@ -852,56 +882,17 @@ public final class McdgClientMod implements ClientModInitializer {
         drawContext.fill(x - radius, y - radius, x + radius + 1, y + radius + 1, color);
     }
 
-    private static void drawLineCircleClipped(
-            DrawContext drawContext,
-            int x0,
-            int y0,
-            int x1,
-            int y1,
-            int color,
-            int clipCenterX,
-            int clipCenterY,
-            int clipRadius
-    ) {
-        int dx = Math.abs(x1 - x0);
-        int sx = x0 < x1 ? 1 : -1;
-        int dy = -Math.abs(y1 - y0);
-        int sy = y0 < y1 ? 1 : -1;
-        int err = dx + dy;
-        int radiusSq = clipRadius * clipRadius;
-
-        int x = x0;
-        int y = y0;
-        while (true) {
-            if (isPointInsideCircle(x, y, clipCenterX, clipCenterY, radiusSq)) {
-                drawContext.fill(x, y, x + 1, y + 1, color);
-            }
-            if (x == x1 && y == y1) {
-                break;
-            }
-            int e2 = 2 * err;
-            if (e2 >= dy) {
-                err += dy;
-                x += sx;
-            }
-            if (e2 <= dx) {
-                err += dx;
-                y += sy;
-            }
-        }
-    }
-
     private static void drawDotCircleClipped(
             DrawContext drawContext,
             int x,
             int y,
             int radius,
             int color,
-            int clipCenterX,
-            int clipCenterY,
-            int clipRadius
+            float clipCenterX,
+            float clipCenterY,
+            float clipRadius
     ) {
-        int clipRadiusSq = clipRadius * clipRadius;
+        float clipRadiusSq = clipRadius * clipRadius;
         for (int py = y - radius; py <= y + radius; py++) {
             for (int px = x - radius; px <= x + radius; px++) {
                 if (isPointInsideCircle(px, py, clipCenterX, clipCenterY, clipRadiusSq)) {
@@ -913,28 +904,28 @@ public final class McdgClientMod implements ClientModInitializer {
 
     private static void drawCircleOutlineClipped(
             DrawContext drawContext,
-            int centerX,
-            int centerY,
-            int radius,
+            float centerX,
+            float centerY,
+            float radius,
             int color,
-            int clipCenterX,
-            int clipCenterY,
-            int clipRadius
+            float clipCenterX,
+            float clipCenterY,
+            float clipRadius
     ) {
-        int clipRadiusSq = clipRadius * clipRadius;
+        float clipRadiusSq = clipRadius * clipRadius;
         for (int degrees = 0; degrees < 360; degrees += 8) {
             double radians = Math.toRadians(degrees);
-            int px = centerX + (int) Math.round(Math.cos(radians) * radius);
-            int py = centerY + (int) Math.round(Math.sin(radians) * radius);
+            int px = Math.round(centerX + (float) Math.cos(radians) * radius);
+            int py = Math.round(centerY + (float) Math.sin(radians) * radius);
             if (isPointInsideCircle(px, py, clipCenterX, clipCenterY, clipRadiusSq)) {
                 drawContext.fill(px, py, px + 1, py + 1, color);
             }
         }
     }
 
-    private static boolean isPointInsideCircle(int x, int y, int centerX, int centerY, int radiusSq) {
-        int dx = x - centerX;
-        int dy = y - centerY;
+    private static boolean isPointInsideCircle(int x, int y, float centerX, float centerY, float radiusSq) {
+        float dx = x - centerX;
+        float dy = y - centerY;
         return ((dx * dx) + (dy * dy)) <= radiusSq;
     }
 
@@ -999,17 +990,9 @@ public final class McdgClientMod implements ClientModInitializer {
         try {
             int grid = HoleMiniMapSync.TERRAIN_GRID_SIZE;
             int denominator = Math.max(1, MINIMAP_TEXTURE_SIZE - 1);
-            float center = (MINIMAP_TEXTURE_SIZE - 1) / 2.0f;
-            float radiusSq = (center - 1.0f) * (center - 1.0f);
             for (int py = 0; py < MINIMAP_TEXTURE_SIZE; py++) {
                 float terrainFz = (py / (float) denominator) * (grid - 1);
-                float dy = py - center;
                 for (int px = 0; px < MINIMAP_TEXTURE_SIZE; px++) {
-                    float dx = px - center;
-                    if ((dx * dx + dy * dy) > radiusSq) {
-                        image.setColor(px, py, 0);
-                        continue;
-                    }
                     float terrainFx = (px / (float) denominator) * (grid - 1);
                     int color = sampleTerrainColorBilinear(terrainCells, grid, terrainFx, terrainFz);
                     image.setColor(px, py, argbToNativeRgba(color));

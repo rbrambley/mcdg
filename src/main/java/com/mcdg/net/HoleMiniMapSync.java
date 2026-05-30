@@ -11,6 +11,7 @@ public final class HoleMiniMapSync {
     public static final CustomPayload.Id<Payload> ID = new CustomPayload.Id<>(CHANNEL);
     public static final PacketCodec<RegistryByteBuf, Payload> CODEC = PacketCodec.of(Payload::write, Payload::read);
     public static final int TERRAIN_GRID_SIZE = 128;
+    public static final float MAP_OVERSCAN_FACTOR = 1.42f;
 
     private HoleMiniMapSync() {
     }

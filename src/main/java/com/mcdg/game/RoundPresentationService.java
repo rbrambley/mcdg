@@ -15,7 +15,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
 public final class RoundPresentationService {
-    private static final int COUNTDOWN_SECONDS = 5;
+    private static final int COUNTDOWN_SECONDS = 30;
     private static final int TICKS_PER_SECOND = 20;
 
     private final List<PendingCountdown> pendingCountdowns = new ArrayList<>();

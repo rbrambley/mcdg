@@ -131,12 +131,12 @@ public final class HoleProgressTracker {
                 int cumulativeParDelta = state.totalStrokes() - runningExpectedThrows;
 
                 MiniMapTerrainSnapshot previousTerrain = LAST_MINIMAP_TERRAIN.get(player.getUuid());
-                boolean refreshTerrain = shouldRefreshMiniMapTerrain(
-                        previousTerrain,
-                        server.getTicks(),
-                        state.currentHole(),
-                        state.lie(),
-                        rulesetManager
+                boolean refreshTerrain = !suppressHud && shouldRefreshMiniMapTerrain(
+                    previousTerrain,
+                    server.getTicks(),
+                    state.currentHole(),
+                    state.lie(),
+                    rulesetManager
                 );
                 MiniMapPayloadBuildResult miniMapPayload = buildMiniMapPayload(
                         player.getServerWorld(),
@@ -337,7 +337,8 @@ public final class HoleProgressTracker {
             int baseSpan = Math.max(Math.max(1, maxX - minX), Math.max(1, maxZ - minZ)) + 10;
             int maxLieDelta = maxLieDelta(lie, tee, basket, alternateAnchor);
             // Ensure a player-centered map still reaches far enough forward to include basket/route targets.
-            span = Math.max(120, Math.max(baseSpan, (maxLieDelta * 2) + 24));
+            int rawSpan = Math.max(baseSpan, (maxLieDelta * 2) + 24);
+            span = Math.max(120, Math.round(rawSpan * HoleMiniMapSync.MAP_OVERSCAN_FACTOR));
             int halfSpan = span / 2;
             originX = lie.getX() - halfSpan;
             originZ = lie.getZ() - halfSpan;
@@ -859,9 +860,13 @@ public final class HoleProgressTracker {
                             landingPenalty.name()
                     );
                 }
-                CrossingResolution crossing = findLastSolidBeforeOutCrossing(world, throwLie, landingFeet, currentHole, tee, basket, rulesetManager);
-                resultingLie = crossing.safeLie();
-                firstOutCrossing = crossing.firstOutCrossing();
+                if (landingPenalty == StrictPenaltyType.OB) {
+                    CrossingResolution crossing = findLastSolidBeforeOutCrossing(world, throwLie, landingFeet, currentHole, tee, basket, rulesetManager);
+                    resultingLie = crossing.safeLie();
+                    firstOutCrossing = crossing.firstOutCrossing();
+                } else {
+                    resultingLie = landingFeet;
+                }
 
                 int penaltyStrokes = landingPenalty == StrictPenaltyType.OB
                         ? rulesetManager.strictObPenaltyStrokes()
@@ -877,8 +882,11 @@ public final class HoleProgressTracker {
                 );
 
                 String label = landingPenalty == StrictPenaltyType.OB ? "OB" : "Hazard";
+                String penaltyText = landingPenalty == StrictPenaltyType.OB
+                        ? "Returned to last in-bounds solid block."
+                        : "Play next throw from hazard lie.";
                 player.sendMessage(
-                    Text.literal(label + " landing in strict mode: +" + penaltyStrokes + " stroke. Returned to last in-bounds solid block."),
+                    Text.literal(label + " landing in strict mode: +" + penaltyStrokes + " stroke. " + penaltyText),
                     true
                 );
                 sendStrictPenaltyTitle(player, landingPenalty, penaltyStrokes);
@@ -994,7 +1002,7 @@ public final class HoleProgressTracker {
                 || world.getFluidState(feet).isIn(FluidTags.LAVA)
                 || world.getFluidState(feet.down()).isIn(FluidTags.WATER)
                 || world.getFluidState(feet.down()).isIn(FluidTags.LAVA)) {
-            return StrictPenaltyType.HAZARD;
+            return StrictPenaltyType.OB;
         }
 
         if (rulesetManager.strictEnableSlopeHazard() && isSteepSlopeHazard(world, feet, rulesetManager.strictSlopeHazardDeltaY())) {

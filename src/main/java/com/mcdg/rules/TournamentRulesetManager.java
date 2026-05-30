@@ -20,7 +20,7 @@ public final class TournamentRulesetManager {
 
     private volatile Ruleset activeRuleset = Ruleset.STRICT;
     private volatile StrictSurfacePreset strictSurfacePreset = StrictSurfacePreset.BALANCED;
-    private volatile MiniMapQualityPreset miniMapQualityPreset = MiniMapQualityPreset.BALANCED;
+    private volatile MiniMapQualityPreset miniMapQualityPreset = MiniMapQualityPreset.PERFORMANCE;
 
     public Ruleset getActiveRuleset() {
         return activeRuleset;
@@ -121,17 +121,17 @@ public final class TournamentRulesetManager {
 
     public int miniMapTerrainRefreshIntervalTicks() {
         return switch (miniMapQualityPreset) {
-            case PERFORMANCE -> 30;
-            case BALANCED -> 10;
-            case ULTRA -> 2;
+            case PERFORMANCE -> 60;
+            case BALANCED -> 24;
+            case ULTRA -> 10;
         };
     }
 
     public int miniMapTerrainRefreshMoveThresholdBlocks() {
         return switch (miniMapQualityPreset) {
-            case PERFORMANCE -> 12;
-            case BALANCED -> 8;
-            case ULTRA -> 4;
+            case PERFORMANCE -> 20;
+            case BALANCED -> 12;
+            case ULTRA -> 8;
         };
     }
 }

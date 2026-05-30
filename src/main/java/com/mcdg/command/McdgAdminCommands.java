@@ -4,6 +4,8 @@ import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 
 import com.mcdg.data.Course;
+import com.mcdg.data.Hole;
+import com.mcdg.data.SignatureHoleType;
 import com.mcdg.game.ActiveCourseManager;
 import com.mcdg.game.McdgItems;
 import com.mcdg.game.PlacedCourseState;
@@ -23,15 +25,19 @@ import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import java.util.List;
+import java.util.ArrayList;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.minecraft.entity.boss.BossBar;
-import net.minecraft.entity.boss.ServerBossBar;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.network.packet.s2c.play.ClearTitleS2CPacket;
+import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
+import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
+import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 
@@ -221,11 +227,18 @@ public final class McdgAdminCommands {
         int holeCount = 9;
 
         try {
-            Course course = generator.generate(seed, holeCount);
+            Course generated = generator.generate(seed, holeCount);
+            Course course = ensureSingleSignatureHole(generated);
             courseManager.setActiveCourse(course);
+
+            Hole signatureHole = course.holes().stream().filter(Hole::isSignature).findFirst().orElse(null);
+            String signatureSuffix = signatureHole == null
+                    ? ""
+                    : " Signature: H" + signatureHole.index() + " (" + signatureHole.signatureType().displayName() + ").";
 
             source.sendFeedback(() -> Text.literal(
                     "Created active course '" + course.name() + "' with " + course.holes().size() + " holes (seed=" + seed + "). Use /mcdg startround or /mcdg practicecourse to place it near you on the surface."
+                            + signatureSuffix
             ), false);
             return 1;
         } catch (RuntimeException ex) {
@@ -250,6 +263,11 @@ public final class McdgAdminCommands {
                         source.sendError(Text.literal("No active course. Run /mcdg createcourse <seed> first."));
                         return 0;
                 }
+                Course normalizedCourse = ensureSingleSignatureHole(course);
+                if (normalizedCourse != course) {
+                        course = normalizedCourse;
+                        courseManager.setActiveCourse(course);
+                }
 
                 if (courseManager.isRoundActive()) {
                         source.sendError(Text.literal("Round is already active."));
@@ -271,17 +289,10 @@ public final class McdgAdminCommands {
                 ServerWorld world = source.getWorld();
                 int totalHoles = course.holes().size();
 
-                // Show a progress bar and status message before the terrain generation starts.
-                ServerBossBar progressBar = new ServerBossBar(
-                        Text.literal("Building course... 0/" + totalHoles + " holes"),
-                        BossBar.Color.GREEN,
-                        BossBar.Style.PROGRESS
-                );
-                progressBar.setPercent(0.0f);
+                // Show a center-screen progress title before terrain generation starts.
                 for (var barPlayer : source.getServer().getPlayerManager().getPlayerList()) {
                         if (barPlayer.getWorld().getRegistryKey().equals(world.getRegistryKey())) {
-                                progressBar.addPlayer(barPlayer);
-                                barPlayer.sendMessage(Text.literal("Building disc golf course, please wait..."), true);
+                                sendCourseBuildProgressOverlay(barPlayer, 0, totalHoles, 1, 1);
                         }
                 }
 
@@ -294,12 +305,11 @@ public final class McdgAdminCommands {
                                 BlockPos attemptOrigin = offsetOriginForAttempt(baseOrigin, attempt);
                                 final int displayAttempt = attempt;
                                 placed = placementService.placeCourse(world, attemptOrigin, course, holesDone -> {
-                                        float pct = holesDone / (float) totalHoles;
-                                        progressBar.setPercent(Math.min(1.0f, pct));
-                                        progressBar.setName(Text.literal(
-                                                "Building course... " + holesDone + "/" + totalHoles + " holes"
-                                                        + " (attempt " + displayAttempt + "/" + maxPlacementAttempts + ")"
-                                        ));
+                                        for (var barPlayer : source.getServer().getPlayerManager().getPlayerList()) {
+                                                if (barPlayer.getWorld().getRegistryKey().equals(world.getRegistryKey())) {
+                                                        sendCourseBuildProgressOverlay(barPlayer, holesDone, totalHoles, displayAttempt, maxPlacementAttempts);
+                                                }
+                                        }
                                 });
 
                                 CoursePlacementValidator.ValidationReport attemptReport = placementValidator.validatePlacedCourse(
@@ -327,7 +337,9 @@ public final class McdgAdminCommands {
 
                         if (placed == null) {
                                 for (var barPlayer : source.getServer().getPlayerManager().getPlayerList()) {
-                                        progressBar.removePlayer(barPlayer);
+                                        if (barPlayer.getWorld().getRegistryKey().equals(world.getRegistryKey())) {
+                                                clearCourseBuildProgressOverlay(barPlayer);
+                                        }
                                 }
                                 source.sendError(Text.literal(
                                         "Failed to place a surface-playable course after multiple attempts (deeply enclosed basket detected)."
@@ -335,9 +347,11 @@ public final class McdgAdminCommands {
                                 return 0;
                         }
 
-                        // Course is placed — remove the progress bar.
+                        // Course is placed — clear the center-screen progress title.
                         for (var barPlayer : source.getServer().getPlayerManager().getPlayerList()) {
-                                progressBar.removePlayer(barPlayer);
+                                if (barPlayer.getWorld().getRegistryKey().equals(world.getRegistryKey())) {
+                                        clearCourseBuildProgressOverlay(barPlayer);
+                                }
                         }
 
                         roundStateManager.clearAll();
@@ -436,6 +450,11 @@ public final class McdgAdminCommands {
                         source.sendError(Text.literal("No stale placed course found. Use /mcdg startround or /mcdg practicecourse first."));
                         return 0;
                 }
+                Course normalizedCourse = ensureSingleSignatureHole(course);
+                if (normalizedCourse != course) {
+                        course = normalizedCourse;
+                        courseManager.setActiveCourse(course);
+                }
 
                 if (courseManager.isRoundActive()) {
                         source.sendError(Text.literal("Round is already active."));
@@ -531,11 +550,32 @@ public final class McdgAdminCommands {
                 return par;
         }
 
+        private static void sendCourseBuildProgressOverlay(
+                        ServerPlayerEntity player,
+                        int holesDone,
+                        int totalHoles,
+                        int attempt,
+                        int maxAttempts
+        ) {
+                int clampedDone = Math.max(0, Math.min(totalHoles, holesDone));
+                int percent = totalHoles <= 0 ? 0 : Math.round((clampedDone * 100.0f) / totalHoles);
+                String title = "Building Course " + percent + "%";
+                String subtitle = clampedDone + "/" + totalHoles + " holes  |  attempt " + attempt + "/" + maxAttempts;
+
+                player.networkHandler.sendPacket(new TitleFadeS2CPacket(2, 18, 5));
+                player.networkHandler.sendPacket(new TitleS2CPacket(Text.literal(title).formatted(Formatting.GOLD, Formatting.BOLD)));
+                player.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal(subtitle).formatted(Formatting.WHITE)));
+        }
+
+        private static void clearCourseBuildProgressOverlay(ServerPlayerEntity player) {
+                player.networkHandler.sendPacket(new ClearTitleS2CPacket(true));
+        }
+
         private static void announceSignatureHole(ServerCommandSource source, Course course, List<java.util.UUID> participantIds) {
                 var signatureHole = course.holes().stream().filter(hole -> hole.isSignature()).findFirst();
                 if (signatureHole.isEmpty()) {
                         if (source.getEntity() instanceof ServerPlayerEntity player) {
-                                player.sendMessage(Text.literal("Signature Hole: none detected on this layout."), true);
+                                player.sendMessage(Text.literal("Signature Hole: none detected on this layout."), false);
                         } else {
                                 source.sendFeedback(() -> Text.literal("Signature Hole: none detected on this layout."), false);
                         }
@@ -545,7 +585,7 @@ public final class McdgAdminCommands {
                 var hole = signatureHole.get();
                 String message = "Signature Hole: H" + hole.index() + " | " + hole.signatureType().displayName();
                 if (source.getEntity() instanceof ServerPlayerEntity player) {
-                        player.sendMessage(Text.literal(message), true);
+                        showSignatureHoleOverlay(player, hole);
                 } else {
                         source.sendFeedback(() -> Text.literal(message), false);
                 }
@@ -553,9 +593,63 @@ public final class McdgAdminCommands {
                 for (java.util.UUID participantId : participantIds) {
                         var player = source.getServer().getPlayerManager().getPlayer(participantId);
                         if (player != null) {
-                                player.sendMessage(Text.literal(message), true);
+                                showSignatureHoleOverlay(player, hole);
                         }
                 }
+        }
+
+        private static void showSignatureHoleOverlay(ServerPlayerEntity player, Hole hole) {
+                player.networkHandler.sendPacket(new TitleFadeS2CPacket(6, 60, 12));
+                player.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("Signature Hole: H" + hole.index()).formatted(Formatting.GOLD, Formatting.BOLD)));
+                player.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal(hole.signatureType().displayName()).formatted(Formatting.WHITE)));
+        }
+
+        private static Course ensureSingleSignatureHole(Course generated) {
+                if (generated == null || generated.holes().isEmpty()) {
+                        return generated;
+                }
+
+                List<Hole> normalized = new ArrayList<>(generated.holes().size());
+                int signatureCount = 0;
+                for (Hole hole : generated.holes()) {
+                        if (hole.isSignature()) {
+                                signatureCount++;
+                        }
+                        normalized.add(hole);
+                }
+
+                if (signatureCount == 1) {
+                        return generated;
+                }
+
+                for (int i = 0; i < normalized.size(); i++) {
+                        Hole hole = normalized.get(i);
+                        if (hole.isSignature()) {
+                                normalized.set(i, new Hole(
+                                        hole.index(),
+                                        hole.par(),
+                                        hole.distanceFeet(),
+                                        hole.tee(),
+                                        hole.basket(),
+                                        hole.fairwaySegments(),
+                                        SignatureHoleType.NONE
+                                ));
+                        }
+                }
+
+                int sigIndex = Math.floorMod((int) generated.seed(), normalized.size());
+                Hole selected = normalized.get(sigIndex);
+                normalized.set(sigIndex, new Hole(
+                        selected.index(),
+                        selected.par(),
+                        selected.distanceFeet(),
+                        selected.tee(),
+                        selected.basket(),
+                        selected.fairwaySegments(),
+                        SignatureHoleType.ISLAND_GREEN
+                ));
+
+                return new Course(generated.seed(), generated.name(), normalized);
         }
 
         private static boolean hasDeeplyEnclosedBasketIssue(CoursePlacementValidator.ValidationReport report) {
@@ -600,6 +694,7 @@ public final class McdgAdminCommands {
                         return 0;
                 }
 
+                evacuatePlayersBeforeCleanup(source, world);
                 placementService.resetPlacedCourse(world, placed);
                 removeJunkDropsNearCourse(world, placed);
                 removeRoundThrowItemsFromCourseWorldPlayers(source, courseManager);
@@ -610,6 +705,21 @@ public final class McdgAdminCommands {
 
                 source.sendFeedback(() -> Text.literal("Course cleanup complete. Original blocks restored."), true);
                 return 1;
+        }
+
+        private static void evacuatePlayersBeforeCleanup(ServerCommandSource source, ServerWorld world) {
+                BlockPos safeFeet = resolveSafeFeetNear(world, world.getSpawnPos());
+                double tx = safeFeet.getX() + 0.5;
+                double ty = safeFeet.getY() + 1.0;
+                double tz = safeFeet.getZ() + 0.5;
+
+                for (ServerPlayerEntity player : source.getServer().getPlayerManager().getPlayerList()) {
+                        if (!player.getWorld().getRegistryKey().equals(world.getRegistryKey())) {
+                                continue;
+                        }
+                        player.teleport(tx, ty, tz);
+                        player.sendMessage(Text.literal("Course cleanup in progress. Moved to a safe location."), true);
+                }
         }
 
         private static void teleportSourcePlayerToHoleOne(
