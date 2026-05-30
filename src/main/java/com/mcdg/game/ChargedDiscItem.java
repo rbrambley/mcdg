@@ -1,5 +1,6 @@
 package com.mcdg.game;
 
+import com.mcdg.McdgMod;
 import com.mcdg.rules.TournamentRulesetManager;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -27,17 +28,20 @@ public final class ChargedDiscItem extends Item {
     private final ActiveCourseManager courseManager;
     private final RoundStateManager roundStateManager;
     private final TournamentRulesetManager rulesetManager;
+    private final boolean strictFlowDebug;
 
     public ChargedDiscItem(
             Settings settings,
             ActiveCourseManager courseManager,
             RoundStateManager roundStateManager,
-            TournamentRulesetManager rulesetManager
+            TournamentRulesetManager rulesetManager,
+            boolean strictFlowDebug
     ) {
         super(settings);
         this.courseManager = courseManager;
         this.roundStateManager = roundStateManager;
         this.rulesetManager = rulesetManager;
+        this.strictFlowDebug = strictFlowDebug;
     }
 
     @Override
@@ -99,22 +103,77 @@ public final class ChargedDiscItem extends Item {
         // In casual mode there is no enforcement — and even in strict mode we must only
         // check AFTER the tracker has had a chance to update the lie from the previous
         // pearl landing, otherwise the player is always blocked on throw #2+.
+        // NOTE: totalStrokes > 0 guard was intentionally removed — the first throw of the
+        // entire round (hole 1, throw 1) must also be gated because the initial lie is
+        // set to the tee position at round start, so the distance check is valid.
         if (rulesetManager.isStrict()) {
             var state = roundStateManager.getState(serverPlayer.getUuid()).orElse(null);
-            if (state != null && state.totalStrokes() > 0) {
-                int distanceFromLie = horizontalDistance(serverPlayer.getBlockPos(), state.lie());
-                int allowedDistance = rulesetManager.allowedLieToleranceBlocks();
-                if (distanceFromLie > allowedDistance) {
-                    serverPlayer.sendMessage(
-                            Text.literal(
-                                    "Move back to your lie before throwing. "
-                                    + "Distance=" + distanceFromLie
-                                    + " blocks, allowed=" + allowedDistance
-                                    + " (strict)."
-                            ).formatted(Formatting.RED),
-                            true
+            if (state != null && !state.lastThrowPenalty()) {
+            if (HoleProgressTracker.isThrowResolutionPending(serverPlayer.getUuid(), state.totalStrokes())) {
+                String snapshot = HoleProgressTracker.strictThrowGateDebugSnapshot(serverPlayer.getUuid(), state.totalStrokes());
+                McdgMod.LOGGER.info(
+                    "Strict throw gate pending resolution | player={} total={} hole={} lie={} playerPos={} snapshot={}",
+                    serverPlayer.getGameProfile().getName(),
+                    state.totalStrokes(),
+                    state.currentHole(),
+                    formatPos(state.lie()),
+                    formatPos(serverPlayer.getBlockPos()),
+                    snapshot
+                );
+                serverPlayer.sendMessage(
+                    Text.literal("Wait for the previous throw to finish resolving before throwing again.")
+                        .formatted(Formatting.YELLOW),
+                    true
+                );
+                return;
+            }
+
+                boolean bypassConsumed = HoleProgressTracker.consumeStrictPenaltyThrowBypass(serverPlayer.getUuid());
+                if (strictFlowDebug) {
+                    String snapshot = HoleProgressTracker.strictThrowGateDebugSnapshot(serverPlayer.getUuid(), state.totalStrokes());
+                    McdgMod.LOGGER.info(
+                        "Strict throw gate | player={} total={} hole={} lie={} playerPos={} bypass={} allowed={} strict={} snapshot={}",
+                            serverPlayer.getGameProfile().getName(),
+                            state.totalStrokes(),
+                            state.currentHole(),
+                            formatPos(state.lie()),
+                            formatPos(serverPlayer.getBlockPos()),
+                            bypassConsumed,
+                            rulesetManager.allowedLieToleranceBlocks(),
+                        rulesetManager.isStrict(),
+                        snapshot
                     );
-                    return;
+                }
+                if (!bypassConsumed) {
+                    int distanceFromLie = horizontalDistance(serverPlayer.getBlockPos(), state.lie());
+                    int allowedDistance = rulesetManager.allowedLieToleranceBlocks();
+                    if (distanceFromLie > allowedDistance) {
+                        String snapshot = HoleProgressTracker.strictThrowGateDebugSnapshot(serverPlayer.getUuid(), state.totalStrokes());
+                        McdgMod.LOGGER.warn(
+                                "Strict throw gate blocked | player={} hole={} total={} holeStrokes={} distanceFromLie={} allowed={} stateLie={} playerPos={} lastPenalty={} bypassConsumed={} snapshot={}",
+                                serverPlayer.getGameProfile().getName(),
+                                state.currentHole(),
+                                state.totalStrokes(),
+                                state.holeStrokes(),
+                                distanceFromLie,
+                                allowedDistance,
+                                formatPos(state.lie()),
+                                formatPos(serverPlayer.getBlockPos()),
+                                state.lastThrowPenalty(),
+                                bypassConsumed,
+                                snapshot
+                        );
+                        serverPlayer.sendMessage(
+                                Text.literal(
+                                        "Move back to your lie before throwing. "
+                                        + "Distance=" + distanceFromLie
+                                        + " blocks, allowed=" + allowedDistance
+                                        + " (strict)."
+                                ).formatted(Formatting.RED),
+                                true
+                        );
+                        return;
+                    }
                 }
             }
         }
@@ -127,6 +186,7 @@ public final class ChargedDiscItem extends Item {
         pearl.setItem(new ItemStack(Items.ENDER_PEARL));
         pearl.setVelocity(serverPlayer, serverPlayer.getPitch(), serverPlayer.getYaw(), 0.0f, velocity, 1.0f);
         world.spawnEntity(pearl);
+        HoleProgressTracker.registerThrowRelease(serverPlayer.getUuid(), pearl.getUuid(), world.getTime());
 
         world.playSound(
                 null,
@@ -140,6 +200,17 @@ public final class ChargedDiscItem extends Item {
         );
 
         roundStateManager.recordThrow(serverPlayer.getUuid(), serverPlayer.getBlockPos());
+        if (strictFlowDebug) {
+            McdgMod.LOGGER.info(
+                "Strict throw release | player={} usedTicks={} charge={} velocity={} pos={} strict={}",
+                serverPlayer.getGameProfile().getName(),
+                usedTicks,
+                String.format("%.3f", charge),
+                String.format("%.3f", velocity),
+                formatPos(serverPlayer.getBlockPos()),
+                rulesetManager.isStrict()
+            );
+        }
         Hand swingHand = serverPlayer.getMainHandStack().isOf(stack.getItem()) ? Hand.MAIN_HAND : Hand.OFF_HAND;
         serverPlayer.swingHand(swingHand, true);
         serverPlayer.sendMessage(buildReleaseText(charge), true);
@@ -177,5 +248,9 @@ public final class ChargedDiscItem extends Item {
         int dx = Math.abs(from.getX() - to.getX());
         int dz = Math.abs(from.getZ() - to.getZ());
         return Math.max(dx, dz);
+    }
+
+    private static String formatPos(net.minecraft.util.math.BlockPos pos) {
+        return pos.getX() + "," + pos.getY() + "," + pos.getZ();
     }
 }

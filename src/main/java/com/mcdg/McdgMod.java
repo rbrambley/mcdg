@@ -10,6 +10,7 @@ import com.mcdg.game.RoundPresentationService;
 import com.mcdg.game.RoundRespawnHandler;
 import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.ThrowAutoTestService;
+import com.mcdg.net.HoleMiniMapSync;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
@@ -18,6 +19,7 @@ import com.mcdg.world.PlacementAutoTestService;
 import com.mcdg.world.SeededCourseGenerator;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.api.ModInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +28,8 @@ public final class McdgMod implements ModInitializer {
     public static final String MOD_ID = "mcdg";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     private static final String AUTOTEST_ENV = "MCDG_AUTOTEST";
+    private static final String AUTO_STRICT_SETUP_ENV = "MCDG_AUTO_STRICT_SETUP";
+    private static final int AUTO_STRICT_SETUP_MAX_WAIT_TICKS = 20 * 120;
 
     private static final CourseGenerator COURSE_GENERATOR = new SeededCourseGenerator();
     private static final ActiveCourseManager ACTIVE_COURSE_MANAGER = new ActiveCourseManager();
@@ -46,11 +50,14 @@ public final class McdgMod implements ModInitializer {
             ACTIVE_COURSE_MANAGER,
             ROUND_STATE_MANAGER
     );
+        private static Long pendingAutoStrictSetupSeed;
+        private static int pendingAutoStrictSetupWaitTicks;
 
     @Override
     public void onInitialize() {
+        PayloadTypeRegistry.playS2C().register(HoleMiniMapSync.ID, HoleMiniMapSync.CODEC);
         McdgConfig config = McdgConfig.loadDefault();
-        McdgItems.register(ACTIVE_COURSE_MANAGER, ROUND_STATE_MANAGER, TOURNAMENT_RULESET_MANAGER);
+        McdgItems.register(ACTIVE_COURSE_MANAGER, ROUND_STATE_MANAGER, TOURNAMENT_RULESET_MANAGER, config.enableStrictFlowDebug());
         McdgAdminCommands.register(
             COURSE_GENERATOR,
             ACTIVE_COURSE_MANAGER,
@@ -67,13 +74,16 @@ public final class McdgMod implements ModInitializer {
         ServerTickEvents.END_SERVER_TICK.register(PLACEMENT_AUTO_TEST_SERVICE::tick);
         ServerTickEvents.END_SERVER_TICK.register(THROW_AUTO_TEST_SERVICE::tick);
         ServerTickEvents.END_SERVER_TICK.register(ROUND_PRESENTATION_SERVICE::tick);
+        ServerTickEvents.END_SERVER_TICK.register(McdgMod::handlePendingAutoStrictSetup);
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::loadPersistedPracticeCourse);
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::maybeStartHeadlessAutoTest);
+        ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::maybeStartAutoStrictSetup);
         HoleProgressTracker.register(
             ACTIVE_COURSE_MANAGER,
             ROUND_STATE_MANAGER,
             TOURNAMENT_RULESET_MANAGER,
-            config.enableHudScoringDebug()
+            config.enableHudScoringDebug(),
+            config.enableStrictFlowDebug()
         );
         RoundRespawnHandler.register(
             ACTIVE_COURSE_MANAGER,
@@ -82,12 +92,13 @@ public final class McdgMod implements ModInitializer {
             config.respawnPenaltyStrokes()
         );
 
-        LOGGER.info("Initialized {} (defaultHoles={}, protection={}, debug={}, hudScoringDebug={}, skipRoundPresentation={}, rulesetDefault={}, strictRespawnPenaltyStrokes={})",
+        LOGGER.info("Initialized {} (defaultHoles={}, protection={}, debug={}, hudScoringDebug={}, strictFlowDebug={}, skipRoundPresentation={}, rulesetDefault={}, strictRespawnPenaltyStrokes={})",
                 MOD_ID,
                 config.defaultHoleCount(),
             config.enforceCourseProtection(),
             config.enableDebugLogging(),
             config.enableHudScoringDebug(),
+            config.enableStrictFlowDebug(),
             config.skipRoundPresentation(),
             TOURNAMENT_RULESET_MANAGER.getActiveRuleset().name().toLowerCase(),
             config.respawnPenaltyStrokes());
@@ -125,6 +136,71 @@ public final class McdgMod implements ModInitializer {
                 LOGGER.error("Headless autotest did not start.");
             }
         });
+    }
+
+    private static void maybeStartAutoStrictSetup(net.minecraft.server.MinecraftServer server) {
+        String value = System.getenv(AUTO_STRICT_SETUP_ENV);
+        if (value == null || value.isBlank()) {
+            return;
+        }
+
+        long seed;
+        try {
+            seed = Long.parseLong(value.trim());
+        } catch (NumberFormatException ex) {
+            LOGGER.error("Invalid {} value '{}'. Expected a numeric seed.", AUTO_STRICT_SETUP_ENV, value);
+            return;
+        }
+
+        LOGGER.info("Auto strict setup requested via {}: seed={}", AUTO_STRICT_SETUP_ENV, seed);
+        pendingAutoStrictSetupSeed = seed;
+        pendingAutoStrictSetupWaitTicks = 0;
+    }
+
+    private static void handlePendingAutoStrictSetup(net.minecraft.server.MinecraftServer server) {
+        Long pendingSeed = pendingAutoStrictSetupSeed;
+        if (pendingSeed == null) {
+            return;
+        }
+
+        if (server.getPlayerManager().getPlayerList().isEmpty()) {
+            pendingAutoStrictSetupWaitTicks++;
+            if (pendingAutoStrictSetupWaitTicks % 100 == 0) {
+                LOGGER.info("Auto strict setup waiting for player join... {} ticks", pendingAutoStrictSetupWaitTicks);
+            }
+            if (pendingAutoStrictSetupWaitTicks >= AUTO_STRICT_SETUP_MAX_WAIT_TICKS) {
+                LOGGER.error("Auto strict setup timed out waiting for a player to join.");
+                pendingAutoStrictSetupSeed = null;
+                pendingAutoStrictSetupWaitTicks = 0;
+            }
+            return;
+        }
+
+        pendingAutoStrictSetupSeed = null;
+        pendingAutoStrictSetupWaitTicks = 0;
+
+        var commandManager = server.getCommandManager();
+        var source = server.getCommandSource();
+
+        commandManager.executeWithPrefix(source, "mcdg createcourse " + pendingSeed);
+        if (ACTIVE_COURSE_MANAGER.getActiveCourse().isEmpty()) {
+            LOGGER.error("Auto strict setup failed while creating course.");
+            return;
+        }
+
+        commandManager.executeWithPrefix(source, "mcdg ruleset strict");
+        if (!TOURNAMENT_RULESET_MANAGER.isStrict()) {
+            LOGGER.error("Auto strict setup failed while enabling strict rules.");
+            return;
+        }
+
+        commandManager.executeWithPrefix(source, "mcdg startround");
+        if (!ACTIVE_COURSE_MANAGER.isRoundActive()) {
+            LOGGER.error("Auto strict setup failed while starting round.");
+            return;
+        }
+
+        LOGGER.info("Auto strict setup complete: course created, strict mode enabled, round started.");
     }
 
     private static void loadPersistedPracticeCourse(net.minecraft.server.MinecraftServer server) {

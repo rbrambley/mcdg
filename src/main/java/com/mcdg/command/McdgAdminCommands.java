@@ -20,6 +20,7 @@ import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.CourseGenerator;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import java.util.List;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -53,7 +54,7 @@ public final class McdgAdminCommands {
     ) {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
                 dispatcher.register(literal("mcdg")
-                        .requires(source -> source.hasPermissionLevel(2))
+                        .requires(McdgAdminCommands::canUseAdminCommands)
                         .then(literal("createcourse")
                                 .then(argument("seed", LongArgumentType.longArg())
                                         .executes(context -> executeCreateCourse(
@@ -107,7 +108,29 @@ public final class McdgAdminCommands {
                                 .then(literal("casual")
                                         .executes(context -> executeSetRuleset(context, rulesetManager, TournamentRulesetManager.Ruleset.CASUAL)))
                                 .then(literal("strict")
-                                        .executes(context -> executeSetRuleset(context, rulesetManager, TournamentRulesetManager.Ruleset.STRICT))))
+                                        .executes(context -> executeSetRuleset(context, rulesetManager, TournamentRulesetManager.Ruleset.STRICT)))
+                                .then(literal("surface")
+                                        .executes(context -> executeShowStrictSurfacePreset(context, rulesetManager))
+                                        .then(argument("preset", StringArgumentType.word())
+                                                .suggests((context, builder) -> {
+                                                        builder.suggest("fast");
+                                                        builder.suggest("balanced");
+                                                        builder.suggest("tournament");
+                                                        return builder.buildFuture();
+                                                })
+                                                .executes(context -> executeSetStrictSurfacePreset(context, rulesetManager, StringArgumentType.getString(context, "preset")))))
+                                .then(literal("minimap")
+                                        .executes(context -> executeShowMiniMapQualityPreset(context, rulesetManager))
+                                        .then(argument("preset", StringArgumentType.word())
+                                                .suggests((context, builder) -> {
+                                                        builder.suggest("performance");
+                                                        builder.suggest("balanced");
+                                                        builder.suggest("ultra");
+                                                        return builder.buildFuture();
+                                                })
+                                                .executes(context -> executeSetMiniMapQualityPreset(context, rulesetManager, StringArgumentType.getString(context, "preset"))))))
+                        .then(literal("debugperms")
+                                .executes(context -> executeDebugPermissions(context.getSource())))
                         .then(literal("validateplacement")
                                 .executes(context -> executeValidatePlacement(
                                         context.getSource(),
@@ -151,6 +174,43 @@ public final class McdgAdminCommands {
                         .then(literal("cancelthrowtest")
                                 .executes(context -> executeCancelThrowTest(context.getSource(), throwAutoTestService)))));
     }
+
+        private static boolean canUseAdminCommands(ServerCommandSource source) {
+                if (source.hasPermissionLevel(2)) {
+                        return true;
+                }
+
+                // Keep local/integrated dev sessions usable even when OP metadata is not applied.
+                return !source.getServer().isDedicated();
+        }
+
+        private static int executeDebugPermissions(ServerCommandSource source) {
+                boolean hasPermissionLevelTwo = source.hasPermissionLevel(2);
+                boolean dedicated = source.getServer().isDedicated();
+                boolean allowedByGate = canUseAdminCommands(source);
+
+                String sourceType = "non-entity";
+                String sourceIdentity = source.getName();
+                if (source.getEntity() instanceof ServerPlayerEntity player) {
+                        sourceType = "player";
+                        sourceIdentity = player.getGameProfile().getName() + " (" + player.getUuid() + ")";
+                } else if (source.getEntity() != null) {
+                        sourceType = "entity";
+                        sourceIdentity = source.getEntity().getName().getString();
+                }
+
+                final String finalSourceType = sourceType;
+                final String finalSourceIdentity = sourceIdentity;
+
+                source.sendFeedback(() -> Text.literal(
+                        "mcdg debug perms -> hasPermissionLevel(2)=" + hasPermissionLevelTwo
+                                + ", dedicated=" + dedicated
+                                + ", canUseAdminCommands=" + allowedByGate
+                                + ", sourceType=" + finalSourceType
+                                + ", source=" + finalSourceIdentity
+                ), false);
+                return 1;
+        }
 
     private static int executeCreateCourse(
             ServerCommandSource source,
@@ -315,6 +375,7 @@ public final class McdgAdminCommands {
                         }
 
                         final int trackedPlayers = initializedPlayers;
+                        announceSignatureHole(source, course, participantIds);
 
                         courseManager.setPlacedCourseState(placed);
                         courseManager.setPersistentPlacedCourse(persistentCourse);
@@ -430,6 +491,7 @@ public final class McdgAdminCommands {
                 }
 
                 final int trackedPlayers = initializedPlayers;
+                announceSignatureHole(source, course, participantIds);
                 if (skipRoundPresentation) {
                         courseManager.setRoundActive(true);
                         teleportSourcePlayerToHoleOne(source, courseManager, roundStateManager);
@@ -467,6 +529,33 @@ public final class McdgAdminCommands {
                         par += hole.par();
                 }
                 return par;
+        }
+
+        private static void announceSignatureHole(ServerCommandSource source, Course course, List<java.util.UUID> participantIds) {
+                var signatureHole = course.holes().stream().filter(hole -> hole.isSignature()).findFirst();
+                if (signatureHole.isEmpty()) {
+                        if (source.getEntity() instanceof ServerPlayerEntity player) {
+                                player.sendMessage(Text.literal("Signature Hole: none detected on this layout."), true);
+                        } else {
+                                source.sendFeedback(() -> Text.literal("Signature Hole: none detected on this layout."), false);
+                        }
+                        return;
+                }
+
+                var hole = signatureHole.get();
+                String message = "Signature Hole: H" + hole.index() + " | " + hole.signatureType().displayName();
+                if (source.getEntity() instanceof ServerPlayerEntity player) {
+                        player.sendMessage(Text.literal(message), true);
+                } else {
+                        source.sendFeedback(() -> Text.literal(message), false);
+                }
+
+                for (java.util.UUID participantId : participantIds) {
+                        var player = source.getServer().getPlayerManager().getPlayer(participantId);
+                        if (player != null) {
+                                player.sendMessage(Text.literal(message), true);
+                        }
+                }
         }
 
         private static boolean hasDeeplyEnclosedBasketIssue(CoursePlacementValidator.ValidationReport report) {
@@ -605,7 +694,14 @@ public final class McdgAdminCommands {
                         TournamentRulesetManager rulesetManager
         ) {
                 TournamentRulesetManager.Ruleset active = rulesetManager.getActiveRuleset();
-                context.getSource().sendFeedback(() -> Text.literal("Current ruleset: " + active.name().toLowerCase()), false);
+                TournamentRulesetManager.StrictSurfacePreset preset = rulesetManager.getStrictSurfacePreset();
+                TournamentRulesetManager.MiniMapQualityPreset miniMapPreset = rulesetManager.getMiniMapQualityPreset();
+                context.getSource().sendFeedback(
+                        () -> Text.literal("Current ruleset: " + active.name().toLowerCase()
+                                + " | strict surface preset: " + preset.name().toLowerCase()
+                                + " | minimap quality preset: " + miniMapPreset.name().toLowerCase()),
+                        false
+                );
                 return 1;
         }
 
@@ -616,6 +712,68 @@ public final class McdgAdminCommands {
         ) {
                 rulesetManager.setActiveRuleset(ruleset);
                 context.getSource().sendFeedback(() -> Text.literal("Ruleset set to " + ruleset.name().toLowerCase() + "."), true);
+                return 1;
+        }
+
+        private static int executeShowStrictSurfacePreset(
+                        CommandContext<ServerCommandSource> context,
+                        TournamentRulesetManager rulesetManager
+        ) {
+                TournamentRulesetManager.StrictSurfacePreset preset = rulesetManager.getStrictSurfacePreset();
+                context.getSource().sendFeedback(
+                        () -> Text.literal("Strict surface preset: " + preset.name().toLowerCase()),
+                        false
+                );
+                return 1;
+        }
+
+        private static int executeSetStrictSurfacePreset(
+                        CommandContext<ServerCommandSource> context,
+                        TournamentRulesetManager rulesetManager,
+                        String presetName
+        ) {
+                TournamentRulesetManager.StrictSurfacePreset preset;
+                try {
+                        preset = TournamentRulesetManager.StrictSurfacePreset.valueOf(presetName.toUpperCase());
+                } catch (IllegalArgumentException ex) {
+                        context.getSource().sendError(Text.literal("Unknown strict surface preset: " + presetName + ". Use fast, balanced, or tournament."));
+                        return 0;
+                }
+
+                rulesetManager.setStrictSurfacePreset(preset);
+                context.getSource().sendFeedback(() -> Text.literal("Strict surface preset set to " + preset.name().toLowerCase() + "."), true);
+                return 1;
+        }
+
+        private static int executeShowMiniMapQualityPreset(
+                        CommandContext<ServerCommandSource> context,
+                        TournamentRulesetManager rulesetManager
+        ) {
+                TournamentRulesetManager.MiniMapQualityPreset preset = rulesetManager.getMiniMapQualityPreset();
+                context.getSource().sendFeedback(
+                        () -> Text.literal("Mini-map quality preset: " + preset.name().toLowerCase()
+                                + " | terrain refresh interval: " + rulesetManager.miniMapTerrainRefreshIntervalTicks() + " ticks"
+                                + " | move threshold: " + rulesetManager.miniMapTerrainRefreshMoveThresholdBlocks() + " blocks"),
+                        false
+                );
+                return 1;
+        }
+
+        private static int executeSetMiniMapQualityPreset(
+                        CommandContext<ServerCommandSource> context,
+                        TournamentRulesetManager rulesetManager,
+                        String presetName
+        ) {
+                TournamentRulesetManager.MiniMapQualityPreset preset;
+                try {
+                        preset = TournamentRulesetManager.MiniMapQualityPreset.valueOf(presetName.toUpperCase());
+                } catch (IllegalArgumentException ex) {
+                        context.getSource().sendError(Text.literal("Unknown mini-map quality preset: " + presetName + ". Use performance, balanced, or ultra."));
+                        return 0;
+                }
+
+                rulesetManager.setMiniMapQualityPreset(preset);
+                context.getSource().sendFeedback(() -> Text.literal("Mini-map quality preset set to " + preset.name().toLowerCase() + "."), true);
                 return 1;
         }
 
