@@ -38,14 +38,10 @@ public final class SeededCourseGenerator implements CourseGenerator {
         }
 
         // Pick exactly one signature hole per course, seeded for determinism.
+        // Keep v1 explicit: always use Island Green so the signature identity is obvious in play.
         if (holeCount >= 1) {
-            SignatureHoleType[] types = {
-                SignatureHoleType.ISLAND_GREEN,
-                SignatureHoleType.TUNNEL_GAP,
-                SignatureHoleType.DOWNHILL_BOMBER
-            };
             int sigIndex = random.nextInt(holeCount);
-            SignatureHoleType sigType = types[random.nextInt(types.length)];
+            SignatureHoleType sigType = SignatureHoleType.ISLAND_GREEN;
             Hole original = holes.get(sigIndex);
             holes.set(sigIndex, new Hole(
                 original.index(),

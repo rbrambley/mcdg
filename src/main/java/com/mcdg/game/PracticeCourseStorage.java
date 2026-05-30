@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import net.minecraft.block.BlockState;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
@@ -32,7 +33,7 @@ import net.minecraft.world.World;
 public final class PracticeCourseStorage {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String FILE_NAME = "mcdg-practice-course.json";
-    private static final int CURRENT_SNAPSHOT_VERSION = 2;
+    private static final int CURRENT_SNAPSHOT_VERSION = 4;
 
     public void save(MinecraftServer server, Course course, PlacedCourseState placedCourseState) {
         PracticeCourseSnapshot snapshot = PracticeCourseSnapshot.from(course, placedCourseState);
@@ -97,6 +98,7 @@ public final class PracticeCourseStorage {
         private List<BlockEntrySnapshot> originalBlocks;
         private List<IndexedPosSnapshot> placedTees;
         private List<IndexedPosSnapshot> placedBaskets;
+        private List<IndexedPosSnapshot> placedAlternateAnchors;
 
         private static PracticeCourseSnapshot from(Course course, PlacedCourseState placedCourseState) {
             PracticeCourseSnapshot snapshot = new PracticeCourseSnapshot();
@@ -109,6 +111,7 @@ public final class PracticeCourseStorage {
             }
             snapshot.placedTees = IndexedPosSnapshot.fromMap(placedCourseState.holeTees());
             snapshot.placedBaskets = IndexedPosSnapshot.fromMap(placedCourseState.holeBaskets());
+            snapshot.placedAlternateAnchors = IndexedPosSnapshot.fromMap(placedCourseState.holeAlternateAnchors());
             return snapshot;
         }
 
@@ -132,6 +135,7 @@ public final class PracticeCourseStorage {
             }
             Map<Integer, BlockPos> tees = IndexedPosSnapshot.toMap(placedTees);
             Map<Integer, BlockPos> baskets = IndexedPosSnapshot.toMap(placedBaskets);
+            Map<Integer, BlockPos> alternateAnchors = IndexedPosSnapshot.toMap(placedAlternateAnchors);
 
             if (tees.isEmpty()) {
                 tees = course.toHoleTees();
@@ -140,11 +144,14 @@ public final class PracticeCourseStorage {
                 baskets = course.toHoleBaskets();
             }
 
-            return new PlacedCourseState(worldKey, blocks, tees, baskets);
+            return new PlacedCourseState(worldKey, blocks, tees, baskets, alternateAnchors);
         }
 
         private boolean isLegacyFormat() {
-            return snapshotVersion < CURRENT_SNAPSHOT_VERSION || placedTees == null || placedBaskets == null;
+            return snapshotVersion < CURRENT_SNAPSHOT_VERSION
+                    || placedTees == null
+                    || placedBaskets == null
+                    || placedAlternateAnchors == null;
         }
     }
 
@@ -185,7 +192,53 @@ public final class PracticeCourseStorage {
             for (HoleSnapshot holeSnapshot : holes) {
                 parsedHoles.add(holeSnapshot.toHole());
             }
-            return new Course(seed, name, parsedHoles);
+            return new Course(seed, name, normalizeSignatureHoles(seed, parsedHoles));
+        }
+
+        private static List<Hole> normalizeSignatureHoles(long seed, List<Hole> holes) {
+            if (holes.isEmpty()) {
+                return holes;
+            }
+
+            List<Hole> normalized = new ArrayList<>(holes);
+            int signatureCount = 0;
+            for (int i = 0; i < normalized.size(); i++) {
+                if (normalized.get(i).isSignature()) {
+                    signatureCount++;
+                }
+            }
+
+            if (signatureCount == 1) {
+                return normalized;
+            }
+
+            for (int i = 0; i < normalized.size(); i++) {
+                Hole hole = normalized.get(i);
+                if (hole.isSignature()) {
+                    normalized.set(i, new Hole(
+                            hole.index(),
+                            hole.par(),
+                            hole.distanceFeet(),
+                            hole.tee(),
+                            hole.basket(),
+                            hole.fairwaySegments(),
+                            SignatureHoleType.NONE
+                    ));
+                }
+            }
+
+            int signatureIndex = new Random(seed).nextInt(normalized.size());
+            Hole selected = normalized.get(signatureIndex);
+            normalized.set(signatureIndex, new Hole(
+                    selected.index(),
+                    selected.par(),
+                    selected.distanceFeet(),
+                    selected.tee(),
+                    selected.basket(),
+                    selected.fairwaySegments(),
+                    SignatureHoleType.ISLAND_GREEN
+            ));
+            return normalized;
         }
 
         private Map<Integer, BlockPos> toHoleTees() {
@@ -212,6 +265,7 @@ public final class PracticeCourseStorage {
         private BlockPosSnapshot tee;
         private BasketSnapshot basket;
         private List<FairwaySegmentSnapshot> fairwaySegments;
+        private String signatureType;
 
         private static HoleSnapshot from(Hole hole) {
             HoleSnapshot snapshot = new HoleSnapshot();
@@ -221,6 +275,7 @@ public final class PracticeCourseStorage {
             snapshot.tee = BlockPosSnapshot.from(hole.tee().x(), hole.tee().y(), hole.tee().z());
             snapshot.basket = BasketSnapshot.from(hole.basket());
             snapshot.fairwaySegments = new ArrayList<>();
+            snapshot.signatureType = hole.signatureType().name();
             for (FairwaySegment segment : hole.fairwaySegments()) {
                 snapshot.fairwaySegments.add(FairwaySegmentSnapshot.from(segment));
             }
@@ -234,7 +289,15 @@ public final class PracticeCourseStorage {
                     segments.add(snapshot.toFairwaySegment());
                 }
             }
-            return new Hole(index, par, distanceFeet, tee.toTeePoint(), basket.toBasketPoint(), segments, SignatureHoleType.NONE);
+            SignatureHoleType parsedSignatureType = SignatureHoleType.NONE;
+            if (signatureType != null && !signatureType.isBlank()) {
+                try {
+                    parsedSignatureType = SignatureHoleType.valueOf(signatureType);
+                } catch (IllegalArgumentException ignored) {
+                    parsedSignatureType = SignatureHoleType.NONE;
+                }
+            }
+            return new Hole(index, par, distanceFeet, tee.toTeePoint(), basket.toBasketPoint(), segments, parsedSignatureType);
         }
     }
 
