@@ -11,19 +11,22 @@ import net.minecraft.util.Identifier;
 public final class McdgItems {
     public static Item TRAINING_DISC = Items.AIR;
     public static Item SCORECARD = Items.AIR;
+    private static boolean strictFlowDebug;
 
     private McdgItems() {
     }
 
-        public static void register(
+    public static void register(
             ActiveCourseManager courseManager,
             RoundStateManager roundStateManager,
-            TournamentRulesetManager rulesetManager
-        ) {
+            TournamentRulesetManager rulesetManager,
+            boolean strictFlowDebugEnabled
+    ) {
+        strictFlowDebug = strictFlowDebugEnabled;
         TRAINING_DISC = Registry.register(
                 Registries.ITEM,
                 new Identifier(McdgMod.MOD_ID, "training_disc"),
-            new ChargedDiscItem(new Item.Settings().maxCount(1), courseManager, roundStateManager, rulesetManager)
+                new ChargedDiscItem(new Item.Settings().maxCount(1), courseManager, roundStateManager, rulesetManager, strictFlowDebug)
         );
 
         SCORECARD = Registry.register(

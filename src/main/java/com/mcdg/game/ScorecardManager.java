@@ -14,13 +14,14 @@ import net.minecraft.nbt.NbtList;
 import net.minecraft.server.network.ServerPlayerEntity;
 
 public final class ScorecardManager {
-    static final String KEY_SCORECARD = "McdgScorecard";
-    static final String KEY_COURSE_NAME = "courseName";
-    static final String KEY_HOLES = "holes";
-    static final String KEY_HOLE_INDEX = "index";
-    static final String KEY_DISTANCE_FEET = "distanceFeet";
-    static final String KEY_PAR = "par";
-    static final String KEY_SCORE = "score";
+    public static final String KEY_SCORECARD = "McdgScorecard";
+    public static final String KEY_COURSE_NAME = "courseName";
+    public static final String KEY_HOLES = "holes";
+    public static final String KEY_HOLE_INDEX = "index";
+    public static final String KEY_DISTANCE_FEET = "distanceFeet";
+    public static final String KEY_PAR = "par";
+    public static final String KEY_SCORE = "score";
+    public static final String KEY_SIGNATURE = "signature";
     private static final ConcurrentMap<UUID, NbtCompound> SCORECARD_BY_PLAYER = new ConcurrentHashMap<>();
 
     private ScorecardManager() {
@@ -43,6 +44,7 @@ public final class ScorecardManager {
             row.putInt(KEY_DISTANCE_FEET, hole.distanceFeet());
             row.putInt(KEY_PAR, hole.par());
             row.putInt(KEY_SCORE, -1);
+            row.putBoolean(KEY_SIGNATURE, hole.isSignature());
             holes.add(row);
         }
         root.put(KEY_HOLES, holes);
@@ -97,7 +99,7 @@ public final class ScorecardManager {
         setScorecardRoot(stack, root.copy());
     }
 
-    static NbtCompound getScorecardRoot(ItemStack stack) {
+    public static NbtCompound getScorecardRoot(ItemStack stack) {
         NbtComponent customData = stack.get(DataComponentTypes.CUSTOM_DATA);
         if (customData == null) {
             return null;

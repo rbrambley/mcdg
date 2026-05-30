@@ -40,9 +40,12 @@ public final class ScorecardItem extends Item {
             int distanceFeet = row.getInt(ScorecardManager.KEY_DISTANCE_FEET);
             int par = row.getInt(ScorecardManager.KEY_PAR);
             int score = row.getInt(ScorecardManager.KEY_SCORE);
+            boolean signature = row.getBoolean(ScorecardManager.KEY_SIGNATURE);
 
             String scoreText = score < 0 ? "-" : Integer.toString(score);
-            tooltip.add(Text.literal(String.format("%-2d %-6s %-3d %-5s", index, distanceFeet + "ft", par, scoreText)).formatted(Formatting.WHITE));
+            String holeLabel = signature ? ("S" + index) : Integer.toString(index);
+            tooltip.add(Text.literal(String.format("%-2s %-6s %-3d %-5s", holeLabel, distanceFeet + "ft", par, scoreText))
+                    .formatted(signature ? Formatting.YELLOW : Formatting.WHITE));
 
             if (score >= 0) {
                 totalScore += score;

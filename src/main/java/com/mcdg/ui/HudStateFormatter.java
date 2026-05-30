@@ -56,7 +56,7 @@ public final class HudStateFormatter {
         text.append(Text.literal(")").formatted(Formatting.GRAY));
         if (!signatureLabel.isEmpty()) {
             text.append(Text.literal("\n").formatted(Formatting.DARK_GRAY));
-            text.append(Text.literal("\u2605 " + signatureLabel).formatted(Formatting.YELLOW));
+            text.append(Text.literal("SIGNATURE \u2605 " + signatureLabel).formatted(Formatting.GOLD));
         }
         return text;
     }
@@ -77,28 +77,9 @@ public final class HudStateFormatter {
             int nextHole
     ) {
         int holeDelta = completedHoleScore - completedHolePar;
-        int runningDelta = totalScore - cumulativePar;
-
-        MutableText text = Text.empty();
-        text.append(Text.literal("H").formatted(Formatting.GRAY));
-        text.append(Text.literal(Integer.toString(completedHole)).formatted(Formatting.GOLD));
-        text.append(Text.literal(" ").formatted(Formatting.GRAY));
-        text.append(formatGolfResultName(holeDelta));
-        text.append(Text.literal(" ").formatted(Formatting.GRAY));
-        text.append(formatParDelta(holeDelta));
-        text.append(Text.literal(" | Hole Throws ").formatted(Formatting.GRAY));
-        text.append(Text.literal(Integer.toString(completedHoleScore)).formatted(Formatting.WHITE));
-        text.append(Text.literal("/").formatted(Formatting.DARK_GRAY));
-        text.append(Text.literal(Integer.toString(completedHolePar)).formatted(Formatting.GREEN));
-        text.append(Text.literal(" | Round Throws ").formatted(Formatting.GRAY));
-        text.append(Text.literal(Integer.toString(totalScore)).formatted(Formatting.WHITE));
-        text.append(Text.literal("/").formatted(Formatting.DARK_GRAY));
-        text.append(Text.literal(Integer.toString(cumulativePar)).formatted(Formatting.GREEN));
-        text.append(Text.literal(" ").formatted(Formatting.GRAY));
-        text.append(formatParDelta(runningDelta));
-        text.append(Text.literal(" | Next H").formatted(Formatting.GRAY));
-        text.append(Text.literal(Integer.toString(nextHole)).formatted(Formatting.GOLD));
-        return text;
+        String resultName = golfResultName(completedHoleScore, holeDelta);
+        Formatting resultColor = holeDelta <= 0 ? Formatting.GREEN : Formatting.RED;
+        return Text.literal(resultName).formatted(resultColor, Formatting.BOLD);
     }
 
     public Text formatRoundComplete(int totalScore, int totalPar) {
@@ -150,8 +131,14 @@ public final class HudStateFormatter {
         return Text.literal("+" + delta).formatted(Formatting.RED);
     }
 
-    private Text formatGolfResultName(int holeDelta) {
-        if (holeDelta <= -3) {
+    private Text formatGolfResultName(int holeScore, int holeDelta) {
+        if (holeScore == 1) {
+            return Text.literal("Ace").formatted(Formatting.AQUA);
+        }
+        if (holeDelta == -3) {
+            return Text.literal("Albatross").formatted(Formatting.AQUA);
+        }
+        if (holeDelta <= -4) {
             return Text.literal("Three or Better").formatted(Formatting.AQUA);
         }
         if (holeDelta == -2) {
@@ -173,6 +160,37 @@ public final class HudStateFormatter {
             return Text.literal("Triple Bogey").formatted(Formatting.RED);
         }
         return Text.literal("+" + holeDelta + " Bogey").formatted(Formatting.DARK_RED);
+    }
+
+    private String golfResultName(int holeScore, int holeDelta) {
+        if (holeScore == 1) {
+            return "Ace";
+        }
+        if (holeDelta == -3) {
+            return "Albatross";
+        }
+        if (holeDelta <= -4) {
+            return "Three or Better";
+        }
+        if (holeDelta == -2) {
+            return "Eagle";
+        }
+        if (holeDelta == -1) {
+            return "Birdie";
+        }
+        if (holeDelta == 0) {
+            return "Par";
+        }
+        if (holeDelta == 1) {
+            return "Bogey";
+        }
+        if (holeDelta == 2) {
+            return "Double Bogey";
+        }
+        if (holeDelta == 3) {
+            return "Triple Bogey";
+        }
+        return "+" + holeDelta + " Bogey";
     }
 
     private Text formatRoundResultName(int finalDelta) {
