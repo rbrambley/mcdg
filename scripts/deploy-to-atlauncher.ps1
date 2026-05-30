@@ -1,6 +1,7 @@
 param(
     [string]$InstanceModsDir = $env:ATLAUNCHER_TEST_MODS_DIR,
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [switch]$QuickOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -18,7 +19,32 @@ Push-Location $repoRoot
 
 try {
     if (-not $SkipBuild) {
-        gradle quickRegression smokeRegression build
+        if ($QuickOnly) {
+            Write-Host "Running quick deploy gate: quickRegression + smokeRegression + build"
+            gradle quickRegression smokeRegression build
+            if ($LASTEXITCODE -ne 0) { throw "Quick regression gate failed (exit $LASTEXITCODE)." }
+        } else {
+            Write-Host "Running full deploy gate: lifecycle smoke + quickRegression + smokeRegression + build"
+
+            Write-Host ""
+            Write-Host "--- Step 1/3: Lifecycle smoke ---"
+            powershell -NoProfile -ExecutionPolicy Bypass -File "$repoRoot\scripts\run-headless-autotest.ps1" -Runs 3 -Holes 9
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host ""
+                Write-Host "DEPLOY BLOCKED: Lifecycle smoke failed. Fix the issues above before deploying." -ForegroundColor Red
+                exit 1
+            }
+
+            Write-Host ""
+            Write-Host "--- Step 2/3: Quick + smoke regression ---"
+            gradle quickRegression smokeRegression
+            if ($LASTEXITCODE -ne 0) { throw "Regression checks failed (exit $LASTEXITCODE)." }
+
+            Write-Host ""
+            Write-Host "--- Step 3/3: Build ---"
+            gradle build
+            if ($LASTEXITCODE -ne 0) { throw "Build failed (exit $LASTEXITCODE)." }
+        }
     }
 
     $libsDir = Join-Path $repoRoot 'build\libs'

@@ -25,6 +25,9 @@ $env:MCDG_AUTOTEST_SHUTDOWN = "true"
 
 try {
     gradle runServer
+    if ($LASTEXITCODE -ne 0) {
+        throw "runServer exited with code $LASTEXITCODE"
+    }
 } finally {
     Remove-Item Env:\MCDG_AUTOTEST -ErrorAction SilentlyContinue
     Remove-Item Env:\MCDG_AUTOTEST_SHUTDOWN -ErrorAction SilentlyContinue
@@ -33,7 +36,19 @@ try {
     if (Test-Path $latestReport) {
         Write-Host "\n=== MCDG AUTOTEST REPORT ==="
         Get-Content $latestReport
+
+        $reportText = Get-Content $latestReport -Raw
+        if ($reportText -notmatch "Status:\s*Autotest complete") {
+            throw "Lifecycle smoke report did not complete successfully."
+        }
+        if ($reportText -notmatch "Fail runs:\s*0") {
+            throw "Lifecycle smoke report contains failed runs (expected Fail runs: 0)."
+        }
+        if ($reportText -notmatch "Total issues:\s*0") {
+            throw "Lifecycle smoke report contains issues (expected Total issues: 0)."
+        }
     } else {
         Write-Warning "No autotest report was generated at $latestReport"
+        throw "Lifecycle smoke report missing: $latestReport"
     }
 }
