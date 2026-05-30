@@ -5,3 +5,10 @@ out/
 *.iml
 .idea/
 .vscode/*.code-workspace
+
+# Local IDE/tooling artifacts
+.classpath
+.project
+.settings/
+bin/
+*.launch
