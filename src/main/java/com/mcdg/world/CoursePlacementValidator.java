@@ -27,10 +27,18 @@ public final class CoursePlacementValidator {
     private static final int TEE_LAUNCH_CHECK_DISTANCE = 22;
     private static final int TEE_LAUNCH_CHECK_HALF_WIDTH = 3;
     private static final int BASKET_ENCLOSURE_SCAN_RADIUS = 6;
-    private static final int BASKET_ENCLOSURE_CENTER_DEPTH_FAIL = 10;
-    private static final int BASKET_ENCLOSURE_CENTER_DEPTH_CHECK = 7;
-    private static final int BASKET_ENCLOSURE_WALL_DEPTH_THRESHOLD = 7;
-    private static final double BASKET_ENCLOSURE_HIGH_WALL_RATIO = 0.72;
+    private static final int BASKET_ENCLOSURE_CENTER_DEPTH_FAIL = 18;
+    private static final int BASKET_ENCLOSURE_CENTER_DEPTH_CHECK = 12;
+    private static final int BASKET_ENCLOSURE_WALL_DEPTH_THRESHOLD = 8;
+    private static final double BASKET_ENCLOSURE_HIGH_WALL_RATIO = 0.82;
+    private static final int FINISH_APPROACH_SCAN_DISTANCE = 32;
+    private static final int FINISH_HAZARD_SCAN_HALF_WIDTH = 7;
+    private static final int FINISH_HAZARD_MIN_COLUMNS = 18;
+    private static final int FINISH_GREEN_SAFE_SCAN_RADIUS = 8;
+    private static final int FINISH_GREEN_MIN_SAFE_COLUMNS = 36;
+    private static final int FINISH_APPROACH_SAMPLE_INTERVAL = 10;
+    private static final int FINISH_APPROACH_SAFE_RADIUS = 5;
+    private static final int FINISH_APPROACH_MIN_SAFE_SAMPLES = 1;
 
     public ValidationReport validatePlacedCourse(ServerWorld world, Course course, PlacedCourseState placedCourseState, String scenarioName) {
         List<ValidationIssue> issues = new ArrayList<>();
@@ -95,6 +103,29 @@ public final class CoursePlacementValidator {
                         basketPos.down()
                 ));
                 deeplyEnclosedBaskets++;
+                holeFailed = true;
+            }
+
+            BlockPos finishOrigin = alternateFinishOrigin(teePos, basketPos.down(), placedCourseState.holeAlternateAnchors().get(holeIndex));
+            FinishPlayability finishPlayability = evaluateFinishPlayability(world, finishOrigin, basketPos.down());
+            if (finishPlayability.hazardColumns() >= FINISH_HAZARD_MIN_COLUMNS
+                    && finishPlayability.greenSafeColumns() < FINISH_GREEN_MIN_SAFE_COLUMNS) {
+                issues.add(new ValidationIssue(
+                        holeIndex,
+                        "finish_green_too_small",
+                        "Hazard-heavy finish lacks enough in-bounds green area around the basket.",
+                        basketPos.down()
+                ));
+                holeFailed = true;
+            }
+            if (finishPlayability.hazardColumns() >= FINISH_HAZARD_MIN_COLUMNS
+                    && finishPlayability.approachSafeSamples() < FINISH_APPROACH_MIN_SAFE_SAMPLES) {
+                issues.add(new ValidationIssue(
+                        holeIndex,
+                        "finish_approach_too_hard",
+                        "Hazard-heavy finish lacks conservative in-bounds landing options on approach.",
+                        midpoint(finishOrigin, basketPos.down())
+                ));
                 holeFailed = true;
             }
 
@@ -354,6 +385,94 @@ public final class CoursePlacementValidator {
                 && highWallSamples >= Math.max(12, (int) Math.ceil(totalSamples * BASKET_ENCLOSURE_HIGH_WALL_RATIO));
     }
 
+    private static FinishPlayability evaluateFinishPlayability(ServerWorld world, BlockPos finishOrigin, BlockPos basketBase) {
+        int hazardColumns = countFinishHazardColumns(world, finishOrigin, basketBase);
+        int greenSafeColumns = countSafeLandingColumns(world, basketBase, FINISH_GREEN_SAFE_SCAN_RADIUS);
+        int approachSafeSamples = countApproachSafeSamples(world, finishOrigin, basketBase);
+        return new FinishPlayability(hazardColumns, greenSafeColumns, approachSafeSamples);
+    }
+
+    private static int countFinishHazardColumns(ServerWorld world, BlockPos finishOrigin, BlockPos basketBase) {
+        int dx = basketBase.getX() - finishOrigin.getX();
+        int dz = basketBase.getZ() - finishOrigin.getZ();
+        int steps = Math.max(Math.abs(dx), Math.abs(dz));
+        if (steps < 1) {
+            return 0;
+        }
+
+        int startStep = Math.max(0, steps - FINISH_APPROACH_SCAN_DISTANCE);
+        double length = Math.max(1.0d, Math.sqrt((dx * (double) dx) + (dz * (double) dz)));
+        double sideX = -dz / length;
+        double sideZ = dx / length;
+        int waterColumns = 0;
+
+        for (int i = startStep; i <= steps; i += 2) {
+            double t = i / (double) steps;
+            double centerX = finishOrigin.getX() + (dx * t);
+            double centerZ = finishOrigin.getZ() + (dz * t);
+
+            for (int offset = -FINISH_HAZARD_SCAN_HALF_WIDTH; offset <= FINISH_HAZARD_SCAN_HALF_WIDTH; offset += 2) {
+                int sampleX = (int) Math.round(centerX + (sideX * offset));
+                int sampleZ = (int) Math.round(centerZ + (sideZ * offset));
+                if (isWaterColumn(world, sampleX, sampleZ)) {
+                    waterColumns++;
+                }
+            }
+        }
+
+        return waterColumns;
+    }
+
+    private static int countSafeLandingColumns(ServerWorld world, BlockPos center, int radius) {
+        int safeColumns = 0;
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                if ((dx * dx) + (dz * dz) > (radius * radius + 1)) {
+                    continue;
+                }
+
+                int sampleX = center.getX() + dx;
+                int sampleZ = center.getZ() + dz;
+                int topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, sampleX, sampleZ) - 1;
+                BlockPos sample = new BlockPos(sampleX, topY, sampleZ);
+                if (isSafeLandingSurface(world, sample)) {
+                    safeColumns++;
+                }
+            }
+        }
+        return safeColumns;
+    }
+
+    private static int countApproachSafeSamples(ServerWorld world, BlockPos finishOrigin, BlockPos basketBase) {
+        int dx = basketBase.getX() - finishOrigin.getX();
+        int dz = basketBase.getZ() - finishOrigin.getZ();
+        int steps = Math.max(Math.abs(dx), Math.abs(dz));
+        if (steps < 1) {
+            return 0;
+        }
+
+        int startStep = Math.max(0, steps - FINISH_APPROACH_SCAN_DISTANCE);
+        int safeSamples = 0;
+        for (int i = startStep; i < steps; i += FINISH_APPROACH_SAMPLE_INTERVAL) {
+            double t = i / (double) steps;
+            int sampleX = (int) Math.round(finishOrigin.getX() + (dx * t));
+            int sampleZ = (int) Math.round(finishOrigin.getZ() + (dz * t));
+            if (hasAnySafeLandingNearby(world, sampleX, sampleZ, FINISH_APPROACH_SAFE_RADIUS)) {
+                safeSamples++;
+            }
+        }
+        return safeSamples;
+    }
+
+    private static BlockPos alternateFinishOrigin(BlockPos teePos, BlockPos basketBase, BlockPos alternateAnchor) {
+        if (alternateAnchor == null) {
+            return teePos;
+        }
+        return alternateAnchor.getSquaredDistance(basketBase) < teePos.getSquaredDistance(basketBase)
+                ? alternateAnchor
+                : teePos;
+    }
+
     private static boolean isOpenSpace(BlockState state) {
         return state.isAir() || state.getBlock() instanceof PlantBlock;
     }
@@ -363,6 +482,9 @@ public final class CoursePlacementValidator {
         int y = (a.getY() + b.getY()) / 2;
         int z = (a.getZ() + b.getZ()) / 2;
         return new BlockPos(x, y, z);
+    }
+
+    private record FinishPlayability(int hazardColumns, int greenSafeColumns, int approachSafeSamples) {
     }
 
     private static String biomeId(RegistryEntry<Biome> biome) {

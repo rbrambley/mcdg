@@ -17,6 +17,8 @@ Completed feature sets:
 - Tournament-feel pack v1 core: signature hole, tee package, round presentation, hole result callouts, final summary.
 - Practice course persistence and resume.
 - ATLauncher build-and-deploy workflow.
+- Command-only permanent camp builder (`/mcdg buildcamp`) with 6-player yurt site, central campfires, pool, tennis, basketball, and bathhouse.
+- Terrain-adaptive camp placement: each structure anchors to local surface Y (village-style), with local footprint clearing only.
 
 Remaining focus:
 - Closeout and verification for strict flow and resume safety.
@@ -212,6 +214,13 @@ Primary lifecycle commands:
 - `/mcdg resetcourse`
 - `/mcdg cleanupcourse`
 - `/mcdg ruleset <casual|strict>`
+- `/mcdg buildcamp`
+
+Camp command behavior:
+- `/mcdg buildcamp` creates a separate (non-course-central) lodging site.
+- Build is command-triggered only, never automatic during course placement.
+- Uses unique-site checks to avoid building too near an existing camp marker.
+- Structures are surface-first and can sit at slightly different Y levels.
 
 Primary automation workflows:
 - Build: `Build Mod`

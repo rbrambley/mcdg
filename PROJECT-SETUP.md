@@ -245,6 +245,7 @@ Current priority adjustment:
 - `/mcdg resumecourse`
 - `/mcdg ruleset` (shows current mode)
 - `/mcdg ruleset <casual|strict>`
+- `/mcdg buildcamp`
 - `/mcdg autotestplacement <runs> <holes>`
 - `/mcdg cancelautotest`
 - `/mcdg autotestthrows <count>`
@@ -258,6 +259,15 @@ Behavior notes:
 - `resetcourse` and `cleanupcourse` both restore original blocks from tracked edit history and clear any persisted practice-course snapshot.
 - `resumecourse` starts a round on an already placed course without rebuilding it, including a persisted practice course reloaded on server start.
 - `autotestplacement` runs repeat placement validation loops and writes a report under `run/logs`.
+- `buildcamp` creates a separate permanent lodging site only when explicitly requested by the player.
+
+Camp build notes:
+- Camp is separate from course-start tournament central and is never auto-built.
+- Includes 6 yurts (8x8 minimum footprint) in a circular formation, each with unique interior accents.
+- Includes central campfires plus nearby pool, tennis court, basketball court, and bathhouse.
+- Basketball rims use hoppers.
+- Pool, tennis, and basketball include perimeter lighting.
+- Terrain-adaptive placement keeps structures near natural surface heights; each structure uses local footprint clearing rather than large camp-wide flattening.
 
 ## Project Status Snapshot (2026-05-30)
 
