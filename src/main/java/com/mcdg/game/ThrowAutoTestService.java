@@ -40,6 +40,7 @@ public final class ThrowAutoTestService {
     private String autoPlayerName;
     private boolean autoShutdown;
     private boolean autoConfigRead;
+    private boolean autoSessionPending;
 
     public ThrowAutoTestService(ActiveCourseManager courseManager, RoundStateManager roundStateManager) {
         this.courseManager = courseManager;
@@ -99,7 +100,7 @@ public final class ThrowAutoTestService {
             loadAutoConfig();
         }
 
-        if (activeSession == null && autoThrowCount != null && autoThrowCount > 0) {
+        if (activeSession == null && autoSessionPending && autoThrowCount != null && autoThrowCount > 0) {
             maybeStartAutoSession(server);
         }
 
@@ -143,16 +144,28 @@ public final class ThrowAutoTestService {
             return;
         }
 
+        boolean resolutionPending = HoleProgressTracker.isThrowResolutionPending(session.playerId, state.totalStrokes());
         if (state.totalStrokes() > session.lastObservedTotalStrokes) {
             session.lastObservedTotalStrokes = state.totalStrokes();
-            if (hasMeaningfulLieResolution(session.lastThrowLie, state.lie(), session.lastThrowHole, state.currentHole())) {
-                session.waitingForLieResolution = false;
-                session.waitTicksAfterThrow = 0;
-            }
         }
 
         if (session.waitingForLieResolution) {
-            if (hasMeaningfulLieResolution(session.lastThrowLie, state.lie(), session.lastThrowHole, state.currentHole())) {
+            if (!resolutionPending) {
+                boolean meaningful = hasMeaningfulLieResolution(
+                        session.lastThrowLie,
+                        state.lie(),
+                        session.lastThrowHole,
+                        state.currentHole()
+                );
+                session.resolvedThrows++;
+                if (!meaningful) {
+                    session.resolvedUnchangedLieThrows++;
+                    session.logLines.add(
+                            "resolved throw=" + session.throwsLaunched
+                                    + " outcome=UNCHANGED_LIE lie=" + formatPos(state.lie())
+                                    + " hole=" + state.currentHole()
+                    );
+                }
                 session.waitingForLieResolution = false;
                 session.waitTicksAfterThrow = 0;
             } else {
@@ -341,6 +354,7 @@ public final class ThrowAutoTestService {
         try {
             int parsed = Integer.parseInt(countRaw.trim());
             autoThrowCount = Math.max(1, Math.min(400, parsed));
+            autoSessionPending = true;
         } catch (NumberFormatException ex) {
             McdgMod.LOGGER.warn("Ignoring invalid {} value '{}'", THROW_AUTOTEST_COUNT_ENV, countRaw);
             return;
@@ -403,6 +417,7 @@ public final class ThrowAutoTestService {
                 player.getGameProfile().getName(),
                 autoThrowCount
         );
+        autoSessionPending = false;
     }
 
     private ServerPlayerEntity resolveAutoPlayer(MinecraftServer server) {
@@ -439,6 +454,8 @@ public final class ThrowAutoTestService {
             lines.add("Expected completion: " + expectedCompletion);
             lines.add("Target throws: " + session.targetThrows);
             lines.add("Launched throws: " + session.throwsLaunched);
+            lines.add("Resolved throws: " + session.resolvedThrows);
+            lines.add("Resolved unchanged-lie throws: " + session.resolvedUnchangedLieThrows);
             lines.add("Suspect unchanged-lie events: " + session.suspectUnchangedLieEvents);
             lines.add("Events:");
             if (session.logLines.isEmpty()) {
@@ -650,6 +667,8 @@ public final class ThrowAutoTestService {
         private final int targetThrows;
         private final ServerBossBar progressBar;
         private int throwsLaunched;
+        private int resolvedThrows;
+        private int resolvedUnchangedLieThrows;
         private int lastObservedTotalStrokes;
         private int suspectUnchangedLieEvents;
         private BlockPos lastThrowLie;

@@ -18,7 +18,7 @@ Push-Location $repoRoot
 
 try {
     if (-not $SkipBuild) {
-        gradle build
+        gradle quickRegression smokeRegression build
     }
 
     $libsDir = Join-Path $repoRoot 'build\libs'

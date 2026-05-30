@@ -1,4 +1,6 @@
 plugins {
+    id 'java'
+    id 'eclipse'
     id 'fabric-loom' version "${loom_version}"
     id 'maven-publish'
 }
@@ -42,6 +44,89 @@ processResources {
     filesMatching("fabric.mod.json") {
         expand("version": project.version)
     }
+}
+
+tasks.register('quickRegression', JavaExec) {
+    group = 'verification'
+    description = 'Runs fast regression checks (invariants/determinism).'
+    dependsOn tasks.named('classes')
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.mcdg.world.RegressionCheckRunner'
+    args 'quick'
+}
+
+tasks.register('smokeRegression', JavaExec) {
+    group = 'verification'
+    description = 'Runs smoke regression checks used before deploy.'
+    dependsOn tasks.named('classes')
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.mcdg.world.RegressionCheckRunner'
+    args 'smoke'
+    shouldRunAfter tasks.named('quickRegression')
+}
+
+tasks.register('fullRegression') {
+    group = 'verification'
+    description = 'Runs full regression checks (quick + smoke + lifecycle).'
+    dependsOn tasks.named('quickRegression')
+    dependsOn tasks.named('smokeRegression')
+    shouldRunAfter tasks.named('smokeRegression')
+}
+
+tasks.register('fullLifecycleSmoke', Exec) {
+    group = 'verification'
+    description = 'Runs headless lifecycle smoke checks via run-headless-autotest.ps1.'
+
+    if (!org.gradle.internal.os.OperatingSystem.current().isWindows()) {
+        enabled = false
+        onlyIf { false }
+    } else {
+        commandLine 'powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
+                "$projectDir/scripts/run-headless-autotest.ps1", '-Runs', '3', '-Holes', '9'
+    }
+}
+
+tasks.register('verifyFullLifecycleReport') {
+    group = 'verification'
+    description = 'Validates headless lifecycle smoke report output.'
+    dependsOn tasks.named('fullLifecycleSmoke')
+
+    doLast {
+        File report = file("$projectDir/run/logs/mcdg-autotest-latest.txt")
+        if (!report.exists()) {
+            throw new RuntimeException("Expected lifecycle report not found: ${report}")
+        }
+
+        String text = report.getText('UTF-8')
+        if (!text.contains('Status: Autotest complete')) {
+            throw new RuntimeException('Lifecycle smoke report did not complete successfully.')
+        }
+        if (!text.contains('Fail runs: 0')) {
+            throw new RuntimeException('Lifecycle smoke report contains failed runs (expected "Fail runs: 0").')
+        }
+        if (!text.contains('Total issues: 0')) {
+            throw new RuntimeException('Lifecycle smoke report contains issues (expected "Total issues: 0").')
+        }
+
+        String normalized = text.toUpperCase(java.util.Locale.ROOT)
+        List<String> disallowedMarkers = [
+                'STATUS: AUTOTEST FAILED',
+                'STATUS: AUTOTEST ABORTED',
+                'EXCEPTION',
+                'CRASH',
+                '[ERROR]',
+                ' FATAL '
+        ]
+        for (String marker : disallowedMarkers) {
+            if (normalized.contains(marker)) {
+                throw new RuntimeException("Lifecycle smoke report contains failure marker: ${marker}")
+            }
+        }
+    }
+}
+
+tasks.named('fullRegression') {
+    dependsOn tasks.named('verifyFullLifecycleReport')
 }
 
 publishing {
