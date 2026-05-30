@@ -4,6 +4,29 @@
 
 Create a Minecraft mod that generates disc golf courses (9 or 18 holes) in forested biomes, with procedural fairways, baskets, and scoring using ender pearls as discs. The mod handles course generation, gameplay logic, a TV-style HUD, multiplayer, admin controls, persistence, and robust user experience.
 
+### Implementation Status (2026-05-29)
+
+Overall status:
+- MVP and core strict gameplay are complete.
+- Project is in late polish/stabilization with targeted tuning work remaining.
+
+Phase completion summary:
+- Phase 1 World Generation & Course Creation: mostly complete (core generation/placement live; optional dome still pending).
+- Phase 2 Gameplay Mechanics: complete for core loop; strict enforcement and quality-of-life refinements shipped.
+- Phase 3 Multiplayer Support: partial (core state handling exists; broader multiplayer validation pending setup).
+- Phase 4 Persistence & Admin: mostly complete (save/resume/reset/admin lifecycle in place).
+- Phase 5 Error Handling & Edge Cases: strong progress; ongoing hardening continues via regressions.
+- Phase 6 Accessibility & Customization: partial-to-good (HUD/minimap and strict surface presets implemented).
+- Phase 7 Performance & Compatibility: partial (performance considered; compatibility matrix/documentation pending).
+- Phase 8 Documentation & Tutorials: partial (setup/status docs maintained; in-game tutorial/help still pending).
+- Phase 9 HUD & User Interface: mostly complete and polished.
+- Phase 10 Verification & Testing: active and healthy (quick/smoke regression workflow in regular use).
+
+Current deferrals:
+- Physical OB markers in world (deferred by design for now).
+- Dome generation.
+- Tournament/league expansion features.
+
 ---
 
 ### Phase 1: World Generation & Course Creation

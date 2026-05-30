@@ -258,6 +258,42 @@ Behavior notes:
 - `resetcourse` and `cleanupcourse` both restore original blocks from tracked edit history and clear any persisted practice-course snapshot.
 - `resumecourse` starts a round on an already placed course without rebuilding it, including a persisted practice course reloaded on server start.
 - `autotestplacement` runs repeat placement validation loops and writes a report under `run/logs`.
+
+## Project Status Snapshot (2026-05-29)
+
+Current phase:
+- Post-MVP stabilization and polish.
+- Core gameplay loop is complete and repeatedly validated.
+
+Completed and stable:
+- Deterministic 9-hole seeded course generation and placement.
+- Strict mode as default ruleset.
+- Throw/lie enforcement and strict landing penalty resolution.
+- Basket completion flow with tightened acceptance window.
+- Anti walk-in hole completion (must resolve from throw lie).
+- Round scoring, hole progression, and round completion handling.
+- Practice course persistence/resume support.
+- Minimap + right-side HUD + scorecard overlays.
+- HUD polish pass (smoothing, alignment, style presets, animations).
+- Hole finish result messaging updated to title/subtitle format.
+- Strict surface presets implemented: `fast`, `balanced` (default), `tournament`.
+- Admin command support for strict surface preset selection.
+
+In progress / tuning:
+- Threshold tuning from live playtest feedback (especially strict surface behavior).
+- Additional multiplayer verification once test setup is available.
+
+Intentionally deferred:
+- Physical in-world OB markers/stakes (deferred to protect generation speed and natural terrain look).
+- Dome generation.
+- Advanced tournament/league systems.
+- Full in-game tutorial/help UX.
+
+Recommended next-session checklist:
+1. Run a quick strict round in `balanced`, then compare `tournament` on the same seed.
+2. Collect 2-3 screenshot examples of any unclear OB/hazard calls.
+3. Decide whether to keep markerless OB or add a minimal marker mode near greens/blind corners only.
+4. Add/adjust regression cases if any strict classification edge cases are found.
 - `autotestthrows` runs server-driven throw launches for the command player during an active round and logs throw/lie transitions.
 - `quickthrowtest` is a one-command in-game path: create course -> start round (skip presentation) -> start throw autotest.
 - `cancelautotest` and `cancelthrowtest` stop active automation sessions.
@@ -265,8 +301,9 @@ Behavior notes:
 - `ruleset casual` restores lenient lie tolerance and disables strict respawn penalty behavior.
 - Strict mode now also applies OB/hazard penalties during play:
   - Crossing over OB/hazard during flight is allowed with no penalty if disc lands in bounds.
-  - Hazard landing (water/lava): +1 stroke and teleport to the last in-bounds solid block before OB/hazard was first crossed.
-  - OB landing (outside fairway corridor): +1 stroke and teleport to the last in-bounds solid block before OB/hazard was first crossed.
+  - Hazard landing (water/lava): +1 stroke and teleport to the last in-bounds solid block before OB/hazard was first crossed. A centered `Hazard +1` title overlay appears on screen.
+  - OB landing (outside fairway corridor): +1 stroke and teleport to the last in-bounds solid block before OB/hazard was first crossed. A centered red bold `OB +1` title overlay with subtitle `Returned to lie` appears on screen.
+  - After any strict penalty teleport, the throw-from-lie gate is bypassed for the immediate next throw so the player can throw from the returned lie without being blocked.
 
 Recovery note:
 - Practice-course snapshots are stored at `world/data/mcdg/mcdg-practice-course.json` and loaded at server startup.
@@ -284,13 +321,26 @@ Strict respawn penalty tuning:
 Automated verification completed:
 - Build successful.
 - Dedicated server startup successful.
+- Strict dev session successful end to end.
 - Command runtime verification successful in server console:
   - `createcourse`
   - `startround`
   - `endround`
   - `resetcourse`
+  - Strict dev session report written to `run/logs/mcdg-autotest-latest.txt`.
 
 Manual checks still required:
+- Player-in-world strict-mode throw-release from new lie (live throw event path) still required.
+  - Note: a throw-gate bug that blocked the second throw after a strict penalty teleport was found in manual testing (2026-05-28) and fixed. Needs one clean 9-hole strict-mode pass to confirm resolved.
+
+Headless command validation completed (2026-05-28):
+- `ruleset strict` command path verified in dedicated server console.
+- `practicecourse` -> restart -> `resumecourse` safety flow verified in dedicated server console.
+- Persisted practice-course snapshot reload verified on server startup.
+
+Regression automation status:
+- `quickRegression` and `smokeRegression` run via Gradle `JavaExec` using `com.mcdg.world.RegressionCheckRunner` (no JUnit dependency required).
+- `fullRegression` chains quick + smoke + headless lifecycle smoke and report validation.
 
 ## Scoring Rules (Current HUD)
 
@@ -350,6 +400,69 @@ Notes:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\deploy-to-atlauncher.ps1 -InstanceModsDir 'D:\Path\To\TestInstance\mods'
 ```
+
+## Strict Dev Session
+
+Goal:
+- Run the full local test loop in one command: start the server, wait for readiness, launch the client, and let the throw autotest finish.
+
+How to run:
+- VS Code task: Run Strict Dev Session
+- Or PowerShell: `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-strict-dev-session.ps1`
+
+Notes:
+- The server launcher forces local dev auth with `online-mode=false` and `enforce-secure-profile=false` so the client can join without Mojang session checks.
+- The session launcher waits for the server `Done (` log line before starting the client.
+- The client uses `--quickPlayMultiplayer` only; no extra reconnect hook is needed.
+- Successful runs write the placement report to `run/logs/mcdg-autotest-latest.txt`.
+
+## Strict Manual Throw Debug Session
+
+Goal:
+- Start server + world + client connection automatically, then run course setup and throw tests manually for deep debugging.
+
+How to run:
+- VS Code task: Run Strict Manual Debug Session
+- Or PowerShell: `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-strict-manual-debug-session.ps1`
+
+What this session does automatically:
+- Starts dedicated server with local dev auth and local IPv4 bind (`127.0.0.1`).
+- Waits for server/world readiness markers before launching the client.
+- Auto-connects the client to `127.0.0.1:25565`.
+- Enables strict-flow and HUD scoring debug logs by default.
+- Captures server/client redirected logs under `run/logs/strict-manual-debug-<timestamp>/`.
+
+Important limitation discovered during debugging:
+- The `/mcdg` command flow is available on the dedicated server path used by these scripts.
+- If you restart into a separate single-player world and then open that world to LAN, do not assume this reproduces the same command/runtime path that the dedicated-server automation uses.
+- That mismatch likely explains part of the earlier automation confusion.
+
+Recommended in-game flow for throw debugging:
+- `/mcdg ruleset strict`
+- `/mcdg createcourse <seed>`
+- `/mcdg startround`
+- Reproduce the throw issue manually (especially second throw after strict penalty teleport).
+- `/mcdg autotestthrows 25`
+- Optional baseline: `/mcdg quickthrowtest <seed> 25`
+
+Primary artifacts to share when a run reproduces the issue:
+- `run/logs/latest.log`
+- `run/logs/debug.log`
+- `run/logs/mcdg-throw-autotest-latest.txt`
+- `run/logs/strict-manual-debug-<timestamp>/server.out.log`
+- `run/logs/strict-manual-debug-<timestamp>/server.err.log`
+- `run/logs/strict-manual-debug-<timestamp>/client.out.log`
+- `run/logs/strict-manual-debug-<timestamp>/client.err.log`
+
+Bundle command after manual repro:
+- VS Code task: Collect Throw Debug Bundle
+- Or PowerShell: `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\collect-throw-debug-bundle.ps1`
+
+Bundle behavior:
+- Auto-selects the most recent `run/logs/strict-manual-debug-<timestamp>/` session folder.
+- Copies current shared logs (`latest.log`, `debug.log`, latest throw/autotest reports, `server.properties`).
+- Writes a manifest and zips everything to `run/logs/throw-debug-bundles/mcdg-throw-debug-<timestamp>.zip`.
+- Optional flags: `-IncludeArchivedLogs` and `-IncludeCrashReports`.
 
 ## Tournament Feel Pack v1 (Execution Ready)
 
@@ -445,10 +558,10 @@ Current progress against implementation order:
 - Feature 3 (event start sequence): Complete.
   - Implemented: 5-second countdown, layout card broadcast, round-live transition, and optional skip toggle via `MCDG_SKIP_ROUND_PRESENTATION=true`.
 - Feature 5 (rules preset): In final stabilization.
-  - Implemented: `/mcdg ruleset` status command, `/mcdg ruleset casual`, `/mcdg ruleset strict`, strict-mode tighter throw-from-lie tolerance, strict-mode respawn penalty strokes, and strict-mode OB/hazard penalties that trigger on landing with placement to the last in-bounds solid block before crossing.
-  - Finalize before closeout: complete regression pass on throw-release from new lie and persistent `practicecourse` -> restart -> `resumecourse` safety flow.
-- Feature 1 (signature hole builder): Not started.
-  - Remaining: exactly one tagged signature hole per 9-hole course from controlled templates.
+  - Implemented: `/mcdg ruleset` status command, `/mcdg ruleset casual`, `/mcdg ruleset strict`, strict-mode tighter throw-from-lie tolerance, strict-mode respawn penalty strokes, strict-mode OB/hazard penalties that trigger on landing with placement to the last in-bounds solid block before crossing, centered OB/hazard title overlay on penalty, and throw-gate bypass for the throw immediately following a strict penalty teleport.
+  - Finalize before closeout: one clean 9-hole strict-mode pass to confirm throw-gate fix, and persistent `practicecourse` -> restart -> `resumecourse` safety flow.
+- Feature 1 (signature hole builder): Complete.
+  - Implemented: exactly one signature hole per 9-hole course, signature visibility in world/scorecard/round messaging, and persistence across practice-course resume.
 
 ## Break Handoff Plan (Next Work)
 
@@ -456,16 +569,16 @@ Immediate completion target:
 1. Finish Feature 5 stabilization and mark complete only after strict-mode + resume regressions are clean in manual test.
 
 Next best 5 features to implement after Feature 5:
-1. Feature 1: Signature Hole Builder
-   - Why next: only remaining core Tournament Feel Pack feature; highest gameplay differentiation value.
-2. Tee/Basket Placement Hardening v2
+1. Tee/Basket Placement Hardening v2
    - Expand cave/pit/enclosure protection and safe-standable spawn resolution around tee and basket starts.
-3. Persistent Practice Course Robustness v2
+2. Persistent Practice Course Robustness v2
    - Add snapshot migration cleanup workflow, stale/legacy snapshot UX, and recovery guardrails for corrupted files.
-4. Multiplayer Round Reliability Pass
+3. Multiplayer Round Reliability Pass
    - Complete deferred 2-player smoke tests, disconnect/rejoin handling, and synchronized resume behavior.
-5. Automated Regression Coverage for Round Flow
+4. Automated Regression Coverage for Round Flow
    - Extend headless autotest to cover strict penalties, lie updates, restart/resume path, and round completion leaderboard correctness.
+5. Signature Template Variety v2
+  - Expand signature-hole template variety and hazard-note polish while preserving exactly-one-signature guarantee.
 
 Reasoning:
 - Front-load immediate visual/tournament feel gains.
