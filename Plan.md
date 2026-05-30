@@ -1,225 +1,234 @@
 ---
 
-## Plan: Minecraft Disc Golf Mod (Expanded & Production-Ready)
+## MCDG Coordinated Plan (Up To Date)
 
-Create a Minecraft mod that generates disc golf courses (9 or 18 holes) in forested biomes, with procedural fairways, baskets, and scoring using ender pearls as discs. The mod handles course generation, gameplay logic, a TV-style HUD, multiplayer, admin controls, persistence, and robust user experience.
+Date: 2026-05-30
 
-### Implementation Status (2026-05-29)
+### Current State Snapshot
 
-Overall status:
-- MVP and core strict gameplay are complete.
-- Project is in late polish/stabilization with targeted tuning work remaining.
+Overall:
+- Core gameplay loop is complete and stable in single-player.
+- Strict mode, scoring, HUD/minimap, persistence/resume, and admin lifecycle are implemented.
+- Regression tooling (quick + smoke + lifecycle/deploy gates) is active and in regular use.
 
-Phase completion summary:
-- Phase 1 World Generation & Course Creation: mostly complete (core generation/placement live; optional dome still pending).
-- Phase 2 Gameplay Mechanics: complete for core loop; strict enforcement and quality-of-life refinements shipped.
-- Phase 3 Multiplayer Support: partial (core state handling exists; broader multiplayer validation pending setup).
-- Phase 4 Persistence & Admin: mostly complete (save/resume/reset/admin lifecycle in place).
-- Phase 5 Error Handling & Edge Cases: strong progress; ongoing hardening continues via regressions.
-- Phase 6 Accessibility & Customization: partial-to-good (HUD/minimap and strict surface presets implemented).
-- Phase 7 Performance & Compatibility: partial (performance considered; compatibility matrix/documentation pending).
-- Phase 8 Documentation & Tutorials: partial (setup/status docs maintained; in-game tutorial/help still pending).
-- Phase 9 HUD & User Interface: mostly complete and polished.
-- Phase 10 Verification & Testing: active and healthy (quick/smoke regression workflow in regular use).
+Completed feature sets:
+- Deterministic 9-hole generation and placement flow.
+- Strict/casual ruleset switching and strict penalties.
+- Tournament-feel pack v1 core: signature hole, tee package, round presentation, hole result callouts, final summary.
+- Practice course persistence and resume.
+- ATLauncher build-and-deploy workflow.
 
-Current deferrals:
-- Physical OB markers in world (deferred by design for now).
+Remaining focus:
+- Closeout and verification for strict flow and resume safety.
+- Reliability and release readiness (multiplayer, regressions, performance/compatibility).
+- Operator/player usability completion (in-game help, menu-driven UX, persistence diagnostics).
+
+Deferred by design:
 - Dome generation.
-- Tournament/league expansion features.
+- Physical OB markers (full world markers).
+- League/tournament expansion systems.
 
 ---
 
-### Phase 1: World Generation & Course Creation
+## Execution Order (Best Order)
 
-1. **Biome Detection & Course Placement**
-   - Scan for suitable forest/wooded biomes.
-   - Select a contiguous area large enough for 9/18 holes.
+### 1) Dev Session Reliability (Immediate)
 
-2. **Procedural Hole Generation**
-   - For each hole:
-     - Randomly select tee and basket locations (180–400 feet apart, surface level).
-     - Carve fairways and greens by clearing trees/brush between tee and basket.
-     - Fairways have random widths and can change along a hole.
-     - Preserve small tree groups for obstacles, allow multiple fairway lines.
-     - Create tunnels through hills/mountains as needed.
-     - Ensure holes do not overlap excessively.
-     - Fit the desired number of holes with these variations.
+Goal:
+- Remove strict-session startup deadlock risk so local testing is one-command reliable.
 
-3. **Basket Design**
-   - Unique basket structure per hole (randomized designs, variable heights).
-   - Use small standard MC structures for some baskets, always accessible for ender pearl throws.
-   - Detect when a player lands in the basket area.
+Tasks:
+- Update strict session launcher flow so client launch does not depend on a player-joined completion event.
+- Keep local dev auth settings forced (`online-mode=false`, `enforce-secure-profile=false`, localhost bind).
+- Verify one clean server-up -> client-join sequence.
 
-4. **Course Naming**
-   - Generate a random, themed name for each course.
+Exit criteria:
+- `Run Strict Dev Session` reliably reaches in-world without manual recovery.
 
-5. **Course Dome (Optional)**
-   - Optionally generate a glass dome with lighting over each course.
-   - Dome prevents weather, mob spawning, and provides consistent lighting.
-   - Enable/disable per course.
+### 2) Strict Ruleset Final Closeout
 
----
+Goal:
+- Mark strict gameplay as fully closed and verified.
 
-### Phase 2: Gameplay Mechanics
+Tasks:
+- Run one clean manual strict 9-hole round (`balanced` preset).
+- Validate strict penalties and lie/throw progression on real throw events.
+- Re-run persistent safety path: `practicecourse` -> restart -> `resumecourse`.
 
-6. **Tee Pad & Basket Logic**
-   - Mark tee pads and baskets clearly.
-   - Set starting point for each hole.
+Exit criteria:
+- No strict-flow regressions observed in manual run.
+- Resume path verified in a fresh session.
 
-7. **Ender Pearl Throw Tracking & Inventory**
-   - Player receives a single ender pearl on course entry.
-   - After each throw, another is given.
-   - Ender pearls are removed if player leaves the course.
-   - Each throw = 1 stroke; track position and throws per hole.
-   - On basket completion, increment score and teleport to next tee.
+### 3) Placement Hardening v2
 
-8. **Throw Enforcement & Keybinds**
-   - Player’s throw spot is always marked; must throw from that spot.
-   - Keybinds:
-     - Mark current spot for next throw.
-     - Temporarily allow free movement to scout the best path.
-     - Keybind to return to marked spot to throw.
-   - HUD shows player status (e.g., “Scouting,” “Ready to Throw”).
+Goal:
+- Reduce placement edge-case failures while preserving generation speed/playability.
 
-9. **Hole Par Calculation**
-   - Assign par based on hole distance and terrain.
+Tasks:
+- Tighten tee/basket standable safety and enclosed-space checks.
+- Keep alternate-route requirement for long water carries.
+- Preserve known successful patterns:
+  - resolve stable ground first, then clear headroom;
+  - add periodic reachable landing options across long carries;
+  - enforce short tee launch-lane clearing.
 
-10. **Course Environment Rules**
-    - While on the course:
-      - No mobs spawn.
-      - No lava or fire spread.
-      - PvP is disabled.
-      - Players cannot build or destroy blocks.
+Exit criteria:
+- Improved pass rate in placement autotest with no critical blockers.
 
----
+### 4) Regression Coverage Expansion
 
-### Phase 3: Multiplayer Support
+Goal:
+- Make remaining high-risk paths enforceable in automation.
 
-11. **Multiplayer Gameplay**
-    - Support multiple players on the same course.
-    - Options for turn-based or simultaneous play.
-    - Track individual scores and throws.
-    - Prevent griefing (e.g., block interference, enforce throw order if turn-based).
-    - Handle player disconnects, rejoining, and mid-round exits gracefully.
+Tasks:
+- Extend checks for strict penalties, lie progression, round completion summary correctness.
+- Add restart/resume validation coverage to regression path.
+- Keep deploy gate strict (block on lifecycle smoke failures).
 
-12. **Scoreboard & Player Management**
-    - Display all players’ scores and current hole.
-    - Option to spectate other players.
+Exit criteria:
+- quick/smoke/lifecycle suites cover strict + resume core risks.
 
----
+### 5) Multiplayer Reliability Pass
 
-### Phase 4: Course Persistence & Management
+Goal:
+- Move multiplayer from partial to verified core reliability.
 
-13. **Course Saving & Loading**
-    - Save generated courses for replay or sharing.
-    - Load, delete, or regenerate courses as needed.
-    - Option to export/import course data.
+Tasks:
+- 2-player smoke sessions.
+- Disconnect/rejoin and mid-round resume behavior checks.
+- Verify scoreboard/hole/round state consistency for both players.
 
-14. **Admin/Operator Controls**
-    - Commands or GUI for:
-      - Creating, enabling, disabling, or removing courses.
-      - Forcing course resets or player teleports.
-      - Adjusting course settings (dome, difficulty, etc.).
+Exit criteria:
+- Repeatable 2-player round with no state desync.
 
----
+### 6) Performance + Compatibility Documentation
 
-### Phase 5: Error Handling & Edge Cases
+Goal:
+- Close remaining project-level release readiness gaps.
 
-15. **Robustness**
-    - Handle player disconnects, crashes, or attempts to bypass course boundaries.
-    - Prevent exploits (e.g., using items or abilities to cheat).
-    - Restore player state if interrupted.
+Tasks:
+- Capture generation/runtime performance notes and limits.
+- Produce compatibility matrix and known constraints.
+- Record recommended server/client settings for stable sessions.
 
----
+Exit criteria:
+- Clear compatibility and performance guidance documented.
 
-### Phase 6: Accessibility & Customization
+### 7) In-Game Help and Admin Docs Completion
 
-16. **User Options**
-    - Customizable keybinds.
-    - HUD appearance and information toggles.
-    - Course settings (dome, difficulty, fairway width, etc.).
-    - Visual/audio cues for accessibility.
+Goal:
+- Make usage discoverable without relying on external tribal knowledge.
 
----
+Tasks:
+- Add concise in-game help/tutorial UX for key commands and strict penalties.
+- Update admin lifecycle docs with current scripts, command order, and debug bundle collection.
 
-### Phase 7: Performance & Compatibility
+Exit criteria:
+- New operator can run full lifecycle from docs/help only.
 
-17. **Performance Optimization**
-    - Efficient world generation and entity management.
-    - Minimize lag with many players or large courses.
+### 8) Menu-Driven UX + Persistence Expansion
 
-18. **Mod Compatibility**
-    - Ensure compatibility with popular mods and modpacks.
-    - Document known incompatibilities or dependencies.
+Goal:
+- Merge command-driven workflows with guided in-game menus and complete persistence quality-of-life features.
 
----
+Tasks:
+- Add admin/player menu entry points for common lifecycle actions (create/start/practice/resume/end/reset/ruleset).
+- Add menu surfaces for strict presets and quick validation actions.
+- Add persistence v2 features:
+  - explicit snapshot status/health UI;
+  - recovery actions for stale/corrupt snapshot;
+  - scoped export/import design for course metadata (seed/layout/state) with safety checks.
+- Keep command parity so all menu actions map to existing command behavior.
 
-### Phase 8: Documentation & Tutorials
+Exit criteria:
+- Core lifecycle can be run via menu or commands with equivalent outcomes.
+- Persistence diagnostics and recovery are usable without manual file edits.
 
-19. **In-Game Help & Tutorials**
-    - In-game help menu or tutorial for new players.
-    - Tooltips and guidance for gameplay and controls.
+### 9) Deferred Features (Only After 1-8)
 
-20. **Admin Documentation**
-    - Documentation for server admins on setup, management, and troubleshooting.
+Potential next wave:
+- Dome generation.
+- Optional minimal OB marker mode.
+- Expanded signature templates.
+- League/tournament systems.
+- Course editor tooling.
 
 ---
 
-### Phase 9: HUD & User Interface
+## Merged One-Off Ideas Register
 
-21. **TV Broadcast-Style HUD**
-    - Display at top center:
-      - Course name, hole number, par, distance, current throw, total score, player status.
-      - Basket indicator (direction/distance to next basket).
-      - Multiplayer: show other players’ scores/status.
-    - Update dynamically as play progresses.
+This register consolidates one-off plans and scattered ideas from setup/status notes into a single implementation view.
 
----
+Implemented:
+- Tournament Feel Pack v1 core:
+  - signature hole builder;
+  - tournament tee sign package;
+  - event start sequence;
+  - hole-result callouts and final summary;
+  - ruleset toggle foundation (`casual`/`strict`).
+- Practice course persistence/resume command lifecycle.
+- Strict surface presets and ruleset command controls.
+- ATLauncher safe deploy workflow and throw-debug bundle workflow.
 
-### Phase 10: Verification & Testing
+In active closeout:
+- Strict ruleset stabilization final pass (manual 9-hole strict verification).
+- Resume safety re-validation in fresh session.
+- Strict dev session launch-order reliability fix.
 
-22. **Testing**
-    - Playtest all features in single and multiplayer.
-    - Verify course generation, basket detection, throw tracking, HUD, and all rules.
-    - Test admin controls, persistence, and error handling.
-    - Confirm performance and compatibility.
+Planned next (post-closeout):
+- Multiplayer reliability pass (2-player smoke + disconnect/rejoin + resume consistency).
+- Placement hardening v2 and regression expansion.
+- Menu-driven lifecycle/admin/player UX.
+- Persistence v2 diagnostics/recovery and export/import design.
 
----
-
-**Relevant files**
-- src/main/java/com/yourmod/DiscGolfMod.java — Main mod entry point
-- src/main/java/com/yourmod/world/CourseGenerator.java — Biome detection, course/hole generation, persistence
-- src/main/java/com/yourmod/gameplay/DiscGolfGameManager.java — Player state, throws, scoring, multiplayer logic
-- src/main/java/com/yourmod/ui/DiscGolfHUD.java — HUD, basket indicator, multiplayer scoreboard
-- src/main/java/com/yourmod/admin/AdminControls.java — Admin commands and GUI
-- src/main/resources/assets/yourmod/lang/en_us.json — Course name generation, localization
-- src/main/resources/assets/yourmod/tutorials/ — In-game help and tutorials
-
----
-
-**Verification**
-1. Generate and play multiple courses; confirm all features and rules.
-2. Test multiplayer, admin controls, and persistence.
-3. Confirm HUD, accessibility, and customization options.
-4. Test error handling, performance, and compatibility.
+Deferred/optional ideas:
+- Dome generation.
+- Physical OB marker mode.
+- Expanded signature templates.
+- Course editor.
+- League/tournament infrastructure.
 
 ---
 
-**Decisions**
-- Ender pearls as discs; each throw = 1 stroke.
-- Custom basket structures; always accessible.
-- Procedural course and hole generation.
-- TV-style HUD with basket indicator and multiplayer support.
-- Glass dome optional per course.
-- Keybinds for throw enforcement and scouting.
-- No building/destroying, mobs, fire, or PvP on course.
-- Full admin and persistence controls.
+## Current Verification Standard
+
+Minimum green state before any major feature expansion:
+1. `gradle build`
+2. `gradle quickRegression smokeRegression`
+3. lifecycle smoke/deploy gate passes
+4. one manual strict 9-hole validation run
+5. one `practicecourse` -> restart -> `resumecourse` validation run
 
 ---
 
-**Further Considerations**
-1. Expand multiplayer features (tournaments, leaderboards).
-2. Add course editor for custom layouts.
-3. Integrate with external services for sharing courses or scores.
+## Command/Workflow Reference
+
+Primary lifecycle commands:
+- `/mcdg createcourse <seed>`
+- `/mcdg startround`
+- `/mcdg practicecourse`
+- `/mcdg resumecourse`
+- `/mcdg endround`
+- `/mcdg resetcourse`
+- `/mcdg cleanupcourse`
+- `/mcdg ruleset <casual|strict>`
+
+Primary automation workflows:
+- Build: `Build Mod`
+- Strict local run: `Run Strict Dev Session`
+- Manual strict debug: `Run Strict Manual Debug Session`
+- Deploy gate + test deploy: `Build + Deploy to ATLauncher Test Instance`
+- Throw debug bundle: `Collect Throw Debug Bundle`
+
+---
+
+## Done Definition (Current Project)
+
+Project can be considered release-ready for current scope when:
+1. Strict closeout validations are complete and repeatable.
+2. Multiplayer reliability pass is complete for core 2-player scenarios.
+3. Regression coverage includes strict + resume high-risk paths.
+4. Performance/compatibility notes and operator docs are complete.
+5. No P1/P2 issues in latest smoke/lifecycle runs.
 
 ---

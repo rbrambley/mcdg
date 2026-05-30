@@ -259,10 +259,10 @@ Behavior notes:
 - `resumecourse` starts a round on an already placed course without rebuilding it, including a persisted practice course reloaded on server start.
 - `autotestplacement` runs repeat placement validation loops and writes a report under `run/logs`.
 
-## Project Status Snapshot (2026-05-29)
+## Project Status Snapshot (2026-05-30)
 
 Current phase:
-- Post-MVP stabilization and polish.
+- Late-stage stabilization and release readiness closeout.
 - Core gameplay loop is complete and repeatedly validated.
 
 Completed and stable:
@@ -280,7 +280,8 @@ Completed and stable:
 - Admin command support for strict surface preset selection.
 
 In progress / tuning:
-- Threshold tuning from live playtest feedback (especially strict surface behavior).
+- Strict-flow final closeout validation (manual 9-hole strict pass + resume safety re-check).
+- Dev-session reliability hardening so strict session reaches in-world consistently.
 - Additional multiplayer verification once test setup is available.
 
 Intentionally deferred:
@@ -290,10 +291,10 @@ Intentionally deferred:
 - Full in-game tutorial/help UX.
 
 Recommended next-session checklist:
-1. Run a quick strict round in `balanced`, then compare `tournament` on the same seed.
-2. Collect 2-3 screenshot examples of any unclear OB/hazard calls.
-3. Decide whether to keep markerless OB or add a minimal marker mode near greens/blind corners only.
-4. Add/adjust regression cases if any strict classification edge cases are found.
+1. Fix strict dev session launch ordering so client startup does not depend on player-joined completion.
+2. Run one clean manual strict 9-hole round in `balanced` and confirm no throw-gate regressions.
+3. Re-validate `practicecourse` -> restart -> `resumecourse` in a fresh session.
+4. Add regression coverage for strict penalty flow and resume safety checks.
 - `autotestthrows` runs server-driven throw launches for the command player during an active round and logs throw/lie transitions.
 - `quickthrowtest` is a one-command in-game path: create course -> start round (skip presentation) -> start throw autotest.
 - `cancelautotest` and `cancelthrowtest` stop active automation sessions.
@@ -321,17 +322,18 @@ Strict respawn penalty tuning:
 Automated verification completed:
 - Build successful.
 - Dedicated server startup successful.
-- Strict dev session successful end to end.
+- Strict dev session launches server successfully; auto setup can time out if no player joins.
 - Command runtime verification successful in server console:
   - `createcourse`
   - `startround`
   - `endround`
   - `resetcourse`
-  - Strict dev session report written to `run/logs/mcdg-autotest-latest.txt`.
+  - Strict dev session report writes to `run/logs/mcdg-autotest-latest.txt` when setup completes.
 
 Manual checks still required:
 - Player-in-world strict-mode throw-release from new lie (live throw event path) still required.
   - Note: a throw-gate bug that blocked the second throw after a strict penalty teleport was found in manual testing (2026-05-28) and fixed. Needs one clean 9-hole strict-mode pass to confirm resolved.
+- Practice-course resume safety re-check in a fresh strict validation session still required.
 
 Headless command validation completed (2026-05-28):
 - `ruleset strict` command path verified in dedicated server console.
@@ -413,6 +415,7 @@ How to run:
 Notes:
 - The server launcher forces local dev auth with `online-mode=false` and `enforce-secure-profile=false` so the client can join without Mojang session checks.
 - The session launcher waits for the server `Done (` log line before starting the client.
+- Current limitation: depending on launch ordering, auto setup may still wait for a player before the client is started. If this happens, start a client manually (`gradle runClient`) or connect from ATLauncher to `127.0.0.1:25565`.
 - The client uses `--quickPlayMultiplayer` only; no extra reconnect hook is needed.
 - Successful runs write the placement report to `run/logs/mcdg-autotest-latest.txt`.
 
