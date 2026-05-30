@@ -80,6 +80,18 @@
       ],
       "group": "build",
       "problemMatcher": []
+    },
+    {
+      "label": "Global Safety Gate",
+      "type": "shell",
+      "command": "gradle",
+      "args": [
+        "quickRegression",
+        "smokeRegression",
+        "build"
+      ],
+      "group": "build",
+      "problemMatcher": []
     }
   ]
 }

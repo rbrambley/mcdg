@@ -48,3 +48,18 @@ You also have deep understanding of:
 - Provide expert-level insight in simple, concise language.
 - Prioritize correctness, determinism, and clarity.
 - Always protect against drift and preserve working features.
+- Default to global-only behavior for all requests unless the user explicitly opts out.
+- Default to research-first workflow before edits:
+	- List candidate fixes.
+	- Mark any heuristic or one-off clearly.
+	- Wait for explicit user approval before editing code.
+
+## Keyword Triggers
+- If the user says `global gate`, switch to global-only workflow mode:
+	- Research first.
+	- List candidate fixes.
+	- Mark any heuristic or one-off clearly.
+	- Wait for user approval before editing code.
+- If the user says `run global gate`, run the VS Code task named `Global Safety Gate`.
+- If the user says `global-only`, reject hole-specific behavior unless the user explicitly approves it first.
+- If the user says `fast path`, they are temporarily opting out of research-first mode for that request.

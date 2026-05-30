@@ -274,7 +274,8 @@ public final class McdgClientMod implements ClientModInitializer {
         drawContext.fill(mapX, mapY, mapX + miniMapSize, mapY + miniMapSize, withAlpha((surfaceAlpha << 24) | 0x121212, hudAlpha));
 
         if (miniMapRenderCache != null && miniMapRenderCache.textureId() != null) {
-            float headingRotation = -(client.player.getYaw() + 180.0f);
+            // Keep minimap north-up so terrain/features align with world compass directions.
+            float headingRotation = 0.0f;
             int playerPx = mapOriginScreenX + Math.round(((float) client.player.getX() - state.mapOriginX()) * mapScale);
             int playerPz = mapOriginScreenY + Math.round(((float) client.player.getZ() - state.mapOriginZ()) * mapScale);
             drawContext.enableScissor(mapX, mapY, mapX + miniMapSize, mapY + miniMapSize);
@@ -305,35 +306,24 @@ public final class McdgClientMod implements ClientModInitializer {
 
             drawDot(drawContext, teePx, teePz, 2, 0xFF28A745);
             drawDot(drawContext, basketPx, basketPz, 2, 0xFFFFCC33);
+            // Debug anchor for server-authoritative lie (useful to compare against live player marker).
+            drawDot(drawContext, liePx, liePz, 1, withAlpha(0xFF00E5FF, hudAlpha));
             drawMiniMapDistanceRings(drawContext, client, basketPx, basketPz, mapX, mapY, miniMapSize, mapScale, hudAlpha, mapCenterX, mapCenterY, miniMapSize / 2.0f);
-            drawMiniMapCardinalLabels(drawContext, client, mapCenterX, mapCenterY, miniMapSize, hudAlpha);
-            matrices.pop();
-            drawContext.disableScissor();
 
-            double headingRadians = Math.toRadians(headingRotation);
-            double cosHeading = Math.cos(headingRadians);
-            double sinHeading = Math.sin(headingRadians);
-
-            // Rotate player marker into the same space as the rotated map texture.
-            float relPlayerX = playerPx - mapCenterX;
-            float relPlayerZ = playerPz - mapCenterY;
-            int markerX = Math.round((float) ((relPlayerX * cosHeading) - (relPlayerZ * sinHeading)) + mapCenterX);
-            int markerZ = Math.round((float) ((relPlayerX * sinHeading) + (relPlayerZ * cosHeading)) + mapCenterY);
-
-            // Build player forward vector from yaw, then rotate it with the map transform.
+            // Draw player marker/arrow in the same transformed space as the minimap texture.
             double yawRadians = Math.toRadians(client.player.getYaw());
             float forwardX = (float) -Math.sin(yawRadians);
             float forwardZ = (float) Math.cos(yawRadians);
-            float rotatedForwardX = (float) ((forwardX * cosHeading) - (forwardZ * sinHeading));
-            float rotatedForwardZ = (float) ((forwardX * sinHeading) + (forwardZ * cosHeading));
-
             int arrowLen = Math.max(7, Math.round(8.0f * mapScale));
-            int arrowX = Math.round(markerX + (rotatedForwardX * arrowLen));
-            int arrowZ = Math.round(markerZ + (rotatedForwardZ * arrowLen));
+            int arrowX = Math.round(playerPx + (forwardX * arrowLen));
+            int arrowZ = Math.round(playerPz + (forwardZ * arrowLen));
 
-            drawDot(drawContext, markerX, markerZ, 2, withAlpha(0xFFFFFFFF, hudAlpha));
-            drawLine(drawContext, markerX, markerZ, arrowX, arrowZ, withAlpha(0xFFDDEEFF, hudAlpha));
+            drawDot(drawContext, playerPx, playerPz, 2, withAlpha(0xFFFFFFFF, hudAlpha));
+            drawLine(drawContext, playerPx, playerPz, arrowX, arrowZ, withAlpha(0xFFDDEEFF, hudAlpha));
             drawDot(drawContext, arrowX, arrowZ, 1, withAlpha(0xFFFFFFFF, hudAlpha));
+            drawMiniMapCardinalLabels(drawContext, client, mapCenterX, mapCenterY, miniMapSize, hudAlpha);
+            matrices.pop();
+            drawContext.disableScissor();
         }
 
         // Square border around the visible viewport.
@@ -351,11 +341,20 @@ public final class McdgClientMod implements ClientModInitializer {
         int infoW = Math.max(legendWidth, Math.max(client.textRenderer.getWidth(distLine), client.textRenderer.getWidth(ringsLine))) + 12;
         int infoX = panelX;
         int infoY = mapY + miniMapSize + 3;
-        int infoH = 40;
+        boolean debugHud = client.getDebugHud().shouldShowDebugHud();
+        int infoH = debugHud ? 58 : 40;
         drawHudCard(drawContext, client, infoX, infoY, infoW, infoH, null, hudAlpha);
         drawMiniMapLegend(drawContext, client, infoX + 6, infoY + 4, hudAlpha);
         drawContext.drawTextWithShadow(client.textRenderer, Text.literal(ringsLine), infoX + 6, infoY + 16, withAlpha(0xA9D8FF, hudAlpha));
         drawContext.drawTextWithShadow(client.textRenderer, Text.literal(distLine), infoX + 6, infoY + 27, withAlpha(0xCFE8FF, hudAlpha));
+        if (debugHud) {
+            int playerFeetX = net.minecraft.util.math.MathHelper.floor(client.player.getX());
+            int playerFeetZ = net.minecraft.util.math.MathHelper.floor(client.player.getZ());
+            int dx = playerFeetX - state.lieX();
+            int dz = playerFeetZ - state.lieZ();
+            String debugLine = "P(" + playerFeetX + "," + playerFeetZ + ") L(" + state.lieX() + "," + state.lieZ() + ") d(" + dx + "," + dz + ")";
+            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(debugLine), infoX + 6, infoY + 38, withAlpha(0x9BE7FF, hudAlpha));
+        }
         if (state.hasAlternateAnchor()) {
             drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Alt route"), infoX + 6, infoY + infoH - 11, withAlpha(0x9AE6FF, hudAlpha));
         }
@@ -995,7 +994,7 @@ public final class McdgClientMod implements ClientModInitializer {
                 for (int px = 0; px < MINIMAP_TEXTURE_SIZE; px++) {
                     float terrainFx = (px / (float) denominator) * (grid - 1);
                     int color = sampleTerrainColorBilinear(terrainCells, grid, terrainFx, terrainFz);
-                    image.setColor(px, py, argbToNativeRgba(color));
+                    image.setColor(px, py, color);
                 }
             }
 
@@ -1020,10 +1019,6 @@ public final class McdgClientMod implements ClientModInitializer {
 
         miniMapRenderCache.texture().close();
         miniMapRenderCache = null;
-    }
-
-    private static int argbToNativeRgba(int argb) {
-        return (argb & 0xFF00FF00) | ((argb & 0x00FF0000) >>> 16) | ((argb & 0x000000FF) << 16);
     }
 
     private record MiniMapState(

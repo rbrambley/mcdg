@@ -32,6 +32,14 @@ try {
             if ($LASTEXITCODE -ne 0) {
                 Write-Host ""
                 Write-Host "DEPLOY BLOCKED: Lifecycle smoke failed. Fix the issues above before deploying." -ForegroundColor Red
+                $latestReport = Join-Path $repoRoot "run\logs\mcdg-autotest-latest.txt"
+                if (Test-Path -LiteralPath $latestReport) {
+                    Write-Host ""
+                    Write-Host "--- Latest autotest report (key lines) ---" -ForegroundColor Yellow
+                    Get-Content -LiteralPath $latestReport | Select-String -Pattern '^Status:|^Summary:|^Fail runs:|^Total issues:|^Warning landing gaps:|^Max landing gap:' | ForEach-Object { $_.Line }
+                }
+                Write-Host ""
+                Write-Host "Tip: run powershell -NoProfile -ExecutionPolicy Bypass -File '.\scripts\run-headless-autotest.ps1' manually for full details." -ForegroundColor Yellow
                 exit 1
             }
 
@@ -45,6 +53,9 @@ try {
             gradle build
             if ($LASTEXITCODE -ne 0) { throw "Build failed (exit $LASTEXITCODE)." }
         }
+    }
+    else {
+        Write-Host "Fast path deploy active (-SkipBuild): verification gates were intentionally skipped." -ForegroundColor Yellow
     }
 
     $libsDir = Join-Path $repoRoot 'build\libs'

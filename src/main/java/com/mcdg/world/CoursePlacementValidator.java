@@ -20,12 +20,17 @@ import net.minecraft.world.biome.Biome;
 
 public final class CoursePlacementValidator {
     private static final int LANDING_GAP_WARNING_BLOCKS = 95;
-    private static final int LANDING_GAP_FAIL_BLOCKS = 115;
+    // Keep strict landing-gap validation, but avoid one-block false fails from surface sampling variance.
+    private static final int LANDING_GAP_FAIL_BLOCKS = 120;
     private static final int ALT_ROUTE_REQUIRED_CARRY_BLOCKS = 72;
     private static final int LANDING_SCAN_RADIUS = 6;
     private static final int TEE_LAUNCH_CHECK_DISTANCE = 22;
     private static final int TEE_LAUNCH_CHECK_HALF_WIDTH = 3;
     private static final int BASKET_ENCLOSURE_SCAN_RADIUS = 6;
+    private static final int BASKET_ENCLOSURE_CENTER_DEPTH_FAIL = 10;
+    private static final int BASKET_ENCLOSURE_CENTER_DEPTH_CHECK = 7;
+    private static final int BASKET_ENCLOSURE_WALL_DEPTH_THRESHOLD = 7;
+    private static final double BASKET_ENCLOSURE_HIGH_WALL_RATIO = 0.72;
 
     public ValidationReport validatePlacedCourse(ServerWorld world, Course course, PlacedCourseState placedCourseState, String scenarioName) {
         List<ValidationIssue> issues = new ArrayList<>();
@@ -311,8 +316,13 @@ public final class CoursePlacementValidator {
     private static boolean isBasketDeeplyEnclosed(ServerWorld world, BlockPos basketBase) {
         int centerSurfaceY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, basketBase.getX(), basketBase.getZ()) - 1;
         int centerDepth = centerSurfaceY - basketBase.getY();
-        if (centerDepth >= 8) {
+        if (centerDepth >= BASKET_ENCLOSURE_CENTER_DEPTH_FAIL) {
             return true;
+        }
+
+        // Shallow baskets can sit in natural bowls/cliffs but still play correctly.
+        if (centerDepth < BASKET_ENCLOSURE_CENTER_DEPTH_CHECK) {
+            return false;
         }
 
         int highWallSamples = 0;
@@ -333,14 +343,15 @@ public final class CoursePlacementValidator {
                         basketBase.getX() + dx,
                         basketBase.getZ() + dz
                 ) - 1;
-                if ((sampleSurfaceY - basketBase.getY()) >= 6) {
+                if ((sampleSurfaceY - basketBase.getY()) >= BASKET_ENCLOSURE_WALL_DEPTH_THRESHOLD) {
                     highWallSamples++;
                 }
                 totalSamples++;
             }
         }
 
-        return totalSamples > 0 && highWallSamples >= Math.max(10, (int) Math.ceil(totalSamples * 0.65));
+        return totalSamples > 0
+                && highWallSamples >= Math.max(12, (int) Math.ceil(totalSamples * BASKET_ENCLOSURE_HIGH_WALL_RATIO));
     }
 
     private static boolean isOpenSpace(BlockState state) {

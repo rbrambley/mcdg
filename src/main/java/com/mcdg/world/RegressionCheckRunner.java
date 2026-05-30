@@ -3,12 +3,21 @@ package com.mcdg.world;
 import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import com.mcdg.data.SignatureHoleType;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Random;
+import java.util.regex.Pattern;
 
 public final class RegressionCheckRunner {
     private static final int HOLE_COUNT = 9;
+    private static final Pattern HOLE_SPECIAL_CASE_PATTERN = Pattern.compile(
+            "\\b(?:holeIndex|currentHole|holeNumber|holeId)\\b\\s*(?:==|!=|<=|>=|<|>)\\s*\\d+|\\.index\\(\\)\\s*(?:==|!=|<=|>=|<|>)\\s*\\d+"
+    );
 
     private RegressionCheckRunner() {
     }
@@ -37,6 +46,8 @@ public final class RegressionCheckRunner {
     }
 
     private static void runQuickChecks(SeededCourseGenerator generator) {
+        runArchitectureChecks();
+
         Course one = generator.generate(123456789L, HOLE_COUNT);
         assertExactlyOneSignature(one, "quick-seed-1");
 
@@ -75,6 +86,64 @@ public final class RegressionCheckRunner {
         }
 
         System.out.println("Quick regression checks passed.");
+    }
+
+    private static void runArchitectureChecks() {
+        Path root = Paths.get("src", "main", "java", "com", "mcdg");
+        if (!Files.exists(root)) {
+            throw new RuntimeException("Architecture check root missing: " + root);
+        }
+
+        try (var paths = Files.walk(root)) {
+            List<Path> files = paths
+                    .filter(path -> path.toString().endsWith(".java"))
+                    .filter(RegressionCheckRunner::isCoreGameplayPath)
+                    .toList();
+
+            for (Path file : files) {
+                List<String> lines = Files.readAllLines(file, StandardCharsets.UTF_8);
+                for (int i = 0; i < lines.size(); i++) {
+                    String line = lines.get(i);
+                    if (!HOLE_SPECIAL_CASE_PATTERN.matcher(line).find()) {
+                        continue;
+                    }
+
+                    if (isAllowedHoleNumberInvariant(file, line)) {
+                        continue;
+                    }
+
+                    String rel = root.getParent().getParent().relativize(file).toString().replace('\\', '/');
+                    throw new RuntimeException(
+                            "Global behavior guard failed: hard-coded hole-specific branch detected at "
+                                    + rel + ":" + (i + 1)
+                                    + " -> " + line.trim()
+                                    + " | Use rules/data-driven logic instead of hole-number branching."
+                    );
+                }
+            }
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed architecture guard scan", ex);
+        }
+    }
+
+    private static boolean isCoreGameplayPath(Path file) {
+        String normalized = file.toString().replace('\\', '/');
+        if (normalized.endsWith("/com/mcdg/world/RegressionCheckRunner.java")) {
+            return false;
+        }
+        return normalized.contains("/com/mcdg/game/")
+                || normalized.contains("/com/mcdg/world/")
+                || normalized.contains("/com/mcdg/rules/")
+                || normalized.contains("/com/mcdg/net/");
+    }
+
+    private static boolean isAllowedHoleNumberInvariant(Path file, String line) {
+        String normalized = file.toString().replace('\\', '/');
+        if (normalized.endsWith("/com/mcdg/game/PlayerRoundState.java")
+                && line.contains("currentHole < 1")) {
+            return true;
+        }
+        return false;
     }
 
     private static void runSmokeChecks(SeededCourseGenerator generator) {

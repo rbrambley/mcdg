@@ -130,12 +130,13 @@ public final class HoleProgressTracker {
                 );
                 int cumulativeParDelta = state.totalStrokes() - runningExpectedThrows;
 
+                BlockPos mapFocus = player.getBlockPos();
                 MiniMapTerrainSnapshot previousTerrain = LAST_MINIMAP_TERRAIN.get(player.getUuid());
                 boolean refreshTerrain = !suppressHud && shouldRefreshMiniMapTerrain(
                     previousTerrain,
                     server.getTicks(),
                     state.currentHole(),
-                    state.lie(),
+                    mapFocus,
                     rulesetManager
                 );
                 MiniMapPayloadBuildResult miniMapPayload = buildMiniMapPayload(
@@ -150,6 +151,7 @@ public final class HoleProgressTracker {
                         tee == null ? state.lie() : tee,
                         basket,
                         state.lie(),
+                        mapFocus,
                         rulesetManager.isStrict(),
                         alternateAnchor,
                         previousTerrain,
@@ -158,6 +160,50 @@ public final class HoleProgressTracker {
                 );
                 if (miniMapPayload.refreshedTerrain() != null) {
                     LAST_MINIMAP_TERRAIN.put(player.getUuid(), miniMapPayload.refreshedTerrain());
+                }
+
+                if (strictFlowDebug && (server.getTicks() % 20) == 0) {
+                    HoleMiniMapSync.Payload payload = miniMapPayload.payload();
+                    BlockPos playerFeet = player.getBlockPos();
+                    byte[] terrainSource = payload.terrainCells().length > 0
+                        ? payload.terrainCells()
+                        : (previousTerrain == null ? new byte[0] : previousTerrain.terrainCells());
+                    int terrainClass = -1;
+                    int riskCode = -1;
+                    int elevationBand = -1;
+                    if (terrainSource.length == (HoleMiniMapSync.TERRAIN_GRID_SIZE * HoleMiniMapSync.TERRAIN_GRID_SIZE)
+                        && payload.mapSpan() > 0) {
+                    int denominator = Math.max(1, HoleMiniMapSync.TERRAIN_GRID_SIZE - 1);
+                    float fx = ((playerFeet.getX() - payload.mapOriginX()) / (float) payload.mapSpan()) * denominator;
+                    float fz = ((playerFeet.getZ() - payload.mapOriginZ()) / (float) payload.mapSpan()) * denominator;
+                    int gx = Math.max(0, Math.min(denominator, Math.round(fx)));
+                    int gz = Math.max(0, Math.min(denominator, Math.round(fz)));
+                    int packed = terrainSource[(gz * HoleMiniMapSync.TERRAIN_GRID_SIZE) + gx] & 0xFF;
+                    terrainClass = packed & 0x0F;
+                    riskCode = (packed >>> 4) & 0x03;
+                    elevationBand = (packed >>> 6) & 0x03;
+                    }
+                    McdgMod.LOGGER.info(
+                        "MINIMAP DEBUG | player={} hole={} feet=({}, {}) lie=({}, {}) tee=({}, {}) basket=({}, {}) origin=({}, {}) span={} dFeetLie=({}, {}) sampleTerrain={} sampleRisk={} sampleElev={}",
+                            player.getGameProfile().getName(),
+                            state.currentHole(),
+                            playerFeet.getX(),
+                            playerFeet.getZ(),
+                            payload.lieX(),
+                            payload.lieZ(),
+                            payload.teeX(),
+                            payload.teeZ(),
+                            payload.basketX(),
+                            payload.basketZ(),
+                            payload.mapOriginX(),
+                            payload.mapOriginZ(),
+                            payload.mapSpan(),
+                            playerFeet.getX() - payload.lieX(),
+                            playerFeet.getZ() - payload.lieZ(),
+                            terrainClass,
+                            riskCode,
+                            elevationBand
+                    );
                 }
 
                 ServerPlayNetworking.send(
@@ -300,6 +346,7 @@ public final class HoleProgressTracker {
             BlockPos tee,
             BlockPos basket,
             BlockPos lie,
+            BlockPos mapFocus,
             boolean strictMode,
             BlockPos alternateAnchor,
             MiniMapTerrainSnapshot cachedTerrain,
@@ -323,10 +370,10 @@ public final class HoleProgressTracker {
             span = cachedTerrain.mapSpan();
             terrainCells = new byte[0];
         } else {
-            int minX = Math.min(Math.min(tee.getX(), basket.getX()), lie.getX());
-            int maxX = Math.max(Math.max(tee.getX(), basket.getX()), lie.getX());
-            int minZ = Math.min(Math.min(tee.getZ(), basket.getZ()), lie.getZ());
-            int maxZ = Math.max(Math.max(tee.getZ(), basket.getZ()), lie.getZ());
+                int minX = Math.min(Math.min(tee.getX(), basket.getX()), mapFocus.getX());
+                int maxX = Math.max(Math.max(tee.getX(), basket.getX()), mapFocus.getX());
+                int minZ = Math.min(Math.min(tee.getZ(), basket.getZ()), mapFocus.getZ());
+                int maxZ = Math.max(Math.max(tee.getZ(), basket.getZ()), mapFocus.getZ());
             if (alternateAnchor != null) {
                 minX = Math.min(minX, alternateAnchor.getX());
                 maxX = Math.max(maxX, alternateAnchor.getX());
@@ -335,21 +382,21 @@ public final class HoleProgressTracker {
             }
 
             int baseSpan = Math.max(Math.max(1, maxX - minX), Math.max(1, maxZ - minZ)) + 10;
-            int maxLieDelta = maxLieDelta(lie, tee, basket, alternateAnchor);
+                int maxLieDelta = maxLieDelta(mapFocus, tee, basket, alternateAnchor);
             // Ensure a player-centered map still reaches far enough forward to include basket/route targets.
             int rawSpan = Math.max(baseSpan, (maxLieDelta * 2) + 24);
             span = Math.max(120, Math.round(rawSpan * HoleMiniMapSync.MAP_OVERSCAN_FACTOR));
             int halfSpan = span / 2;
-            originX = lie.getX() - halfSpan;
-            originZ = lie.getZ() - halfSpan;
+                originX = mapFocus.getX() - halfSpan;
+                originZ = mapFocus.getZ() - halfSpan;
             terrainCells = sampleMiniMapTerrain(world, currentHole, tee, basket, rulesetManager, originX, originZ, span);
             refreshedTerrain = new MiniMapTerrainSnapshot(
                     holeIndex,
                     originX,
                     originZ,
                     span,
-                    lie.getX(),
-                    lie.getZ(),
+                    mapFocus.getX(),
+                    mapFocus.getZ(),
                     serverTick,
                     terrainCells
             );
@@ -397,12 +444,14 @@ public final class HoleProgressTracker {
                 Math.abs(lie.getX() - previousTerrain.lieAnchorX()),
                 Math.abs(lie.getZ() - previousTerrain.lieAnchorZ())
         );
-        if (maxAxisDrift >= rulesetManager.miniMapTerrainRefreshMoveThresholdBlocks()) {
+        int refreshMoveThreshold = Math.max(8, rulesetManager.miniMapTerrainRefreshMoveThresholdBlocks());
+        if (maxAxisDrift >= refreshMoveThreshold) {
             return true;
         }
 
         int ticksSinceRefresh = Math.max(0, serverTick - previousTerrain.serverTick());
-        return ticksSinceRefresh >= rulesetManager.miniMapTerrainRefreshIntervalTicks();
+        int refreshIntervalTicks = Math.max(60, rulesetManager.miniMapTerrainRefreshIntervalTicks());
+        return ticksSinceRefresh >= refreshIntervalTicks;
     }
 
     private static int maxLieDelta(BlockPos lie, BlockPos tee, BlockPos basket, BlockPos alternateAnchor) {
@@ -433,6 +482,7 @@ public final class HoleProgressTracker {
         byte[] cells = new byte[grid * grid];
         int[] heights = new int[grid * grid];
         byte[] terrainClasses = new byte[grid * grid];
+        int corridorHalfWidth = strictCorridorHalfWidth(currentHole, world, tee, basket, rulesetManager);
         int denominator = Math.max(1, grid - 1);
         int minHeight = Integer.MAX_VALUE;
         int maxHeight = Integer.MIN_VALUE;
@@ -444,7 +494,7 @@ public final class HoleProgressTracker {
                 int index = (gz * grid) + gx;
                 int surfaceY = world.getTopY(Heightmap.Type.WORLD_SURFACE, sampleX, sampleZ) - 1;
                 heights[index] = surfaceY;
-                terrainClasses[index] = classifyMiniMapTerrainClass(world, sampleX, sampleZ, surfaceY);
+                terrainClasses[index] = classifyMiniMapTerrainClass(world, sampleX, sampleZ, surfaceY, tee);
 
                 if (surfaceY >= world.getBottomY()) {
                     minHeight = Math.min(minHeight, surfaceY);
@@ -469,7 +519,15 @@ public final class HoleProgressTracker {
                 int elevationBand = quantizeElevationBand(surfaceY, minHeight, heightRange, world.getBottomY());
 
                 BlockPos feet = new BlockPos(sampleX, Math.max(world.getBottomY() + 1, surfaceY + 1), sampleZ);
-                StrictPenaltyType outType = classifyOutType(world, feet, currentHole, tee, basket, rulesetManager);
+                StrictPenaltyType outType = classifyOutTypeWithCorridor(
+                        world,
+                        feet,
+                        currentHole,
+                        tee,
+                        basket,
+                        rulesetManager,
+                        corridorHalfWidth
+                );
                 int riskCode = switch (outType) {
                     case HAZARD -> 1;
                     case OB -> 2;
@@ -483,12 +541,16 @@ public final class HoleProgressTracker {
         return cells;
     }
 
-    private static byte classifyMiniMapTerrainClass(ServerWorld world, int x, int z, int surfaceY) {
+    private static byte classifyMiniMapTerrainClass(ServerWorld world, int x, int z, int surfaceY, BlockPos tee) {
         if (surfaceY < world.getBottomY()) {
             return 0;
         }
 
         BlockPos surface = new BlockPos(x, surfaceY, z);
+        if (isTeeFootprint(surface, tee) && isTeeFootprintAboveWater(world, tee)) {
+            return 1;
+        }
+
         BlockState state = world.getBlockState(surface);
         if (world.getFluidState(surface).isIn(FluidTags.LAVA)) {
             return 10;
@@ -530,6 +592,57 @@ public final class HoleProgressTracker {
             return 5;
         }
         return 8;
+    }
+
+    private static boolean isTeeFootprint(BlockPos surface, BlockPos tee) {
+        if (tee == null) {
+            return false;
+        }
+
+        return Math.abs(surface.getX() - tee.getX()) <= 1 && Math.abs(surface.getZ() - tee.getZ()) <= 1;
+    }
+
+    private static boolean isTeeFootprintAboveWater(ServerWorld world, BlockPos tee) {
+        if (tee == null) {
+            return false;
+        }
+
+        int sampleRadius = 4;
+        int totalSamples = 0;
+        int waterSamples = 0;
+
+        for (int dx = -sampleRadius; dx <= sampleRadius; dx++) {
+            for (int dz = -sampleRadius; dz <= sampleRadius; dz++) {
+                if (dx == 0 && dz == 0) {
+                    continue;
+                }
+
+                int distSq = (dx * dx) + (dz * dz);
+                if (distSq > (sampleRadius * sampleRadius)) {
+                    continue;
+                }
+
+                int sx = tee.getX() + dx;
+                int sz = tee.getZ() + dz;
+                int surfaceY = world.getTopY(Heightmap.Type.WORLD_SURFACE, sx, sz) - 1;
+                if (surfaceY < world.getBottomY()) {
+                    continue;
+                }
+
+                totalSamples++;
+                BlockPos sampleSurface = new BlockPos(sx, surfaceY, sz);
+                if (world.getFluidState(sampleSurface).isIn(FluidTags.WATER)) {
+                    waterSamples++;
+                }
+            }
+        }
+
+        if (totalSamples == 0) {
+            return false;
+        }
+
+        // Treat tee footprint as water context when the surrounding neighborhood is mostly water.
+        return waterSamples >= Math.max(6, Math.round(totalSamples * 0.45f));
     }
 
     private static int quantizeElevationBand(int surfaceY, int minHeight, int heightRange, int worldBottomY) {
@@ -861,9 +974,15 @@ public final class HoleProgressTracker {
                     );
                 }
                 if (landingPenalty == StrictPenaltyType.OB) {
-                    CrossingResolution crossing = findLastSolidBeforeOutCrossing(world, throwLie, landingFeet, currentHole, tee, basket, rulesetManager);
-                    resultingLie = crossing.safeLie();
-                    firstOutCrossing = crossing.firstOutCrossing();
+                    boolean fluidObLanding = isFluidPenaltyZone(world, currentFeet) || isFluidPenaltyZone(world, landingFeet);
+                    if (fluidObLanding) {
+                        resultingLie = resolveSafeFeetNear(world, throwLie);
+                        firstOutCrossing = landingFeet;
+                    } else {
+                        CrossingResolution crossing = findLastSolidBeforeOutCrossing(world, throwLie, landingFeet, currentHole, tee, basket, rulesetManager);
+                        resultingLie = crossing.safeLie();
+                        firstOutCrossing = crossing.firstOutCrossing();
+                    }
                 } else {
                     resultingLie = landingFeet;
                 }
@@ -998,10 +1117,20 @@ public final class HoleProgressTracker {
             BlockPos basket,
             TournamentRulesetManager rulesetManager
     ) {
-        if (world.getFluidState(feet).isIn(FluidTags.WATER)
-                || world.getFluidState(feet).isIn(FluidTags.LAVA)
-                || world.getFluidState(feet.down()).isIn(FluidTags.WATER)
-                || world.getFluidState(feet.down()).isIn(FluidTags.LAVA)) {
+        int corridorHalfWidth = strictCorridorHalfWidth(currentHole, world, tee, basket, rulesetManager);
+        return classifyOutTypeWithCorridor(world, feet, currentHole, tee, basket, rulesetManager, corridorHalfWidth);
+    }
+
+    private static StrictPenaltyType classifyOutTypeWithCorridor(
+            ServerWorld world,
+            BlockPos feet,
+            Hole currentHole,
+            BlockPos tee,
+            BlockPos basket,
+            TournamentRulesetManager rulesetManager,
+            int corridorHalfWidth
+    ) {
+        if (isFluidPenaltyZone(world, feet)) {
             return StrictPenaltyType.OB;
         }
 
@@ -1014,11 +1143,18 @@ public final class HoleProgressTracker {
         }
 
         double lateral = distanceFromPointToSegmentXZ(feet, tee, basket);
-        if (lateral > strictCorridorHalfWidth(currentHole, world, tee, basket, rulesetManager)) {
+        if (lateral > corridorHalfWidth) {
             return StrictPenaltyType.OB;
         }
 
         return StrictPenaltyType.NONE;
+    }
+
+    private static boolean isFluidPenaltyZone(ServerWorld world, BlockPos feet) {
+        return world.getFluidState(feet).isIn(FluidTags.WATER)
+                || world.getFluidState(feet).isIn(FluidTags.LAVA)
+                || world.getFluidState(feet.down()).isIn(FluidTags.WATER)
+                || world.getFluidState(feet.down()).isIn(FluidTags.LAVA);
     }
 
     private static int strictCorridorHalfWidth(Hole hole, ServerWorld world, BlockPos tee, BlockPos basket, TournamentRulesetManager rulesetManager) {
