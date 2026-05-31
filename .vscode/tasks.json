@@ -26,6 +26,21 @@
       "problemMatcher": []
     },
     {
+      "label": "Build + Deploy (Clean Lifecycle Smoke)",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\scripts\\deploy-to-atlauncher.ps1",
+        "-EnforceCleanLifecycleSmoke"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
       "label": "Run Strict Dev Server",
       "type": "shell",
       "command": "powershell",

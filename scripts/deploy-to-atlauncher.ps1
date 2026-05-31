@@ -1,7 +1,8 @@
 param(
     [string]$InstanceModsDir = $env:ATLAUNCHER_TEST_MODS_DIR,
     [switch]$SkipBuild,
-    [switch]$QuickOnly
+    [switch]$QuickOnly,
+    [switch]$EnforceCleanLifecycleSmoke
 )
 
 $ErrorActionPreference = 'Stop'
@@ -28,7 +29,18 @@ try {
 
             Write-Host ""
             Write-Host "--- Step 1/3: Lifecycle smoke ---"
-            powershell -NoProfile -ExecutionPolicy Bypass -File "$repoRoot\scripts\run-headless-autotest.ps1" -Runs 3 -Holes 9
+            $lifecycleArgs = @(
+                '-NoProfile',
+                '-ExecutionPolicy', 'Bypass',
+                '-File', "$repoRoot\scripts\run-headless-autotest.ps1",
+                '-Runs', '3',
+                '-Holes', '9'
+            )
+            if ($EnforceCleanLifecycleSmoke.IsPresent) {
+                Write-Host "Lifecycle smoke strict mode enabled: enforcing clean runtime preflight."
+                $lifecycleArgs += '-EnforceCleanRuntime'
+            }
+            powershell @lifecycleArgs
             if ($LASTEXITCODE -ne 0) {
                 Write-Host ""
                 Write-Host "DEPLOY BLOCKED: Lifecycle smoke failed. Fix the issues above before deploying." -ForegroundColor Red
