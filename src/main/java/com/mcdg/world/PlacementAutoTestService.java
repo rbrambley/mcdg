@@ -55,6 +55,10 @@ public final class PlacementAutoTestService {
     }
 
     public int start(ServerCommandSource source, int runs, int holes) {
+        return start(source, runs, holes, null);
+    }
+
+    public int start(ServerCommandSource source, int runs, int holes, Long baseSeedOverride) {
         if (courseManager.isRoundActive()) {
             source.sendError(Text.literal("End the active round before running placement automation."));
             return 0;
@@ -85,12 +89,14 @@ public final class PlacementAutoTestService {
             }
         }
 
-        activeSession = new AutoTestSession(source, world, runs, holes, biomeAnchors, progressBar, System.currentTimeMillis());
+        long resolvedBaseSeed = baseSeedOverride == null ? System.currentTimeMillis() : baseSeedOverride;
+        activeSession = new AutoTestSession(source, world, runs, holes, biomeAnchors, progressBar, resolvedBaseSeed);
         HoleProgressTracker.beginAutotestLieMarkerTrail();
 
         String startMessage = "Starting autotest: runs=" + runs
                 + ", holes=" + holes
                 + ", biomeAnchors=" + biomeAnchors.size()
+                + ", baseSeed=" + resolvedBaseSeed
                 + ". Use /mcdg cancelautotest to stop.";
         source.sendFeedback(() -> Text.literal(startMessage), true);
         return 1;

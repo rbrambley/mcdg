@@ -28,6 +28,7 @@ public final class McdgMod implements ModInitializer {
     public static final String MOD_ID = "mcdg";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     private static final String AUTOTEST_ENV = "MCDG_AUTOTEST";
+    private static final String AUTOTEST_BASE_SEED_ENV = "MCDG_AUTOTEST_BASE_SEED";
     private static final String AUTO_STRICT_SETUP_ENV = "MCDG_AUTO_STRICT_SETUP";
     private static final int AUTO_STRICT_SETUP_MAX_WAIT_TICKS = 20 * 120;
 
@@ -128,10 +129,33 @@ public final class McdgMod implements ModInitializer {
 
         final int safeRuns = Math.max(1, Math.min(200, runs));
         final int safeHoles = Math.max(1, Math.min(18, holes));
-        LOGGER.info("Headless autotest requested via {}: runs={}, holes={}", AUTOTEST_ENV, safeRuns, safeHoles);
+        Long baseSeedOverride = null;
+        String baseSeedValue = System.getenv(AUTOTEST_BASE_SEED_ENV);
+        if (baseSeedValue != null && !baseSeedValue.isBlank()) {
+            try {
+                baseSeedOverride = Long.parseLong(baseSeedValue.trim());
+            } catch (NumberFormatException ex) {
+                LOGGER.error("Invalid {} value '{}'. Expected a numeric seed.", AUTOTEST_BASE_SEED_ENV, baseSeedValue);
+                return;
+            }
+        }
 
+        if (baseSeedOverride != null) {
+            LOGGER.info(
+                    "Headless autotest requested via {}: runs={}, holes={}, baseSeed={} (from {})",
+                    AUTOTEST_ENV,
+                    safeRuns,
+                    safeHoles,
+                    baseSeedOverride,
+                    AUTOTEST_BASE_SEED_ENV
+            );
+        } else {
+            LOGGER.info("Headless autotest requested via {}: runs={}, holes={}", AUTOTEST_ENV, safeRuns, safeHoles);
+        }
+
+        final Long finalBaseSeedOverride = baseSeedOverride;
         server.execute(() -> {
-            int started = PLACEMENT_AUTO_TEST_SERVICE.start(server.getCommandSource(), safeRuns, safeHoles);
+            int started = PLACEMENT_AUTO_TEST_SERVICE.start(server.getCommandSource(), safeRuns, safeHoles, finalBaseSeedOverride);
             if (started == 0) {
                 LOGGER.error("Headless autotest did not start.");
             }

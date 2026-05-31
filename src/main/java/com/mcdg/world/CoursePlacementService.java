@@ -1,5 +1,6 @@
 package com.mcdg.world;
 
+import com.mcdg.McdgMod;
 import com.mcdg.data.Course;
 import com.mcdg.data.FairwaySegment;
 import com.mcdg.data.Hole;
@@ -75,8 +76,11 @@ public final class CoursePlacementService {
     private static final int TEE_MAX_DIRECT_CARRY_GAP = 72;
     private static final int ALT_FAIRWAY_ANCHOR_SEARCH_RADIUS = 80;
     private static final int ALT_FAIRWAY_FIRST_LEG_MAX_GAP = 26;
+    private static final int ALT_FAIRWAY_FIRST_LEG_MAX_GAP_FALLBACK = 40;
+    private static final int ALT_FAIRWAY_FIRST_LEG_MAX_GAP_EMERGENCY = Integer.MAX_VALUE;
     private static final int ALT_FAIRWAY_MIN_ADVANCE = 12;
     private static final int ALT_FAIRWAY_MAX_FIRST_LEG = 120;
+    private static final String ALT_ROUTE_DIAG_ENV = "MCDG_ALT_ROUTE_DIAG";
     private static final int CAMP_SITE_RADIUS = 28;
     private static final int CAMP_SITE_SCAN_STEP = 4;
     private static final int CAMP_SITE_MAX_Y_DELTA = 6;
@@ -2224,13 +2228,63 @@ public final class CoursePlacementService {
     }
 
     private static BlockPos findAlternateFairwayAnchor(ServerWorld world, BlockPos teeSurface, BlockPos basketSurface) {
+        boolean routeDiag = isAltRouteDiagEnabled();
         int directCarryGap = computeLongestWaterCarryGap(world, teeSurface, basketSurface);
+        if (routeDiag) {
+            McdgMod.LOGGER.info(
+                    "AltRouteDiag start tee=({}, {}, {}) basket=({}, {}, {}) directCarryGap={} threshold={}",
+                    teeSurface.getX(), teeSurface.getY(), teeSurface.getZ(),
+                    basketSurface.getX(), basketSurface.getY(), basketSurface.getZ(),
+                    directCarryGap,
+                    TEE_MAX_DIRECT_CARRY_GAP
+            );
+        }
         if (directCarryGap <= TEE_MAX_DIRECT_CARRY_GAP) {
+            if (routeDiag) {
+                McdgMod.LOGGER.info("AltRouteDiag skipped: direct carry does not exceed threshold.");
+            }
             return null;
         }
 
+        AlternateAnchorSearchResult strictResult = searchAlternateFairwayAnchor(world, teeSurface, basketSurface, ALT_FAIRWAY_FIRST_LEG_MAX_GAP);
+        if (routeDiag) {
+            logAltRouteDiagResult("strict", strictResult);
+        }
+        if (strictResult.anchor() != null) {
+            return strictResult.anchor();
+        }
+
+        AlternateAnchorSearchResult fallbackResult = searchAlternateFairwayAnchor(world, teeSurface, basketSurface, ALT_FAIRWAY_FIRST_LEG_MAX_GAP_FALLBACK);
+        if (routeDiag) {
+            logAltRouteDiagResult("fallback", fallbackResult);
+        }
+        if (fallbackResult.anchor() != null) {
+            return fallbackResult.anchor();
+        }
+
+        AlternateAnchorSearchResult emergencyResult = searchAlternateFairwayAnchor(world, teeSurface, basketSurface, ALT_FAIRWAY_FIRST_LEG_MAX_GAP_EMERGENCY);
+        if (routeDiag) {
+            logAltRouteDiagResult("emergency", emergencyResult);
+        }
+        return emergencyResult.anchor();
+    }
+
+    private static AlternateAnchorSearchResult searchAlternateFairwayAnchor(
+            ServerWorld world,
+            BlockPos teeSurface,
+            BlockPos basketSurface,
+            int firstLegGapLimit
+    ) {
         BlockPos best = null;
         int bestScore = Integer.MAX_VALUE;
+        int candidatesChecked = 0;
+        int rejectedUnwalkable = 0;
+        int rejectedFirstLeg = 0;
+        int rejectedNoAdvance = 0;
+        int rejectedFirstGap = 0;
+        int viableCandidates = 0;
+        int bestFirstGap = -1;
+        int bestSecondGap = -1;
 
         for (int dx = -ALT_FAIRWAY_ANCHOR_SEARCH_RADIUS; dx <= ALT_FAIRWAY_ANCHOR_SEARCH_RADIUS; dx += 2) {
             for (int dz = -ALT_FAIRWAY_ANCHOR_SEARCH_RADIUS; dz <= ALT_FAIRWAY_ANCHOR_SEARCH_RADIUS; dz += 2) {
@@ -2238,12 +2292,14 @@ public final class CoursePlacementService {
                 if (distSq > (ALT_FAIRWAY_ANCHOR_SEARCH_RADIUS * ALT_FAIRWAY_ANCHOR_SEARCH_RADIUS)) {
                     continue;
                 }
+                candidatesChecked++;
 
                 BlockPos candidate = normalizePlayableSurface(
                         world,
                         resolveSurfacePos(world, teeSurface.getX() + dx, teeSurface.getZ() + dz)
                 );
                 if (!isWalkableGround(world, candidate) || isLikelyPitSurface(world, candidate)) {
+                    rejectedUnwalkable++;
                     continue;
                 }
 
@@ -2252,20 +2308,25 @@ public final class CoursePlacementService {
                         Math.abs(candidate.getZ() - teeSurface.getZ())
                 );
                 if (firstLeg < ALT_FAIRWAY_MIN_ADVANCE || firstLeg > ALT_FAIRWAY_MAX_FIRST_LEG) {
+                    rejectedFirstLeg++;
                     continue;
                 }
 
                 int distTeeToBasket = Math.abs(basketSurface.getX() - teeSurface.getX()) + Math.abs(basketSurface.getZ() - teeSurface.getZ());
                 int distAnchorToBasket = Math.abs(basketSurface.getX() - candidate.getX()) + Math.abs(basketSurface.getZ() - candidate.getZ());
                 if (distAnchorToBasket > (distTeeToBasket - ALT_FAIRWAY_MIN_ADVANCE)) {
+                    rejectedNoAdvance++;
                     continue;
                 }
 
                 int firstGap = computeLongestWaterCarryGap(world, teeSurface, candidate);
-                if (firstGap > ALT_FAIRWAY_FIRST_LEG_MAX_GAP) {
+                if (firstGap > firstLegGapLimit) {
+                    rejectedFirstGap++;
                     continue;
                 }
+
                 int secondGap = computeLongestWaterCarryGap(world, candidate, basketSurface);
+                viableCandidates++;
 
                 int score = distSq;
                 score += firstGap * 600;
@@ -2274,11 +2335,72 @@ public final class CoursePlacementService {
                 if (score < bestScore) {
                     bestScore = score;
                     best = candidate;
+                    bestFirstGap = firstGap;
+                    bestSecondGap = secondGap;
                 }
             }
         }
 
-        return best;
+        return new AlternateAnchorSearchResult(
+                best,
+                candidatesChecked,
+                viableCandidates,
+                rejectedUnwalkable,
+                rejectedFirstLeg,
+                rejectedNoAdvance,
+                rejectedFirstGap,
+                bestScore,
+                bestFirstGap,
+                bestSecondGap
+        );
+    }
+
+    private static void logAltRouteDiagResult(String passName, AlternateAnchorSearchResult result) {
+        BlockPos anchor = result.anchor();
+        McdgMod.LOGGER.info(
+                "AltRouteDiag {} anchorFound={} checked={} viable={} rejectUnwalkable={} rejectFirstLeg={} rejectNoAdvance={} rejectFirstGap={} bestScore={} bestFirstGap={} bestSecondGap={} anchor=({}, {}, {})",
+                passName,
+                anchor != null,
+                result.candidatesChecked(),
+                result.viableCandidates(),
+                result.rejectedUnwalkable(),
+                result.rejectedFirstLeg(),
+                result.rejectedNoAdvance(),
+                result.rejectedFirstGap(),
+                result.bestScore(),
+                result.bestFirstGap(),
+                result.bestSecondGap(),
+                anchor == null ? 0 : anchor.getX(),
+                anchor == null ? 0 : anchor.getY(),
+                anchor == null ? 0 : anchor.getZ()
+        );
+    }
+
+    private record AlternateAnchorSearchResult(
+            BlockPos anchor,
+            int candidatesChecked,
+            int viableCandidates,
+            int rejectedUnwalkable,
+            int rejectedFirstLeg,
+            int rejectedNoAdvance,
+            int rejectedFirstGap,
+            int bestScore,
+            int bestFirstGap,
+            int bestSecondGap
+    ) {
+    }
+
+    private static boolean isAltRouteDiagEnabled() {
+        String value = System.getenv(ALT_ROUTE_DIAG_ENV);
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+
+        String normalized = value.trim();
+        return normalized.equalsIgnoreCase("1")
+                || normalized.equalsIgnoreCase("true")
+                || normalized.equalsIgnoreCase("yes")
+                || normalized.equalsIgnoreCase("on");
     }
 
     private static String alternateRouteNote(BlockPos teeSurface, BlockPos basketSurface, BlockPos anchor) {
