@@ -99,25 +99,19 @@ public final class ChargedDiscItem extends Item {
             return;
         }
 
-        // Lie-distance enforcement is a strict-mode rule only.
-        // In casual mode there is no enforcement — and even in strict mode we must only
-        // check AFTER the tracker has had a chance to update the lie from the previous
-        // pearl landing, otherwise the player is always blocked on throw #2+.
-        // NOTE: totalStrokes > 0 guard was intentionally removed — the first throw of the
-        // entire round (hole 1, throw 1) must also be gated because the initial lie is
-        // set to the tee position at round start, so the distance check is valid.
-        if (rulesetManager.isStrict()) {
-            var state = roundStateManager.getState(serverPlayer.getUuid()).orElse(null);
-            if (state != null && !state.lastThrowPenalty()) {
+        // Always enforce throw-from-lie across rulesets; strict mode only affects landing penalties.
+        var state = roundStateManager.getState(serverPlayer.getUuid()).orElse(null);
+        if (state != null) {
             if (HoleProgressTracker.isThrowResolutionPending(serverPlayer.getUuid(), state.totalStrokes())) {
                 String snapshot = HoleProgressTracker.strictThrowGateDebugSnapshot(serverPlayer.getUuid(), state.totalStrokes());
                 McdgMod.LOGGER.info(
-                    "Strict throw gate pending resolution | player={} total={} hole={} lie={} playerPos={} snapshot={}",
+                    "Throw gate pending resolution | player={} total={} hole={} lie={} playerPos={} mode={} snapshot={}",
                     serverPlayer.getGameProfile().getName(),
                     state.totalStrokes(),
                     state.currentHole(),
                     formatPos(state.lie()),
                     formatPos(serverPlayer.getBlockPos()),
+                    rulesetManager.getActiveRuleset().name(),
                     snapshot
                 );
                 serverPlayer.sendMessage(
@@ -128,53 +122,48 @@ public final class ChargedDiscItem extends Item {
                 return;
             }
 
-                boolean bypassConsumed = HoleProgressTracker.consumeStrictPenaltyThrowBypass(serverPlayer.getUuid());
-                if (strictFlowDebug) {
-                    String snapshot = HoleProgressTracker.strictThrowGateDebugSnapshot(serverPlayer.getUuid(), state.totalStrokes());
-                    McdgMod.LOGGER.info(
-                        "Strict throw gate | player={} total={} hole={} lie={} playerPos={} bypass={} allowed={} strict={} snapshot={}",
-                            serverPlayer.getGameProfile().getName(),
-                            state.totalStrokes(),
-                            state.currentHole(),
-                            formatPos(state.lie()),
-                            formatPos(serverPlayer.getBlockPos()),
-                            bypassConsumed,
-                            rulesetManager.allowedLieToleranceBlocks(),
-                        rulesetManager.isStrict(),
+            if (strictFlowDebug) {
+                String snapshot = HoleProgressTracker.strictThrowGateDebugSnapshot(serverPlayer.getUuid(), state.totalStrokes());
+                McdgMod.LOGGER.info(
+                    "Throw gate | player={} total={} hole={} lie={} playerPos={} allowed={} mode={} snapshot={}",
+                        serverPlayer.getGameProfile().getName(),
+                        state.totalStrokes(),
+                        state.currentHole(),
+                        formatPos(state.lie()),
+                        formatPos(serverPlayer.getBlockPos()),
+                        rulesetManager.allowedLieToleranceBlocks(),
+                        rulesetManager.getActiveRuleset().name(),
                         snapshot
-                    );
-                }
-                if (!bypassConsumed) {
-                    int distanceFromLie = horizontalDistance(serverPlayer.getBlockPos(), state.lie());
-                    int allowedDistance = rulesetManager.allowedLieToleranceBlocks();
-                    if (distanceFromLie > allowedDistance) {
-                        String snapshot = HoleProgressTracker.strictThrowGateDebugSnapshot(serverPlayer.getUuid(), state.totalStrokes());
-                        McdgMod.LOGGER.warn(
-                                "Strict throw gate blocked | player={} hole={} total={} holeStrokes={} distanceFromLie={} allowed={} stateLie={} playerPos={} lastPenalty={} bypassConsumed={} snapshot={}",
-                                serverPlayer.getGameProfile().getName(),
-                                state.currentHole(),
-                                state.totalStrokes(),
-                                state.holeStrokes(),
-                                distanceFromLie,
-                                allowedDistance,
-                                formatPos(state.lie()),
-                                formatPos(serverPlayer.getBlockPos()),
-                                state.lastThrowPenalty(),
-                                bypassConsumed,
-                                snapshot
-                        );
-                        serverPlayer.sendMessage(
-                                Text.literal(
-                                        "Move back to your lie before throwing. "
-                                        + "Distance=" + distanceFromLie
-                                        + " blocks, allowed=" + allowedDistance
-                                        + " (strict)."
-                                ).formatted(Formatting.RED),
-                                true
-                        );
-                        return;
-                    }
-                }
+                );
+            }
+
+            int distanceFromLie = horizontalDistance(serverPlayer.getBlockPos(), state.lie());
+            int allowedDistance = rulesetManager.allowedLieToleranceBlocks();
+            if (distanceFromLie > allowedDistance) {
+                String snapshot = HoleProgressTracker.strictThrowGateDebugSnapshot(serverPlayer.getUuid(), state.totalStrokes());
+                McdgMod.LOGGER.warn(
+                        "Throw gate blocked | player={} hole={} total={} holeStrokes={} distanceFromLie={} allowed={} stateLie={} playerPos={} mode={} snapshot={}",
+                        serverPlayer.getGameProfile().getName(),
+                        state.currentHole(),
+                        state.totalStrokes(),
+                        state.holeStrokes(),
+                        distanceFromLie,
+                        allowedDistance,
+                        formatPos(state.lie()),
+                        formatPos(serverPlayer.getBlockPos()),
+                        rulesetManager.getActiveRuleset().name(),
+                        snapshot
+                );
+                serverPlayer.sendMessage(
+                        Text.literal(
+                                "Move back to your lie before throwing. "
+                                + "Distance=" + distanceFromLie
+                                + " blocks, allowed=" + allowedDistance
+                                + " (" + rulesetManager.getActiveRuleset().name().toLowerCase() + ")."
+                        ).formatted(Formatting.RED),
+                        true
+                );
+                return;
             }
         }
 

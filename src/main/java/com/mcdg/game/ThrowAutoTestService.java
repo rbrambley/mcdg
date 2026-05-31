@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.UUID;
 import net.minecraft.entity.boss.BossBar;
 import net.minecraft.entity.boss.ServerBossBar;
+import net.minecraft.entity.mob.HostileEntity;
 import net.minecraft.entity.projectile.thrown.EnderPearlEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
@@ -31,6 +32,7 @@ public final class ThrowAutoTestService {
     private static final String THROW_AUTOTEST_COUNT_ENV = "MCDG_THROW_AUTOTEST_COUNT";
     private static final String THROW_AUTOTEST_PLAYER_ENV = "MCDG_THROW_AUTOTEST_PLAYER";
     private static final String THROW_AUTOTEST_SHUTDOWN_ENV = "MCDG_THROW_AUTOTEST_SHUTDOWN";
+    private static final int MAX_CONSECUTIVE_UNCHANGED_LIE_THROWS = 3;
     private static final DateTimeFormatter REPORT_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
 
     private final ActiveCourseManager courseManager;
@@ -80,6 +82,7 @@ public final class ThrowAutoTestService {
             state.lie(),
             createBossBar("Throw autotest: starting...", source.getServer(), player)
         );
+        HoleProgressTracker.beginAutotestLieMarkerTrail();
         updateBossBar(activeSession, 0, false, state.currentHole(), state.lie(), null);
         source.sendFeedback(() -> Text.literal("Throw autotest started for " + throwsToRun + " throws."), true);
         return 1;
@@ -124,6 +127,7 @@ public final class ThrowAutoTestService {
         }
 
         keepPlayerAlive(player);
+        clearNearbyHostiles((ServerWorld) player.getWorld(), player);
 
         PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
         Course course = courseManager.getActiveCourse().orElse(null);
@@ -160,12 +164,38 @@ public final class ThrowAutoTestService {
                 session.resolvedThrows++;
                 if (!meaningful) {
                     session.resolvedUnchangedLieThrows++;
-                    session.logLines.add(
-                            "resolved throw=" + session.throwsLaunched
-                                    + " outcome=UNCHANGED_LIE lie=" + formatPos(state.lie())
-                                    + " hole=" + state.currentHole()
+                    session.consecutiveUnchangedLieThrows++;
+                    int horizontalDelta = horizontalDistance(session.lastThrowLie, state.lie());
+                    String failure =
+                            "failed throw=" + session.throwsLaunched
+                            + " outcome=NON_MEANINGFUL_LIE from=" + formatPos(session.lastThrowLie)
+                            + " to=" + formatPos(state.lie())
+                            + " horizontalDelta=" + horizontalDelta
+                                    + " hole=" + state.currentHole();
+                    session.logLines.add(failure);
+                    if (session.consecutiveUnchangedLieThrows >= MAX_CONSECUTIVE_UNCHANGED_LIE_THROWS) {
+                    finishSession(
+                        "Throw autotest failed: lie did not move meaningfully after throw "
+                            + session.throwsLaunched
+                            + " (hole " + state.currentHole() + ")",
+                        false
                     );
+                    return;
+                    }
+                    session.logLines.add(
+                        "warning: tolerated unchanged-lie resolution at throw "
+                            + session.throwsLaunched
+                            + " (streak=" + session.consecutiveUnchangedLieThrows + ")"
+                    );
+                } else {
+                    session.consecutiveUnchangedLieThrows = 0;
                 }
+                session.logLines.add(
+                        "resolved throw=" + session.throwsLaunched
+                                + " outcome=LIE_UPDATED from=" + formatPos(session.lastThrowLie)
+                                + " to=" + formatPos(state.lie())
+                                + " hole=" + state.currentHole()
+                );
                 session.waitingForLieResolution = false;
                 session.waitTicksAfterThrow = 0;
             } else {
@@ -191,6 +221,11 @@ public final class ThrowAutoTestService {
                 session.waitTicksAfterThrow = 0;
                 session.logLines.add("warning: lie did not resolve within 80 ticks after throw " + session.throwsLaunched);
                 session.logLines.add("diagnostic: " + diagnostic);
+                finishSession(
+                        "Throw autotest failed: unresolved lie after throw " + session.throwsLaunched,
+                        false
+                );
+                return;
             } else {
                 updateBossBar(session, session.throwsLaunched, true, state.currentHole(), state.lie(), null);
                 return;
@@ -199,7 +234,15 @@ public final class ThrowAutoTestService {
 
         if (session.throwsLaunched >= session.targetThrows && !hasInFlightPearlForPlayer(world, player)) {
             updateBossBar(session, session.targetThrows, false, state.currentHole(), state.lie(), null);
-            finishSession("Throw autotest complete.", true);
+            boolean hasAnomalies = session.suspectUnchangedLieEvents > 0;
+            if (hasAnomalies) {
+                finishSession(
+                        "Throw autotest failed: unresolved/unchanged lie anomalies detected.",
+                        false
+                );
+            } else {
+                finishSession("Throw autotest complete.", true);
+            }
             return;
         }
 
@@ -216,7 +259,7 @@ public final class ThrowAutoTestService {
 
         BlockPos lie = state.lie();
         BlockPos safeFeet = resolveClearLaunchFeetNear(world, lie, basket);
-        player.teleport(safeFeet.getX() + 0.5, safeFeet.getY() + 1.0, safeFeet.getZ() + 0.5);
+        player.teleport(safeFeet.getX() + 0.5, safeFeet.getY(), safeFeet.getZ() + 0.5);
 
         Vec3d from = new Vec3d(player.getX(), player.getEyeY(), player.getZ());
         Vec3d to = new Vec3d(basket.getX() + 0.5, basket.getY() + 1.2, basket.getZ() + 0.5);
@@ -227,14 +270,32 @@ public final class ThrowAutoTestService {
 
         double horizontal = Math.sqrt((direction.x * direction.x) + (direction.z * direction.z));
         double speed = horizontal > 45.0 ? 2.0 : 1.5;
-        Vec3d velocity = direction.normalize().multiply(speed).add(0.0, 0.14, 0.0);
+        Vec3d normalized = direction.normalize();
+        float yaw = (float) Math.toDegrees(Math.atan2(-normalized.x, normalized.z));
+        float pitch = (float) Math.toDegrees(-Math.atan2(direction.y, horizontal));
+
+        if (session.consecutiveUnchangedLieThrows > 0) {
+            int streak = Math.min(3, session.consecutiveUnchangedLieThrows);
+            float yawOffset = (session.throwsLaunched % 2 == 0 ? 1.0f : -1.0f) * (6.0f * streak);
+            float loftAdjustment = 4.0f * streak;
+            yaw += yawOffset;
+            pitch = clampPitch(pitch - loftAdjustment);
+            speed = Math.min(2.0, speed + (0.1 * streak));
+        }
+
+        player.setYaw(yaw);
+        player.setPitch(pitch);
+        player.setHeadYaw(yaw);
+        player.setBodyYaw(yaw);
+        player.setVelocity(Vec3d.ZERO);
 
         EnderPearlEntity pearl = new EnderPearlEntity(world, player);
         pearl.setItem(new ItemStack(Items.ENDER_PEARL));
-        pearl.setVelocity(velocity);
+        pearl.setVelocity(player, pitch, yaw, 0.0f, (float) speed, 0.0f);
         world.spawnEntity(pearl);
+        HoleProgressTracker.registerThrowRelease(player.getUuid(), pearl.getUuid(), world.getTime());
 
-        roundStateManager.recordThrow(session.playerId, player.getBlockPos());
+        roundStateManager.recordThrow(session.playerId, lie);
         session.lastThrowLie = lie;
         session.lastThrowHole = state.currentHole();
         session.lastLaunchPlayerFeet = player.getBlockPos();
@@ -249,7 +310,10 @@ public final class ThrowAutoTestService {
                 + " hole=" + state.currentHole()
                 + " lie=" + formatPos(lie)
                 + " basket=" + formatPos(basket)
+                + " yaw=" + String.format("%.2f", yaw)
+                + " pitch=" + String.format("%.2f", pitch)
                 + " speed=" + String.format("%.2f", speed)
+                + " unchangedStreak=" + session.consecutiveUnchangedLieThrows
         );
         session.throwsLaunched++;
         updateBossBar(session, session.throwsLaunched, true, state.currentHole(), lie, basket);
@@ -293,6 +357,8 @@ public final class ThrowAutoTestService {
             if (autoShutdown) {
                 session.source.getServer().stop(false);
             }
+
+            HoleProgressTracker.endAutotestLieMarkerTrail(session.source.getServer());
         }
         activeSession = null;
     }
@@ -404,6 +470,7 @@ public final class ThrowAutoTestService {
             state.lie(),
             createBossBar("Throw autotest: waiting for auto start...", server, player)
         );
+        HoleProgressTracker.beginAutotestLieMarkerTrail();
         updateBossBar(activeSession, 0, false, state.currentHole(), state.lie(), null);
 
         server.getCommandSource().sendFeedback(
@@ -487,7 +554,17 @@ public final class ThrowAutoTestService {
             return true;
         }
 
-        return !currentLie.equals(throwLie);
+        return horizontalDistance(throwLie, currentLie) > 0;
+    }
+
+    private static int horizontalDistance(BlockPos from, BlockPos to) {
+        int dx = Math.abs(from.getX() - to.getX());
+        int dz = Math.abs(from.getZ() - to.getZ());
+        return Math.max(dx, dz);
+    }
+
+    private static float clampPitch(float pitch) {
+        return Math.max(-85.0f, Math.min(85.0f, pitch));
     }
 
     private static String buildStuckLieDiagnostic(
@@ -590,9 +667,18 @@ public final class ThrowAutoTestService {
         }
 
         player.setHealth(player.getMaxHealth());
+        player.setInvulnerable(true);
+        player.setFireTicks(0);
         player.addStatusEffect(new StatusEffectInstance(StatusEffects.RESISTANCE, 80, 4, false, false, true));
         player.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 80, 1, false, false, true));
         player.addStatusEffect(new StatusEffectInstance(StatusEffects.ABSORPTION, 80, 2, false, false, true));
+    }
+
+    private static void clearNearbyHostiles(ServerWorld world, ServerPlayerEntity player) {
+        Box search = new Box(player.getBlockPos()).expand(20.0, 8.0, 20.0);
+        for (HostileEntity hostile : world.getEntitiesByClass(HostileEntity.class, search, entity -> entity.isAlive())) {
+            hostile.discard();
+        }
     }
 
     private static boolean hasInFlightPearlForPlayer(ServerWorld world, ServerPlayerEntity player) {
@@ -669,6 +755,7 @@ public final class ThrowAutoTestService {
         private int throwsLaunched;
         private int resolvedThrows;
         private int resolvedUnchangedLieThrows;
+        private int consecutiveUnchangedLieThrows;
         private int lastObservedTotalStrokes;
         private int suspectUnchangedLieEvents;
         private BlockPos lastThrowLie;

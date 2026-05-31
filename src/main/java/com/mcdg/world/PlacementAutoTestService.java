@@ -2,6 +2,7 @@ package com.mcdg.world;
 
 import com.mcdg.data.Course;
 import com.mcdg.game.ActiveCourseManager;
+import com.mcdg.game.HoleProgressTracker;
 import com.mcdg.game.PlacedCourseState;
 import com.mcdg.game.RoundStateManager;
 import java.io.IOException;
@@ -85,6 +86,7 @@ public final class PlacementAutoTestService {
         }
 
         activeSession = new AutoTestSession(source, world, runs, holes, biomeAnchors, progressBar, System.currentTimeMillis());
+        HoleProgressTracker.beginAutotestLieMarkerTrail();
 
         String startMessage = "Starting autotest: runs=" + runs
                 + ", holes=" + holes
@@ -228,6 +230,7 @@ public final class PlacementAutoTestService {
         }
 
         roundStateManager.clearAll();
+        HoleProgressTracker.endAutotestLieMarkerTrail(session.source.getServer());
         if ("true".equalsIgnoreCase(System.getenv(AUTOTEST_SHUTDOWN_ENV))) {
             session.source.getServer().stop(false);
         }

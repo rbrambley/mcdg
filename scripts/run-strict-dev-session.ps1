@@ -170,8 +170,24 @@ if ($serverProcess.HasExited) {
 
 Wait-ForTcpPort -HostName "127.0.0.1" -Port 25565
 Wait-ForLogPattern -LogPath $serverStdOut -Pattern 'Done \(' -TimeoutSeconds 240
-Wait-ForLogPattern -LogPath $serverStdOut -Pattern 'Auto strict setup complete:' -TimeoutSeconds 240
 
-[void](Start-BackgroundCommand -WorkingDirectory $repoRoot -Command 'gradle runClient' -StdOutPath (Join-Path $repoRoot 'run\logs\strict-dev-session-client.out.log') -StdErrPath (Join-Path $repoRoot 'run\logs\strict-dev-session-client.err.log') -EnvironmentVariables @{ MCDG_AUTOCONNECT_SERVER = '127.0.0.1:25565' })
+$clientStdOut = Join-Path $repoRoot 'run\logs\strict-dev-session-client.out.log'
+$clientStdErr = Join-Path $repoRoot 'run\logs\strict-dev-session-client.err.log'
+Remove-Item $clientStdOut, $clientStdErr -ErrorAction SilentlyContinue
+
+Write-Host "Launching client with auto-connect (127.0.0.1:25565)..."
+$clientProcess = Start-BackgroundCommand -WorkingDirectory $repoRoot -Command 'gradle runClient' -StdOutPath $clientStdOut -StdErrPath $clientStdErr -EnvironmentVariables @{ MCDG_AUTOCONNECT_SERVER = '127.0.0.1:25565' }
+Start-Sleep -Seconds 2
+
+if ($clientProcess.HasExited) {
+    $exitCode = $clientProcess.ExitCode
+    $stdoutTail = if (Test-Path $clientStdOut) { (Get-Content $clientStdOut -Tail 80 -ErrorAction SilentlyContinue) -join "`n" } else { "" }
+    $stderrTail = if (Test-Path $clientStdErr) { (Get-Content $clientStdErr -Tail 80 -ErrorAction SilentlyContinue) -join "`n" } else { "" }
+    throw "Strict dev client exited early (exit code $exitCode).`n--- CLIENT STDOUT ---`n$stdoutTail`n--- CLIENT STDERR ---`n$stderrTail"
+}
+
+Write-Host "Client process started (pid=$($clientProcess.Id)). Waiting for auto strict setup..."
+
+Wait-ForLogPattern -LogPath $serverStdOut -Pattern 'Auto strict setup complete:' -TimeoutSeconds 240
 
 Write-Host "Server is fully ready and the client has been launched to auto-connect."
