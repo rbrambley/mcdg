@@ -13,6 +13,61 @@ $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 $sessionDir = Join-Path $repoRoot "run\logs\strict-manual-debug-$timestamp"
 New-Item -ItemType Directory -Path $sessionDir -Force | Out-Null
 
+function Stop-ConflictingRunProcesses {
+    param([string]$RootPath)
+
+    $stoppedProcessIds = New-Object System.Collections.Generic.List[int]
+    $rootPattern = [regex]::Escape($RootPath)
+
+    $candidates = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.Name -match '^(java|javaw|gradle|cmd)\.exe$' -and
+            ($_.CommandLine -match $rootPattern -or $_.CommandLine -match 'runServer')
+        }
+
+    foreach ($candidate in $candidates) {
+        $procId = [int]$candidate.ProcessId
+        if ($procId -eq $PID) {
+            continue
+        }
+
+        try {
+            Stop-Process -Id $procId -Force -ErrorAction Stop
+            [void]$stoppedProcessIds.Add($procId)
+        } catch {
+        }
+    }
+
+    $listeners = Get-NetTCPConnection -LocalPort 25565 -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty OwningProcess -Unique
+
+    foreach ($listenerProcId in $listeners) {
+        if ($listenerProcId -eq $PID) {
+            continue
+        }
+
+        try {
+            Stop-Process -Id $listenerProcId -Force -ErrorAction Stop
+            if (-not $stoppedProcessIds.Contains([int]$listenerProcId)) {
+                [void]$stoppedProcessIds.Add([int]$listenerProcId)
+            }
+        } catch {
+        }
+    }
+
+    if ($stoppedProcessIds.Count -gt 0) {
+        Write-Host " - Cleared lock-holding processes:" (($stoppedProcessIds | Sort-Object -Unique) -join ', ')
+    }
+}
+
+function Assert-DevServerPortFree {
+    $listeners = Get-NetTCPConnection -LocalPort 25565 -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty OwningProcess -Unique
+    if ($listeners) {
+        throw "Runtime-confidence preflight failed: port 25565 still in use by process(es): $($listeners -join ', ')."
+    }
+}
+
 function Set-Or-AddProperty {
     param(
         [string]$Text,
@@ -155,6 +210,10 @@ Write-Host "Important: this workflow targets the dedicated server started by thi
 Write-Host "Do not restart into a separate single-player world or switch to an Open-to-LAN flow if you want /mcdg command behavior and logs to match this debug session."
 Write-Host ""
 Write-Host "Bringing server online and waiting for world/server readiness..."
+
+Write-Host "Running runtime-confidence preflight (clear lock holders)..."
+Stop-ConflictingRunProcesses -RootPath $repoRoot
+Assert-DevServerPortFree
 
 Set-LocalDevServerProperties -RootPath $repoRoot
 $serverProcess = Start-BackgroundCommand -WorkingDirectory $repoRoot -Command 'gradle runServer' -StdOutPath $serverStdOut -StdErrPath $serverStdErr -EnvironmentVariables $serverEnv

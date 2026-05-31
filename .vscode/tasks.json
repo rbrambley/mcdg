@@ -82,6 +82,21 @@
       "problemMatcher": []
     },
     {
+      "label": "Run Clean Runtime Smoke",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\scripts\\run-headless-autotest.ps1",
+        "-EnforceCleanRuntime"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
       "label": "Global Safety Gate",
       "type": "shell",
       "command": "gradle",

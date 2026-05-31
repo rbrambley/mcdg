@@ -588,16 +588,16 @@ public final class McdgClientMod implements ClientModInitializer {
 
     private static int miniMapTerrainColor(int terrainClass) {
         return switch (terrainClass) {
-            case 1 -> 0xFF2F6FDB;
-            case 2 -> 0xFFD8C27A;
-            case 3 -> 0xFF466A3A;
-            case 4 -> 0xFF22472A;
-            case 5 -> 0xFF7A7A7A;
-            case 6 -> 0xFFDCE6F5;
-            case 7 -> 0xFF8FD2F0;
-            case 8 -> 0xFF8A6A47;
-            case 9 -> 0xFF9B8B63;
-            case 10 -> 0xFFE46E2A;
+            case 1 -> 0xFF3F76E4;
+            case 2 -> 0xFFF7E9A3;
+            case 3 -> 0xFF7FB238;
+            case 4 -> 0xFF4C8E2F;
+            case 5 -> 0xFFA0A0A0;
+            case 6 -> 0xFFFFFFFF;
+            case 7 -> 0xFFA0A0FF;
+            case 8 -> 0xFF8B6D4A;
+            case 9 -> 0xFFA58F6A;
+            case 10 -> 0xFFFF6A00;
             default -> 0;
         };
     }
@@ -682,12 +682,12 @@ public final class McdgClientMod implements ClientModInitializer {
     }
 
     private static void drawMiniMapLegend(DrawContext drawContext, MinecraftClient client, int startX, int y, float hudAlpha) {
-        drawLegendSwatch(drawContext, client, startX, y, 0xFF2F6FDB, "W", hudAlpha);
-        drawLegendSwatch(drawContext, client, startX + 16, y, 0xFF22472A, "T", hudAlpha);
-        drawLegendSwatch(drawContext, client, startX + 32, y, 0xFF7A7A7A, "R", hudAlpha);
-        drawLegendSwatch(drawContext, client, startX + 48, y, 0xFFDCE6F5, "S", hudAlpha);
+        drawLegendSwatch(drawContext, client, startX, y, 0xFF3F76E4, "W", hudAlpha);
+        drawLegendSwatch(drawContext, client, startX + 16, y, 0xFF4C8E2F, "T", hudAlpha);
+        drawLegendSwatch(drawContext, client, startX + 32, y, 0xFFA0A0A0, "R", hudAlpha);
+        drawLegendSwatch(drawContext, client, startX + 48, y, 0xFFFFFFFF, "S", hudAlpha);
         drawLegendSwatch(drawContext, client, startX + 64, y, 0xFFCC8D32, "Hz", hudAlpha);
-        drawLegendSwatch(drawContext, client, startX + 84, y, 0xFFC2433A, "OB", hudAlpha);
+        drawLegendSwatch(drawContext, client, startX + 84, y, 0xFF3F76E4, "OB", hudAlpha);
     }
 
     private static void drawLegendSwatch(DrawContext drawContext, MinecraftClient client, int x, int y, int color, String label, float hudAlpha) {
@@ -730,11 +730,10 @@ public final class McdgClientMod implements ClientModInitializer {
         }
 
         if (riskCode == 1) {
-            return blendRgb(baseColor, 0xFFCC8D32, 0.30f);
+            // Keep hazard tint subtle so terrain remains readable.
+            return blendRgb(baseColor, 0xFFCC8D32, 0.15f);
         }
-        if (riskCode == 2) {
-            return blendRgb(baseColor, 0xFFC2433A, 0.40f);
-        }
+        // Do not tint OB in minimap terrain; water already communicates OB intuitively.
         return baseColor;
     }
 

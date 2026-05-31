@@ -546,10 +546,6 @@ public final class HoleProgressTracker {
         }
 
         BlockPos surface = new BlockPos(x, surfaceY, z);
-        if (isTeeFootprint(surface, tee) && isTeeFootprintAboveWater(world, tee)) {
-            return 1;
-        }
-
         BlockState state = world.getBlockState(surface);
         if (world.getFluidState(surface).isIn(FluidTags.LAVA)) {
             return 10;

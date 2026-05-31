@@ -11,6 +11,61 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 
+function Stop-ConflictingRunProcesses {
+    param([string]$RootPath)
+
+    $stoppedProcessIds = New-Object System.Collections.Generic.List[int]
+    $rootPattern = [regex]::Escape($RootPath)
+
+    $candidates = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.Name -match '^(java|javaw|gradle|cmd)\.exe$' -and
+            ($_.CommandLine -match $rootPattern -or $_.CommandLine -match 'runServer')
+        }
+
+    foreach ($candidate in $candidates) {
+        $procId = [int]$candidate.ProcessId
+        if ($procId -eq $PID) {
+            continue
+        }
+
+        try {
+            Stop-Process -Id $procId -Force -ErrorAction Stop
+            [void]$stoppedProcessIds.Add($procId)
+        } catch {
+        }
+    }
+
+    $listeners = Get-NetTCPConnection -LocalPort 25565 -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty OwningProcess -Unique
+
+    foreach ($listenerProcId in $listeners) {
+        if ($listenerProcId -eq $PID) {
+            continue
+        }
+
+        try {
+            Stop-Process -Id $listenerProcId -Force -ErrorAction Stop
+            if (-not $stoppedProcessIds.Contains([int]$listenerProcId)) {
+                [void]$stoppedProcessIds.Add([int]$listenerProcId)
+            }
+        } catch {
+        }
+    }
+
+    if ($stoppedProcessIds.Count -gt 0) {
+        Write-Host " - Cleared lock-holding processes:" (($stoppedProcessIds | Sort-Object -Unique) -join ', ')
+    }
+}
+
+function Assert-DevServerPortFree {
+    $listeners = Get-NetTCPConnection -LocalPort 25565 -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty OwningProcess -Unique
+    if ($listeners) {
+        throw "Runtime-confidence preflight failed: port 25565 still in use by process(es): $($listeners -join ', ')."
+    }
+}
+
 function Set-Or-AddProperty {
     param(
         [string]$Text,
@@ -152,6 +207,10 @@ Write-Host " - Skip presentation: $($SkipPresentation.IsPresent)"
 Write-Host " - Strict-flow debug: $($DebugStrictFlow.IsPresent)"
 Write-Host ""
 Write-Host "Waiting for the server to open 127.0.0.1:25565 before starting the client..."
+
+Write-Host "Running runtime-confidence preflight (clear lock holders)..."
+Stop-ConflictingRunProcesses -RootPath $repoRoot
+Assert-DevServerPortFree
 
 $serverStdOut = Join-Path $repoRoot "run\logs\strict-dev-session-server.out.log"
 $serverStdErr = Join-Path $repoRoot "run\logs\strict-dev-session-server.err.log"

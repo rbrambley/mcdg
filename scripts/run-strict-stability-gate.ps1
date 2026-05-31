@@ -288,6 +288,61 @@ function Stop-ProcessIfRunning {
     }
 }
 
+function Stop-ConflictingRunProcesses {
+    param([string]$RootPath)
+
+    $stoppedProcessIds = New-Object System.Collections.Generic.List[int]
+    $rootPattern = [regex]::Escape($RootPath)
+
+    $candidates = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.Name -match '^(java|javaw|gradle|cmd)\.exe$' -and
+            ($_.CommandLine -match $rootPattern -or $_.CommandLine -match 'runServer')
+        }
+
+    foreach ($candidate in $candidates) {
+        $procId = [int]$candidate.ProcessId
+        if ($procId -eq $PID) {
+            continue
+        }
+
+        try {
+            Stop-Process -Id $procId -Force -ErrorAction Stop
+            [void]$stoppedProcessIds.Add($procId)
+        } catch {
+        }
+    }
+
+    $listeners = Get-NetTCPConnection -LocalPort 25565 -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty OwningProcess -Unique
+
+    foreach ($listenerProcId in $listeners) {
+        if ($listenerProcId -eq $PID) {
+            continue
+        }
+
+        try {
+            Stop-Process -Id $listenerProcId -Force -ErrorAction Stop
+            if (-not $stoppedProcessIds.Contains([int]$listenerProcId)) {
+                [void]$stoppedProcessIds.Add([int]$listenerProcId)
+            }
+        } catch {
+        }
+    }
+
+    if ($stoppedProcessIds.Count -gt 0) {
+        Write-Host "[Preflight] Cleared lock-holding processes:" (($stoppedProcessIds | Sort-Object -Unique) -join ', ')
+    }
+}
+
+function Assert-DevServerPortFree {
+    $listeners = Get-NetTCPConnection -LocalPort 25565 -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty OwningProcess -Unique
+    if ($listeners) {
+        throw "Runtime-confidence preflight failed: port 25565 still in use by process(es): $($listeners -join ', ')."
+    }
+}
+
 Set-LocalDevServerProperties -RootPath $repoRoot
 
 $runResults = New-Object System.Collections.Generic.List[object]
@@ -338,6 +393,9 @@ for ($runIndex = 1; $runIndex -le $Runs; $runIndex++) {
     Write-Host "[Run $runIndex/$Runs] Starting strict session (seed=$runSeed)..."
 
     try {
+        Stop-ConflictingRunProcesses -RootPath $repoRoot
+        Assert-DevServerPortFree
+
         $runStartUtc = (Get-Date).ToUniversalTime()
         $serverProcess = Start-BackgroundCommand -WorkingDirectory $repoRoot -Command 'gradle --no-daemon runServer' -StdOutPath $serverStdOut -StdErrPath $serverStdErr -EnvironmentVariables $serverEnv
 
