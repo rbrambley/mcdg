@@ -2,6 +2,17 @@
 
 # PROJECT-SETUP.md
 
+## Latest Feature Checkpoint (2026-06-01 Night - Round Complete Cinematic)
+
+- Code checkpoint commit: f1c4c70.
+- Added feature:
+  - Round-complete cinematic presentation tied to the existing summary/chat completion flow.
+  - New S2C payload `RoundCompleteCinematicSync` for leaderboard snapshot display.
+  - Client overlay is timed and skippable (movement/jump), with no gameplay-state blocking.
+- Validation at checkpoint:
+  - `gradle quickRegression`: PASS.
+  - `gradle build`: PASS.
+
 ## Latest Feature Checkpoint (2026-06-01 Night)
 
 - Code checkpoint commit: 3c29765.

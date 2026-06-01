@@ -6,6 +6,33 @@ Date: 2026-05-30
 
 ---
 
+## Round Complete Cinematic Update (2026-06-01 Night)
+
+Feature checkpoint commit:
+- f1c4c70
+
+Implemented:
+- Added a lightweight end-of-round cinematic overlay that is triggered from the existing round-summary/chat flow (no separate completion detector).
+- Added server-to-client payload `RoundCompleteCinematicSync` with leaderboard snapshot fields for presentation.
+- Cinematic only fires at true round end when active round states are empty.
+- Client presentation includes:
+  - `Round Complete` header card,
+  - top-3 leaderboard lines,
+  - local rank/score line,
+  - skip hint.
+- Cinematic is non-blocking and dismisses by timeout or player movement/jump input.
+
+Validation:
+- `gradle quickRegression`: PASS.
+- `gradle build`: PASS.
+
+Follow-up verification:
+1. Manual full-round run confirms cinematic triggers exactly once after final hole.
+2. Confirm chat summary remains visible and unchanged.
+3. Tune timing/visual density after first gameplay pass if needed.
+
+---
+
 ## Ace Cinematic Update (2026-06-01 Night)
 
 Feature checkpoint commit:
