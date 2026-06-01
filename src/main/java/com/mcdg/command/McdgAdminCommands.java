@@ -124,17 +124,7 @@ public final class McdgAdminCommands {
                                                         builder.suggest("tournament");
                                                         return builder.buildFuture();
                                                 })
-                                                .executes(context -> executeSetStrictSurfacePreset(context, rulesetManager, StringArgumentType.getString(context, "preset")))))
-                                .then(literal("minimap")
-                                        .executes(context -> executeShowMiniMapQualityPreset(context, rulesetManager))
-                                        .then(argument("preset", StringArgumentType.word())
-                                                .suggests((context, builder) -> {
-                                                        builder.suggest("performance");
-                                                        builder.suggest("balanced");
-                                                        builder.suggest("ultra");
-                                                        return builder.buildFuture();
-                                                })
-                                                .executes(context -> executeSetMiniMapQualityPreset(context, rulesetManager, StringArgumentType.getString(context, "preset"))))))
+                                                .executes(context -> executeSetStrictSurfacePreset(context, rulesetManager, StringArgumentType.getString(context, "preset"))))))
                         .then(literal("debugperms")
                                 .executes(context -> executeDebugPermissions(context.getSource())))
                         .then(literal("validateplacement")
@@ -830,11 +820,9 @@ public final class McdgAdminCommands {
         ) {
                 TournamentRulesetManager.Ruleset active = rulesetManager.getActiveRuleset();
                 TournamentRulesetManager.StrictSurfacePreset preset = rulesetManager.getStrictSurfacePreset();
-                TournamentRulesetManager.MiniMapQualityPreset miniMapPreset = rulesetManager.getMiniMapQualityPreset();
                 context.getSource().sendFeedback(
                         () -> Text.literal("Current ruleset: " + active.name().toLowerCase()
-                                + " | strict surface preset: " + preset.name().toLowerCase()
-                                + " | minimap quality preset: " + miniMapPreset.name().toLowerCase()),
+                                + " | strict surface preset: " + preset.name().toLowerCase()),
                         false
                 );
                 return 1;
@@ -877,38 +865,6 @@ public final class McdgAdminCommands {
 
                 rulesetManager.setStrictSurfacePreset(preset);
                 context.getSource().sendFeedback(() -> Text.literal("Strict surface preset set to " + preset.name().toLowerCase() + "."), true);
-                return 1;
-        }
-
-        private static int executeShowMiniMapQualityPreset(
-                        CommandContext<ServerCommandSource> context,
-                        TournamentRulesetManager rulesetManager
-        ) {
-                TournamentRulesetManager.MiniMapQualityPreset preset = rulesetManager.getMiniMapQualityPreset();
-                context.getSource().sendFeedback(
-                        () -> Text.literal("Mini-map quality preset: " + preset.name().toLowerCase()
-                                + " | terrain refresh interval: " + rulesetManager.miniMapTerrainRefreshIntervalTicks() + " ticks"
-                                + " | move threshold: " + rulesetManager.miniMapTerrainRefreshMoveThresholdBlocks() + " blocks"),
-                        false
-                );
-                return 1;
-        }
-
-        private static int executeSetMiniMapQualityPreset(
-                        CommandContext<ServerCommandSource> context,
-                        TournamentRulesetManager rulesetManager,
-                        String presetName
-        ) {
-                TournamentRulesetManager.MiniMapQualityPreset preset;
-                try {
-                        preset = TournamentRulesetManager.MiniMapQualityPreset.valueOf(presetName.toUpperCase());
-                } catch (IllegalArgumentException ex) {
-                        context.getSource().sendError(Text.literal("Unknown mini-map quality preset: " + presetName + ". Use performance, balanced, or ultra."));
-                        return 0;
-                }
-
-                rulesetManager.setMiniMapQualityPreset(preset);
-                context.getSource().sendFeedback(() -> Text.literal("Mini-map quality preset set to " + preset.name().toLowerCase() + "."), true);
                 return 1;
         }
 

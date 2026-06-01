@@ -65,6 +65,18 @@
 - **How to Get Help:**  
   - Use Copilot for troubleshooting, or search Minecraft modding forums.
 
+## Session Handoff Protocol (Required)
+
+- At the end of any substantial debugging/feature session:
+  - Update Plan.md with current status, decisions, and next actions.
+  - Record validated findings and failed approaches in repository memory notes.
+  - Include exact validation checkpoints used (same viewpoints, commands, or tests).
+- Do not continue implementation across sessions without first reading the latest plan/handoff updates.
+- For minimap work specifically, always use the two fixed screenshot viewpoints captured in the current cycle:
+  - shoreline view,
+  - tee/sign view.
+- Any minimap change is considered incomplete until both fixed viewpoints pass visual checks.
+
 ## Optional: Version Control
 
 - **GitHub Repository:**  
@@ -79,6 +91,12 @@
 - **Minecraft Version:** 1.20.6
 - **Java Version:** 21
 - **Language:** Java (Kotlin optional later, not in v1)
+
+## Active Epic (2026-05-31)
+
+- Minimap rewrite to an always-on navigational tool with waypoints.
+- Replacement strategy and phase gates are maintained in Plan.md under Session Continuity Update.
+- Do not ship additional minimap tweaks without passing the phase validation gates.
 
 Why this baseline:
 - Fast iteration for gameplay systems.

@@ -4,6 +4,97 @@
 
 Date: 2026-05-30
 
+---
+
+## Session Continuity Update (2026-05-31)
+
+### Why this update exists
+
+- Minimap behavior regressed into a mostly tan/beige square and does not match visible world terrain.
+- Multiple incremental color/sampling tweaks were attempted and did not produce acceptable results.
+- Team decision: stop blind minimap tweaks and move to a planned rebuild with measurable gates.
+
+### Ground truth from current screenshots
+
+- Minimap still fails to show meaningful terrain detail in both shoreline and tee/sign viewpoints.
+- Water is visible in-world while minimap remains mostly uniform terrain color.
+- This is a rendering/sampling pipeline issue, not day/night lighting.
+
+### Active decision (approved)
+
+- Freeze ad-hoc minimap tweaks.
+- Rebuild minimap in phased steps with explicit validation before each next step.
+- Keep old minimap path available behind a feature switch until replacement passes.
+
+### Minimap Rebuild Plan (Always-On Navigation + Waypoints)
+
+Goal:
+- Always-on minimap (inside and outside rounds), terrain-correct, and waypoint-capable like a navigation tool.
+
+Scope requirements:
+- Always visible for player by default.
+- Works when no active round payload exists.
+- Waypoint add/remove/show workflow.
+- Course semantics (hazard/OB/path) rendered as transparent overlays, not base-terrain replacement.
+
+Phase 0: Observability first
+- Add temporary debug readout for center sample source:
+  - visible-surface sample path,
+  - standable-surface fallback,
+  - server fallback,
+  - water-detected true/false.
+- Purpose: stop blind iterations and identify dominant failing path immediately.
+
+Phase 1: Base terrain renderer replacement
+- Build terrain layer from visible surface (world-surface view), not standable-only surface.
+- Water-first classification over full column between visible and standable tops.
+- No course overlays in this phase.
+
+Phase 2: Overlay layer
+- Add hazard/OB/course lines as separate transparent pass.
+- Keep overlay semantics independent from terrain color map.
+
+Phase 3: Always-on navigation mode
+- Player-centered minimap state when no active round exists.
+- Preserve round-aware behavior when round payload is present.
+
+Phase 4: Waypoints v1
+- Add waypoint keybinds, in-memory list, and map rendering.
+- Add persistence format for waypoints (client-side save/load).
+
+Phase 5: Tile-cache and performance pass
+- Incremental chunk/tile updates.
+- Cache invalidation rules and low-jitter redraw cadence.
+
+### Validation gates (must pass before advancing)
+
+Navigation-first validation (no fixed screenshot gate):
+- Validate while moving continuously through mixed terrain (shoreline, forest edge, elevation transitions, and open ground).
+- Use minimap debug telemetry as the primary decision input:
+  - center source type (`visible-surface`, `heightmap-fallback`, `chunk-unloaded`),
+  - center fluid type (`solid`, `water`, `lava`),
+  - center sampled Y,
+  - source pixel counts (`vis`, `fb`, `miss`) from the live render summary.
+
+Per-phase pass criteria:
+- Phase 1 passes only when live navigation consistently shows distinct terrain features (water/shore/ground boundaries) and telemetry indicates expected source dominance (`visible-surface` preferred, fallback paths explainable).
+- Phase 2 passes only when overlays are visible but do not flatten or recolor base terrain during movement.
+- Phase 3 passes only when minimap remains active outside rounds with stable player-centered behavior during free navigation.
+- Phase 4 passes only when waypoints can be created, rendered, removed, and reloaded during free navigation.
+
+### Current status
+
+- Phase 0 not implemented yet (planned next).
+- New minimap renderer has not reached acceptable output quality.
+- Strict deploy gate remains independently blocked at times by stochastic placement issue `basket_deeply_enclosed`; minimap testing currently uses artifact-only deploy when needed.
+
+### Next session starting checklist
+
+1. Keep Phase 0 observability active while running navigation-only tests (no round workflow required).
+2. Traverse mixed terrain paths and collect live debug summaries (`src`, `fluid`, `y`, `vis/fb/miss`).
+3. Decide exact Phase 1 sampling corrections using telemetry trends and in-motion visual correctness.
+4. Only after Phase 1 passes navigation validation, proceed to overlays and always-on mode hardening.
+
 ### Current State Snapshot
 
 Overall:
