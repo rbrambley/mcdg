@@ -2,6 +2,19 @@
 
 # PROJECT-SETUP.md
 
+## Latest Feature Checkpoint (2026-06-01 Night - Multiplayer Turn HUD)
+
+- Code checkpoint commit: 44dc79d.
+- Added updates:
+  - Actionbar turn HUD for multiplayer rounds.
+  - Active thrower sees `Your turn | M:SS left`.
+  - Other participants see `Turn: <player> | M:SS left`.
+  - Timer is synced to the enforced 2-minute turn timeout system.
+- Validation at checkpoint:
+  - `gradle quickRegression`: PASS.
+  - `gradle smokeRegression`: PASS.
+  - `gradle build`: PASS.
+
 ## Latest Feature Checkpoint (2026-06-01 Night - Multiplayer Turn Order Enforcement)
 
 - Code checkpoint commit: 5997fb7.

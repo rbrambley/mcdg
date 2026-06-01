@@ -6,6 +6,30 @@ Date: 2026-05-30
 
 ---
 
+## Multiplayer Turn HUD Update (2026-06-01 Night)
+
+Code checkpoint commit:
+- 44dc79d
+
+Implemented:
+- Added in-round actionbar turn HUD for multiplayer participants.
+- Every second, players see:
+  - `Your turn | M:SS left` when they are the active thrower,
+  - `Turn: <player> | M:SS left` when another participant is up.
+- HUD uses the existing enforced turn engine and the 2-minute timeout clock.
+
+Validation:
+- `gradle quickRegression`: PASS.
+- `gradle smokeRegression`: PASS.
+- `gradle build`: PASS.
+
+Manual verification:
+1. Start multiplayer round with 3+ players and confirm all participants receive turn HUD updates every second.
+2. Confirm timer decrements and resets correctly when turn changes.
+3. Confirm HUD aligns with throw gating (out-of-turn player should see the other thrower as active).
+
+---
+
 ## Multiplayer Turn Order Enforcement Update (2026-06-01 Night)
 
 Code checkpoint commit:
