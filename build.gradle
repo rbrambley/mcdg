@@ -122,6 +122,19 @@ tasks.register('verifyFullLifecycleReport') {
                 throw new RuntimeException("Lifecycle smoke report contains failure marker: ${marker}")
             }
         }
+
+        List<String> disallowedIssueCodes = [
+                'PAR5_ALTERNATE_ROUTE_MISSING',
+                'ALTERNATE_ROUTE_MISSING',
+                'LANDING_GAP_TOO_LONG',
+                'TEE_DEEPLY_ENCLOSED',
+                'BASKET_DEEPLY_ENCLOSED'
+        ]
+        for (String issueCode : disallowedIssueCodes) {
+            if (normalized.contains(issueCode)) {
+                throw new RuntimeException("Lifecycle smoke report contains disallowed issue code: ${issueCode}")
+            }
+        }
     }
 }
 

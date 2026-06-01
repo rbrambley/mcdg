@@ -15,8 +15,15 @@ import java.util.regex.Pattern;
 
 public final class RegressionCheckRunner {
     private static final int HOLE_COUNT = 9;
+    private static final int PAR5_CAP_SEED_SAMPLES = 120;
     private static final Path CLIENT_MINIMAP_FILE = Paths.get(
         "src", "client", "java", "com", "mcdg", "client", "McdgClientMod.java"
+    );
+    private static final Path VALIDATOR_FILE = Paths.get(
+        "src", "main", "java", "com", "mcdg", "world", "CoursePlacementValidator.java"
+    );
+    private static final Path ADMIN_COMMAND_FILE = Paths.get(
+        "src", "main", "java", "com", "mcdg", "command", "McdgAdminCommands.java"
     );
     private static final Pattern HOLE_SPECIAL_CASE_PATTERN = Pattern.compile(
             "\\b(?:holeIndex|currentHole|holeNumber|holeId)\\b\\s*(?:==|!=|<=|>=|<|>)\\s*\\d+|\\.index\\(\\)\\s*(?:==|!=|<=|>=|<|>)\\s*\\d+"
@@ -51,6 +58,8 @@ public final class RegressionCheckRunner {
     private static void runQuickChecks(SeededCourseGenerator generator) {
         runArchitectureChecks();
         runMiniMapChecks();
+        runPlacementIssueSyncChecks();
+        runParDistributionChecks(generator);
 
         Course one = generator.generate(123456789L, HOLE_COUNT);
         assertExactlyOneSignature(one, "quick-seed-1");
@@ -92,7 +101,22 @@ public final class RegressionCheckRunner {
         System.out.println("Quick regression checks passed.");
     }
 
-        private static void runMiniMapChecks() {
+    private static void runParDistributionChecks(SeededCourseGenerator generator) {
+        Random random = new Random(20260601L);
+        for (int i = 0; i < PAR5_CAP_SEED_SAMPLES; i++) {
+            long seed = random.nextLong();
+            Course course = generator.generate(seed, HOLE_COUNT);
+            long par5Count = course.holes().stream().filter(hole -> hole.par() >= 5).count();
+            if (par5Count > 1) {
+                throw new RuntimeException(
+                        "Par distribution regression for seed " + seed
+                                + ": expected <=1 Par 5 in 9 holes, got " + par5Count
+                );
+            }
+        }
+    }
+
+    private static void runMiniMapChecks() {
         if (!Files.exists(CLIENT_MINIMAP_FILE)) {
             throw new RuntimeException("Minimap regression file missing: " + CLIENT_MINIMAP_FILE);
         }
@@ -113,6 +137,16 @@ public final class RegressionCheckRunner {
             source,
             "private static final int MINIMAP_TEXTURE_SIZE = 128;",
             "Minimap texture resolution baseline changed unexpectedly."
+        );
+        assertContains(
+            source,
+            "private static final int HAZARD_OVERLAY_ARGB = 0x8CFF9A32;",
+            "Minimap strict hazard overlay alpha baseline changed unexpectedly."
+        );
+        assertContains(
+            source,
+            "private static final int HAZARD_SAMPLE_STEP_PX = 2;",
+            "Minimap strict hazard sample-density baseline changed unexpectedly."
         );
         assertContains(
             source,
@@ -175,7 +209,46 @@ public final class RegressionCheckRunner {
             "drawMiniMapCardinalLabels(drawContext, client, mapCenterX, mapCenterY, miniMapSize, mapRotationDegrees, hudAlpha);",
             "Minimap regression: rotating cardinal labels call is missing."
         );
+    }
+
+    private static void runPlacementIssueSyncChecks() {
+        if (!Files.exists(VALIDATOR_FILE)) {
+            throw new RuntimeException("Validator regression file missing: " + VALIDATOR_FILE);
         }
+        if (!Files.exists(ADMIN_COMMAND_FILE)) {
+            throw new RuntimeException("Admin command regression file missing: " + ADMIN_COMMAND_FILE);
+        }
+
+        String validatorSource;
+        String adminSource;
+        try {
+            validatorSource = Files.readString(VALIDATOR_FILE, StandardCharsets.UTF_8);
+            adminSource = Files.readString(ADMIN_COMMAND_FILE, StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to read placement source files for regression checks", ex);
+        }
+
+        String[] mustStayInSync = {
+                "tee_deeply_enclosed",
+                "basket_deeply_enclosed",
+                "par5_alternate_route_missing",
+                "alternate_route_missing",
+                "landing_gap_too_long"
+        };
+
+        for (String issueCode : mustStayInSync) {
+            assertContains(
+                    validatorSource,
+                    "\"" + issueCode + "\"",
+                    "Placement validator is missing expected issue code."
+            );
+            assertContains(
+                    adminSource,
+                    "\"" + issueCode + "\"",
+                    "Start-round retry gate is missing expected issue code."
+            );
+        }
+    }
 
     private static void runArchitectureChecks() {
         Path root = Paths.get("src", "main", "java", "com", "mcdg");
