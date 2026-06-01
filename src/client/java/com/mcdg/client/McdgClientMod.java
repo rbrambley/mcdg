@@ -4,10 +4,19 @@ import com.mcdg.game.ChargedDiscItem;
 import com.mcdg.game.McdgItems;
 import com.mcdg.game.ScorecardManager;
 import com.mcdg.net.HoleMiniMapSync;
-import java.util.HashMap;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.Locale;
+import java.util.List;
+import java.util.Objects;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
@@ -22,27 +31,41 @@ import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
+import net.minecraft.client.world.ClientWorld;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.MapColor;
+import net.minecraft.registry.tag.BlockTags;
+import net.minecraft.registry.tag.FluidTags;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Arm;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Formatting;
-import net.minecraft.util.math.RotationAxis;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.util.StringHelper;
+import net.minecraft.util.WorldSavePath;
+import net.minecraft.world.Heightmap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.lwjgl.glfw.GLFW;
 
 public final class McdgClientMod implements ClientModInitializer {
+    private static final Logger LOGGER = LoggerFactory.getLogger("mcdg-minimap");
     private static final String AUTOCONNECT_SERVER_ENV = "MCDG_AUTOCONNECT_SERVER";
     private static final long AUTOCONNECT_RETRY_DELAY_MS = 3000L;
     private static final int POWER_BAR_HEIGHT = 72;
     private static final int POWER_BAR_WIDTH = 8;
     private static final int MINIMAP_PADDING = 8;
     private static final long MINIMAP_STALE_TIMEOUT_MS = 15000L;
-    private static final int MINIMAP_TEXTURE_SIZE = 256;
+    private static final int MINIMAP_COLOR_UNSET = Integer.MIN_VALUE;
+    private static final int PASSIVE_MINIMAP_SPAN_BLOCKS = 64;
+    private static final int MINIMAP_TEXTURE_SIZE = PASSIVE_MINIMAP_SPAN_BLOCKS; // 1 texture pixel = 1 world block
     private static final int[] MINIMAP_SIZES = { 84, 104, 126 };
     private static final int[] MINIMAP_PANEL_ALPHA = { 0x8A, 0x6F, 0x58 };
     private static final int[] MINIMAP_SURFACE_ALPHA = { 0xD0, 0xB8, 0x9A };
@@ -52,37 +75,78 @@ public final class McdgClientMod implements ClientModInitializer {
     private static final int HUD_CARD_TEXT = 0xE8EEF7;
     private static final int HUD_CARD_MUTED_TEXT = 0xAAB8CC;
     private static final String[] COMPASS_8 = { "S", "SW", "W", "NW", "N", "NE", "E", "SE" };
+        private static final int[] WAYPOINT_COLORS = {
+            0xFFFF4D4D,
+            0xFF57D163,
+            0xFF4D9DFF,
+            0xFFFFD247,
+            0xFFC76CFF,
+            0xFFF2F5FF
+        };
+        private static final String[] WAYPOINT_COLOR_NAMES = { "Red", "Green", "Blue", "Yellow", "Purple", "White" };
 
     private static long nextAutoconnectAttemptAt = 0L;
     private static boolean autoconnectSatisfied = false;
     private static String autoconnectServer = readAutoconnectServer();
     private static MiniMapState miniMapState;
     private static long miniMapReceivedAtMs;
-    private static boolean miniMapVisible = true;
-    private static int miniMapStyleIndex = 0;
+    private static int miniMapStyleIndex = 1;
     private static MiniMapRenderCache miniMapRenderCache;
-    private static KeyBinding toggleMiniMapKey;
-    private static KeyBinding cycleMiniMapStyleKey;
+    private static KeyBinding increaseMiniMapSizeKey;
+    private static KeyBinding decreaseMiniMapSizeKey;
+    private static KeyBinding addWaypointKey;
+    private static KeyBinding removeNearestWaypointKey;
+    private static KeyBinding toggleWaypointLabelsKey;
     private static long hudVisibleSinceMs;
     private static float displayedDistanceFeet = Float.NaN;
     private static float displayedDistanceMeters = Float.NaN;
     private static float displayedTotalStrokes = Float.NaN;
     private static float displayedCumulativeDelta = Float.NaN;
+    private static MiniMapRenderDebug miniMapRenderDebug = MiniMapRenderDebug.empty();
+    private static long nextMiniMapDebugActionBarAtMs = 0L;
+    private static long nextMiniMapDebugLogAtMs = 0L;
+    private static int nextWaypointIndex = 1;
+    private static boolean waypointLabelsVisible = true;
+    private static String loadedWaypointContextKey = "";
+    private static WaypointPromptStage waypointPromptStage = WaypointPromptStage.NONE;
+    private static String pendingWaypointName;
+    private static String pendingWaypointContextKey;
+    private static int pendingWaypointX;
+    private static int pendingWaypointZ;
+    private static final List<ClientWaypoint> clientWaypoints = new ArrayList<>();
 
 
     @Override
     public void onInitializeClient() {
-        toggleMiniMapKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.mcdg.toggle_minimap",
+        increaseMiniMapSizeKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            "key.mcdg.minimap_size_up",
                 InputUtil.Type.KEYSYM,
-                GLFW.GLFW_KEY_M,
+            GLFW.GLFW_KEY_EQUAL,
                 "category.mcdg"
         ));
-        cycleMiniMapStyleKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.mcdg.cycle_minimap_style",
+        decreaseMiniMapSizeKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            "key.mcdg.minimap_size_down",
                 InputUtil.Type.KEYSYM,
-                GLFW.GLFW_KEY_N,
+            GLFW.GLFW_KEY_MINUS,
                 "category.mcdg"
+        ));
+        addWaypointKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            "key.mcdg.add_waypoint",
+            InputUtil.Type.KEYSYM,
+            GLFW.GLFW_KEY_M,
+            "category.mcdg"
+        ));
+        removeNearestWaypointKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            "key.mcdg.remove_nearest_waypoint",
+            InputUtil.Type.KEYSYM,
+            GLFW.GLFW_KEY_N,
+            "category.mcdg"
+        ));
+        toggleWaypointLabelsKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            "key.mcdg.toggle_waypoint_labels",
+            InputUtil.Type.KEYSYM,
+            GLFW.GLFW_KEY_L,
+            "category.mcdg"
         ));
 
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
@@ -94,6 +158,7 @@ public final class McdgClientMod implements ClientModInitializer {
             maybeAutoConnect(client);
             handleMiniMapHotkeys(client);
         });
+        ClientSendMessageEvents.ALLOW_CHAT.register(message -> handleWaypointPromptInput(message));
         ClientPlayNetworking.registerGlobalReceiver(HoleMiniMapSync.ID, (payload, context) -> {
             context.client().execute(() -> {
                 if (!payload.active()) {
@@ -112,8 +177,6 @@ public final class McdgClientMod implements ClientModInitializer {
                     hudVisibleSinceMs = System.currentTimeMillis();
                 }
 
-                byte[] terrainCells = resolveTerrainCells(payload, miniMapState);
-
                 miniMapState = new MiniMapState(
                         payload.holeIndex(),
                         payload.teeX(),
@@ -126,24 +189,19 @@ public final class McdgClientMod implements ClientModInitializer {
                         payload.throwNumber(),
                         payload.totalStrokes(),
                         payload.cumulativeParDelta(),
-                        payload.miniMapQualityPreset(),
                         payload.strictMode(),
                         payload.hasAlternateAnchor(),
                         payload.alternateAnchorX(),
                         payload.alternateAnchorZ(),
-                        payload.mapOriginX(),
-                        payload.mapOriginZ(),
-                        payload.mapSpan(),
-                        terrainCells
+                        payload.mapSpan()
                 );
                 miniMapReceivedAtMs = System.currentTimeMillis();
-                refreshMiniMapRenderCache(context.client(), miniMapState, terrainCells);
+                refreshMiniMapRenderCache(context.client(), PASSIVE_MINIMAP_SPAN_BLOCKS);
             });
         });
         HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {
             updateHudTweens();
             renderHoleMiniMapOverlay(drawContext);
-            renderRoundInfoOverlay(drawContext);
             renderScorecardOverlay(drawContext);
             renderCompassOverlay(drawContext);
             renderPowerOverlay(drawContext);
@@ -217,146 +275,144 @@ public final class McdgClientMod implements ClientModInitializer {
 
         drawContext.fill(x - 3, y - 2, x + width + 3, y + 10, 0x70000000);
         drawContext.drawTextWithShadow(client.textRenderer, compassText, x, y, 0xE6E6E6);
+
+        int playerX = net.minecraft.util.math.MathHelper.floor(client.player.getX());
+        int playerY = net.minecraft.util.math.MathHelper.floor(client.player.getY());
+        int playerZ = net.minecraft.util.math.MathHelper.floor(client.player.getZ());
+        String worldCoords = "XYZ " + playerX + " " + playerY + " " + playerZ;
+        int coordsWidth = client.textRenderer.getWidth(worldCoords);
+        int coordsX = (drawContext.getScaledWindowWidth() - coordsWidth) / 2;
+        int coordsY = y + 12;
+        drawContext.fill(coordsX - 3, coordsY - 2, coordsX + coordsWidth + 3, coordsY + 10, 0x70000000);
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(worldCoords).formatted(Formatting.AQUA), coordsX, coordsY, 0x9BE7FF);
     }
 
     private static void renderHoleMiniMapOverlay(DrawContext drawContext) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null || client.options.hudHidden || client.textRenderer == null || !miniMapVisible) {
+        if (client.player == null || client.options.hudHidden || client.textRenderer == null) {
             return;
         }
 
-        MiniMapState state = miniMapState;
-        if (state == null) {
-            return;
-        }
+        int mapSpan = PASSIVE_MINIMAP_SPAN_BLOCKS;
+        boolean debugHud = client.getDebugHud().shouldShowDebugHud();
 
-        if ((System.currentTimeMillis() - miniMapReceivedAtMs) > MINIMAP_STALE_TIMEOUT_MS) {
-            return;
-        }
+        refreshMiniMapRenderCache(client, mapSpan);
 
         int panelX = MINIMAP_PADDING;
-        int panelY = client.getDebugHud().shouldShowDebugHud() ? 76 : MINIMAP_PADDING;
+        int panelY = debugHud ? 76 : MINIMAP_PADDING;
         int miniMapSize = MINIMAP_SIZES[Math.max(0, Math.min(MINIMAP_SIZES.length - 1, miniMapStyleIndex))];
         int surfaceAlpha = MINIMAP_SURFACE_ALPHA[Math.max(0, Math.min(MINIMAP_SURFACE_ALPHA.length - 1, miniMapStyleIndex))];
         float hudAlpha = hudFadeAlpha();
 
-        // Header bar — sits above the circle, sized to fit the header text
-        String holeLabel = "Hole " + state.holeIndex() + "  " + (state.strictMode() ? "STRICT" : "CASUAL");
-        String qualityLabel = miniMapQualityBadge(state.miniMapQualityPreset());
-        int headerTextW = client.textRenderer.getWidth(holeLabel) + client.textRenderer.getWidth(qualityLabel) + 16;
+        String holeLabel = "Local Navigation";
+        int headerTextW = client.textRenderer.getWidth(holeLabel) + 8;
         int headerW = Math.max(miniMapSize, headerTextW);
         int headerH = 12;
         drawHudCard(drawContext, client, panelX, panelY, headerW, headerH, null, hudAlpha);
         drawContext.drawTextWithShadow(client.textRenderer, Text.literal(holeLabel).formatted(Formatting.GRAY), panelX + 4, panelY + 2, withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
-        int qualityTextWidth = client.textRenderer.getWidth(qualityLabel);
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(qualityLabel).formatted(Formatting.AQUA), panelX + headerW - qualityTextWidth - 4, panelY + 2, withAlpha(0x9AE6FF, hudAlpha));
 
-        // Square map area with overscan so rotated corners stay filled.
         int mapX = panelX;
         int mapY = panelY + headerH + 2;
-        int renderSize = Math.max(miniMapSize, Math.round(miniMapSize * HoleMiniMapSync.MAP_OVERSCAN_FACTOR));
-        int renderOffset = (renderSize - miniMapSize) / 2;
-        int renderX = mapX - renderOffset;
-        int renderY = mapY - renderOffset;
         int mapCenterX = mapX + (miniMapSize / 2);
         int mapCenterY = mapY + (miniMapSize / 2);
-        float mapScale = renderSize / Math.max(1.0f, (float) state.mapSpan());
-        int rawLiePx = renderX + Math.round((state.lieX() - state.mapOriginX()) * mapScale);
-        int rawLiePz = renderY + Math.round((state.lieZ() - state.mapOriginZ()) * mapScale);
-        int shiftX = Math.max(-renderOffset, Math.min(renderOffset, mapCenterX - rawLiePx));
-        int shiftY = Math.max(-renderOffset, Math.min(renderOffset, mapCenterY - rawLiePz));
-        int drawRenderX = renderX + shiftX;
-        int drawRenderY = renderY + shiftY;
-        int mapOriginScreenX = drawRenderX;
-        int mapOriginScreenY = drawRenderY;
-        int liePx = mapOriginScreenX + Math.round((state.lieX() - state.mapOriginX()) * mapScale);
-        int liePz = mapOriginScreenY + Math.round((state.lieZ() - state.mapOriginZ()) * mapScale);
+        // mapScale: screen pixels per world block. Texture is 1px/block so this is also the draw scale factor.
+        float mapScale = miniMapSize / Math.max(1.0f, (float) mapSpan);
+        double playerWorldX = client.player.getX();
+        double playerWorldZ = client.player.getZ();
+        int playerFeetX = net.minecraft.util.math.MathHelper.floor(playerWorldX);
+        int playerFeetY = net.minecraft.util.math.MathHelper.floor(client.player.getY());
+        int playerFeetZ = net.minecraft.util.math.MathHelper.floor(playerWorldZ);
+        // Sub-block pixel shift: smooth map scroll as player moves within a block.
+        double centerBlockX = (miniMapRenderCache != null ? miniMapRenderCache.centerX() : playerFeetX) + 0.5d;
+        double centerBlockZ = (miniMapRenderCache != null ? miniMapRenderCache.centerZ() : playerFeetZ) + 0.5d;
+        // texScale: how many screen pixels per texture pixel (= per block).
+        float texScale = (float) miniMapSize / MINIMAP_TEXTURE_SIZE;
+        // Sub-block offsets in screen pixels — keeps map scrolling smooth between block positions.
+        float subBlockShiftX = (float) (playerWorldX - centerBlockX) * texScale;
+        float subBlockShiftZ = (float) (playerWorldZ - centerBlockZ) * texScale;
+        // With exact player-centered map shift, keep marker fixed at the card center.
+        int playerPx = mapCenterX;
+        int playerPz = mapCenterY;
+        float mapRadius = (miniMapSize / 2.0f) - 1.0f;
         drawContext.fill(mapX, mapY, mapX + miniMapSize, mapY + miniMapSize, withAlpha((surfaceAlpha << 24) | 0x121212, hudAlpha));
 
         if (miniMapRenderCache != null && miniMapRenderCache.textureId() != null) {
-            // Keep minimap north-up so terrain/features align with world compass directions.
-            float headingRotation = 0.0f;
-            int playerPx = mapOriginScreenX + Math.round(((float) client.player.getX() - state.mapOriginX()) * mapScale);
-            int playerPz = mapOriginScreenY + Math.round(((float) client.player.getZ() - state.mapOriginZ()) * mapScale);
             drawContext.enableScissor(mapX, mapY, mapX + miniMapSize, mapY + miniMapSize);
             var matrices = drawContext.getMatrices();
             matrices.push();
-            matrices.translate(mapCenterX, mapCenterY, 0.0f);
-            matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(headingRotation));
-            matrices.translate(-mapCenterX, -mapCenterY, 0.0f);
-            drawContext.drawTexture(miniMapRenderCache.textureId(), drawRenderX, drawRenderY, 0, 0, renderSize, renderSize, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE);
-
-            int teePx = mapOriginScreenX + Math.round((state.teeX() - state.mapOriginX()) * mapScale);
-            int teePz = mapOriginScreenY + Math.round((state.teeZ() - state.mapOriginZ()) * mapScale);
-            int basketPx = mapOriginScreenX + Math.round((state.basketX() - state.mapOriginX()) * mapScale);
-            int basketPz = mapOriginScreenY + Math.round((state.basketZ() - state.mapOriginZ()) * mapScale);
-
-            int anchorPx = 0;
-            int anchorPz = 0;
-
-            if (state.hasAlternateAnchor()) {
-                anchorPx = mapOriginScreenX + Math.round((state.alternateAnchorX() - state.mapOriginX()) * mapScale);
-                anchorPz = mapOriginScreenY + Math.round((state.alternateAnchorZ() - state.mapOriginZ()) * mapScale);
-                drawLine(drawContext, teePx, teePz, anchorPx, anchorPz, 0xFF4CC9F0);
-                drawLine(drawContext, anchorPx, anchorPz, basketPx, basketPz, 0xFF4CC9F0);
-                drawDot(drawContext, anchorPx, anchorPz, 1, 0xFF4CC9F0);
-            } else {
-                drawLine(drawContext, teePx, teePz, basketPx, basketPz, 0xFF3AC25B);
-            }
-
-            drawDot(drawContext, teePx, teePz, 2, 0xFF28A745);
-            drawDot(drawContext, basketPx, basketPz, 2, 0xFFFFCC33);
-            // Debug anchor for server-authoritative lie (useful to compare against live player marker).
-            drawDot(drawContext, liePx, liePz, 1, withAlpha(0xFF00E5FF, hudAlpha));
-            drawMiniMapDistanceRings(drawContext, client, basketPx, basketPz, mapX, mapY, miniMapSize, mapScale, hudAlpha, mapCenterX, mapCenterY, miniMapSize / 2.0f);
-
-            // Draw player marker/arrow in the same transformed space as the minimap texture.
-            double yawRadians = Math.toRadians(client.player.getYaw());
-            float forwardX = (float) -Math.sin(yawRadians);
-            float forwardZ = (float) Math.cos(yawRadians);
-            int arrowLen = Math.max(7, Math.round(8.0f * mapScale));
-            int arrowX = Math.round(playerPx + (forwardX * arrowLen));
-            int arrowZ = Math.round(playerPz + (forwardZ * arrowLen));
-
-            drawDot(drawContext, playerPx, playerPz, 2, withAlpha(0xFFFFFFFF, hudAlpha));
-            drawLine(drawContext, playerPx, playerPz, arrowX, arrowZ, withAlpha(0xFFDDEEFF, hudAlpha));
-            drawDot(drawContext, arrowX, arrowZ, 1, withAlpha(0xFFFFFFFF, hudAlpha));
-            drawMiniMapCardinalLabels(drawContext, client, mapCenterX, mapCenterY, miniMapSize, hudAlpha);
+            // Scale the 64×64 texture (1px/block) up to fill the miniMapSize display,
+            // then apply sub-block shift so the player's exact position stays centered.
+            matrices.translate(mapX - subBlockShiftX, mapY - subBlockShiftZ, 0);
+            matrices.scale(texScale, texScale, 1.0f);
+            drawContext.drawTexture(miniMapRenderCache.textureId(), 0, 0, 0, 0, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE);
             matrices.pop();
+
+            drawWaypoints(drawContext, client, mapCenterX, mapCenterY, playerWorldX, playerWorldZ, mapScale, hudAlpha, waypointLabelsVisible, mapCenterX, mapCenterY, mapRadius);
+
+            drawDotCircleClipped(drawContext, playerPx, playerPz, 2, withAlpha(0xFFFFFFFF, hudAlpha), mapCenterX, mapCenterY, mapRadius);
+            if (debugHud) {
+                drawDotCircleClipped(drawContext, mapCenterX, mapCenterY, 1, withAlpha(0xFF00E5FF, hudAlpha), mapCenterX, mapCenterY, mapRadius);
+                drawLine(drawContext, mapCenterX, mapCenterY, playerPx, playerPz, withAlpha(0xFF00E5FF, hudAlpha));
+            }
+            drawMiniMapCircularMask(drawContext, mapX, mapY, miniMapSize, withAlpha((MINIMAP_PANEL_ALPHA[Math.max(0, Math.min(MINIMAP_PANEL_ALPHA.length - 1, miniMapStyleIndex))] << 24) | 0x080B12, hudAlpha));
+            drawCircleOutline(drawContext, mapCenterX, mapCenterY, mapRadius, withAlpha(HUD_CARD_BORDER, hudAlpha));
+            drawMiniMapCardinalLabels(drawContext, client, mapCenterX, mapCenterY, miniMapSize, hudAlpha);
             drawContext.disableScissor();
         }
 
-        // Square border around the visible viewport.
-        drawContext.fill(mapX - 1, mapY - 1, mapX + miniMapSize + 1, mapY, withAlpha(HUD_CARD_BORDER, hudAlpha));
-        drawContext.fill(mapX - 1, mapY + miniMapSize, mapX + miniMapSize + 1, mapY + miniMapSize + 1, withAlpha(HUD_CARD_BORDER, hudAlpha));
-        drawContext.fill(mapX - 1, mapY, mapX, mapY + miniMapSize, withAlpha(HUD_CARD_BORDER, hudAlpha));
-        drawContext.fill(mapX + miniMapSize, mapY, mapX + miniMapSize + 1, mapY + miniMapSize, withAlpha(HUD_CARD_BORDER, hudAlpha));
-
-        // Separate info card below the circle
-        int distFeet = Math.max(0, Math.round(displayedDistanceFeet));
-        int distMeters = Math.max(0, Math.round(displayedDistanceMeters));
-        String distLine = distFeet + "ft / " + distMeters + "m";
-        String ringsLine = "Rings: 50 / 100 / 150ft";
-        int legendWidth = 16 + 84; // 6 swatches * ~14px each
-        int infoW = Math.max(legendWidth, Math.max(client.textRenderer.getWidth(distLine), client.textRenderer.getWidth(ringsLine))) + 12;
+        String coordsLine = "XYZ " + playerFeetX + " " + playerFeetY + " " + playerFeetZ;
+        String waypointLine = clientWaypoints.isEmpty() ? "Waypoints none" : ("Waypoints " + clientWaypoints.size());
+        int centerDx = miniMapRenderDebug.centerWorldX() - playerFeetX;
+        int centerDz = miniMapRenderDebug.centerWorldZ() - playerFeetZ;
+        String centerLine = "Center " + miniMapRenderDebug.centerWorldX() + " " + miniMapRenderDebug.centerWorldZ()
+            + " y " + miniMapRenderDebug.centerSurfaceY()
+            + " " + miniMapRenderDebug.centerFluid()
+            + " src " + miniMapRenderDebug.centerSource()
+            + " vis " + miniMapRenderDebug.visibleSurfaceSourcePixels()
+            + " fb " + miniMapRenderDebug.heightmapFallbackSourcePixels()
+            + " miss " + miniMapRenderDebug.chunkUnloadedSourcePixels()
+            + " d " + centerDx + " " + centerDz;
+        String labelLine = "Labels " + (waypointLabelsVisible ? "ON" : "OFF");
+        int infoW = Math.max(
+                client.textRenderer.getWidth(coordsLine),
+            Math.max(
+                Math.max(client.textRenderer.getWidth(waypointLine), client.textRenderer.getWidth(labelLine)),
+                client.textRenderer.getWidth(centerLine)
+            )
+        ) + 12;
         int infoX = panelX;
         int infoY = mapY + miniMapSize + 3;
-        boolean debugHud = client.getDebugHud().shouldShowDebugHud();
-        int infoH = debugHud ? 58 : 40;
+        int infoH = 61;
         drawHudCard(drawContext, client, infoX, infoY, infoW, infoH, null, hudAlpha);
-        drawMiniMapLegend(drawContext, client, infoX + 6, infoY + 4, hudAlpha);
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(ringsLine), infoX + 6, infoY + 16, withAlpha(0xA9D8FF, hudAlpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(distLine), infoX + 6, infoY + 27, withAlpha(0xCFE8FF, hudAlpha));
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(coordsLine), infoX + 6, infoY + 16, withAlpha(0x9BE7FF, hudAlpha));
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(waypointLine), infoX + 6, infoY + 27, withAlpha(0xD3E7FF, hudAlpha));
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(centerLine), infoX + 6, infoY + 38, withAlpha(0xF2D98E, hudAlpha));
         if (debugHud) {
-            int playerFeetX = net.minecraft.util.math.MathHelper.floor(client.player.getX());
-            int playerFeetZ = net.minecraft.util.math.MathHelper.floor(client.player.getZ());
-            int dx = playerFeetX - state.lieX();
-            int dz = playerFeetZ - state.lieZ();
-            String debugLine = "P(" + playerFeetX + "," + playerFeetZ + ") L(" + state.lieX() + "," + state.lieZ() + ") d(" + dx + "," + dz + ")";
-            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(debugLine), infoX + 6, infoY + 38, withAlpha(0x9BE7FF, hudAlpha));
+            publishMiniMapDebug(client);
         }
-        if (state.hasAlternateAnchor()) {
-            drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Alt route"), infoX + 6, infoY + infoH - 11, withAlpha(0x9AE6FF, hudAlpha));
+    }
+
+    private static void drawWaypoints(
+            DrawContext drawContext,
+            MinecraftClient client,
+            int mapCenterX,
+            int mapCenterY,
+            double centerWorldX,
+            double centerWorldZ,
+            float mapScale,
+            float hudAlpha,
+            boolean drawLabels,
+            float clipCenterX,
+            float clipCenterY,
+            float clipRadius
+    ) {
+        for (ClientWaypoint waypoint : clientWaypoints) {
+            int waypointPx = mapCenterX + Math.round((float) ((waypoint.x() - centerWorldX) * mapScale));
+            int waypointPz = mapCenterY + Math.round((float) ((waypoint.z() - centerWorldZ) * mapScale));
+            drawDotCircleClipped(drawContext, waypointPx, waypointPz, 2, withAlpha(waypoint.color(), hudAlpha), clipCenterX, clipCenterY, clipRadius);
+            if (drawLabels && isPointInsideCircle(waypointPx + 4, waypointPz - 6, clipCenterX, clipCenterY, clipRadius * clipRadius)) {
+                drawContext.drawTextWithShadow(client.textRenderer, Text.literal(waypoint.name()), waypointPx + 3, waypointPz - 8, withAlpha(0xE8EEF7, hudAlpha));
+            }
         }
     }
 
@@ -540,52 +596,6 @@ public final class McdgClientMod implements ClientModInitializer {
         return null;
     }
 
-    private static void renderMiniMapTerrain(
-            DrawContext drawContext,
-            MiniMapState state,
-            int mapX,
-            int mapY,
-            int miniMapSize,
-            int playerMapX,
-            int playerMapY,
-            float rightX,
-            float rightZ,
-            float forwardX,
-            float forwardZ,
-            float mapScale
-    ) {
-        // No-op: terrain is drawn through the cached texture path.
-    }
-
-    private static float computeAdaptiveMapScale(int miniMapSize, int mapSpan) {
-        return miniMapSize / Math.max(1.0f, (float) mapSpan);
-    }
-
-    private static int[] projectMiniMapPoint(
-            int worldX,
-            int worldZ,
-            MiniMapState state,
-            int playerMapX,
-            int playerMapY,
-            float rightX,
-            float rightZ,
-            float forwardX,
-            float forwardZ,
-            float mapScale
-    ) {
-        int mapPointX = playerMapX + Math.round((worldX - state.lieX()) * mapScale);
-        int mapPointY = playerMapY + Math.round((worldZ - state.lieZ()) * mapScale);
-        return new int[] { mapPointX, mapPointY };
-    }
-
-    private static int mapPlayerCenterX(int panelX, int miniMapSize) {
-        return panelX + 8 + (miniMapSize / 2);
-    }
-
-    private static int mapPlayerBottomY(int panelY, int miniMapSize) {
-        return panelY + 14 + miniMapSize - 8;
-    }
-
     private static int miniMapTerrainColor(int terrainClass) {
         return switch (terrainClass) {
             case 1 -> 0xFF3F76E4;
@@ -695,48 +705,6 @@ public final class McdgClientMod implements ClientModInitializer {
         drawContext.drawTextWithShadow(client.textRenderer, Text.literal(label), x + 6, y, withAlpha(0xD3E7FF, hudAlpha));
     }
 
-    private static int sampleTerrainColorBilinear(byte[] terrain, int grid, float fx, float fz) {
-        float clampedX = Math.max(0.0f, Math.min(grid - 1, fx));
-        float clampedZ = Math.max(0.0f, Math.min(grid - 1, fz));
-        int x0 = (int) Math.floor(clampedX);
-        int z0 = (int) Math.floor(clampedZ);
-        int x1 = Math.min(grid - 1, x0 + 1);
-        int z1 = Math.min(grid - 1, z0 + 1);
-        float tx = clampedX - x0;
-        float tz = clampedZ - z0;
-
-        int c00 = terrainColorOrFallback(terrain[(z0 * grid) + x0]);
-        int c10 = terrainColorOrFallback(terrain[(z0 * grid) + x1]);
-        int c01 = terrainColorOrFallback(terrain[(z1 * grid) + x0]);
-        int c11 = terrainColorOrFallback(terrain[(z1 * grid) + x1]);
-
-        int cx0 = lerpColor(c00, c10, tx);
-        int cx1 = lerpColor(c01, c11, tx);
-        return lerpColor(cx0, cx1, tz);
-    }
-
-    private static int terrainColorOrFallback(byte terrainType) {
-        int packed = terrainType & 0xFF;
-        int terrainClass = packed & 0x0F;
-        int riskCode = (packed >>> 4) & 0x03;
-        int elevationBand = (packed >>> 6) & 0x03;
-
-        int baseColor = miniMapTerrainColor(terrainClass);
-        if (terrainClass == 0) {
-            // Unknown cells can occur at sample edges; keep them readable instead of near-black.
-            baseColor = 0xFF5E6F86;
-        } else if (baseColor == 0) {
-            baseColor = 0xFF6B7C93;
-        }
-
-        if (riskCode == 1) {
-            // Keep hazard tint subtle so terrain remains readable.
-            return blendRgb(baseColor, 0xFFCC8D32, 0.15f);
-        }
-        // Do not tint OB in minimap terrain; water already communicates OB intuitively.
-        return baseColor;
-    }
-
     private static int scaleColor(int argb, float multiplier) {
         int a = (argb >>> 24) & 0xFF;
         int r = Math.max(0, Math.min(255, Math.round(((argb >>> 16) & 0xFF) * multiplier)));
@@ -796,6 +764,14 @@ public final class McdgClientMod implements ClientModInitializer {
         return (argb & 0x00FFFFFF) | (appliedAlpha << 24);
     }
 
+    private static int argbToAbgr(int argb) {
+        int a = (argb >>> 24) & 0xFF;
+        int r = (argb >>> 16) & 0xFF;
+        int g = (argb >>> 8) & 0xFF;
+        int b = argb & 0xFF;
+        return (a << 24) | (b << 16) | (g << 8) | r;
+    }
+
     private static float tween(float current, float target, float factor) {
         if (Float.isNaN(current)) {
             return target;
@@ -803,50 +779,293 @@ public final class McdgClientMod implements ClientModInitializer {
         return current + ((target - current) * factor);
     }
 
-    private static String miniMapQualityBadge(int qualityPresetCode) {
-        return switch (Math.max(0, Math.min(2, qualityPresetCode))) {
-            case 0 -> "MM PERF";
-            case 2 -> "MM ULTRA";
-            default -> "MM BAL";
-        };
-    }
-
-    private static byte[] resolveTerrainCells(HoleMiniMapSync.Payload payload, MiniMapState previous) {
-        int expectedLength = HoleMiniMapSync.TERRAIN_GRID_SIZE * HoleMiniMapSync.TERRAIN_GRID_SIZE;
-        byte[] incoming = payload.terrainCells();
-        if (incoming.length == expectedLength) {
-            return incoming;
-        }
-
-        if (previous == null) {
-            return incoming;
-        }
-
-        boolean sameMapWindow = previous.holeIndex() == payload.holeIndex()
-                && previous.mapOriginX() == payload.mapOriginX()
-                && previous.mapOriginZ() == payload.mapOriginZ()
-                && previous.mapSpan() == payload.mapSpan();
-        if (sameMapWindow && previous.terrainCells().length == expectedLength) {
-            return previous.terrainCells();
-        }
-
-        return incoming;
-    }
-
     private static void handleMiniMapHotkeys(MinecraftClient client) {
-        while (toggleMiniMapKey.wasPressed()) {
-            miniMapVisible = !miniMapVisible;
+        ensureWaypointContextLoaded(client);
+
+        while (increaseMiniMapSizeKey.wasPressed()) {
+            miniMapStyleIndex = Math.min(MINIMAP_SIZES.length - 1, miniMapStyleIndex + 1);
             if (client.player != null) {
-                client.player.sendMessage(Text.literal("Mini-map " + (miniMapVisible ? "shown" : "hidden")).formatted(Formatting.GRAY), true);
+                client.player.sendMessage(Text.literal("Mini-map size: " + MINIMAP_SIZES[miniMapStyleIndex] + "px").formatted(Formatting.GRAY), true);
             }
         }
 
-        while (cycleMiniMapStyleKey.wasPressed()) {
-            miniMapStyleIndex = (miniMapStyleIndex + 1) % MINIMAP_SIZES.length;
+        while (decreaseMiniMapSizeKey.wasPressed()) {
+            miniMapStyleIndex = Math.max(0, miniMapStyleIndex - 1);
             if (client.player != null) {
-                int style = miniMapStyleIndex + 1;
-                client.player.sendMessage(Text.literal("Mini-map style " + style + " (size/transparency)").formatted(Formatting.GRAY), true);
+                client.player.sendMessage(Text.literal("Mini-map size: " + MINIMAP_SIZES[miniMapStyleIndex] + "px").formatted(Formatting.GRAY), true);
             }
+        }
+
+        while (addWaypointKey.wasPressed()) {
+            if (client.player == null) {
+                continue;
+            }
+            beginWaypointPrompt(client);
+        }
+
+        while (removeNearestWaypointKey.wasPressed()) {
+            if (client.player == null) {
+                continue;
+            }
+            if (clientWaypoints.isEmpty()) {
+                client.player.sendMessage(Text.literal("No waypoints to remove.").formatted(Formatting.GRAY), true);
+                continue;
+            }
+            int x = net.minecraft.util.math.MathHelper.floor(client.player.getX());
+            int z = net.minecraft.util.math.MathHelper.floor(client.player.getZ());
+            ClientWaypoint nearest = null;
+            int nearestDistSq = Integer.MAX_VALUE;
+            for (ClientWaypoint waypoint : clientWaypoints) {
+                int dx = waypoint.x() - x;
+                int dz = waypoint.z() - z;
+                int distSq = (dx * dx) + (dz * dz);
+                if (distSq < nearestDistSq) {
+                    nearest = waypoint;
+                    nearestDistSq = distSq;
+                }
+            }
+            if (nearest != null) {
+                clientWaypoints.remove(nearest);
+                saveWaypointStore(client);
+                client.player.sendMessage(Text.literal("Waypoint removed: " + nearest.name()).formatted(Formatting.GRAY), true);
+            }
+        }
+
+        while (toggleWaypointLabelsKey.wasPressed()) {
+            waypointLabelsVisible = !waypointLabelsVisible;
+            saveWaypointStore(client);
+            if (client.player != null) {
+                client.player.sendMessage(Text.literal("Waypoint labels " + (waypointLabelsVisible ? "ON" : "OFF")).formatted(Formatting.GRAY), true);
+            }
+        }
+    }
+
+    private static void beginWaypointPrompt(MinecraftClient client) {
+        if (client.player == null) {
+            return;
+        }
+
+        ensureWaypointContextLoaded(client);
+        pendingWaypointX = net.minecraft.util.math.MathHelper.floor(client.player.getX());
+        pendingWaypointZ = net.minecraft.util.math.MathHelper.floor(client.player.getZ());
+        pendingWaypointContextKey = loadedWaypointContextKey;
+        pendingWaypointName = null;
+        waypointPromptStage = WaypointPromptStage.WAITING_NAME;
+        client.player.sendMessage(Text.literal("Waypoint name? Type it in chat and press Enter.").formatted(Formatting.LIGHT_PURPLE), false);
+    }
+
+    private static boolean handleWaypointPromptInput(String message) {
+        if (waypointPromptStage == WaypointPromptStage.NONE) {
+            return true;
+        }
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.player == null) {
+            waypointPromptStage = WaypointPromptStage.NONE;
+            return true;
+        }
+
+        String trimmed = message == null ? "" : message.trim();
+        if (trimmed.equalsIgnoreCase("cancel")) {
+            waypointPromptStage = WaypointPromptStage.NONE;
+            pendingWaypointName = null;
+            pendingWaypointContextKey = null;
+            client.player.sendMessage(Text.literal("Waypoint add canceled.").formatted(Formatting.GRAY), false);
+            return false;
+        }
+
+        if (waypointPromptStage == WaypointPromptStage.WAITING_NAME) {
+            String name = trimmed;
+            if (name.isEmpty()) {
+                name = "WP" + nextWaypointIndex;
+            }
+            pendingWaypointName = StringHelper.truncate(name, 24, false);
+            waypointPromptStage = WaypointPromptStage.WAITING_COLOR;
+            client.player.sendMessage(Text.literal("Color? 1-Red 2-Green 3-Blue 4-Yellow 5-Purple 6-White").formatted(Formatting.AQUA), false);
+            return false;
+        }
+
+        int colorIndex = parseWaypointColorIndex(trimmed);
+        if (colorIndex < 0) {
+            client.player.sendMessage(Text.literal("Choose color by number/name: Red, Green, Blue, Yellow, Purple, White").formatted(Formatting.RED), false);
+            return false;
+        }
+
+        ensureWaypointContextLoaded(client);
+        if (pendingWaypointContextKey != null && !pendingWaypointContextKey.equals(loadedWaypointContextKey)) {
+            client.player.sendMessage(Text.literal("World changed while adding waypoint; try again.").formatted(Formatting.RED), false);
+            waypointPromptStage = WaypointPromptStage.NONE;
+            pendingWaypointName = null;
+            pendingWaypointContextKey = null;
+            return false;
+        }
+
+        String name = pendingWaypointName == null || pendingWaypointName.isBlank() ? ("WP" + nextWaypointIndex) : pendingWaypointName;
+        nextWaypointIndex++;
+        int color = WAYPOINT_COLORS[colorIndex];
+        clientWaypoints.add(new ClientWaypoint(name, pendingWaypointX, pendingWaypointZ, color));
+        saveWaypointStore(client);
+        client.player.sendMessage(Text.literal("Waypoint added: " + name + " (" + pendingWaypointX + ", " + pendingWaypointZ + ") " + WAYPOINT_COLOR_NAMES[colorIndex]).formatted(Formatting.LIGHT_PURPLE), false);
+
+        waypointPromptStage = WaypointPromptStage.NONE;
+        pendingWaypointName = null;
+        pendingWaypointContextKey = null;
+        return false;
+    }
+
+    private static int parseWaypointColorIndex(String value) {
+        if (value == null) {
+            return -1;
+        }
+
+        String normalized = value.trim().toLowerCase(Locale.ROOT);
+        if (normalized.isEmpty()) {
+            return -1;
+        }
+
+        try {
+            int numeric = Integer.parseInt(normalized);
+            if (numeric >= 1 && numeric <= WAYPOINT_COLORS.length) {
+                return numeric - 1;
+            }
+        } catch (NumberFormatException ignored) {
+        }
+
+        for (int i = 0; i < WAYPOINT_COLOR_NAMES.length; i++) {
+            if (WAYPOINT_COLOR_NAMES[i].toLowerCase(Locale.ROOT).equals(normalized)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static void ensureWaypointContextLoaded(MinecraftClient client) {
+        String contextKey = currentWaypointContextKey(client);
+        if (Objects.equals(contextKey, loadedWaypointContextKey)) {
+            return;
+        }
+
+        loadedWaypointContextKey = contextKey;
+        waypointPromptStage = WaypointPromptStage.NONE;
+        pendingWaypointName = null;
+        pendingWaypointContextKey = null;
+        loadWaypointStore(client);
+    }
+
+    private static String currentWaypointContextKey(MinecraftClient client) {
+        if (client == null) {
+            return "menu";
+        }
+
+        if (client.getCurrentServerEntry() != null) {
+            return "server_" + sanitizeContextSegment(client.getCurrentServerEntry().address);
+        }
+
+        if (client.isIntegratedServerRunning() && client.getServer() != null) {
+            Path saveRoot = client.getServer().getSavePath(WorldSavePath.ROOT);
+            Path fileName = saveRoot.getFileName();
+            String saveName = fileName == null ? saveRoot.toString() : fileName.toString();
+            return "save_" + sanitizeContextSegment(saveName);
+        }
+
+        if (client.world != null) {
+            return "world_" + sanitizeContextSegment(client.world.getRegistryKey().getValue().toString());
+        }
+
+        return "menu";
+    }
+
+    private static String sanitizeContextSegment(String value) {
+        if (value == null || value.isBlank()) {
+            return "default";
+        }
+        return value.replaceAll("[^a-zA-Z0-9._-]", "_");
+    }
+
+    private static Path waypointStorePath(MinecraftClient client) {
+        return client.runDirectory.toPath()
+                .resolve("config")
+                .resolve("mcdg-waypoints")
+                .resolve(loadedWaypointContextKey + ".txt");
+    }
+
+    private static void loadWaypointStore(MinecraftClient client) {
+        clientWaypoints.clear();
+        nextWaypointIndex = 1;
+        waypointLabelsVisible = true;
+
+        if (client == null || loadedWaypointContextKey.isBlank()) {
+            return;
+        }
+
+        Path storePath = waypointStorePath(client);
+        if (!Files.exists(storePath)) {
+            return;
+        }
+
+        try {
+            List<String> lines = Files.readAllLines(storePath, StandardCharsets.UTF_8);
+            for (String raw : lines) {
+                String line = raw == null ? "" : raw.trim();
+                if (line.isEmpty() || line.startsWith("#")) {
+                    continue;
+                }
+
+                if (line.startsWith("nextIndex=")) {
+                    nextWaypointIndex = Math.max(1, Integer.parseInt(line.substring("nextIndex=".length()).trim()));
+                    continue;
+                }
+
+                if (line.startsWith("labelsVisible=")) {
+                    waypointLabelsVisible = Boolean.parseBoolean(line.substring("labelsVisible=".length()).trim());
+                    continue;
+                }
+
+                if (!line.startsWith("wp=")) {
+                    continue;
+                }
+
+                String body = line.substring(3);
+                String[] parts = body.split("\\t");
+                if (parts.length != 4) {
+                    continue;
+                }
+
+                String name = parts[0].replace("\\n", " ").replace("\\t", " ").trim();
+                int x = Integer.parseInt(parts[1]);
+                int z = Integer.parseInt(parts[2]);
+                int color = (int) Long.parseLong(parts[3], 16);
+                if (!name.isEmpty()) {
+                    clientWaypoints.add(new ClientWaypoint(StringHelper.truncate(name, 24, false), x, z, color));
+                }
+            }
+        } catch (IOException | NumberFormatException ex) {
+            LOGGER.warn("Unable to load waypoint store for context {}", loadedWaypointContextKey, ex);
+            clientWaypoints.clear();
+            nextWaypointIndex = 1;
+            waypointLabelsVisible = true;
+        }
+    }
+
+    private static void saveWaypointStore(MinecraftClient client) {
+        if (client == null || loadedWaypointContextKey.isBlank()) {
+            return;
+        }
+
+        Path storePath = waypointStorePath(client);
+        try {
+            Files.createDirectories(storePath.getParent());
+            List<String> lines = new ArrayList<>();
+            lines.add("# MCDG waypoint store");
+            lines.add("nextIndex=" + nextWaypointIndex);
+            lines.add("labelsVisible=" + waypointLabelsVisible);
+            for (ClientWaypoint waypoint : clientWaypoints) {
+                String safeName = waypoint.name().replace("\t", " ").replace("\n", " ").trim();
+                lines.add("wp=" + safeName + "\t" + waypoint.x() + "\t" + waypoint.z() + "\t" + String.format("%08X", waypoint.color()));
+            }
+            Files.write(storePath, lines, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+        } catch (IOException ex) {
+            LOGGER.warn("Unable to save waypoint store for context {}", loadedWaypointContextKey, ex);
         }
     }
 
@@ -967,44 +1186,413 @@ public final class McdgClientMod implements ClientModInitializer {
         drawContext.drawTextWithShadow(client.textRenderer, Text.literal(Integer.toString(percent) + "%"), barX - 8, barTop - 12, 0x66E3FF);
     }
 
-    private static void refreshMiniMapRenderCache(MinecraftClient client, MiniMapState state, byte[] terrainCells) {
-        if (client == null || state == null) {
+    private static void refreshMiniMapRenderCache(MinecraftClient client, int mapSpan) {
+        if (client == null || mapSpan <= 0) {
             return;
         }
 
-        int expectedLength = HoleMiniMapSync.TERRAIN_GRID_SIZE * HoleMiniMapSync.TERRAIN_GRID_SIZE;
-        if (terrainCells.length != expectedLength) {
-            if (miniMapRenderCache != null && miniMapRenderCache.matches(state)) {
-                return;
-            }
+        int playerFeetX = net.minecraft.util.math.MathHelper.floor(client.player.getX());
+        int playerFeetZ = net.minecraft.util.math.MathHelper.floor(client.player.getZ());
+
+        if (miniMapRenderCache != null && miniMapRenderCache.matches(mapSpan, playerFeetX, playerFeetZ)) {
             return;
         }
 
-        if (miniMapRenderCache != null && miniMapRenderCache.matches(state)) {
+        if (miniMapRenderCache != null) {
             clearMiniMapRenderCache(client);
         }
 
         NativeImage image = new NativeImage(NativeImage.Format.RGBA, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE, false);
         try {
-            int grid = HoleMiniMapSync.TERRAIN_GRID_SIZE;
-            int denominator = Math.max(1, MINIMAP_TEXTURE_SIZE - 1);
-            for (int py = 0; py < MINIMAP_TEXTURE_SIZE; py++) {
-                float terrainFz = (py / (float) denominator) * (grid - 1);
-                for (int px = 0; px < MINIMAP_TEXTURE_SIZE; px++) {
-                    float terrainFx = (px / (float) denominator) * (grid - 1);
-                    int color = sampleTerrainColorBilinear(terrainCells, grid, terrainFx, terrainFz);
-                    image.setColor(px, py, color);
-                }
+            boolean renderedFromClientWorld = renderMiniMapFromClientWorld(image, client, mapSpan);
+            if (!renderedFromClientWorld) {
+                miniMapRenderDebug = MiniMapRenderDebug.serverOnly();
+                return;
             }
 
             NativeImageBackedTexture texture = new NativeImageBackedTexture(image);
             Identifier textureId = client.getTextureManager().registerDynamicTexture("mcdg_minimap", texture);
             texture.upload();
-            miniMapRenderCache = new MiniMapRenderCache(textureId, texture, state.holeIndex(), state.mapOriginX(), state.mapOriginZ(), state.mapSpan(), state.miniMapQualityPreset());
+            miniMapRenderCache = new MiniMapRenderCache(textureId, texture, mapSpan, playerFeetX, playerFeetZ);
         } catch (RuntimeException ex) {
             image.close();
             throw ex;
         }
+    }
+
+    private static boolean renderMiniMapFromClientWorld(NativeImage image, MinecraftClient client, int mapSpan) {
+        if (client.world == null || mapSpan <= 0) {
+            return false;
+        }
+
+        int playerFeetX = net.minecraft.util.math.MathHelper.floor(client.player.getX());
+        int playerFeetZ = net.minecraft.util.math.MathHelper.floor(client.player.getZ());
+        float texDenominator = Math.max(1.0f, (float) MINIMAP_TEXTURE_SIZE);
+        int centerPx = MINIMAP_TEXTURE_SIZE / 2;
+        int centerPy = MINIMAP_TEXTURE_SIZE / 2;
+        double centerWorldX = (playerFeetX + 0.5d);
+        double centerWorldZ = (playerFeetZ + 0.5d);
+        String centerSource = "unknown";
+        String centerFluid = MiniMapFluidKind.NONE.debugLabel();
+        int centerSurfaceY = worldBottom(client.world);
+        int centerWorldSampleX = 0;
+        int centerWorldSampleZ = 0;
+        int clientSamplePixels = 0;
+        int serverFallbackPixels = 0;
+        int visibleSurfaceSourcePixels = 0;
+        int heightmapFallbackSourcePixels = 0;
+        int chunkUnloadedSourcePixels = 0;
+
+        for (int py = 0; py < MINIMAP_TEXTURE_SIZE; py++) {
+            float dz = (py - centerPy) / texDenominator;
+            int worldZ = net.minecraft.util.math.MathHelper.floor(centerWorldZ + (dz * mapSpan));
+            for (int px = 0; px < MINIMAP_TEXTURE_SIZE; px++) {
+                float dx = (px - centerPx) / texDenominator;
+                int worldX = net.minecraft.util.math.MathHelper.floor(centerWorldX + (dx * mapSpan));
+
+                TerrainSampleResult terrainSample = sampleClientWorldTerrain(client.world, worldX, worldZ);
+                boolean usedClientSample = terrainSample.color() != MINIMAP_COLOR_UNSET;
+                int baseColor = terrainSample.color();
+                switch (terrainSample.source()) {
+                    case VISIBLE_SURFACE -> visibleSurfaceSourcePixels++;
+                    case HEIGHTMAP_FALLBACK -> heightmapFallbackSourcePixels++;
+                    case CHUNK_UNLOADED -> chunkUnloadedSourcePixels++;
+                }
+                if (usedClientSample) {
+                    clientSamplePixels++;
+                }
+                if (!usedClientSample) {
+                    serverFallbackPixels++;
+                    baseColor = 0xFF5E6F86;
+                }
+
+                if (px == centerPx && py == centerPy) {
+                    centerSource = terrainSample.source().debugLabel();
+                    centerFluid = terrainSample.fluidKind().debugLabel();
+                    centerSurfaceY = terrainSample.surfaceY();
+                    centerWorldSampleX = worldX;
+                    centerWorldSampleZ = worldZ;
+                }
+
+                int shadedArgb = applyVisibleSurfaceShading(client.world, worldX, worldZ, baseColor);
+                image.setColor(px, py, argbToAbgr(shadedArgb));
+            }
+        }
+
+        miniMapRenderDebug = new MiniMapRenderDebug(
+            centerSource,
+            centerFluid,
+            centerSurfaceY,
+            centerWorldSampleX,
+            centerWorldSampleZ,
+            clientSamplePixels,
+            serverFallbackPixels,
+            visibleSurfaceSourcePixels,
+            heightmapFallbackSourcePixels,
+            chunkUnloadedSourcePixels
+        );
+
+        return true;
+    }
+
+    private static void publishMiniMapDebug(MinecraftClient client) {
+        if (client == null || client.player == null) {
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        String summary = miniMapRenderDebug.summary();
+
+        if (now >= nextMiniMapDebugActionBarAtMs) {
+            client.player.sendMessage(Text.literal(summary).formatted(Formatting.YELLOW), true);
+            nextMiniMapDebugActionBarAtMs = now + 1500L;
+        }
+
+        if (now >= nextMiniMapDebugLogAtMs) {
+            LOGGER.info("MinimapDebug {}", summary);
+            nextMiniMapDebugLogAtMs = now + 5000L;
+        }
+    }
+
+    private static TerrainSampleResult sampleClientWorldTerrain(ClientWorld world, int x, int z) {
+        if (!world.isChunkLoaded(x >> 4, z >> 4)) {
+            return new TerrainSampleResult(
+                    MINIMAP_COLOR_UNSET,
+                    false,
+                    MiniMapSampleSource.CHUNK_UNLOADED,
+                    MiniMapFluidKind.NONE,
+                    worldBottom(world)
+            );
+        }
+
+        int topSurfaceY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z) - 1;
+        int startY = topSurfaceY;
+        if (startY < world.getBottomY()) {
+            return new TerrainSampleResult(
+                    0xFF5E6F86,
+                    false,
+                    MiniMapSampleSource.HEIGHTMAP_FALLBACK,
+                    MiniMapFluidKind.NONE,
+                    worldBottom(world)
+            );
+        }
+
+        SurfaceResolveResult resolvedSurface = resolveVisibleSurfaceForSampling(world, x, z, startY);
+        BlockPos surface = resolvedSurface.surface();
+        BlockState state = world.getBlockState(surface);
+        if (world.getFluidState(surface).isIn(FluidTags.LAVA)) {
+            return new TerrainSampleResult(
+                    0xFFFF6A00,
+                    false,
+                    resolvedSurface.source(),
+                    MiniMapFluidKind.LAVA,
+                    surface.getY()
+            );
+        }
+        if (world.getFluidState(surface).isIn(FluidTags.WATER)) {
+            return new TerrainSampleResult(
+                    0xFF3F76E4,
+                    true,
+                    resolvedSurface.source(),
+                    MiniMapFluidKind.WATER,
+                    surface.getY()
+            );
+        }
+
+        MapColor mapColor = state.getMapColor(world, surface);
+        if (mapColor != null && mapColor != MapColor.CLEAR) {
+            return new TerrainSampleResult(
+                    0xFF000000 | mapColor.color,
+                    false,
+                    resolvedSurface.source(),
+                    MiniMapFluidKind.NONE,
+                    surface.getY()
+            );
+        }
+
+        int terrainClass = classifyClientMiniMapTerrainClass(world, x, z, surface.getY());
+        int color = miniMapTerrainColor(terrainClass);
+        if (color == 0) {
+            return new TerrainSampleResult(
+                    0xFF6B7C93,
+                    false,
+                    resolvedSurface.source(),
+                    MiniMapFluidKind.NONE,
+                    surface.getY()
+            );
+        }
+        return new TerrainSampleResult(
+                color,
+                false,
+                resolvedSurface.source(),
+                MiniMapFluidKind.NONE,
+                surface.getY()
+        );
+    }
+
+    private static SurfaceResolveResult resolveVisibleSurfaceForSampling(ClientWorld world, int x, int z, int startY) {
+        int y = Math.max(world.getBottomY(), Math.min(startY, world.getTopY() - 1));
+        int attempts = 0;
+        int maxDownChecks = 6;
+        boolean usedHeightmapFallback = false;
+        while (y > world.getBottomY() && attempts < maxDownChecks) {
+            BlockPos probe = new BlockPos(x, y, z);
+            if (!world.getBlockState(probe).isAir() || !world.getFluidState(probe).isEmpty()) {
+                break;
+            }
+            y--;
+            attempts++;
+        }
+
+        BlockPos resolved = new BlockPos(x, y, z);
+        if (world.getBlockState(resolved).isAir() && world.getFluidState(resolved).isEmpty()) {
+            int fallbackY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z) - 1;
+            y = Math.max(world.getBottomY(), Math.min(fallbackY, world.getTopY() - 1));
+            attempts = 0;
+            usedHeightmapFallback = true;
+            while (y > world.getBottomY() && attempts < 6) {
+                BlockPos probe = new BlockPos(x, y, z);
+                if (!world.getBlockState(probe).isAir() || !world.getFluidState(probe).isEmpty()) {
+                    break;
+                }
+                y--;
+                attempts++;
+            }
+            resolved = new BlockPos(x, y, z);
+        }
+
+        int noiseSkips = 0;
+        while (y > world.getBottomY() && noiseSkips < 3) {
+            BlockPos probe = new BlockPos(x, y, z);
+            // Never skip through fluid columns; doing so can incorrectly convert
+            // shoreline/water centers into solid terrain samples.
+            if (!world.getFluidState(probe).isEmpty()) {
+                break;
+            }
+            if (!isVisualNoiseSurface(world.getBlockState(probe))) {
+                break;
+            }
+            y--;
+            noiseSkips++;
+        }
+        resolved = new BlockPos(x, y, z);
+
+        MiniMapSampleSource source = usedHeightmapFallback ? MiniMapSampleSource.HEIGHTMAP_FALLBACK : MiniMapSampleSource.VISIBLE_SURFACE;
+        return new SurfaceResolveResult(resolved, source);
+    }
+
+    private static int worldBottom(ClientWorld world) {
+        return world == null ? 0 : world.getBottomY();
+    }
+
+    private static boolean isVisualNoiseSurface(BlockState state) {
+        return state.isOf(Blocks.SHORT_GRASS)
+                || state.isOf(Blocks.TALL_GRASS)
+                || state.isOf(Blocks.FERN)
+                || state.isOf(Blocks.LARGE_FERN)
+                || state.isOf(Blocks.DEAD_BUSH)
+                || state.isOf(Blocks.SEAGRASS)
+                || state.isIn(BlockTags.SMALL_FLOWERS)
+                || state.isIn(BlockTags.TALL_FLOWERS);
+    }
+
+    private static int applyVisibleSurfaceShading(ClientWorld world, int x, int z, int baseColor) {
+        if (baseColor == MINIMAP_COLOR_UNSET || !world.isChunkLoaded(x >> 4, z >> 4)) {
+            return 0xFF5E6F86;
+        }
+
+        int currentY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z) - 1;
+        int northY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z - 1) - 1;
+        int westY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x - 1, z) - 1;
+        int delta = (currentY - northY) + (currentY - westY);
+        float shade = 1.0f + Math.max(-0.18f, Math.min(0.18f, delta * 0.05f));
+        return scaleColor(baseColor, shade);
+    }
+
+    private enum MiniMapSampleSource {
+        VISIBLE_SURFACE("visible-surface"),
+        HEIGHTMAP_FALLBACK("heightmap-fallback"),
+        CHUNK_UNLOADED("chunk-unloaded");
+
+        private final String debugLabel;
+
+        MiniMapSampleSource(String debugLabel) {
+            this.debugLabel = debugLabel;
+        }
+
+        private String debugLabel() {
+            return debugLabel;
+        }
+    }
+
+    private enum MiniMapFluidKind {
+        NONE("solid"),
+        WATER("water"),
+        LAVA("lava");
+
+        private final String debugLabel;
+
+        MiniMapFluidKind(String debugLabel) {
+            this.debugLabel = debugLabel;
+        }
+
+        private String debugLabel() {
+            return debugLabel;
+        }
+    }
+
+    private record SurfaceResolveResult(BlockPos surface, MiniMapSampleSource source) {
+    }
+
+    private record TerrainSampleResult(
+            int color,
+            boolean waterDetected,
+            MiniMapSampleSource source,
+            MiniMapFluidKind fluidKind,
+            int surfaceY
+    ) {
+    }
+
+    private record MiniMapRenderDebug(
+            String centerSource,
+            String centerFluid,
+            int centerSurfaceY,
+            int centerWorldX,
+            int centerWorldZ,
+            int clientPixels,
+            int serverPixels,
+            int visibleSurfaceSourcePixels,
+            int heightmapFallbackSourcePixels,
+            int chunkUnloadedSourcePixels
+    ) {
+        private static MiniMapRenderDebug empty() {
+            return new MiniMapRenderDebug("n/a", "n/a", 0, 0, 0, 0, 0, 0, 0, 0);
+        }
+
+        private static MiniMapRenderDebug serverOnly() {
+            int allPixels = MINIMAP_TEXTURE_SIZE * MINIMAP_TEXTURE_SIZE;
+            return new MiniMapRenderDebug("server-only", "n/a", 0, 0, 0, 0, allPixels, 0, 0, allPixels);
+        }
+
+        private String summary() {
+            return "MM src=" + centerSource
+                    + " y=" + centerSurfaceY
+                    + " fluid=" + centerFluid
+                    + " vis=" + visibleSurfaceSourcePixels
+                    + " fb=" + heightmapFallbackSourcePixels
+                    + " miss=" + chunkUnloadedSourcePixels
+                    + " c=" + clientPixels
+                    + " s=" + serverPixels;
+        }
+    }
+
+    private static int classifyClientMiniMapTerrainClass(ClientWorld world, int x, int z, int surfaceY) {
+        if (surfaceY < world.getBottomY()) {
+            return 0;
+        }
+
+        BlockPos surface = new BlockPos(x, surfaceY, z);
+        BlockState state = world.getBlockState(surface);
+        if (world.getFluidState(surface).isIn(FluidTags.LAVA)) {
+            return 10;
+        }
+        if (world.getFluidState(surface).isIn(FluidTags.WATER)) {
+            return 1;
+        }
+        if (state.isOf(Blocks.ICE) || state.isOf(Blocks.PACKED_ICE) || state.isOf(Blocks.BLUE_ICE)
+                || state.isOf(Blocks.FROSTED_ICE)) {
+            return 7;
+        }
+        if (state.isOf(Blocks.SNOW) || state.isOf(Blocks.SNOW_BLOCK) || state.isOf(Blocks.POWDER_SNOW)) {
+            return 6;
+        }
+        if (state.isOf(Blocks.GRASS_BLOCK) || state.isOf(Blocks.MOSS_BLOCK)
+                || state.isOf(Blocks.FERN)
+                || state.isOf(Blocks.TALL_GRASS) || state.isOf(Blocks.SHORT_GRASS)) {
+            return 3;
+        }
+        if (state.isOf(Blocks.DIRT) || state.isOf(Blocks.COARSE_DIRT) || state.isOf(Blocks.ROOTED_DIRT)
+                || state.isOf(Blocks.PODZOL) || state.isOf(Blocks.MUD) || state.isOf(Blocks.MYCELIUM)
+                || state.isOf(Blocks.SOUL_SOIL)) {
+            return 8;
+        }
+        if (state.isOf(Blocks.DIRT_PATH) || state.isOf(Blocks.FARMLAND)
+                || state.isOf(Blocks.CLAY) || state.isOf(Blocks.GRAVEL)) {
+            return 9;
+        }
+        if (state.isOf(Blocks.SAND) || state.isOf(Blocks.RED_SAND)) {
+            return 2;
+        }
+        if (state.isIn(BlockTags.LEAVES) || state.isIn(BlockTags.LOGS)) {
+            return 4;
+        }
+        if (state.isOf(Blocks.STONE) || state.isOf(Blocks.ANDESITE) || state.isOf(Blocks.DIORITE)
+                || state.isOf(Blocks.GRANITE)
+                || state.isOf(Blocks.DEEPSLATE) || state.isOf(Blocks.COBBLESTONE) || state.isOf(Blocks.TUFF)
+                || state.isOf(Blocks.CALCITE)) {
+            return 5;
+        }
+        return 8;
     }
 
     private static void clearMiniMapRenderCache(MinecraftClient client) {
@@ -1020,6 +1608,12 @@ public final class McdgClientMod implements ClientModInitializer {
         miniMapRenderCache = null;
     }
 
+    private enum WaypointPromptStage {
+        NONE,
+        WAITING_NAME,
+        WAITING_COLOR
+    }
+
     private record MiniMapState(
             int holeIndex,
             int teeX,
@@ -1032,34 +1626,28 @@ public final class McdgClientMod implements ClientModInitializer {
             int throwNumber,
             int totalStrokes,
             int cumulativeParDelta,
-            int miniMapQualityPreset,
             boolean strictMode,
             boolean hasAlternateAnchor,
             int alternateAnchorX,
             int alternateAnchorZ,
-            int mapOriginX,
-            int mapOriginZ,
-            int mapSpan,
-            byte[] terrainCells
+                int mapSpan
     ) {
     }
 
     private record MiniMapRenderCache(
             Identifier textureId,
             NativeImageBackedTexture texture,
-            int holeIndex,
-            int mapOriginX,
-            int mapOriginZ,
             int mapSpan,
-            int miniMapQualityPreset
+            int centerX,
+            int centerZ
     ) {
-        private boolean matches(MiniMapState state) {
-            return state != null
-                    && holeIndex == state.holeIndex()
-                    && mapOriginX == state.mapOriginX()
-                    && mapOriginZ == state.mapOriginZ()
-                    && mapSpan == state.mapSpan()
-                    && miniMapQualityPreset == state.miniMapQualityPreset();
+        private boolean matches(int activeMapSpan, int playerFeetX, int playerFeetZ) {
+            return mapSpan == activeMapSpan
+                    && centerX == playerFeetX
+                    && centerZ == playerFeetZ;
         }
+    }
+
+    private record ClientWaypoint(String name, int x, int z, int color) {
     }
 }

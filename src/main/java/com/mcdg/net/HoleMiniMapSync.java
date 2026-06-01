@@ -10,7 +10,6 @@ public final class HoleMiniMapSync {
     public static final Identifier CHANNEL = Identifier.of(McdgMod.MOD_ID, "hole_minimap");
     public static final CustomPayload.Id<Payload> ID = new CustomPayload.Id<>(CHANNEL);
     public static final PacketCodec<RegistryByteBuf, Payload> CODEC = PacketCodec.of(Payload::write, Payload::read);
-    public static final int TERRAIN_GRID_SIZE = 128;
     public static final float MAP_OVERSCAN_FACTOR = 1.42f;
 
     private HoleMiniMapSync() {
@@ -29,20 +28,12 @@ public final class HoleMiniMapSync {
             int throwNumber,
             int totalStrokes,
             int cumulativeParDelta,
-            int miniMapQualityPreset,
             boolean strictMode,
             boolean hasAlternateAnchor,
             int alternateAnchorX,
             int alternateAnchorZ,
-            int mapOriginX,
-            int mapOriginZ,
-            int mapSpan,
-            byte[] terrainCells
+            int mapSpan
     ) implements CustomPayload {
-        public Payload {
-            terrainCells = terrainCells == null ? new byte[0] : terrainCells.clone();
-        }
-
         public static Payload read(RegistryByteBuf buf) {
             boolean active = buf.readBoolean();
             if (!active) {
@@ -61,15 +52,11 @@ public final class HoleMiniMapSync {
                     buf.readVarInt(),
                     buf.readVarInt(),
                     buf.readVarInt(),
-                    buf.readVarInt(),
                     buf.readBoolean(),
                     buf.readBoolean(),
                     buf.readVarInt(),
                     buf.readVarInt(),
-                    buf.readVarInt(),
-                    buf.readVarInt(),
-                    buf.readVarInt(),
-                    buf.readByteArray()
+                    buf.readVarInt()
             );
         }
 
@@ -90,19 +77,15 @@ public final class HoleMiniMapSync {
             buf.writeVarInt(throwNumber);
             buf.writeVarInt(totalStrokes);
             buf.writeVarInt(cumulativeParDelta);
-            buf.writeVarInt(miniMapQualityPreset);
             buf.writeBoolean(strictMode);
             buf.writeBoolean(hasAlternateAnchor);
             buf.writeVarInt(alternateAnchorX);
             buf.writeVarInt(alternateAnchorZ);
-            buf.writeVarInt(mapOriginX);
-            buf.writeVarInt(mapOriginZ);
             buf.writeVarInt(mapSpan);
-            buf.writeByteArray(terrainCells);
         }
 
         public static Payload inactive() {
-            return new Payload(false, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, false, false, 0, 0, 0, 0, 0, new byte[0]);
+            return new Payload(false, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, false, false, 0, 0, 0);
         }
 
         public static Payload active(
@@ -117,15 +100,11 @@ public final class HoleMiniMapSync {
                 int throwNumber,
                 int totalStrokes,
                 int cumulativeParDelta,
-                int miniMapQualityPreset,
                 boolean strictMode,
                 boolean hasAlternateAnchor,
                 int alternateAnchorX,
                 int alternateAnchorZ,
-                int mapOriginX,
-                int mapOriginZ,
-                int mapSpan,
-                byte[] terrainCells
+                int mapSpan
         ) {
             return new Payload(
                     true,
@@ -140,15 +119,11 @@ public final class HoleMiniMapSync {
                     throwNumber,
                     totalStrokes,
                     cumulativeParDelta,
-                    miniMapQualityPreset,
                     strictMode,
                     hasAlternateAnchor,
                     alternateAnchorX,
                     alternateAnchorZ,
-                    mapOriginX,
-                    mapOriginZ,
-                    mapSpan,
-                    terrainCells
+                    mapSpan
             );
         }
 
