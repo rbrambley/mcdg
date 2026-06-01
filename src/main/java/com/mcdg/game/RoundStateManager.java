@@ -3,6 +3,7 @@ package com.mcdg.game;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import net.minecraft.util.math.BlockPos;
@@ -72,6 +73,18 @@ public final class RoundStateManager {
 
     public void clearPlayer(UUID playerId) {
         stateByPlayer.remove(playerId);
+        completedTotalByPlayer.remove(playerId);
+    }
+
+    public void clearPlayers(Collection<UUID> playerIds) {
+        if (playerIds == null || playerIds.isEmpty()) {
+            return;
+        }
+        for (UUID playerId : playerIds) {
+            if (playerId != null) {
+                clearPlayer(playerId);
+            }
+        }
     }
 
     public void clearAll() {

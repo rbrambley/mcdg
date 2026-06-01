@@ -24,9 +24,14 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.packet.s2c.play.ClearTitleS2CPacket;
@@ -79,8 +84,22 @@ public final class McdgAdminCommands {
                                         roundPresentationService,
                                         skipRoundPresentation,
                                         practiceCourseStorage,
-                                        false
-                                )))
+                                        false,
+                                        null
+                                ))
+                                .then(argument("players", EntityArgumentType.players())
+                                        .executes(context -> executeStartRound(
+                                                context.getSource(),
+                                                courseManager,
+                                                placementService,
+                                                placementValidator,
+                                                roundStateManager,
+                                                roundPresentationService,
+                                                skipRoundPresentation,
+                                                practiceCourseStorage,
+                                                false,
+                                                EntityArgumentType.getPlayers(context, "players")
+                                        ))))
                         .then(literal("practicecourse")
                                 .executes(context -> executeStartRound(
                                         context.getSource(),
@@ -91,16 +110,40 @@ public final class McdgAdminCommands {
                                         roundPresentationService,
                                         skipRoundPresentation,
                                         practiceCourseStorage,
-                                        true
-                                )))
+                                        true,
+                                        null
+                                ))
+                                .then(argument("players", EntityArgumentType.players())
+                                        .executes(context -> executeStartRound(
+                                                context.getSource(),
+                                                courseManager,
+                                                placementService,
+                                                placementValidator,
+                                                roundStateManager,
+                                                roundPresentationService,
+                                                skipRoundPresentation,
+                                                practiceCourseStorage,
+                                                true,
+                                                EntityArgumentType.getPlayers(context, "players")
+                                        ))))
                         .then(literal("resumecourse")
                                 .executes(context -> executeResumeCourse(
                                         context.getSource(),
                                         courseManager,
                                         roundStateManager,
                                         roundPresentationService,
-                                        skipRoundPresentation
-                                )))
+                                        skipRoundPresentation,
+                                        null
+                                ))
+                                .then(argument("players", EntityArgumentType.players())
+                                        .executes(context -> executeResumeCourse(
+                                                context.getSource(),
+                                                courseManager,
+                                                roundStateManager,
+                                                roundPresentationService,
+                                                skipRoundPresentation,
+                                                EntityArgumentType.getPlayers(context, "players")
+                                        ))))
                         .then(literal("resetcourse")
                                 .executes(context -> executeCleanupCourse(context.getSource(), courseManager, placementService, roundStateManager, practiceCourseStorage)))
                         .then(literal("cleanupcourse")
@@ -109,6 +152,20 @@ public final class McdgAdminCommands {
                                 .executes(context -> executeGotoCourse(context.getSource(), courseManager)))
                         .then(literal("endround")
                                 .executes(context -> executeEndRound(context.getSource(), courseManager, roundStateManager)))
+                        .then(literal("joinround")
+                                .executes(context -> executeJoinRound(
+                                        context.getSource(),
+                                        courseManager,
+                                        roundStateManager,
+                                        null
+                                ))
+                                .then(argument("players", EntityArgumentType.players())
+                                        .executes(context -> executeJoinRound(
+                                                context.getSource(),
+                                                courseManager,
+                                                roundStateManager,
+                                                EntityArgumentType.getPlayers(context, "players")
+                                        ))))
                         .then(literal("ruleset")
                                 .executes(context -> executeShowRuleset(context, rulesetManager))
                                 .then(literal("casual")
@@ -251,7 +308,8 @@ public final class McdgAdminCommands {
                                         RoundPresentationService roundPresentationService,
                                         boolean skipRoundPresentation,
                                         PracticeCourseStorage practiceCourseStorage,
-                                        boolean persistentCourse
+                                        boolean persistentCourse,
+                                        Collection<ServerPlayerEntity> selectedPlayers
         ) {
                 Course course = courseManager.getActiveCourse().orElse(null);
                 if (course == null) {
@@ -278,7 +336,7 @@ public final class McdgAdminCommands {
                         }
                         courseManager.clearPlacedCourseState();
                         practiceCourseStorage.clear(source.getServer());
-                        roundStateManager.clearAll();
+                        clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
                 }
 
                 ServerWorld world = source.getWorld();
@@ -350,39 +408,34 @@ public final class McdgAdminCommands {
                                 }
                         }
 
-                        roundStateManager.clearAll();
-                        removeRoundThrowItemsFromWorldPlayers(source, world);
-                        int initializedPlayers = 0;
-                        List<java.util.UUID> participantIds = new java.util.ArrayList<>();
-                        for (var player : source.getServer().getPlayerManager().getPlayerList()) {
-                                if (player.getWorld().getRegistryKey().equals(world.getRegistryKey())) {
-                                        BlockPos firstTee = placed.holeTees().getOrDefault(1, player.getBlockPos());
-                                        BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
-                                        roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
-                                        player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
-                                        ensureSingleRoundThrowItem(player);
-                                        ScorecardManager.initializeScorecard(player, course, placed);
-                                        participantIds.add(player.getUuid());
-                                        player.sendMessage(Text.literal("Round staging. Moved to Hole 1 tee."), true);
-                                        initializedPlayers++;
-                                }
+                        List<ServerPlayerEntity> participants = resolveRoundParticipants(
+                                source,
+                                world,
+                                selectedPlayers,
+                                persistentCourse ? "practicecourse" : "startround"
+                        );
+                        if (participants.isEmpty()) {
+                                source.sendError(Text.literal("No eligible participants selected for this world."));
+                                return 0;
                         }
 
-                        if (initializedPlayers == 0) {
-                                try {
-                                        var sourcePlayer = source.getPlayerOrThrow();
-                                        BlockPos firstTee = placed.holeTees().getOrDefault(1, sourcePlayer.getBlockPos());
-                                        BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
-                                        roundStateManager.startRoundForPlayer(sourcePlayer.getUuid(), safeTee);
-                                        sourcePlayer.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
-                                        ensureSingleRoundThrowItem(sourcePlayer);
-                                        ScorecardManager.initializeScorecard(sourcePlayer, course, placed);
-                                        participantIds.add(sourcePlayer.getUuid());
-                                        sourcePlayer.sendMessage(Text.literal("Round staging. Moved to Hole 1 tee."), true);
-                                        initializedPlayers = 1;
-                                } catch (Exception ignored) {
-                                }
+                        clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
+                        removeRoundThrowItemsFromPlayers(participants);
+
+                        List<UUID> participantIds = new ArrayList<>();
+                        for (ServerPlayerEntity player : participants) {
+                                BlockPos firstTee = placed.holeTees().getOrDefault(1, player.getBlockPos());
+                                BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
+                                roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
+                                player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
+                                ensureSingleRoundThrowItem(player);
+                                ScorecardManager.initializeScorecard(player, course, placed);
+                                participantIds.add(player.getUuid());
+                                player.sendMessage(Text.literal("Round staging. Moved to Hole 1 tee."), true);
                         }
+
+                        int initializedPlayers = participantIds.size();
+                        courseManager.setActiveParticipantIds(participantIds);
 
                         final int trackedPlayers = initializedPlayers;
                         announceSignatureHole(source, course, participantIds);
@@ -438,7 +491,8 @@ public final class McdgAdminCommands {
                         ActiveCourseManager courseManager,
                         RoundStateManager roundStateManager,
                         RoundPresentationService roundPresentationService,
-                        boolean skipRoundPresentation
+                        boolean skipRoundPresentation,
+                        Collection<ServerPlayerEntity> selectedPlayers
         ) {
                 Course course = courseManager.getActiveCourse().orElse(null);
                 PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
@@ -470,40 +524,34 @@ public final class McdgAdminCommands {
                 }
 
                 int totalHoles = course.holes().size();
-                roundStateManager.clearAll();
-                removeRoundThrowItemsFromWorldPlayers(source, world);
-
-                int initializedPlayers = 0;
-                List<java.util.UUID> participantIds = new java.util.ArrayList<>();
-                for (var player : source.getServer().getPlayerManager().getPlayerList()) {
-                        if (player.getWorld().getRegistryKey().equals(world.getRegistryKey())) {
-                                BlockPos firstTee = placed.holeTees().getOrDefault(1, player.getBlockPos());
-                                BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
-                                roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
-                                player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
-                                ensureSingleRoundThrowItem(player);
-                                ScorecardManager.initializeScorecard(player, course, placed);
-                                participantIds.add(player.getUuid());
-                                player.sendMessage(Text.literal("Round resumed on existing course. Moved to Hole 1 tee."), true);
-                                initializedPlayers++;
-                        }
+                List<ServerPlayerEntity> participants = resolveRoundParticipants(
+                        source,
+                        world,
+                        selectedPlayers,
+                        "resumecourse"
+                );
+                if (participants.isEmpty()) {
+                        source.sendError(Text.literal("No eligible participants selected for this world."));
+                        return 0;
                 }
 
-                if (initializedPlayers == 0) {
-                        try {
-                                var sourcePlayer = source.getPlayerOrThrow();
-                                BlockPos firstTee = placed.holeTees().getOrDefault(1, sourcePlayer.getBlockPos());
-                                BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
-                                roundStateManager.startRoundForPlayer(sourcePlayer.getUuid(), safeTee);
-                                sourcePlayer.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
-                                ensureSingleRoundThrowItem(sourcePlayer);
-                                ScorecardManager.initializeScorecard(sourcePlayer, course, placed);
-                                participantIds.add(sourcePlayer.getUuid());
-                                sourcePlayer.sendMessage(Text.literal("Round resumed on existing course. Moved to Hole 1 tee."), true);
-                                initializedPlayers = 1;
-                        } catch (Exception ignored) {
-                        }
+                clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
+                removeRoundThrowItemsFromPlayers(participants);
+
+                List<UUID> participantIds = new ArrayList<>();
+                for (ServerPlayerEntity player : participants) {
+                        BlockPos firstTee = placed.holeTees().getOrDefault(1, player.getBlockPos());
+                        BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
+                        roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
+                        player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
+                        ensureSingleRoundThrowItem(player);
+                        ScorecardManager.initializeScorecard(player, course, placed);
+                        participantIds.add(player.getUuid());
+                        player.sendMessage(Text.literal("Round resumed on existing course. Moved to Hole 1 tee."), true);
                 }
+
+                int initializedPlayers = participantIds.size();
+                courseManager.setActiveParticipantIds(participantIds);
 
                 final int trackedPlayers = initializedPlayers;
                 announceSignatureHole(source, course, participantIds);
@@ -722,7 +770,7 @@ public final class McdgAdminCommands {
                 removeRoundThrowItemsFromCourseWorldPlayers(source, courseManager);
                 courseManager.clearPlacedCourseState();
                 courseManager.setRoundActive(false);
-                roundStateManager.clearAll();
+                clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
                 practiceCourseStorage.clear(source.getServer());
 
                 source.sendFeedback(() -> Text.literal("Course cleanup complete. Original blocks restored."), true);
@@ -828,6 +876,10 @@ public final class McdgAdminCommands {
                         return;
                 }
 
+                if (!courseManager.getActiveParticipantIds().contains(sourcePlayer.getUuid())) {
+                        return;
+                }
+
                 if (roundStateManager.getState(sourcePlayer.getUuid()).isEmpty()) {
                         roundStateManager.startRoundForPlayer(sourcePlayer.getUuid(), safeTee);
                 }
@@ -873,9 +925,76 @@ public final class McdgAdminCommands {
 
                 removeRoundThrowItemsFromCourseWorldPlayers(source, courseManager);
                 courseManager.setRoundActive(false);
-                roundStateManager.clearAll();
+                clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
                 source.sendFeedback(() -> Text.literal("Round ended. Use /mcdg resetcourse to restore terrain edits."), true);
                 return 1;
+        }
+
+        private static int executeJoinRound(
+                        ServerCommandSource source,
+                        ActiveCourseManager courseManager,
+                        RoundStateManager roundStateManager,
+                        Collection<ServerPlayerEntity> selectedPlayers
+        ) {
+                Course course = courseManager.getActiveCourse().orElse(null);
+                PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
+                if (course == null || placed == null) {
+                        source.sendError(Text.literal("No active placed course. Run /mcdg startround first."));
+                        return 0;
+                }
+                if (!courseManager.isRoundActive()) {
+                        source.sendError(Text.literal("Round is not live. Wait for presentation to finish before joining."));
+                        return 0;
+                }
+
+                ServerWorld world = source.getServer().getWorld(placed.worldKey());
+                if (world == null) {
+                        source.sendError(Text.literal("Placed course world is unavailable."));
+                        return 0;
+                }
+
+                List<ServerPlayerEntity> participants = resolveRoundParticipants(source, world, selectedPlayers, "joinround");
+                if (participants.isEmpty()) {
+                        source.sendError(Text.literal("No eligible participants selected for this world."));
+                        return 0;
+                }
+
+                BlockPos firstTee = placed.holeTees().get(1);
+                if (firstTee == null) {
+                        source.sendError(Text.literal("Hole 1 tee location is unavailable."));
+                        return 0;
+                }
+
+                int joinedCount = 0;
+                int alreadyJoinedCount = 0;
+                List<UUID> joinedIds = new ArrayList<>();
+                for (ServerPlayerEntity player : participants) {
+                        UUID playerId = player.getUuid();
+                        if (roundStateManager.getState(playerId).isPresent()) {
+                                alreadyJoinedCount++;
+                                continue;
+                        }
+
+                        BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
+                        roundStateManager.startRoundForPlayer(playerId, safeTee);
+                        player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
+                        ensureSingleRoundThrowItem(player);
+                        ScorecardManager.initializeScorecard(player, course, placed);
+                        player.sendMessage(Text.literal("Joined current round. Teleported to Hole 1 tee."), true);
+                        joinedIds.add(playerId);
+                        joinedCount++;
+                }
+
+                if (!joinedIds.isEmpty()) {
+                        courseManager.addActiveParticipantIds(joinedIds);
+                }
+
+                final int finalJoinedCount = joinedCount;
+                final int finalAlreadyJoinedCount = alreadyJoinedCount;
+                source.sendFeedback(() -> Text.literal(
+                        "Join round complete. Added=" + finalJoinedCount + ", already active=" + finalAlreadyJoinedCount + "."
+                ), true);
+                return finalJoinedCount > 0 ? 1 : 0;
         }
 
         private static int executeShowRuleset(
@@ -933,22 +1052,77 @@ public final class McdgAdminCommands {
         }
 
         private static void removeRoundThrowItemsFromCourseWorldPlayers(ServerCommandSource source, ActiveCourseManager courseManager) {
-                PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
-                for (ServerPlayerEntity player : source.getServer().getPlayerManager().getPlayerList()) {
-                        if (placed != null && player.getWorld().getRegistryKey() != placed.worldKey()) {
-                                continue;
+                Set<UUID> participantIds = courseManager.getActiveParticipantIds();
+                if (!participantIds.isEmpty()) {
+                        for (UUID playerId : participantIds) {
+                                ServerPlayerEntity participant = source.getServer().getPlayerManager().getPlayer(playerId);
+                                if (participant != null) {
+                                        removeRoundThrowItems(participant);
+                                }
                         }
+                        return;
+                }
+
+                PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
+                if (placed == null) {
+                        return;
+                }
+                for (ServerPlayerEntity player : source.getServer().getPlayerManager().getPlayerList()) {
+                        if (player.getWorld().getRegistryKey() == placed.worldKey()) {
+                                removeRoundThrowItems(player);
+                        }
+                }
+        }
+
+        private static void removeRoundThrowItemsFromPlayers(Collection<ServerPlayerEntity> players) {
+                for (ServerPlayerEntity player : players) {
                         removeRoundThrowItems(player);
                 }
         }
 
-        private static void removeRoundThrowItemsFromWorldPlayers(ServerCommandSource source, ServerWorld world) {
-                for (ServerPlayerEntity player : source.getServer().getPlayerManager().getPlayerList()) {
-                        if (player.getWorld().getRegistryKey() != world.getRegistryKey()) {
-                                continue;
+        private static void clearRoundStateForTrackedParticipants(ActiveCourseManager courseManager, RoundStateManager roundStateManager) {
+                roundStateManager.clearPlayers(courseManager.getActiveParticipantIds());
+                courseManager.clearActiveParticipantIds();
+        }
+
+        private static List<ServerPlayerEntity> resolveRoundParticipants(
+                        ServerCommandSource source,
+                        ServerWorld world,
+                        Collection<ServerPlayerEntity> selectedPlayers,
+                        String commandName
+        ) {
+                LinkedHashSet<ServerPlayerEntity> participants = new LinkedHashSet<>();
+                if (selectedPlayers != null && !selectedPlayers.isEmpty()) {
+                        participants.addAll(selectedPlayers);
+                } else {
+                        ServerPlayerEntity sourcePlayer = source.getPlayer();
+                        if (sourcePlayer == null) {
+                                source.sendError(Text.literal(
+                                        "Console usage requires explicit players: /mcdg " + commandName + " <players>."
+                                ));
+                                return List.of();
                         }
-                        removeRoundThrowItems(player);
+                        participants.add(sourcePlayer);
                 }
+
+                List<ServerPlayerEntity> sameWorldParticipants = new ArrayList<>();
+                int skippedDifferentWorld = 0;
+                for (ServerPlayerEntity participant : participants) {
+                        if (participant.getWorld().getRegistryKey().equals(world.getRegistryKey())) {
+                                sameWorldParticipants.add(participant);
+                        } else {
+                                skippedDifferentWorld++;
+                        }
+                }
+
+                final int skippedCount = skippedDifferentWorld;
+                if (skippedCount > 0) {
+                        source.sendFeedback(() -> Text.literal(
+                                "Skipped " + skippedCount + " player(s) not in the current course world."
+                        ), false);
+                }
+
+                return sameWorldParticipants;
         }
 
         private static void ensureSingleRoundThrowItem(ServerPlayerEntity player) {
@@ -1101,7 +1275,8 @@ public final class McdgAdminCommands {
                         roundPresentationService,
                         true,
                         practiceCourseStorage,
-                        false
+                        false,
+                        null
                 );
                 if (started == 0) {
                         return 0;

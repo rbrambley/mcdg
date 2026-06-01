@@ -1,6 +1,10 @@
 package com.mcdg.game;
 
 import com.mcdg.data.Course;
+import java.util.Collection;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Optional;
 
 public final class ActiveCourseManager {
@@ -9,6 +13,7 @@ public final class ActiveCourseManager {
     private volatile boolean roundActive;
     private volatile boolean persistentPlacedCourse;
     private volatile boolean legacyPracticeSnapshot;
+    private final Set<UUID> activeParticipantIds = ConcurrentHashMap.newKeySet();
 
     public void setActiveCourse(Course course) {
         if (course == null) {
@@ -59,11 +64,49 @@ public final class ActiveCourseManager {
         this.roundActive = roundActive;
     }
 
+    public void setActiveParticipantIds(Iterable<UUID> participantIds) {
+        activeParticipantIds.clear();
+        if (participantIds == null) {
+            return;
+        }
+        for (UUID participantId : participantIds) {
+            if (participantId != null) {
+                activeParticipantIds.add(participantId);
+            }
+        }
+    }
+
+    public Set<UUID> getActiveParticipantIds() {
+        return Set.copyOf(activeParticipantIds);
+    }
+
+    public void addActiveParticipantIds(Collection<UUID> participantIds) {
+        if (participantIds == null || participantIds.isEmpty()) {
+            return;
+        }
+        for (UUID participantId : participantIds) {
+            if (participantId != null) {
+                activeParticipantIds.add(participantId);
+            }
+        }
+    }
+
+    public void addActiveParticipantId(UUID participantId) {
+        if (participantId != null) {
+            activeParticipantIds.add(participantId);
+        }
+    }
+
+    public void clearActiveParticipantIds() {
+        activeParticipantIds.clear();
+    }
+
     public void clear() {
         this.activeCourse = null;
         this.placedCourseState = null;
         this.roundActive = false;
         this.persistentPlacedCourse = false;
         this.legacyPracticeSnapshot = false;
+        this.activeParticipantIds.clear();
     }
 }
