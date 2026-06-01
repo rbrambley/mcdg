@@ -39,6 +39,9 @@ Completed this session:
 - Basket finish zone is now the hopper plus the block above it; bars and lamp remain bounce-only surfaces.
 - Basket green hazard exemption now uses the placed green radius, while water/lava OB and corridor OB still apply normally.
 - `Building Course 0%` now stays visible until terrain generation updates begin, so the build state does not look stalled.
+- Minimap now renders active-hole basket guides with an upright flag marker plus 100ft/200ft circles (unlabeled).
+- Round HUD distance is feet-only and smoothly updates from lie-to-basket.
+- Basket-structure contact above the make-zone now forces bounce-to-ring with `CLANK!` feedback.
 
 Validation:
 - quickRegression remains green after the gameplay and overlay adjustments.
