@@ -2,6 +2,17 @@
 
 # PROJECT-SETUP.md
 
+## Latest Feature Checkpoint (2026-06-01 Night - Countdown Warm-up Music)
+
+- Code checkpoint commit: 480f4c9.
+- Added feature:
+  - Randomized warm-up music during the existing 30-second round countdown.
+  - Shuffle-bag anti-repeat track selection across multiple countdown starts.
+  - Final 3-second bell sting before round goes live.
+- Validation at checkpoint:
+  - `gradle quickRegression`: PASS.
+  - `gradle build`: PASS.
+
 ## Latest Feature Checkpoint (2026-06-01 Night - Round Complete Cinematic)
 
 - Code checkpoint commit: f1c4c70.

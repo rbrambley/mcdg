@@ -6,6 +6,31 @@ Date: 2026-05-30
 
 ---
 
+## Countdown Warm-up Music Update (2026-06-01 Night)
+
+Feature checkpoint commit:
+- 480f4c9
+
+Implemented:
+- Added randomized warm-up music selection for the existing 30-second round countdown.
+- Added shuffle-bag track selection with anti-repeat behavior (no immediate same-track replay when multiple tracks exist).
+- Added final 3-second countdown sting (`note_block_bell`) before `Round Live!`.
+- Music remains presentation-only and does not block round activation flow.
+
+Current warm-up track pool (vanilla discs):
+- `chirp`, `blocks`, `stal`, `strad`, `mall`, `wait`.
+
+Validation:
+- `gradle quickRegression`: PASS.
+- `gradle build`: PASS.
+
+Follow-up verification:
+1. Run multiple rounds and confirm random track rotation and no immediate repeats.
+2. Confirm bell sting fires once at 3 seconds remaining.
+3. Tune volumes if countdown voice/title readability needs adjustment.
+
+---
+
 ## Round Complete Cinematic Update (2026-06-01 Night)
 
 Feature checkpoint commit:
