@@ -106,6 +106,16 @@ public final class RegressionCheckRunner {
 
         assertContains(
             source,
+            "private static final int PASSIVE_MINIMAP_SPAN_BLOCKS = 96;",
+            "Minimap world span baseline changed unexpectedly."
+        );
+        assertContains(
+            source,
+            "private static final int MINIMAP_TEXTURE_SIZE = 128;",
+            "Minimap texture resolution baseline changed unexpectedly."
+        );
+        assertContains(
+            source,
             "private static final int MINIMAP_TEXTURE_SIZE =",
             "Minimap texture size constant is missing."
         );
@@ -124,6 +134,16 @@ public final class RegressionCheckRunner {
             "drawContext.drawTexture(miniMapRenderCache.textureId(), 0, 0, 0, 0, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE);",
             "Minimap render must draw the full texture atlas region."
         );
+        assertContains(
+            source,
+            "drawFilledCircle(drawContext, mapCenterX, mapCenterY, mapRadius",
+            "Minimap baseline must render circular map background."
+        );
+        assertContains(
+            source,
+            "image.setColor(px, py, argbToAbgr(0x00000000));",
+            "Minimap baseline must preserve transparent texture outside circular area."
+        );
 
         assertContains(
             source,
@@ -139,6 +159,16 @@ public final class RegressionCheckRunner {
             source,
             "private static float resolveMiniMapHeadingRotationDegrees(MinecraftClient client)",
             "Minimap regression: movement-heading resolver is missing."
+        );
+        assertContains(
+            source,
+            "if (horizontalSpeedSq > 0.0025d && client.player.isOnGround())",
+            "Minimap baseline must use grounded movement heading to avoid jump jitter."
+        );
+        assertContains(
+            source,
+            "private static float shortestAngleDeltaDegrees(float from, float to)",
+            "Minimap baseline must include angular stability helper."
         );
         assertContains(
             source,
