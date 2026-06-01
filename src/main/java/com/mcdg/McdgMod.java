@@ -15,6 +15,7 @@ import com.mcdg.game.ScorecardManager;
 import com.mcdg.game.ThrowAutoTestService;
 import com.mcdg.net.AceCinematicSync;
 import com.mcdg.net.HoleMiniMapSync;
+import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.CoursePlacementService;
@@ -68,6 +69,7 @@ public final class McdgMod implements ModInitializer {
     public void onInitialize() {
         PayloadTypeRegistry.playS2C().register(AceCinematicSync.ID, AceCinematicSync.CODEC);
         PayloadTypeRegistry.playS2C().register(HoleMiniMapSync.ID, HoleMiniMapSync.CODEC);
+        PayloadTypeRegistry.playS2C().register(RoundRunningScoresSync.ID, RoundRunningScoresSync.CODEC);
         PayloadTypeRegistry.playS2C().register(RoundCompleteCinematicSync.ID, RoundCompleteCinematicSync.CODEC);
         McdgConfig config = McdgConfig.loadDefault();
         McdgItems.register(ACTIVE_COURSE_MANAGER, ROUND_STATE_MANAGER, TOURNAMENT_RULESET_MANAGER, config.enableStrictFlowDebug());
@@ -306,6 +308,7 @@ public final class McdgMod implements ModInitializer {
         PlayerRoundState currentState = ROUND_STATE_MANAGER.getState(player.getUuid()).orElse(null);
         int hole = currentState == null ? 1 : currentState.currentHole();
         player.sendMessage(Text.literal("Rejoined active round at hole " + hole + "."), true);
+        HoleProgressTracker.sendRunningScoreboardToPlayer(player, ACTIVE_COURSE_MANAGER, ROUND_STATE_MANAGER);
     }
 
     private static BlockPos resolveSafeFeetNear(ServerWorld world, BlockPos preferredFeet) {

@@ -5,6 +5,7 @@ import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import com.mcdg.net.AceCinematicSync;
 import com.mcdg.net.HoleMiniMapSync;
+import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.ui.HudStateFormatter;
@@ -15,6 +16,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -59,6 +62,7 @@ public final class HoleProgressTracker {
     private static final Map<Integer, Long> ACTIVE_TURN_STARTED_AT_BY_HOLE = new HashMap<>();
     private static final Map<Integer, Integer> ACTIVE_TURN_TOTAL_STROKES_BY_HOLE = new HashMap<>();
     private static final Map<Integer, UUID> TURN_SKIP_ONCE_BY_HOLE = new HashMap<>();
+    private static int LAST_RUNNING_SCOREBOARD_HASH = Integer.MIN_VALUE;
     private static int AUTOTEST_MARKER_TRAIL_REFCOUNT = 0;
 
     private HoleProgressTracker() {
@@ -84,6 +88,10 @@ public final class HoleProgressTracker {
                 ACTIVE_TURN_STARTED_AT_BY_HOLE.clear();
                 ACTIVE_TURN_TOTAL_STROKES_BY_HOLE.clear();
                 TURN_SKIP_ONCE_BY_HOLE.clear();
+                if (LAST_RUNNING_SCOREBOARD_HASH != Integer.MIN_VALUE) {
+                    sendRunningScoreboardInactive(server);
+                }
+                LAST_RUNNING_SCOREBOARD_HASH = Integer.MIN_VALUE;
                 clearAllLieMarkers(server);
                 return;
             }
@@ -97,6 +105,7 @@ public final class HoleProgressTracker {
             Map<UUID, PlayerRoundState> snapshot = roundStateManager.snapshotStates();
             ensureHoleOneRandomOrder(snapshot);
             enforceTurnTimeouts(server, courseManager, roundStateManager, course, placed, snapshot);
+            maybeSendRunningScoreboard(server, courseManager, course, placed, roundStateManager, snapshot);
             for (Map.Entry<UUID, PlayerRoundState> entry : snapshot.entrySet()) {
                 ServerPlayerEntity player = server.getPlayerManager().getPlayer(entry.getKey());
                 if (player == null || player.getWorld().getRegistryKey() != placed.worldKey()) {
@@ -320,6 +329,45 @@ public final class HoleProgressTracker {
         return ThrowTurnGate.blocked("Wait your turn. Another player throws first.");
     }
 
+    public static void sendRunningScoreboardToPlayer(
+            ServerPlayerEntity player,
+            ActiveCourseManager courseManager,
+            RoundStateManager roundStateManager
+    ) {
+        if (player == null || !courseManager.isRoundActive()) {
+            return;
+        }
+
+        Course course = courseManager.getActiveCourse().orElse(null);
+        PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
+        if (course == null || placed == null) {
+            return;
+        }
+
+        if (player.getWorld().getRegistryKey() != placed.worldKey()) {
+            return;
+        }
+
+        Map<UUID, PlayerRoundState> snapshot = roundStateManager.snapshotStates();
+        Set<UUID> participantIds = courseManager.getActiveParticipantIds();
+        if (participantIds.isEmpty()) {
+            return;
+        }
+
+        PlayerRoundState state = snapshot.get(player.getUuid());
+        int focusHole = state == null
+                ? inferFocusHoleFromHistory(course.holes().size())
+                : Math.max(1, Math.min(course.holes().size(), state.currentHole()));
+        List<RoundRunningScoresSync.PlayerRow> rows = buildRunningScoreRows(
+                player.getServer(),
+                participantIds,
+                focusHole,
+                snapshot,
+                course.holes().size()
+        );
+        ServerPlayNetworking.send(player, RoundRunningScoresSync.Payload.active(course.holes().size(), focusHole, rows));
+    }
+
     private static int cumulativeParThroughHole(Course course, int holeIndexInclusive) {
         int par = 0;
         int max = Math.min(holeIndexInclusive, course.holes().size());
@@ -449,6 +497,159 @@ public final class HoleProgressTracker {
         ACTIVE_TURN_STARTED_AT_BY_HOLE.putAll(updatedStartedAtByHole);
         ACTIVE_TURN_TOTAL_STROKES_BY_HOLE.clear();
         ACTIVE_TURN_TOTAL_STROKES_BY_HOLE.putAll(updatedTurnTotalByHole);
+    }
+
+    private static void maybeSendRunningScoreboard(
+            MinecraftServer server,
+            ActiveCourseManager courseManager,
+            Course course,
+            PlacedCourseState placed,
+            RoundStateManager roundStateManager,
+            Map<UUID, PlayerRoundState> snapshot
+    ) {
+        if (course == null || placed == null) {
+            return;
+        }
+
+        Set<UUID> participantIds = courseManager.getActiveParticipantIds();
+        if (participantIds.isEmpty()) {
+            return;
+        }
+
+        int hash = computeRunningScoreboardHash(participantIds, snapshot);
+        if (hash == LAST_RUNNING_SCOREBOARD_HASH) {
+            return;
+        }
+        LAST_RUNNING_SCOREBOARD_HASH = hash;
+
+        List<ServerPlayerEntity> viewers = server.getPlayerManager().getPlayerList().stream()
+                .filter(p -> p.getWorld().getRegistryKey() == placed.worldKey())
+                .toList();
+        if (viewers.isEmpty()) {
+            return;
+        }
+
+        for (ServerPlayerEntity viewer : viewers) {
+            PlayerRoundState viewerState = roundStateManager.getState(viewer.getUuid()).orElse(null);
+            int focusHole = viewerState == null
+                    ? inferFocusHoleFromHistory(course.holes().size())
+                    : Math.max(1, Math.min(course.holes().size(), viewerState.currentHole()));
+            List<RoundRunningScoresSync.PlayerRow> rows = buildRunningScoreRows(server, participantIds, focusHole, snapshot, course.holes().size());
+            ServerPlayNetworking.send(
+                    viewer,
+                    RoundRunningScoresSync.Payload.active(course.holes().size(), focusHole, rows)
+            );
+        }
+    }
+
+    private static int computeRunningScoreboardHash(Set<UUID> participantIds, Map<UUID, PlayerRoundState> snapshot) {
+        int hash = 17;
+        List<UUID> sortedIds = new ArrayList<>(participantIds);
+        sortedIds.sort(UUID::compareTo);
+        for (UUID playerId : sortedIds) {
+            hash = (31 * hash) + playerId.hashCode();
+            Map<Integer, Integer> scores = HOLE_SCORE_HISTORY.get(playerId);
+            if (scores != null) {
+                List<Integer> holes = new ArrayList<>(scores.keySet());
+                holes.sort(Integer::compareTo);
+                for (Integer hole : holes) {
+                    hash = (31 * hash) + Objects.hash(hole, scores.get(hole));
+                }
+            }
+
+            PlayerRoundState state = snapshot.get(playerId);
+            if (state != null) {
+                hash = (31 * hash) + state.currentHole();
+                hash = (31 * hash) + state.totalStrokes();
+            }
+        }
+        return hash;
+    }
+
+    private static int inferFocusHoleFromHistory(int totalHoles) {
+        int maxCompletedHole = 1;
+        for (Map<Integer, Integer> scoreByHole : HOLE_SCORE_HISTORY.values()) {
+            for (Map.Entry<Integer, Integer> entry : scoreByHole.entrySet()) {
+                if (entry.getValue() != null && entry.getValue() >= 0) {
+                    maxCompletedHole = Math.max(maxCompletedHole, entry.getKey() + 1);
+                }
+            }
+        }
+        return Math.max(1, Math.min(totalHoles, maxCompletedHole));
+    }
+
+    private static List<RoundRunningScoresSync.PlayerRow> buildRunningScoreRows(
+            MinecraftServer server,
+            Set<UUID> participantIds,
+            int focusHole,
+            Map<UUID, PlayerRoundState> snapshot,
+            int totalHoles
+    ) {
+        List<UUID> ranked = new ArrayList<>(participantIds);
+        ranked.sort((a, b) -> {
+            int aTotal = runningTotalThroughHole(a, focusHole);
+            int bTotal = runningTotalThroughHole(b, focusHole);
+            int totalCompare = Integer.compare(aTotal, bTotal);
+            if (totalCompare != 0) {
+                return totalCompare;
+            }
+
+            for (int priorHole = focusHole - 1; priorHole >= 1; priorHole--) {
+                int aScore = scoreForHole(a, priorHole);
+                int bScore = scoreForHole(b, priorHole);
+                if (aScore != bScore) {
+                    return Integer.compare(aScore, bScore);
+                }
+            }
+
+            int aRank = HOLE_ONE_RANDOM_ORDER.getOrDefault(a, Integer.MAX_VALUE);
+            int bRank = HOLE_ONE_RANDOM_ORDER.getOrDefault(b, Integer.MAX_VALUE);
+            if (aRank != bRank) {
+                return Integer.compare(aRank, bRank);
+            }
+            return a.compareTo(b);
+        });
+
+        List<RoundRunningScoresSync.PlayerRow> rows = new ArrayList<>();
+        for (UUID playerId : ranked) {
+            List<Integer> holeScores = new ArrayList<>();
+            Map<Integer, Integer> scoreMap = HOLE_SCORE_HISTORY.get(playerId);
+            for (int hole = 1; hole <= totalHoles; hole++) {
+                int score = scoreMap == null ? -1 : scoreMap.getOrDefault(hole, -1);
+                holeScores.add(score);
+            }
+
+            ServerPlayerEntity onlinePlayer = server.getPlayerManager().getPlayer(playerId);
+            String playerName = onlinePlayer != null
+                    ? onlinePlayer.getGameProfile().getName()
+                    : playerId.toString().substring(0, 8);
+            boolean online = onlinePlayer != null;
+            int runningTotal = runningTotalThroughHole(playerId, focusHole);
+            rows.add(new RoundRunningScoresSync.PlayerRow(playerName, online, holeScores, runningTotal));
+        }
+        return rows;
+    }
+
+    private static int runningTotalThroughHole(UUID playerId, int focusHole) {
+        int total = 0;
+        Map<Integer, Integer> scores = HOLE_SCORE_HISTORY.get(playerId);
+        if (scores == null) {
+            return 0;
+        }
+
+        for (int hole = 1; hole <= focusHole; hole++) {
+            int score = scores.getOrDefault(hole, -1);
+            if (score >= 0) {
+                total += score;
+            }
+        }
+        return total;
+    }
+
+    private static void sendRunningScoreboardInactive(MinecraftServer server) {
+        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            ServerPlayNetworking.send(player, RoundRunningScoresSync.Payload.inactive());
+        }
     }
 
     private static void applyTurnTimeoutPenalty(

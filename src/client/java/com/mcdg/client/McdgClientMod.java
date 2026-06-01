@@ -5,6 +5,7 @@ import com.mcdg.game.McdgItems;
 import com.mcdg.game.ScorecardManager;
 import com.mcdg.net.AceCinematicSync;
 import com.mcdg.net.HoleMiniMapSync;
+import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -128,6 +129,7 @@ public final class McdgClientMod implements ClientModInitializer {
     private static AceCinematicState aceCinematicState;
     private static long nextAceCinematicParticleAtMs;
     private static RoundCompleteCinematicState roundCompleteCinematicState;
+    private static RunningRoundScoreState runningRoundScoreState;
     private static final List<ClientWaypoint> clientWaypoints = new ArrayList<>();
 
 
@@ -255,11 +257,26 @@ public final class McdgClientMod implements ClientModInitializer {
                 );
             });
         });
+        ClientPlayNetworking.registerGlobalReceiver(RoundRunningScoresSync.ID, (payload, context) -> {
+            context.client().execute(() -> {
+                if (!payload.active()) {
+                    runningRoundScoreState = null;
+                    return;
+                }
+
+                List<RunningRoundScoreRow> rows = new ArrayList<>();
+                for (RoundRunningScoresSync.PlayerRow row : payload.rows()) {
+                    rows.add(new RunningRoundScoreRow(row.playerName(), row.online(), row.holeScores(), row.runningTotal()));
+                }
+                runningRoundScoreState = new RunningRoundScoreState(payload.totalHoles(), payload.focusHole(), rows);
+            });
+        });
         HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {
             updateHudTweens();
             renderHoleMiniMapOverlay(drawContext);
             renderRoundInfoOverlay(drawContext);
             renderScorecardOverlay(drawContext);
+            renderRunningRoundScoreboardOverlay(drawContext);
             renderCompassOverlay(drawContext);
             renderPowerOverlay(drawContext);
             renderAceCinematicOverlay(drawContext);
@@ -691,6 +708,87 @@ public final class McdgClientMod implements ClientModInitializer {
                     rowY,
                     withAlpha(rowColor, hudAlpha)
             );
+        }
+    }
+
+    private static void renderRunningRoundScoreboardOverlay(DrawContext drawContext) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player == null || client.options.hudHidden || client.textRenderer == null) {
+            return;
+        }
+
+        RunningRoundScoreState state = runningRoundScoreState;
+        if (state == null || state.rows().isEmpty()) {
+            return;
+        }
+
+        int visibleHoleCount = Math.max(1, Math.min(state.totalHoles(), state.focusHole()));
+        int nameColW = client.textRenderer.getWidth("Player");
+        int totalColW = client.textRenderer.getWidth("Tot");
+        for (RunningRoundScoreRow row : state.rows()) {
+            String displayName = row.online() ? row.playerName() : (row.playerName() + " (off)");
+            nameColW = Math.max(nameColW, client.textRenderer.getWidth(displayName));
+            totalColW = Math.max(totalColW, client.textRenderer.getWidth(Integer.toString(row.runningTotal())));
+        }
+
+        int holeColW = 12;
+        int colGap = 6;
+        int rowHeight = 10;
+        int panelW = 8 + nameColW + colGap + (visibleHoleCount * (holeColW + 2)) + colGap + totalColW + 8;
+        int panelH = 22 + ((state.rows().size() + 1) * rowHeight);
+        int x = 8;
+        int y = drawContext.getScaledWindowHeight() - panelH - 8;
+        float hudAlpha = hudFadeAlpha();
+
+        drawHudCard(drawContext, client, x, y, panelW, panelH, "Round Scores", hudAlpha);
+
+        int cursorX = x + 6;
+        int headerY = y + 14;
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Player"), cursorX, headerY, withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
+        cursorX += nameColW + colGap;
+
+        for (int hole = 1; hole <= visibleHoleCount; hole++) {
+            String label = Integer.toString(hole);
+            int color = hole == state.focusHole() ? 0xFFEAC26F : HUD_CARD_MUTED_TEXT;
+            drawContext.drawTextWithShadow(
+                    client.textRenderer,
+                    Text.literal(label),
+                    cursorX + rightAlign(0, holeColW, client.textRenderer.getWidth(label)),
+                    headerY,
+                    withAlpha(color, hudAlpha)
+            );
+            cursorX += holeColW + 2;
+        }
+
+        cursorX += colGap;
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Tot"), cursorX, headerY, withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
+
+        for (int rowIndex = 0; rowIndex < state.rows().size(); rowIndex++) {
+            RunningRoundScoreRow row = state.rows().get(rowIndex);
+            int rowY = y + 24 + (rowIndex * rowHeight);
+            int rowColor = row.online() ? HUD_CARD_TEXT : HUD_CARD_MUTED_TEXT;
+
+            String displayName = row.online() ? row.playerName() : (row.playerName() + " (off)");
+            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(displayName), x + 6, rowY, withAlpha(rowColor, hudAlpha));
+
+            int rowCursorX = x + 6 + nameColW + colGap;
+            for (int hole = 1; hole <= visibleHoleCount; hole++) {
+                int value = (hole - 1) < row.holeScores().size() ? row.holeScores().get(hole - 1) : -1;
+                String text = value < 0 ? "-" : Integer.toString(value);
+                int valueColor = hole == state.focusHole() ? 0xFFF5D684 : rowColor;
+                drawContext.drawTextWithShadow(
+                        client.textRenderer,
+                        Text.literal(text),
+                        rowCursorX + rightAlign(0, holeColW, client.textRenderer.getWidth(text)),
+                        rowY,
+                        withAlpha(valueColor, hudAlpha)
+                );
+                rowCursorX += holeColW + 2;
+            }
+
+            rowCursorX += colGap;
+            String totalText = Integer.toString(row.runningTotal());
+            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(totalText), rowCursorX, rowY, withAlpha(0xFFB5F7B5, hudAlpha));
         }
     }
 
@@ -2414,6 +2512,21 @@ public final class McdgClientMod implements ClientModInitializer {
             long endAtMs
         ) {
         }
+
+    private record RunningRoundScoreState(
+            int totalHoles,
+            int focusHole,
+            List<RunningRoundScoreRow> rows
+    ) {
+    }
+
+    private record RunningRoundScoreRow(
+            String playerName,
+            boolean online,
+            List<Integer> holeScores,
+            int runningTotal
+    ) {
+    }
 
     private record ClientWaypoint(String name, int x, int z, int color) {
     }
