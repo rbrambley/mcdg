@@ -278,6 +278,21 @@ public final class HoleProgressTracker {
         return dx <= BASKET_RADIUS_BLOCKS && dz <= BASKET_RADIUS_BLOCKS && dy <= BASKET_HEIGHT_TOLERANCE;
     }
 
+    private static boolean shouldBounceOffBasketStructure(BlockPos liePos, BlockPos basketPos) {
+        if (liePos == null || basketPos == null) {
+            return false;
+        }
+
+        int dx = Math.abs(liePos.getX() - basketPos.getX());
+        int dz = Math.abs(liePos.getZ() - basketPos.getZ());
+        if (dx != 0 || dz != 0) {
+            return false;
+        }
+
+        // Made basket remains hopper + one block above; upper basket structure should bounce.
+        return liePos.getY() >= (basketPos.getY() + 2);
+    }
+
     private static int manhattanDistance(BlockPos from, BlockPos to) {
         return Math.abs(from.getX() - to.getX()) + Math.abs(from.getY() - to.getY()) + Math.abs(from.getZ() - to.getZ());
     }
@@ -766,8 +781,8 @@ public final class HoleProgressTracker {
             state = roundStateManager.markLastThrowPenalty(player.getUuid(), false).orElse(state);
         }
 
-        // Never let the lie sit exactly on the basket — treat it as a bounce to the 2-block ring.
-        if (manhattanDistance(resultingLie, basket) == 0) {
+        // Basket body hits (above the make-zone) should bounce to the ring with a CLANK cue.
+        if (shouldBounceOffBasketStructure(resultingLie, basket)) {
             BlockPos bounced = basketBouncePosition(world, basket);
             resultingLie = bounced;
             player.teleport(resultingLie.getX() + 0.5, resultingLie.getY() + 1.0, resultingLie.getZ() + 0.5);

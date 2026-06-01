@@ -100,7 +100,6 @@ public final class McdgClientMod implements ClientModInitializer {
     private static KeyBinding toggleWaypointLabelsKey;
     private static long hudVisibleSinceMs;
     private static float displayedDistanceFeet = Float.NaN;
-    private static float displayedDistanceMeters = Float.NaN;
     private static float displayedTotalStrokes = Float.NaN;
     private static float displayedCumulativeDelta = Float.NaN;
     private static MiniMapRenderDebug miniMapRenderDebug = MiniMapRenderDebug.empty();
@@ -169,7 +168,6 @@ public final class McdgClientMod implements ClientModInitializer {
                     miniMapReceivedAtMs = 0L;
                     hudVisibleSinceMs = 0L;
                     displayedDistanceFeet = Float.NaN;
-                    displayedDistanceMeters = Float.NaN;
                     displayedTotalStrokes = Float.NaN;
                     displayedCumulativeDelta = Float.NaN;
                     // Force a full texture rebuild so the map doesn't stay grey after cleanup.
@@ -358,6 +356,24 @@ public final class McdgClientMod implements ClientModInitializer {
             drawContext.drawTexture(miniMapRenderCache.textureId(), 0, 0, 0, 0, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE);
             matrices.pop();
 
+            MiniMapState state = miniMapState;
+            if (state != null && (System.currentTimeMillis() - miniMapReceivedAtMs) <= MINIMAP_STALE_TIMEOUT_MS) {
+                drawMiniMapHoleGuides(
+                        drawContext,
+                        state,
+                        playerWorldX,
+                        playerWorldZ,
+                        mapCenterX,
+                        mapCenterY,
+                        mapScale,
+                        mapRotationDegrees,
+                        hudAlpha,
+                        mapCenterX,
+                        mapCenterY,
+                        mapRadius
+                );
+            }
+
             drawWaypoints(drawContext, client, mapCenterX, mapCenterY, playerWorldX, playerWorldZ, mapScale, mapRotationDegrees, hudAlpha, waypointLabelsVisible, mapCenterX, mapCenterY, mapRadius);
 
             drawHeadingTriangleClipped(
@@ -473,12 +489,6 @@ public final class McdgClientMod implements ClientModInitializer {
             return;
         }
 
-        int distMeters = Math.max(0, Math.round((float) Math.sqrt(
-            ((state.basketX() - state.teeX()) * (state.basketX() - state.teeX()))
-                + ((state.basketZ() - state.teeZ()) * (state.basketZ() - state.teeZ()))
-        )));
-        int distFeet = Math.max(0, Math.round(distMeters * 3.28084f));
-
         String deltaText;
         if (state.cumulativeParDelta() == 0) {
             deltaText = "E";
@@ -490,7 +500,8 @@ public final class McdgClientMod implements ClientModInitializer {
 
         String line1 = "Round";
         String line2 = "H" + state.holeIndex() + "  P" + state.par() + "  T" + state.throwNumber();
-        String line3 = distFeet + "ft / " + distMeters + "m";
+    int animatedDistanceFeet = Math.max(0, Math.round(displayedDistanceFeet));
+    String line3 = animatedDistanceFeet + "ft";
         String line4 = "Total " + state.totalStrokes() + "  " + deltaText;
         int maxTextWidth = Math.max(
                 Math.max(client.textRenderer.getWidth(line1), client.textRenderer.getWidth(line2)),
@@ -622,7 +633,6 @@ public final class McdgClientMod implements ClientModInitializer {
         int dz = state.basketZ() - state.lieZ();
         float targetMeters = Math.max(0, Math.round((float) Math.sqrt((dx * dx) + (dz * dz))));
         float targetFeet = Math.max(0, Math.round(targetMeters * 3.28084f));
-        displayedDistanceMeters = tween(displayedDistanceMeters, targetMeters, 0.18f);
         displayedDistanceFeet = tween(displayedDistanceFeet, targetFeet, 0.18f);
         displayedTotalStrokes = tween(displayedTotalStrokes, state.totalStrokes(), 0.22f);
         displayedCumulativeDelta = tween(displayedCumulativeDelta, state.cumulativeParDelta(), 0.22f);
@@ -658,27 +668,87 @@ public final class McdgClientMod implements ClientModInitializer {
         };
     }
 
-    private static void drawMiniMapDistanceRings(
+    private static void drawMiniMapHoleGuides(
             DrawContext drawContext,
-            MinecraftClient client,
-            float centerX,
-            float centerY,
-            int mapX,
-            int mapY,
-            int miniMapSize,
+            MiniMapState state,
+            double centerWorldX,
+            double centerWorldZ,
+            int mapCenterX,
+            int mapCenterY,
             float mapScale,
+            float mapRotationDegrees,
             float hudAlpha,
             float clipCenterX,
             float clipCenterY,
             float clipRadius
     ) {
-        int[] ringFeet = { 50, 100, 150 };
-        for (int feet : ringFeet) {
-            float radiusBlocks = feet / 3.28084f;
-            int radiusPx = Math.max(2, Math.round(radiusBlocks * mapScale));
-            int color = withAlpha(0x66BFD5E9, hudAlpha);
-            drawCircleOutline(drawContext, centerX, centerY, radiusPx, color);
+        float basketDx = (float) (((state.basketX() + 0.5d) - centerWorldX) * mapScale);
+        float basketDz = (float) (((state.basketZ() + 0.5d) - centerWorldZ) * mapScale);
+        float[] rotatedBasket = rotateMiniMapVector(basketDx, basketDz, mapRotationDegrees);
+        float basketPx = mapCenterX + rotatedBasket[0];
+        float basketPy = mapCenterY + rotatedBasket[1];
+
+        int ring100Color = withAlpha(0xE6F2D14A, hudAlpha);
+        int ring200Color = withAlpha(0xE664D5FF, hudAlpha);
+        int ring100RadiusPx = Math.max(2, Math.round((100.0f / 3.28084f) * mapScale));
+        int ring200RadiusPx = Math.max(2, Math.round((200.0f / 3.28084f) * mapScale));
+
+        drawCircleBandClipped(drawContext, basketPx, basketPy, ring200RadiusPx, 1, ring200Color, clipCenterX, clipCenterY, clipRadius);
+        drawCircleBandClipped(drawContext, basketPx, basketPy, ring100RadiusPx, 1, ring100Color, clipCenterX, clipCenterY, clipRadius);
+
+        drawMiniMapBasketFlagClipped(
+                drawContext,
+                Math.round(basketPx),
+                Math.round(basketPy),
+                withAlpha(0xFF1E232B, hudAlpha),
+                withAlpha(0xFFF2F4F8, hudAlpha),
+                withAlpha(0xFF121417, hudAlpha),
+                clipCenterX,
+                clipCenterY,
+                clipRadius
+        );
+    }
+
+    private static void drawMiniMapBasketFlagClipped(
+            DrawContext drawContext,
+            int centerX,
+            int centerY,
+            int poleColor,
+            int flagColor,
+            int outlineColor,
+            float clipCenterX,
+            float clipCenterY,
+            float clipRadius
+    ) {
+        for (int y = centerY - 5; y <= centerY + 3; y++) {
+            drawPixelClipped(drawContext, centerX, y, poleColor, clipCenterX, clipCenterY, clipRadius);
         }
+
+        drawPixelClipped(drawContext, centerX + 1, centerY - 5, outlineColor, clipCenterX, clipCenterY, clipRadius);
+        drawPixelClipped(drawContext, centerX + 2, centerY - 5, outlineColor, clipCenterX, clipCenterY, clipRadius);
+        drawPixelClipped(drawContext, centerX + 3, centerY - 5, outlineColor, clipCenterX, clipCenterY, clipRadius);
+        drawPixelClipped(drawContext, centerX + 1, centerY - 4, outlineColor, clipCenterX, clipCenterY, clipRadius);
+        drawPixelClipped(drawContext, centerX + 2, centerY - 4, outlineColor, clipCenterX, clipCenterY, clipRadius);
+        drawPixelClipped(drawContext, centerX + 1, centerY - 3, outlineColor, clipCenterX, clipCenterY, clipRadius);
+
+        drawPixelClipped(drawContext, centerX + 1, centerY - 5, flagColor, clipCenterX, clipCenterY, clipRadius);
+        drawPixelClipped(drawContext, centerX + 2, centerY - 5, flagColor, clipCenterX, clipCenterY, clipRadius);
+        drawPixelClipped(drawContext, centerX + 1, centerY - 4, flagColor, clipCenterX, clipCenterY, clipRadius);
+    }
+
+    private static void drawPixelClipped(
+            DrawContext drawContext,
+            int px,
+            int py,
+            int color,
+            float clipCenterX,
+            float clipCenterY,
+            float clipRadius
+    ) {
+        if (!isPointInsideCircle(px, py, clipCenterX, clipCenterY, clipRadius * clipRadius)) {
+            return;
+        }
+        drawContext.fill(px, py, px + 1, py + 1, color);
     }
 
     private static void drawCircleOutline(DrawContext drawContext, float centerX, float centerY, float radius, int color) {
@@ -1292,13 +1362,39 @@ public final class McdgClientMod implements ClientModInitializer {
             float clipRadius
     ) {
         float clipRadiusSq = clipRadius * clipRadius;
-        for (int degrees = 0; degrees < 360; degrees += 8) {
+        for (int degrees = 0; degrees < 360; degrees += 2) {
             double radians = Math.toRadians(degrees);
             int px = Math.round(centerX + (float) Math.cos(radians) * radius);
             int py = Math.round(centerY + (float) Math.sin(radians) * radius);
             if (isPointInsideCircle(px, py, clipCenterX, clipCenterY, clipRadiusSq)) {
                 drawContext.fill(px, py, px + 1, py + 1, color);
             }
+        }
+    }
+
+    private static void drawCircleBandClipped(
+            DrawContext drawContext,
+            float centerX,
+            float centerY,
+            float radius,
+            int thickness,
+            int color,
+            float clipCenterX,
+            float clipCenterY,
+            float clipRadius
+    ) {
+        int half = Math.max(0, thickness / 2);
+        for (int offset = -half; offset <= half; offset++) {
+            drawCircleOutlineClipped(
+                    drawContext,
+                    centerX,
+                    centerY,
+                    Math.max(1.0f, radius + offset),
+                    color,
+                    clipCenterX,
+                    clipCenterY,
+                    clipRadius
+            );
         }
     }
 
