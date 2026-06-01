@@ -48,6 +48,29 @@ Validation:
 
 ---
 
+## Placement Hardening Update (2026-06-01)
+
+Completed this session:
+- Generation/par rules updated for realistic carry playability:
+  - carry cap logic uses 91 blocks (300 ft equivalent),
+  - par bands are now 0-400 (Par 3), 401-700 (Par 4), 701-1200 (Par 5),
+  - one forced Par 5 slot per 9-hole generation with stronger retry behavior.
+- Alternate-route search widened for hard terrain cases and now validates both route legs against carry limits.
+- Landing-gap validation is route-aware (tee->anchor->basket when an alternate anchor exists), not direct-line only.
+- New enclosure recovery corridor for deeply enclosed baskets (all holes):
+  - applies for basket depth 13-35 blocks below local surface,
+  - builds an 8-wide stepped fairway back toward tee,
+  - rises with max +2 step and prefers +1 when possible,
+  - force-fills water to safe fairway,
+  - reroutes around lava (up to 3 lateral attempts), then relocates basket if reroute fails.
+
+Validation:
+- quickRegression: PASS.
+- Clean lifecycle deploy gate: PASS.
+- Latest lifecycle smoke summary: pass=3, fail=0, issues=0, warningLandingGaps=0, maxLandingGap=63.
+
+---
+
 ## Session Continuity Update (2026-05-31)
 
 Note (2026-06-01):
