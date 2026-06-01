@@ -2,6 +2,19 @@
 
 # PROJECT-SETUP.md
 
+## Latest Engineering Checkpoint (2026-06-01 Evening)
+
+- Code checkpoint commit: fe5ca6f.
+- Included fixes:
+  - Par 5 cap behavior for 9-hole generation (forced slot only).
+  - `startround` retry expansion for route-gap and alternate-route placement failures.
+  - Strict minimap hazard overlay visibility correction (alpha + sampling + surface-Y fix).
+- Validation at checkpoint:
+  - `gradle quickRegression`: PASS.
+  - `gradle build`: PASS.
+- Deploy verification:
+  - jar copied to the ATLauncher test instance mods directory after passing build.
+
 ## Prerequisites & Environment
 
 - **Java Development Kit (JDK):**  

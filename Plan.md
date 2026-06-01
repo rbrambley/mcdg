@@ -6,6 +6,58 @@ Date: 2026-05-30
 
 ---
 
+## Stability Update (2026-06-01 Evening)
+
+Code checkpoint commit:
+- fe5ca6f
+
+Implemented in this checkpoint:
+- Par 5 composition guardrail: only the forced slot can produce Par 5 in a 9-hole round.
+- `startround` retry gate expanded beyond enclosure-only to include alternate-route and landing-gap placement failures.
+- Minimap strict hazard overlay visibility fix:
+  - stronger overlay alpha,
+  - denser sample pass,
+  - corrected sampled surface block Y for hazard classification.
+
+Validation status at checkpoint:
+- `gradle quickRegression`: PASS.
+- `gradle build`: PASS.
+- Updated jar deployed to ATLauncher test mods folder.
+
+Next verification focus:
+1. Manual strict round: confirm no extra Par 5 generation and no acceptance of Par 5 without alternate route.
+2. In-round minimap check: verify orange hazard zones are visible in strict mode on known hazard-heavy lines.
+3. If overlay still appears absent, add temporary on-screen sampled-hazard counter for one run, then remove.
+
+---
+
+## Return Checkpoint (2026-06-01)
+
+Where we paused:
+- User-reported `startround` stall reproduced in integrated singleplayer logs (long server-thread block before round presentation).
+- Root cause addressed in current working tree by:
+  - reducing generator footprint (3-column grid layout) to lower chunk-gen pressure,
+  - adding immediate `startround` placement-start feedback,
+  - adding tee deep-enclosure validation (`tee_deeply_enclosed`) and retry gating in `startround` (previously basket-only).
+
+Current local state (not yet committed):
+- Modified files:
+  - `src/main/java/com/mcdg/command/McdgAdminCommands.java`
+  - `src/main/java/com/mcdg/world/CoursePlacementValidator.java`
+  - `src/main/java/com/mcdg/world/SeededCourseGenerator.java`
+
+Current verification status:
+- `gradle quickRegression`: PASS.
+- `gradle build`: PASS.
+- Latest jar deployed to ATLauncher mods folder (timestamp seen during deploy: 2026-06-01 14:06:50 local).
+
+First actions on return:
+1. Manually run ATLauncher: `/mcdg createcourse <seed>` then `/mcdg startround` and watch for immediate placement message + non-stalling build.
+2. If stable, commit current working-tree patch set.
+3. If still stalling, add timing instrumentation around `placeCourse` phases and tighten fallback search bounds.
+
+---
+
 ## Minimap Baseline Update (2026-06-01)
 
 Status:
