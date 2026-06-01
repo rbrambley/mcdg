@@ -6,6 +6,33 @@ Date: 2026-05-30
 
 ---
 
+## Guardrail Drift Prevention Update (2026-06-01 Night)
+
+Guardrail checkpoint commit:
+- 2aa3576
+
+New anti-drift gates added:
+- Quick regression now enforces Par 5 composition cap across seeded 9-hole generation samples (`<= 1` Par 5).
+- Quick regression now enforces validator/retry issue-code sync for high-risk placement failures:
+  - `tee_deeply_enclosed`
+  - `basket_deeply_enclosed`
+  - `par5_alternate_route_missing`
+  - `alternate_route_missing`
+  - `landing_gap_too_long`
+- Quick regression now locks strict minimap hazard-overlay visibility baseline values:
+  - `HAZARD_OVERLAY_ARGB = 0x8CFF9A32`
+  - `HAZARD_SAMPLE_STEP_PX = 2`
+- Lifecycle report verification now hard-fails if the latest smoke report contains any disallowed placement issue code above.
+
+Validation at guardrail checkpoint:
+- `gradle quickRegression`: PASS.
+- `gradle build`: PASS.
+
+Operational effect:
+- Regressions can no longer silently drift in Par 5 composition, start-round retry gating coverage, or strict hazard overlay visibility without failing CI/local verification.
+
+---
+
 ## Stability Update (2026-06-01 Evening)
 
 Code checkpoint commit:
