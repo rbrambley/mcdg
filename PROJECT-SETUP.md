@@ -77,6 +77,13 @@
   - tee/sign view.
 - Any minimap change is considered incomplete until both fixed viewpoints pass visual checks.
 
+Minimap baseline lock (2026-06-01):
+- Current working navigation baseline commits:
+  - 62314d2 (working minimap navigation baseline)
+  - 31d175b (hardened minimap regression baseline)
+- Treat this as rollback-safe ground truth before round-play-specific minimap work.
+- Do not merge minimap changes that break quickRegression minimap invariants.
+
 ## Optional: Version Control
 
 - **GitHub Repository:**  
@@ -97,6 +104,10 @@
 - Minimap rewrite to an always-on navigational tool with waypoints.
 - Replacement strategy and phase gates are maintained in Plan.md under Session Continuity Update.
 - Do not ship additional minimap tweaks without passing the phase validation gates.
+
+Update (2026-06-01):
+- The navigation minimap rewrite baseline is now implemented and checkpointed.
+- Continue from this baseline for round-play integration work, not from pre-fix rebuild assumptions.
 
 Why this baseline:
 - Fast iteration for gameplay systems.

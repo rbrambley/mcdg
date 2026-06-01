@@ -6,7 +6,39 @@ Date: 2026-05-30
 
 ---
 
+## Minimap Baseline Update (2026-06-01)
+
+Status:
+- Navigation minimap baseline is now working and checkpointed.
+- Baseline and guardrail commits:
+  - 8a4e13c (north-up working render without rotation checkpoint)
+  - 62314d2 (working minimap navigation baseline)
+  - 31d175b (hardened minimap regression baseline checks)
+
+Working baseline behavior (locked):
+- Always-on player navigation minimap.
+- Circular minimap render (no rotating square corner bleed).
+- Player-up map rotation with rotating cardinal labels.
+- Directional player icon (triangle) instead of center dot.
+- Wider navigation view and higher terrain sample density.
+- Enhanced topology readability (hillshade + contour emphasis).
+- Heading stability improvements to reduce jump/airborne spin jitter.
+
+Validation gate:
+- quickRegression now enforces minimap baseline invariants in RegressionCheckRunner.
+- Minimap changes must keep quickRegression green before merge/deploy.
+
+Next focus:
+- Begin round-play specific minimap integration changes behind this locked baseline.
+
+---
+
 ## Session Continuity Update (2026-05-31)
+
+Note (2026-06-01):
+- This section reflects the pre-fix minimap rebuild plan.
+- It is retained for historical context, but the minimap baseline issues described below are now resolved.
+- Use the "Minimap Baseline Update (2026-06-01)" section as current ground truth.
 
 ### Why this update exists
 
