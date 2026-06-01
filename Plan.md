@@ -6,6 +6,30 @@ Date: 2026-05-30
 
 ---
 
+## Cleanup Relocation + Final Scene Timing Update (2026-06-01 Night)
+
+Code checkpoint commit:
+- 0141867
+
+Implemented:
+- `clearcourse` evacuation now uses hybrid relocation instead of fixed world-spawn teleport:
+  - safe relocation near each player first,
+  - fallback near command-source safe anchor,
+  - final fallback to world-spawn safe anchor.
+- Added placed-course footprint buffer checks so relocated targets are forced outside active course bounds.
+- Round-complete cinematic duration updated to 20 seconds.
+
+Validation + deploy:
+- `gradle quickRegression`: PASS.
+- `gradle build`: PASS.
+- Latest jar deployed to ATLauncher with hash match confirmation.
+
+Follow-up verification:
+1. Run `/mcdg clearcourse` from different course locations and confirm players are no longer always moved to the same spawn area.
+2. Confirm round-complete cinematic remains skippable and auto-times out at 20s.
+
+---
+
 ## Countdown Warm-up Music Update (2026-06-01 Night)
 
 Feature checkpoint commit:

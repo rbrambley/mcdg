@@ -2,6 +2,17 @@
 
 # PROJECT-SETUP.md
 
+## Latest Feature Checkpoint (2026-06-01 Night - Cleanup Relocation + Final Scene Timing)
+
+- Code checkpoint commit: 0141867.
+- Added updates:
+  - `clearcourse` now uses hybrid safe relocation (near player -> admin anchor -> spawn fallback) instead of fixed spawn-only evacuation.
+  - Round-complete cinematic duration set to 20 seconds.
+- Validation + deploy at checkpoint:
+  - `gradle quickRegression`: PASS.
+  - `gradle build`: PASS.
+  - jar deployed to ATLauncher with local/remote hash match.
+
 ## Latest Feature Checkpoint (2026-06-01 Night - Countdown Warm-up Music)
 
 - Code checkpoint commit: 480f4c9.
