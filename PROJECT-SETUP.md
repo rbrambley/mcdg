@@ -2,6 +2,19 @@
 
 # PROJECT-SETUP.md
 
+## Latest Feature Checkpoint (2026-06-01 Night - Multiplayer Enrollment Hardening)
+
+- Code checkpoint commit: 6496c83.
+- Added updates:
+  - `startround`, `practicecourse`, and `resumecourse` now use explicit participant enrollment instead of auto-enrolling everyone in the world.
+  - Added optional `<players>` targets for those commands.
+  - Added `/mcdg joinround [players]` for safe late-join enrollment into a live round.
+  - Core command lifecycle now clears round state for tracked participants only instead of global round-state wipes.
+- Validation at checkpoint:
+  - `gradle quickRegression`: PASS.
+  - `gradle smokeRegression`: PASS.
+  - `gradle build`: PASS.
+
 ## Latest Feature Checkpoint (2026-06-01 Night - Cleanup Relocation + Final Scene Timing)
 
 - Code checkpoint commit: 0141867.

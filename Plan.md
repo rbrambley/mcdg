@@ -6,6 +6,33 @@ Date: 2026-05-30
 
 ---
 
+## Multiplayer Enrollment Hardening Update (2026-06-01 Night)
+
+Code checkpoint commit:
+- 6496c83
+
+Implemented:
+- Replaced world-wide implicit enrollment with explicit participant enrollment for:
+  - `/mcdg startround`
+  - `/mcdg practicecourse`
+  - `/mcdg resumecourse`
+- Added optional player target argument support for the above commands (`<players>` selector).
+- Added `/mcdg joinround` (plus optional `<players>`) so late joiners can be added safely without restarting the round.
+- Round cleanup/end/reset flows now clear tracked participant round state only (no global `clearAll` wipe in the core command lifecycle).
+- Active participant IDs are now tracked in `ActiveCourseManager` for safer round-scoped cleanup and inventory cleanup.
+
+Validation:
+- `gradle quickRegression`: PASS.
+- `gradle smokeRegression`: PASS.
+- `gradle build`: PASS.
+
+Follow-up verification:
+1. In multiplayer, run `/mcdg startround <players>` and confirm only selected players are staged/teleported.
+2. Join a new player mid-round and run `/mcdg joinround <player>`; confirm they receive throw item, scorecard, and tee teleport.
+3. End or cleanup round and confirm non-participant players do not have round state or inventory unexpectedly modified.
+
+---
+
 ## Cleanup Relocation + Final Scene Timing Update (2026-06-01 Night)
 
 Code checkpoint commit:
