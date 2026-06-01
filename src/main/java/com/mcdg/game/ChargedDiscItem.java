@@ -102,6 +102,12 @@ public final class ChargedDiscItem extends Item {
         // Always enforce throw-from-lie across rulesets; strict mode only affects landing penalties.
         var state = roundStateManager.getState(serverPlayer.getUuid()).orElse(null);
         if (state != null) {
+            HoleProgressTracker.ThrowTurnGate turnGate = HoleProgressTracker.evaluateThrowGate(serverPlayer, courseManager, roundStateManager);
+            if (!turnGate.isAllowed()) {
+                serverPlayer.sendMessage(Text.literal(turnGate.message()).formatted(Formatting.YELLOW), true);
+                return;
+            }
+
             if (HoleProgressTracker.isThrowResolutionPending(serverPlayer.getUuid(), state.totalStrokes())) {
                 String snapshot = HoleProgressTracker.strictThrowGateDebugSnapshot(serverPlayer.getUuid(), state.totalStrokes());
                 McdgMod.LOGGER.info(

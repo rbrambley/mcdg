@@ -9,10 +9,12 @@ import com.mcdg.net.RoundCompleteCinematicSync;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.ui.HudStateFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -41,6 +43,7 @@ public final class HoleProgressTracker {
     private static final int BASKET_GREEN_HEIGHT_BLOCKS = 8;
     private static final int MAX_THROW_RESOLUTION_WAIT_TICKS = 320;
     private static final int THROW_RELEASE_GRACE_TICKS = 8;
+    private static final int TURN_TIMEOUT_TICKS = 20 * 120;
     // Temporary safety rollback: keep core throw/lie flow stable while strict landing penalties are reworked.
     private static final boolean ENABLE_STRICT_LANDING_PENALTIES = true;
     private static final HudStateFormatter HUD_STATE_FORMATTER = new HudStateFormatter();
@@ -50,6 +53,12 @@ public final class HoleProgressTracker {
     private static final Map<UUID, Long> LAST_THROW_RELEASE_TICK = new HashMap<>();
     private static final Map<UUID, String> LAST_RESOLUTION_REASON = new HashMap<>();
     private static final Map<UUID, Map<BlockPos, LieMarkerState>> LIE_MARKER_HISTORY = new HashMap<>();
+    private static final Map<UUID, Map<Integer, Integer>> HOLE_SCORE_HISTORY = new HashMap<>();
+    private static final Map<UUID, Integer> HOLE_ONE_RANDOM_ORDER = new HashMap<>();
+    private static final Map<Integer, UUID> ACTIVE_TURN_PLAYER_BY_HOLE = new HashMap<>();
+    private static final Map<Integer, Long> ACTIVE_TURN_STARTED_AT_BY_HOLE = new HashMap<>();
+    private static final Map<Integer, Integer> ACTIVE_TURN_TOTAL_STROKES_BY_HOLE = new HashMap<>();
+    private static final Map<Integer, UUID> TURN_SKIP_ONCE_BY_HOLE = new HashMap<>();
     private static int AUTOTEST_MARKER_TRAIL_REFCOUNT = 0;
 
     private HoleProgressTracker() {
@@ -69,6 +78,12 @@ public final class HoleProgressTracker {
                 LAST_THROW_PEARL_UUID.clear();
                 LAST_THROW_RELEASE_TICK.clear();
                 LAST_RESOLUTION_REASON.clear();
+                HOLE_SCORE_HISTORY.clear();
+                HOLE_ONE_RANDOM_ORDER.clear();
+                ACTIVE_TURN_PLAYER_BY_HOLE.clear();
+                ACTIVE_TURN_STARTED_AT_BY_HOLE.clear();
+                ACTIVE_TURN_TOTAL_STROKES_BY_HOLE.clear();
+                TURN_SKIP_ONCE_BY_HOLE.clear();
                 clearAllLieMarkers(server);
                 return;
             }
@@ -80,6 +95,8 @@ public final class HoleProgressTracker {
             }
 
             Map<UUID, PlayerRoundState> snapshot = roundStateManager.snapshotStates();
+            ensureHoleOneRandomOrder(snapshot);
+            enforceTurnTimeouts(server, courseManager, roundStateManager, course, placed, snapshot);
             for (Map.Entry<UUID, PlayerRoundState> entry : snapshot.entrySet()) {
                 ServerPlayerEntity player = server.getPlayerManager().getPlayer(entry.getKey());
                 if (player == null || player.getWorld().getRegistryKey() != placed.worldKey()) {
@@ -116,11 +133,8 @@ public final class HoleProgressTracker {
                     );
                 }
 
-                String heading = headingTo(player.getBlockPos(), basket);
-                int dist = manhattanDistance(player.getBlockPos(), basket);
                 int lieDistMeters = distanceMeters(state.lie(), basket);
                 int lieDistFeet = distanceFeet(state.lie(), basket);
-                String status = dist <= 12 ? "Basket Run" : "Ready to Throw";
                 int completedPar = cumulativeParThroughHole(course, state.currentHole() - 1);
                 int runningExpectedThrows = completedPar + state.holeStrokes();
                 int holeParDelta = computeHolePaceDelta(
@@ -210,6 +224,7 @@ public final class HoleProgressTracker {
                 }
 
                 ScorecardManager.recordHoleScore(player, state.currentHole(), state.holeStrokes());
+                recordHoleScore(player.getUuid(), state.currentHole(), state.holeStrokes());
 
                 if (state.currentHole() >= course.holes().size()) {
                     int totalPar = totalCoursePar(course);
@@ -261,6 +276,48 @@ public final class HoleProgressTracker {
         });
     }
 
+    static ThrowTurnGate evaluateThrowGate(
+            ServerPlayerEntity player,
+            ActiveCourseManager courseManager,
+            RoundStateManager roundStateManager
+    ) {
+        if (!courseManager.isRoundActive()) {
+            return ThrowTurnGate.allowed();
+        }
+
+        PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
+        if (placed == null) {
+            return ThrowTurnGate.allowed();
+        }
+
+        PlayerRoundState playerState = roundStateManager.getState(player.getUuid()).orElse(null);
+        if (playerState == null) {
+            return ThrowTurnGate.blocked("You are not enrolled in the active round.");
+        }
+
+        Map<UUID, PlayerRoundState> snapshot = roundStateManager.snapshotStates();
+        ensureHoleOneRandomOrder(snapshot);
+        UUID expectedPlayer = determineExpectedTurnPlayer(
+                player.getServer(),
+                roundStateManager,
+                courseManager,
+                snapshot,
+                playerState.currentHole(),
+                placed,
+                null
+        );
+        if (expectedPlayer == null || expectedPlayer.equals(player.getUuid())) {
+            return ThrowTurnGate.allowed();
+        }
+
+        ServerPlayerEntity expected = player.getServer().getPlayerManager().getPlayer(expectedPlayer);
+        if (expected != null) {
+            return ThrowTurnGate.blocked("Wait your turn. " + expected.getGameProfile().getName() + " throws first.");
+        }
+
+        return ThrowTurnGate.blocked("Wait your turn. Another player throws first.");
+    }
+
     private static int cumulativeParThroughHole(Course course, int holeIndexInclusive) {
         int par = 0;
         int max = Math.min(holeIndexInclusive, course.holes().size());
@@ -276,6 +333,248 @@ public final class HoleProgressTracker {
             par += hole.par();
         }
         return par;
+    }
+
+    private static void enforceTurnTimeouts(
+            MinecraftServer server,
+            ActiveCourseManager courseManager,
+            RoundStateManager roundStateManager,
+            Course course,
+            PlacedCourseState placed,
+            Map<UUID, PlayerRoundState> snapshot
+    ) {
+        Map<Integer, UUID> updatedActiveByHole = new HashMap<>();
+        Map<Integer, Long> updatedStartedAtByHole = new HashMap<>();
+        Map<Integer, Integer> updatedTurnTotalByHole = new HashMap<>();
+
+        for (Map.Entry<UUID, PlayerRoundState> entry : snapshot.entrySet()) {
+            ServerPlayerEntity player = server.getPlayerManager().getPlayer(entry.getKey());
+            if (player == null || player.getWorld().getRegistryKey() != placed.worldKey()) {
+                continue;
+            }
+            int hole = entry.getValue().currentHole();
+            updatedActiveByHole.putIfAbsent(hole, null);
+        }
+
+        for (Integer hole : new ArrayList<>(updatedActiveByHole.keySet())) {
+            UUID expected = determineExpectedTurnPlayer(server, roundStateManager, courseManager, snapshot, hole, placed, TURN_SKIP_ONCE_BY_HOLE.get(hole));
+            if (expected == null) {
+                continue;
+            }
+
+            UUID active = ACTIVE_TURN_PLAYER_BY_HOLE.get(hole);
+            PlayerRoundState expectedState = snapshot.get(expected);
+            if (expectedState == null) {
+                continue;
+            }
+
+            int expectedTotal = expectedState.totalStrokes();
+            long now = server.getTicks();
+            long startedAt = ACTIVE_TURN_STARTED_AT_BY_HOLE.getOrDefault(hole, now);
+            int trackedTotal = ACTIVE_TURN_TOTAL_STROKES_BY_HOLE.getOrDefault(hole, expectedTotal);
+
+            if (!expected.equals(active)) {
+                startedAt = now;
+                trackedTotal = expectedTotal;
+            } else if (expectedTotal != trackedTotal) {
+                startedAt = now;
+                trackedTotal = expectedTotal;
+            }
+
+            if ((now - startedAt) >= TURN_TIMEOUT_TICKS) {
+                applyTurnTimeoutPenalty(server, roundStateManager, expected, expectedState, placed);
+                TURN_SKIP_ONCE_BY_HOLE.put(hole, expected);
+
+                Map<UUID, PlayerRoundState> refreshedSnapshot = roundStateManager.snapshotStates();
+                UUID nextExpected = determineExpectedTurnPlayer(server, roundStateManager, courseManager, refreshedSnapshot, hole, placed, expected);
+                if (nextExpected != null && !nextExpected.equals(expected)) {
+                    active = nextExpected;
+                    PlayerRoundState nextState = refreshedSnapshot.get(nextExpected);
+                    trackedTotal = nextState == null ? 0 : nextState.totalStrokes();
+                    startedAt = now;
+                    TURN_SKIP_ONCE_BY_HOLE.remove(hole);
+                } else {
+                    active = expected;
+                    PlayerRoundState refreshedExpected = refreshedSnapshot.get(expected);
+                    trackedTotal = refreshedExpected == null ? trackedTotal : refreshedExpected.totalStrokes();
+                    startedAt = now;
+                }
+            } else {
+                active = expected;
+            }
+
+            if (active != null) {
+                updatedActiveByHole.put(hole, active);
+                updatedStartedAtByHole.put(hole, startedAt);
+                updatedTurnTotalByHole.put(hole, trackedTotal);
+            }
+        }
+
+        ACTIVE_TURN_PLAYER_BY_HOLE.clear();
+        ACTIVE_TURN_PLAYER_BY_HOLE.putAll(updatedActiveByHole);
+        ACTIVE_TURN_STARTED_AT_BY_HOLE.clear();
+        ACTIVE_TURN_STARTED_AT_BY_HOLE.putAll(updatedStartedAtByHole);
+        ACTIVE_TURN_TOTAL_STROKES_BY_HOLE.clear();
+        ACTIVE_TURN_TOTAL_STROKES_BY_HOLE.putAll(updatedTurnTotalByHole);
+    }
+
+    private static void applyTurnTimeoutPenalty(
+            MinecraftServer server,
+            RoundStateManager roundStateManager,
+            UUID playerId,
+            PlayerRoundState state,
+            PlacedCourseState placed
+    ) {
+        roundStateManager.applyPenaltyStrokes(playerId, 1);
+
+        BlockPos tee = placed.holeTees().get(state.currentHole());
+        if (tee != null) {
+            ServerWorld world = server.getWorld(placed.worldKey());
+            if (world != null) {
+                BlockPos safeTee = resolveSafeFeetNear(world, tee);
+                roundStateManager.updateLie(playerId, safeTee);
+                ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
+                if (player != null && player.getWorld().getRegistryKey() == placed.worldKey()) {
+                    player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
+                    player.sendMessage(Text.literal("Turn timeout: +1 stroke. Reset to tee, turn passed."), true);
+                }
+            }
+        }
+    }
+
+    private static UUID determineExpectedTurnPlayer(
+            MinecraftServer server,
+            RoundStateManager roundStateManager,
+            ActiveCourseManager courseManager,
+            Map<UUID, PlayerRoundState> snapshot,
+            int hole,
+            PlacedCourseState placed,
+            UUID skipCandidate
+    ) {
+        BlockPos basket = placed.holeBaskets().get(hole);
+        if (basket == null) {
+            return null;
+        }
+
+        List<UUID> eligible = new ArrayList<>();
+        for (Map.Entry<UUID, PlayerRoundState> entry : snapshot.entrySet()) {
+            if (entry.getValue().currentHole() != hole) {
+                continue;
+            }
+            ServerPlayerEntity player = server.getPlayerManager().getPlayer(entry.getKey());
+            if (player == null || player.getWorld().getRegistryKey() != placed.worldKey()) {
+                continue;
+            }
+            if (!courseManager.getActiveParticipantIds().contains(entry.getKey())) {
+                continue;
+            }
+            eligible.add(entry.getKey());
+        }
+
+        if (eligible.isEmpty()) {
+            return null;
+        }
+
+        List<UUID> teePlayers = new ArrayList<>();
+        for (UUID playerId : eligible) {
+            PlayerRoundState state = snapshot.get(playerId);
+            if (state != null && state.holeStrokes() == 0) {
+                teePlayers.add(playerId);
+            }
+        }
+
+        List<UUID> ordered = new ArrayList<>();
+        if (!teePlayers.isEmpty()) {
+            ordered.addAll(teePlayers);
+            ordered.sort((a, b) -> compareTeeOrder(a, b, hole));
+        } else {
+            ordered.addAll(eligible);
+            ordered.sort((a, b) -> {
+                PlayerRoundState aState = snapshot.get(a);
+                PlayerRoundState bState = snapshot.get(b);
+                int aDistance = aState == null ? 0 : distanceMeters(aState.lie(), basket);
+                int bDistance = bState == null ? 0 : distanceMeters(bState.lie(), basket);
+                int distanceCompare = Integer.compare(bDistance, aDistance);
+                if (distanceCompare != 0) {
+                    return distanceCompare;
+                }
+                return compareTeeOrder(a, b, hole);
+            });
+        }
+
+        if (skipCandidate != null && ordered.size() > 1 && skipCandidate.equals(ordered.get(0))) {
+            return ordered.get(1);
+        }
+        return ordered.get(0);
+    }
+
+    private static int compareTeeOrder(UUID a, UUID b, int hole) {
+        for (int priorHole = hole - 1; priorHole >= 1; priorHole--) {
+            int aScore = scoreForHole(a, priorHole);
+            int bScore = scoreForHole(b, priorHole);
+            if (aScore != bScore) {
+                return Integer.compare(aScore, bScore);
+            }
+        }
+
+        int aHoleOneRank = HOLE_ONE_RANDOM_ORDER.getOrDefault(a, Integer.MAX_VALUE);
+        int bHoleOneRank = HOLE_ONE_RANDOM_ORDER.getOrDefault(b, Integer.MAX_VALUE);
+        if (aHoleOneRank != bHoleOneRank) {
+            return Integer.compare(aHoleOneRank, bHoleOneRank);
+        }
+        return a.compareTo(b);
+    }
+
+    private static int scoreForHole(UUID playerId, int hole) {
+        Map<Integer, Integer> scoreByHole = HOLE_SCORE_HISTORY.get(playerId);
+        if (scoreByHole == null) {
+            return Integer.MAX_VALUE;
+        }
+        return scoreByHole.getOrDefault(hole, Integer.MAX_VALUE);
+    }
+
+    private static void recordHoleScore(UUID playerId, int holeIndex, int score) {
+        HOLE_SCORE_HISTORY
+                .computeIfAbsent(playerId, ignored -> new HashMap<>())
+                .put(holeIndex, score);
+    }
+
+    private static void ensureHoleOneRandomOrder(Map<UUID, PlayerRoundState> snapshot) {
+        if (!HOLE_ONE_RANDOM_ORDER.isEmpty() || snapshot.isEmpty()) {
+            return;
+        }
+
+        List<UUID> playerIds = new ArrayList<>(snapshot.keySet());
+        Collections.shuffle(playerIds, new Random(System.nanoTime()));
+        for (int i = 0; i < playerIds.size(); i++) {
+            HOLE_ONE_RANDOM_ORDER.put(playerIds.get(i), i);
+        }
+    }
+
+    static final class ThrowTurnGate {
+        private final boolean allowed;
+        private final String message;
+
+        private ThrowTurnGate(boolean allowed, String message) {
+            this.allowed = allowed;
+            this.message = message;
+        }
+
+        static ThrowTurnGate allowed() {
+            return new ThrowTurnGate(true, "");
+        }
+
+        static ThrowTurnGate blocked(String message) {
+            return new ThrowTurnGate(false, message);
+        }
+
+        boolean isAllowed() {
+            return allowed;
+        }
+
+        String message() {
+            return message;
+        }
     }
 
     private static int computeHolePaceDelta(int holePar, int holeDistanceFeet, int distanceToBasketBlocks, int holeStrokes) {
@@ -460,24 +759,6 @@ public final class HoleProgressTracker {
         }
 
         markerStates.clear();
-    }
-
-    private static String headingTo(BlockPos from, BlockPos to) {
-        int dx = to.getX() - from.getX();
-        int dz = to.getZ() - from.getZ();
-
-        if (Math.abs(dx) < 2 && Math.abs(dz) < 2) {
-            return "HERE";
-        }
-
-        double angle = Math.toDegrees(Math.atan2(dz, dx));
-        if (angle < 0) {
-            angle += 360.0;
-        }
-
-        String[] dirs = { "E", "SE", "S", "SW", "W", "NW", "N", "NE" };
-        int index = (int) Math.round(angle / 45.0) % dirs.length;
-        return dirs[index];
     }
 
     private static void spawnBreadcrumbLine(ServerWorld world, ServerPlayerEntity player, BlockPos to) {
