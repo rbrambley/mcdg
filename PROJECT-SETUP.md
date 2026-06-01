@@ -2,6 +2,18 @@
 
 # PROJECT-SETUP.md
 
+## Latest Feature Checkpoint (2026-06-01 Night - Multiplayer Reconnect + Status)
+
+- Code checkpoint commit: c058aac.
+- Added updates:
+  - Reconnect-safe participant restore during active rounds (round inventory and state continuity for tracked participants).
+  - New `/mcdg roundstatus` admin command for participant online/offline and state visibility.
+  - `/mcdg joinround` idempotency hardening for already-active players.
+- Validation at checkpoint:
+  - `gradle quickRegression`: PASS.
+  - `gradle smokeRegression`: PASS.
+  - `gradle build`: PASS.
+
 ## Latest Feature Checkpoint (2026-06-01 Night - Multiplayer Enrollment Hardening)
 
 - Code checkpoint commit: 6496c83.

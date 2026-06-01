@@ -6,6 +6,40 @@ Date: 2026-05-30
 
 ---
 
+## Multiplayer Reconnect + Status Update (2026-06-01 Night)
+
+Code checkpoint commit:
+- c058aac
+
+Implemented:
+- Added reconnect-safe participant restore on player join while a round is live:
+  - restores round inventory (`training_disc` + scorecard),
+  - restores/retains round state for tracked participants,
+  - teleports rejoining participant to safe lie when rejoining in the course world.
+- Added `/mcdg roundstatus` for admin visibility:
+  - round active flag,
+  - tracked participant count,
+  - online vs offline participants,
+  - round-state presence and hole/stroke summary lines.
+- Hardened `/mcdg joinround` idempotency:
+  - detects already-active participants,
+  - restores round inventory without duplicate enrollment,
+  - still supports explicit player selectors.
+
+Validation:
+- `gradle quickRegression`: PASS.
+- `gradle smokeRegression`: PASS.
+- `gradle build`: PASS.
+
+Manual multiplayer acceptance checklist (next live pass):
+1. Start a 3-5 player dedicated test session and run `/mcdg startround <players>`; verify only selected players are enrolled.
+2. Disconnect one active participant mid-hole, reconnect, and verify auto-restore + round lie continuity.
+3. Run `/mcdg roundstatus` during play and confirm online/offline + hole summary lines match observed players.
+4. Add a late joiner with `/mcdg joinround <player>` and verify no duplicate enroll for already-active participants.
+5. Run `/mcdg endround` and `/mcdg cleanupcourse`; confirm non-participants are not modified unexpectedly.
+
+---
+
 ## Multiplayer Enrollment Hardening Update (2026-06-01 Night)
 
 Code checkpoint commit:
@@ -30,6 +64,11 @@ Follow-up verification:
 1. In multiplayer, run `/mcdg startround <players>` and confirm only selected players are staged/teleported.
 2. Join a new player mid-round and run `/mcdg joinround <player>`; confirm they receive throw item, scorecard, and tee teleport.
 3. End or cleanup round and confirm non-participant players do not have round state or inventory unexpectedly modified.
+
+Later backlog:
+1. Add an optional compatibility mode for mixed clients (server mod required, client mod optional).
+2. In compatibility mode, keep core server-authoritative gameplay available while disabling client-only HUD/cinematic features for vanilla clients.
+3. Define and document an explicit support matrix: same-version modded clients (full feature set) vs vanilla clients (reduced feature set).
 
 ---
 
