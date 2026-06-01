@@ -6,6 +6,41 @@ Date: 2026-05-30
 
 ---
 
+## Multiplayer Running Score Panel Update (2026-06-01 Night)
+
+Code checkpoint commit:
+- aa21ba3
+
+Implemented:
+- Added live server-to-client running score sync payload: `RoundRunningScoresSync`.
+- Added bottom-left multiplayer running score panel on client HUD (round-only visibility).
+- Panel content:
+  - all enrolled participants (online + offline marker),
+  - per-hole running values,
+  - running total,
+  - focus on completed holes + current hole only.
+- Panel sort order:
+  - running total (lowest first),
+  - tie-break by previous-hole chain,
+  - final tie-break by randomized hole-1 seed order.
+- Update cadence:
+  - network updates sent only when score-state hash changes (hole-score progression driven),
+  - join-time snapshot sync added for reconnecting participants.
+
+Validation:
+- `gradle quickRegression`: PASS.
+- `gradle smokeRegression`: PASS.
+- `gradle build`: PASS.
+
+Manual multiplayer verification:
+1. Start a multiplayer round and verify panel appears bottom-left during round and hides outside round.
+2. Confirm panel shows enrolled players including offline entries.
+3. Confirm columns show completed holes + current hole only.
+4. Confirm row sorting updates correctly after hole completions.
+5. Reconnect an enrolled player and verify scoreboard panel/state appears without waiting for an extra hole completion.
+
+---
+
 ## Multiplayer Turn HUD Update (2026-06-01 Night)
 
 Code checkpoint commit:

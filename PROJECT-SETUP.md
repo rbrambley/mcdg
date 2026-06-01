@@ -2,6 +2,20 @@
 
 # PROJECT-SETUP.md
 
+## Latest Feature Checkpoint (2026-06-01 Night - Multiplayer Running Score Panel)
+
+- Code checkpoint commit: aa21ba3.
+- Added updates:
+  - New running-score sync payload (`RoundRunningScoresSync`) for multiplayer score state.
+  - Bottom-left round-only HUD panel showing enrolled players and running per-hole values.
+  - Panel scope is completed holes + current hole (not all future holes).
+  - Row sorting: running total asc, then previous-hole tie-break chain.
+  - Includes offline enrolled players and running totals.
+- Validation at checkpoint:
+  - `gradle quickRegression`: PASS.
+  - `gradle smokeRegression`: PASS.
+  - `gradle build`: PASS.
+
 ## Latest Feature Checkpoint (2026-06-01 Night - Multiplayer Turn HUD)
 
 - Code checkpoint commit: 44dc79d.
