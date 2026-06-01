@@ -15,6 +15,9 @@ import java.util.regex.Pattern;
 
 public final class RegressionCheckRunner {
     private static final int HOLE_COUNT = 9;
+    private static final Path CLIENT_MINIMAP_FILE = Paths.get(
+        "src", "client", "java", "com", "mcdg", "client", "McdgClientMod.java"
+    );
     private static final Pattern HOLE_SPECIAL_CASE_PATTERN = Pattern.compile(
             "\\b(?:holeIndex|currentHole|holeNumber|holeId)\\b\\s*(?:==|!=|<=|>=|<|>)\\s*\\d+|\\.index\\(\\)\\s*(?:==|!=|<=|>=|<|>)\\s*\\d+"
     );
@@ -47,6 +50,7 @@ public final class RegressionCheckRunner {
 
     private static void runQuickChecks(SeededCourseGenerator generator) {
         runArchitectureChecks();
+        runMiniMapChecks();
 
         Course one = generator.generate(123456789L, HOLE_COUNT);
         assertExactlyOneSignature(one, "quick-seed-1");
@@ -87,6 +91,51 @@ public final class RegressionCheckRunner {
 
         System.out.println("Quick regression checks passed.");
     }
+
+        private static void runMiniMapChecks() {
+        if (!Files.exists(CLIENT_MINIMAP_FILE)) {
+            throw new RuntimeException("Minimap regression file missing: " + CLIENT_MINIMAP_FILE);
+        }
+
+        String source;
+        try {
+            source = Files.readString(CLIENT_MINIMAP_FILE, StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to read minimap source for regression checks", ex);
+        }
+
+        assertContains(
+            source,
+            "private static final int MINIMAP_TEXTURE_SIZE = PASSIVE_MINIMAP_SPAN_BLOCKS;",
+            "Minimap texture must stay locked to 1 pixel per block."
+        );
+        assertContains(
+            source,
+            "private static void refreshMiniMapRenderCache(MinecraftClient client, int mapSpan)",
+            "Minimap refresh cache signature must remain decoupled from gameplay state."
+        );
+        assertContains(
+            source,
+            "matrices.scale(texScale, texScale, 1.0f);",
+            "Minimap render must apply matrix scaling for full-texture display."
+        );
+        assertContains(
+            source,
+            "drawContext.drawTexture(miniMapRenderCache.textureId(), 0, 0, 0, 0, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE);",
+            "Minimap render must draw the full texture atlas region."
+        );
+
+        assertNotContains(
+            source,
+            "RotationAxis.POSITIVE_Z",
+            "Minimap regression: rotation transform reintroduced."
+        );
+        assertNotContains(
+            source,
+            "headingRotation",
+            "Minimap regression: heading rotation logic reintroduced."
+        );
+        }
 
     private static void runArchitectureChecks() {
         Path root = Paths.get("src", "main", "java", "com", "mcdg");
@@ -168,6 +217,18 @@ public final class RegressionCheckRunner {
     private static void assertEquals(Object expected, Object actual, String message) {
         if (expected == null ? actual != null : !expected.equals(actual)) {
             throw new RuntimeException(message + " expected=" + expected + " actual=" + actual);
+        }
+    }
+
+    private static void assertContains(String text, String required, String message) {
+        if (!text.contains(required)) {
+            throw new RuntimeException(message + " Missing snippet: " + required);
+        }
+    }
+
+    private static void assertNotContains(String text, String forbidden, String message) {
+        if (text.contains(forbidden)) {
+            throw new RuntimeException(message + " Forbidden snippet: " + forbidden);
         }
     }
 }
