@@ -106,8 +106,8 @@ public final class RegressionCheckRunner {
 
         assertContains(
             source,
-            "private static final int MINIMAP_TEXTURE_SIZE = PASSIVE_MINIMAP_SPAN_BLOCKS;",
-            "Minimap texture must stay locked to 1 pixel per block."
+            "private static final int MINIMAP_TEXTURE_SIZE =",
+            "Minimap texture size constant is missing."
         );
         assertContains(
             source,
@@ -125,15 +125,25 @@ public final class RegressionCheckRunner {
             "Minimap render must draw the full texture atlas region."
         );
 
-        assertNotContains(
+        assertContains(
             source,
-            "RotationAxis.POSITIVE_Z",
-            "Minimap regression: rotation transform reintroduced."
+            "float mapRotationDegrees = resolveMiniMapHeadingRotationDegrees(client);",
+            "Minimap regression: player-up heading resolver call is missing."
         );
-        assertNotContains(
+        assertContains(
             source,
-            "headingRotation",
-            "Minimap regression: heading rotation logic reintroduced."
+            "matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(mapRotationDegrees));",
+            "Minimap regression: map rotation transform is missing."
+        );
+        assertContains(
+            source,
+            "private static float resolveMiniMapHeadingRotationDegrees(MinecraftClient client)",
+            "Minimap regression: movement-heading resolver is missing."
+        );
+        assertContains(
+            source,
+            "drawMiniMapCardinalLabels(drawContext, client, mapCenterX, mapCenterY, miniMapSize, mapRotationDegrees, hudAlpha);",
+            "Minimap regression: rotating cardinal labels call is missing."
         );
         }
 

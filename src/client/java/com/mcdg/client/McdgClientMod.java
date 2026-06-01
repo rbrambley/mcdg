@@ -47,6 +47,7 @@ import net.minecraft.util.Arm;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.RotationAxis;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.util.StringHelper;
 import net.minecraft.util.WorldSavePath;
@@ -64,8 +65,8 @@ public final class McdgClientMod implements ClientModInitializer {
     private static final int MINIMAP_PADDING = 8;
     private static final long MINIMAP_STALE_TIMEOUT_MS = 15000L;
     private static final int MINIMAP_COLOR_UNSET = Integer.MIN_VALUE;
-    private static final int PASSIVE_MINIMAP_SPAN_BLOCKS = 64;
-    private static final int MINIMAP_TEXTURE_SIZE = PASSIVE_MINIMAP_SPAN_BLOCKS; // 1 texture pixel = 1 world block
+    private static final int PASSIVE_MINIMAP_SPAN_BLOCKS = 96;
+    private static final int MINIMAP_TEXTURE_SIZE = 128; // Higher sample density while keeping a wider world span.
     private static final int[] MINIMAP_SIZES = { 84, 104, 126 };
     private static final int[] MINIMAP_PANEL_ALPHA = { 0x8A, 0x6F, 0x58 };
     private static final int[] MINIMAP_SURFACE_ALPHA = { 0xD0, 0xB8, 0x9A };
@@ -107,6 +108,7 @@ public final class McdgClientMod implements ClientModInitializer {
     private static long nextMiniMapDebugLogAtMs = 0L;
     private static int nextWaypointIndex = 1;
     private static boolean waypointLabelsVisible = true;
+    private static float miniMapHeadingDegrees = Float.NaN;
     private static String loadedWaypointContextKey = "";
     private static WaypointPromptStage waypointPromptStage = WaypointPromptStage.NONE;
     private static String pendingWaypointName;
@@ -327,68 +329,49 @@ public final class McdgClientMod implements ClientModInitializer {
         double centerBlockZ = (miniMapRenderCache != null ? miniMapRenderCache.centerZ() : playerFeetZ) + 0.5d;
         // texScale: how many screen pixels per texture pixel (= per block).
         float texScale = (float) miniMapSize / MINIMAP_TEXTURE_SIZE;
+        // Player-up rotation: map rotates so current movement heading points to the top.
+        float mapRotationDegrees = resolveMiniMapHeadingRotationDegrees(client);
         // Sub-block offsets in screen pixels — keeps map scrolling smooth between block positions.
         float subBlockShiftX = (float) (playerWorldX - centerBlockX) * texScale;
         float subBlockShiftZ = (float) (playerWorldZ - centerBlockZ) * texScale;
+        // Player icon points to facing direction relative to the rotated map.
+        float playerFacingOnMapDegrees = normalizeDegrees((180.0f - client.player.getYaw()) - mapRotationDegrees - 90.0f);
         // With exact player-centered map shift, keep marker fixed at the card center.
         int playerPx = mapCenterX;
         int playerPz = mapCenterY;
         float mapRadius = (miniMapSize / 2.0f) - 1.0f;
-        drawContext.fill(mapX, mapY, mapX + miniMapSize, mapY + miniMapSize, withAlpha((surfaceAlpha << 24) | 0x121212, hudAlpha));
+        drawFilledCircle(drawContext, mapCenterX, mapCenterY, mapRadius, withAlpha((surfaceAlpha << 24) | 0x121212, hudAlpha));
 
         if (miniMapRenderCache != null && miniMapRenderCache.textureId() != null) {
             drawContext.enableScissor(mapX, mapY, mapX + miniMapSize, mapY + miniMapSize);
             var matrices = drawContext.getMatrices();
             matrices.push();
-            // Scale the 64×64 texture (1px/block) up to fill the miniMapSize display,
-            // then apply sub-block shift so the player's exact position stays centered.
-            matrices.translate(mapX - subBlockShiftX, mapY - subBlockShiftZ, 0);
+            // Rotate around map center for player-up orientation, then scale 1px/block texture to UI size.
+            matrices.translate(mapCenterX, mapCenterY, 0);
+            matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(mapRotationDegrees));
+            matrices.translate((-miniMapSize / 2.0f) - subBlockShiftX, (-miniMapSize / 2.0f) - subBlockShiftZ, 0);
             matrices.scale(texScale, texScale, 1.0f);
             drawContext.drawTexture(miniMapRenderCache.textureId(), 0, 0, 0, 0, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE);
             matrices.pop();
 
-            drawWaypoints(drawContext, client, mapCenterX, mapCenterY, playerWorldX, playerWorldZ, mapScale, hudAlpha, waypointLabelsVisible, mapCenterX, mapCenterY, mapRadius);
+            drawWaypoints(drawContext, client, mapCenterX, mapCenterY, playerWorldX, playerWorldZ, mapScale, mapRotationDegrees, hudAlpha, waypointLabelsVisible, mapCenterX, mapCenterY, mapRadius);
 
-            drawDotCircleClipped(drawContext, playerPx, playerPz, 2, withAlpha(0xFFFFFFFF, hudAlpha), mapCenterX, mapCenterY, mapRadius);
-            if (debugHud) {
-                drawDotCircleClipped(drawContext, mapCenterX, mapCenterY, 1, withAlpha(0xFF00E5FF, hudAlpha), mapCenterX, mapCenterY, mapRadius);
-                drawLine(drawContext, mapCenterX, mapCenterY, playerPx, playerPz, withAlpha(0xFF00E5FF, hudAlpha));
-            }
-            drawMiniMapCircularMask(drawContext, mapX, mapY, miniMapSize, withAlpha((MINIMAP_PANEL_ALPHA[Math.max(0, Math.min(MINIMAP_PANEL_ALPHA.length - 1, miniMapStyleIndex))] << 24) | 0x080B12, hudAlpha));
+            drawHeadingTriangleClipped(
+                    drawContext,
+                    playerPx,
+                    playerPz,
+                    playerFacingOnMapDegrees,
+                    8.0f,
+                    5.0f,
+                    withAlpha(0xFFFF5A3D, hudAlpha),
+                    withAlpha(0xFF10161F, hudAlpha),
+                    mapCenterX,
+                    mapCenterY,
+                    mapRadius
+            );
             drawCircleOutline(drawContext, mapCenterX, mapCenterY, mapRadius, withAlpha(HUD_CARD_BORDER, hudAlpha));
-            drawMiniMapCardinalLabels(drawContext, client, mapCenterX, mapCenterY, miniMapSize, hudAlpha);
+            drawMiniMapCardinalLabels(drawContext, client, mapCenterX, mapCenterY, miniMapSize, mapRotationDegrees, hudAlpha);
             drawContext.disableScissor();
-        }
-
-        String coordsLine = "XYZ " + playerFeetX + " " + playerFeetY + " " + playerFeetZ;
-        String waypointLine = clientWaypoints.isEmpty() ? "Waypoints none" : ("Waypoints " + clientWaypoints.size());
-        int centerDx = miniMapRenderDebug.centerWorldX() - playerFeetX;
-        int centerDz = miniMapRenderDebug.centerWorldZ() - playerFeetZ;
-        String centerLine = "Center " + miniMapRenderDebug.centerWorldX() + " " + miniMapRenderDebug.centerWorldZ()
-            + " y " + miniMapRenderDebug.centerSurfaceY()
-            + " " + miniMapRenderDebug.centerFluid()
-            + " src " + miniMapRenderDebug.centerSource()
-            + " vis " + miniMapRenderDebug.visibleSurfaceSourcePixels()
-            + " fb " + miniMapRenderDebug.heightmapFallbackSourcePixels()
-            + " miss " + miniMapRenderDebug.chunkUnloadedSourcePixels()
-            + " d " + centerDx + " " + centerDz;
-        String labelLine = "Labels " + (waypointLabelsVisible ? "ON" : "OFF");
-        int infoW = Math.max(
-                client.textRenderer.getWidth(coordsLine),
-            Math.max(
-                Math.max(client.textRenderer.getWidth(waypointLine), client.textRenderer.getWidth(labelLine)),
-                client.textRenderer.getWidth(centerLine)
-            )
-        ) + 12;
-        int infoX = panelX;
-        int infoY = mapY + miniMapSize + 3;
-        int infoH = 61;
-        drawHudCard(drawContext, client, infoX, infoY, infoW, infoH, null, hudAlpha);
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(coordsLine), infoX + 6, infoY + 16, withAlpha(0x9BE7FF, hudAlpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(waypointLine), infoX + 6, infoY + 27, withAlpha(0xD3E7FF, hudAlpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(centerLine), infoX + 6, infoY + 38, withAlpha(0xF2D98E, hudAlpha));
-        if (debugHud) {
-            publishMiniMapDebug(client);
         }
     }
 
@@ -400,6 +383,7 @@ public final class McdgClientMod implements ClientModInitializer {
             double centerWorldX,
             double centerWorldZ,
             float mapScale,
+            float mapRotationDegrees,
             float hudAlpha,
             boolean drawLabels,
             float clipCenterX,
@@ -407,13 +391,71 @@ public final class McdgClientMod implements ClientModInitializer {
             float clipRadius
     ) {
         for (ClientWaypoint waypoint : clientWaypoints) {
-            int waypointPx = mapCenterX + Math.round((float) ((waypoint.x() - centerWorldX) * mapScale));
-            int waypointPz = mapCenterY + Math.round((float) ((waypoint.z() - centerWorldZ) * mapScale));
+            float waypointDx = (float) ((waypoint.x() - centerWorldX) * mapScale);
+            float waypointDz = (float) ((waypoint.z() - centerWorldZ) * mapScale);
+            float[] rotated = rotateMiniMapVector(waypointDx, waypointDz, mapRotationDegrees);
+            int waypointPx = mapCenterX + Math.round(rotated[0]);
+            int waypointPz = mapCenterY + Math.round(rotated[1]);
             drawDotCircleClipped(drawContext, waypointPx, waypointPz, 2, withAlpha(waypoint.color(), hudAlpha), clipCenterX, clipCenterY, clipRadius);
             if (drawLabels && isPointInsideCircle(waypointPx + 4, waypointPz - 6, clipCenterX, clipCenterY, clipRadius * clipRadius)) {
                 drawContext.drawTextWithShadow(client.textRenderer, Text.literal(waypoint.name()), waypointPx + 3, waypointPz - 8, withAlpha(0xE8EEF7, hudAlpha));
             }
         }
+    }
+
+    private static float[] rotateMiniMapVector(float x, float y, float rotationDegrees) {
+        double radians = Math.toRadians(rotationDegrees);
+        float cos = (float) Math.cos(radians);
+        float sin = (float) Math.sin(radians);
+        return new float[] {
+                (x * cos) - (y * sin),
+                (x * sin) + (y * cos)
+        };
+    }
+
+    private static float resolveMiniMapHeadingRotationDegrees(MinecraftClient client) {
+        if (client.player == null) {
+            return 0.0f;
+        }
+
+        // Prefer movement heading while grounded; use look heading when idle.
+        // Holding last heading in-air prevents jump-induced spin jitter.
+        double velocityX = client.player.getVelocity().x;
+        double velocityZ = client.player.getVelocity().z;
+        double horizontalSpeedSq = (velocityX * velocityX) + (velocityZ * velocityZ);
+        float lookHeading = 180.0f - client.player.getYaw();
+        float targetHeading;
+        if (horizontalSpeedSq > 0.0025d && client.player.isOnGround()) {
+            float movementYaw = (float) Math.toDegrees(Math.atan2(-velocityX, velocityZ));
+            targetHeading = 180.0f - movementYaw;
+        } else if (!client.player.isOnGround() && !Float.isNaN(miniMapHeadingDegrees)) {
+            targetHeading = miniMapHeadingDegrees;
+        } else if (!Float.isNaN(miniMapHeadingDegrees)) {
+            targetHeading = lookHeading;
+        } else {
+            targetHeading = lookHeading;
+        }
+
+        if (Float.isNaN(miniMapHeadingDegrees)) {
+            miniMapHeadingDegrees = targetHeading;
+            return miniMapHeadingDegrees;
+        }
+
+        float smoothing = client.player.isOnGround() ? 0.42f : 0.18f;
+        miniMapHeadingDegrees = lerpAngleDegrees(miniMapHeadingDegrees, targetHeading, smoothing);
+        if (Math.abs(shortestAngleDeltaDegrees(miniMapHeadingDegrees, targetHeading)) < 0.75f) {
+            miniMapHeadingDegrees = targetHeading;
+        }
+        return miniMapHeadingDegrees;
+    }
+
+    private static float lerpAngleDegrees(float from, float to, float t) {
+        float delta = ((to - from + 540.0f) % 360.0f) - 180.0f;
+        return from + (delta * Math.max(0.0f, Math.min(1.0f, t)));
+    }
+
+    private static float shortestAngleDeltaDegrees(float from, float to) {
+        return ((to - from + 540.0f) % 360.0f) - 180.0f;
     }
 
     private static void renderRoundInfoOverlay(DrawContext drawContext) {
@@ -661,12 +703,30 @@ public final class McdgClientMod implements ClientModInitializer {
         }
     }
 
-    private static void drawMiniMapCardinalLabels(DrawContext drawContext, MinecraftClient client, float centerX, float centerY, int miniMapSize, float hudAlpha) {
-        int radius = Math.max(8, (miniMapSize / 2) - 8);
-        drawCardinalLabel(drawContext, client, "N", centerX, centerY - radius, 0xFFDDEEFF, hudAlpha);
-        drawCardinalLabel(drawContext, client, "E", centerX + radius, centerY, 0xFFDDEEFF, hudAlpha);
-        drawCardinalLabel(drawContext, client, "S", centerX, centerY + radius, 0xFFDDEEFF, hudAlpha);
-        drawCardinalLabel(drawContext, client, "W", centerX - radius, centerY, 0xFFDDEEFF, hudAlpha);
+    private static void drawMiniMapCardinalLabels(DrawContext drawContext, MinecraftClient client, float centerX, float centerY, int miniMapSize, float mapRotationDegrees, float hudAlpha) {
+        // Keep labels inside the minimap square/mask while still orbiting with heading.
+        float radius = Math.max(8.0f, (miniMapSize / 2.0f) - 12.0f);
+        drawCardinalLabelAtAngle(drawContext, client, "N", centerX, centerY, radius, -90.0f + mapRotationDegrees, 0xFFDDEEFF, hudAlpha);
+        drawCardinalLabelAtAngle(drawContext, client, "E", centerX, centerY, radius, 0.0f + mapRotationDegrees, 0xFFDDEEFF, hudAlpha);
+        drawCardinalLabelAtAngle(drawContext, client, "S", centerX, centerY, radius, 90.0f + mapRotationDegrees, 0xFFDDEEFF, hudAlpha);
+        drawCardinalLabelAtAngle(drawContext, client, "W", centerX, centerY, radius, 180.0f + mapRotationDegrees, 0xFFDDEEFF, hudAlpha);
+    }
+
+    private static void drawCardinalLabelAtAngle(
+            DrawContext drawContext,
+            MinecraftClient client,
+            String label,
+            float centerX,
+            float centerY,
+            float radius,
+            float angleDegrees,
+            int color,
+            float hudAlpha
+    ) {
+        double radians = Math.toRadians(angleDegrees);
+        float x = centerX + ((float) Math.cos(radians) * radius);
+        float y = centerY + ((float) Math.sin(radians) * radius);
+        drawCardinalLabel(drawContext, client, label, x, y, color, hudAlpha);
     }
 
     private static void drawCardinalLabel(DrawContext drawContext, MinecraftClient client, String label, float x, float y, int color, float hudAlpha) {
@@ -1119,6 +1179,104 @@ public final class McdgClientMod implements ClientModInitializer {
         }
     }
 
+    private static void drawHeadingTriangleClipped(
+            DrawContext drawContext,
+            float centerX,
+            float centerY,
+            float angleDegrees,
+            float tipDistance,
+            float halfBaseWidth,
+            int fillColor,
+            int outlineColor,
+            float clipCenterX,
+            float clipCenterY,
+            float clipRadius
+    ) {
+        double radians = Math.toRadians(angleDegrees);
+        float dirX = (float) Math.cos(radians);
+        float dirY = (float) Math.sin(radians);
+        float perpX = -dirY;
+        float perpY = dirX;
+
+        float tipX = centerX + (dirX * tipDistance);
+        float tipY = centerY + (dirY * tipDistance);
+        float baseCenterX = centerX - (dirX * (tipDistance * 0.85f));
+        float baseCenterY = centerY - (dirY * (tipDistance * 0.85f));
+        float leftX = baseCenterX + (perpX * halfBaseWidth);
+        float leftY = baseCenterY + (perpY * halfBaseWidth);
+        float rightX = baseCenterX - (perpX * halfBaseWidth);
+        float rightY = baseCenterY - (perpY * halfBaseWidth);
+
+        // Subtle outline first so the marker stays readable over light terrain.
+        drawFilledTriangleClipped(drawContext, tipX, tipY, leftX, leftY, rightX, rightY, outlineColor, clipCenterX, clipCenterY, clipRadius + 0.75f);
+        drawFilledTriangleClipped(
+                drawContext,
+                centerX + ((tipX - centerX) * 0.88f),
+                centerY + ((tipY - centerY) * 0.88f),
+                centerX + ((leftX - centerX) * 0.82f),
+                centerY + ((leftY - centerY) * 0.82f),
+                centerX + ((rightX - centerX) * 0.82f),
+                centerY + ((rightY - centerY) * 0.82f),
+                fillColor,
+                clipCenterX,
+                clipCenterY,
+                clipRadius
+        );
+    }
+
+    private static void drawFilledTriangleClipped(
+            DrawContext drawContext,
+            float x1,
+            float y1,
+            float x2,
+            float y2,
+            float x3,
+            float y3,
+            int color,
+            float clipCenterX,
+            float clipCenterY,
+            float clipRadius
+    ) {
+        float clipRadiusSq = clipRadius * clipRadius;
+        int minX = (int) Math.floor(Math.min(x1, Math.min(x2, x3)));
+        int maxX = (int) Math.ceil(Math.max(x1, Math.max(x2, x3)));
+        int minY = (int) Math.floor(Math.min(y1, Math.min(y2, y3)));
+        int maxY = (int) Math.ceil(Math.max(y1, Math.max(y2, y3)));
+
+        for (int py = minY; py <= maxY; py++) {
+            for (int px = minX; px <= maxX; px++) {
+                if (!isPointInsideCircle(px, py, clipCenterX, clipCenterY, clipRadiusSq)) {
+                    continue;
+                }
+                if (isPointInTriangle(px + 0.5f, py + 0.5f, x1, y1, x2, y2, x3, y3)) {
+                    drawContext.fill(px, py, px + 1, py + 1, color);
+                }
+            }
+        }
+    }
+
+    private static boolean isPointInTriangle(
+            float px,
+            float py,
+            float x1,
+            float y1,
+            float x2,
+            float y2,
+            float x3,
+            float y3
+    ) {
+        float d1 = crossSign(px, py, x1, y1, x2, y2);
+        float d2 = crossSign(px, py, x2, y2, x3, y3);
+        float d3 = crossSign(px, py, x3, y3, x1, y1);
+        boolean hasNeg = (d1 < 0.0f) || (d2 < 0.0f) || (d3 < 0.0f);
+        boolean hasPos = (d1 > 0.0f) || (d2 > 0.0f) || (d3 > 0.0f);
+        return !(hasNeg && hasPos);
+    }
+
+    private static float crossSign(float px, float py, float ax, float ay, float bx, float by) {
+        return (px - bx) * (ay - by) - (ax - bx) * (py - by);
+    }
+
     private static void drawCircleOutlineClipped(
             DrawContext drawContext,
             float centerX,
@@ -1144,6 +1302,14 @@ public final class McdgClientMod implements ClientModInitializer {
         float dx = x - centerX;
         float dy = y - centerY;
         return ((dx * dx) + (dy * dy)) <= radiusSq;
+    }
+
+    private static float normalizeDegrees(float degrees) {
+        float normalized = degrees % 360.0f;
+        if (normalized < 0.0f) {
+            normalized += 360.0f;
+        }
+        return normalized;
     }
 
     private static void renderPowerOverlay(DrawContext drawContext) {
@@ -1230,6 +1396,8 @@ public final class McdgClientMod implements ClientModInitializer {
         float texDenominator = Math.max(1.0f, (float) MINIMAP_TEXTURE_SIZE);
         int centerPx = MINIMAP_TEXTURE_SIZE / 2;
         int centerPy = MINIMAP_TEXTURE_SIZE / 2;
+        float textureRadius = Math.max(1.0f, (MINIMAP_TEXTURE_SIZE / 2.0f) - 0.5f);
+        float textureRadiusSq = textureRadius * textureRadius;
         double centerWorldX = (playerFeetX + 0.5d);
         double centerWorldZ = (playerFeetZ + 0.5d);
         String centerSource = "unknown";
@@ -1247,6 +1415,13 @@ public final class McdgClientMod implements ClientModInitializer {
             float dz = (py - centerPy) / texDenominator;
             int worldZ = net.minecraft.util.math.MathHelper.floor(centerWorldZ + (dz * mapSpan));
             for (int px = 0; px < MINIMAP_TEXTURE_SIZE; px++) {
+                float textureDx = px - centerPx;
+                float textureDy = py - centerPy;
+                if (((textureDx * textureDx) + (textureDy * textureDy)) > textureRadiusSq) {
+                    image.setColor(px, py, argbToAbgr(0x00000000));
+                    continue;
+                }
+
                 float dx = (px - centerPx) / texDenominator;
                 int worldX = net.minecraft.util.math.MathHelper.floor(centerWorldX + (dx * mapSpan));
 
@@ -1463,9 +1638,42 @@ public final class McdgClientMod implements ClientModInitializer {
 
         int currentY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z) - 1;
         int northY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z - 1) - 1;
+        int southY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z + 1) - 1;
         int westY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x - 1, z) - 1;
-        int delta = (currentY - northY) + (currentY - westY);
-        float shade = 1.0f + Math.max(-0.18f, Math.min(0.18f, delta * 0.05f));
+        int eastY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x + 1, z) - 1;
+
+        // Hillshade: directional light from NW to make local relief easier to read.
+        int litDelta = (northY + westY) - (southY + eastY);
+        float shade = 1.0f + Math.max(-0.30f, Math.min(0.30f, litDelta * 0.08f));
+
+        // Relief contrast: darken concave areas and brighten convex ridges.
+        int neighborAvg = (northY + southY + eastY + westY) / 4;
+        int localRelief = currentY - neighborAvg;
+        shade += Math.max(-0.14f, Math.min(0.14f, localRelief * 0.07f));
+
+        // Contour accent: subtle darkening on height bands improves macro topology readability.
+        if (Math.floorMod(currentY, 4) == 0) {
+            shade *= 0.93f;
+        }
+        if (Math.floorMod(currentY, 2) == 0) {
+            shade *= 0.97f;
+        }
+
+        // Add a small emphasis where the local slope is steeper.
+        int slopeStrength = Math.abs(eastY - westY) + Math.abs(southY - northY);
+        if (slopeStrength >= 4) {
+            shade *= 0.92f;
+        }
+
+        if (slopeStrength >= 8) {
+            shade *= 0.88f;
+        }
+
+        if (Math.abs(localRelief) >= 2) {
+            shade *= 0.94f;
+        }
+
+        shade = Math.max(0.65f, Math.min(1.35f, shade));
         return scaleColor(baseColor, shade);
     }
 
