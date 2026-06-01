@@ -6,6 +6,38 @@ Date: 2026-05-30
 
 ---
 
+## Multiplayer Turn Order Enforcement Update (2026-06-01 Night)
+
+Code checkpoint commit:
+- 5997fb7
+
+Implemented:
+- Enforced one-player-at-a-time throws during active multiplayer rounds.
+- Turn gating now blocks out-of-turn throw attempts with a user-facing wait message.
+- Hole 1 start order is auto-randomized each round.
+- Hole tee order for hole `N` uses prior-hole results:
+  - compare hole `N-1` score (lowest throws first),
+  - if tied, compare `N-2`, then earlier holes,
+  - if still tied, use hole-1 randomized order as final tie-break.
+- Within a hole after tee throws, turn selection switches to furthest-from-basket first.
+- Added turn timeout handling:
+  - 2-minute throw window for the active player,
+  - on timeout: +1 stroke, lie reset to current hole tee, turn passes to next player.
+
+Validation:
+- `gradle quickRegression`: PASS.
+- `gradle smokeRegression`: PASS.
+- `gradle build`: PASS.
+
+Manual multiplayer verification (next pass):
+1. Start a 3-5 player round and confirm out-of-turn throws are blocked.
+2. On hole 1, confirm throw order is randomized between rounds.
+3. On hole 2+, confirm tee order follows previous-hole score ranking with tie-break chain.
+4. After all players tee, confirm furthest-from-basket throw priority applies.
+5. Let one active player timeout for 2 minutes and confirm +1, tee reset, and turn pass behavior.
+
+---
+
 ## Multiplayer Reconnect + Status Update (2026-06-01 Night)
 
 Code checkpoint commit:

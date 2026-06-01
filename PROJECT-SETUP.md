@@ -2,6 +2,20 @@
 
 # PROJECT-SETUP.md
 
+## Latest Feature Checkpoint (2026-06-01 Night - Multiplayer Turn Order Enforcement)
+
+- Code checkpoint commit: 5997fb7.
+- Added updates:
+  - One-player-at-a-time throw enforcement during active rounds.
+  - Hole 1 start order auto-randomized each round.
+  - Hole tee order for hole `N` ranked by prior-hole scores with backward tie-break chain.
+  - Post-tee turn selection uses furthest-from-basket priority.
+  - Active-turn timeout (2 minutes): +1 stroke, reset to tee, pass turn.
+- Validation at checkpoint:
+  - `gradle quickRegression`: PASS.
+  - `gradle smokeRegression`: PASS.
+  - `gradle build`: PASS.
+
 ## Latest Feature Checkpoint (2026-06-01 Night - Multiplayer Reconnect + Status)
 
 - Code checkpoint commit: c058aac.
