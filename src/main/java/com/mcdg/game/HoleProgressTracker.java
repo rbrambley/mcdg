@@ -5,6 +5,7 @@ import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import com.mcdg.net.AceCinematicSync;
 import com.mcdg.net.HoleMiniMapSync;
+import com.mcdg.net.RoundCompleteCinematicSync;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.ui.HudStateFormatter;
 import java.util.ArrayList;
@@ -231,7 +232,9 @@ public final class HoleProgressTracker {
 
                     broadcastRoundLeaderboard(server, placed.worldKey(), roundStateManager, totalPar);
 
-                    if (roundStateManager.snapshotStates().isEmpty()) {
+                    boolean roundEnded = roundStateManager.snapshotStates().isEmpty();
+                    if (roundEnded) {
+                        sendRoundCompleteCinematic(server, placed.worldKey(), roundStateManager, totalPar);
                         courseManager.setRoundActive(false);
                     }
                     continue;
@@ -1317,5 +1320,82 @@ public final class HoleProgressTracker {
             }
             rank++;
         }
+    }
+
+    private static void sendRoundCompleteCinematic(
+            MinecraftServer server,
+            RegistryKey<net.minecraft.world.World> worldKey,
+            RoundStateManager roundStateManager,
+            int totalPar
+    ) {
+        Map<UUID, Integer> completed = roundStateManager.snapshotCompletedRounds();
+        if (completed.isEmpty()) {
+            return;
+        }
+
+        List<Map.Entry<UUID, Integer>> ranked = new ArrayList<>(completed.entrySet());
+        ranked.sort(Comparator.comparingInt(Map.Entry::getValue));
+
+        String firstName = rankedName(server, ranked, 0);
+        int firstScore = rankedScore(ranked, 0);
+        String secondName = rankedName(server, ranked, 1);
+        int secondScore = rankedScore(ranked, 1);
+        String thirdName = rankedName(server, ranked, 2);
+        int thirdScore = rankedScore(ranked, 2);
+
+        List<ServerPlayerEntity> viewers = server.getPlayerManager().getPlayerList().stream()
+                .filter(p -> p.getWorld().getRegistryKey() == worldKey)
+                .toList();
+        if (viewers.isEmpty()) {
+            return;
+        }
+
+        for (ServerPlayerEntity viewer : viewers) {
+            int localRank = -1;
+            int localScore = completed.getOrDefault(viewer.getUuid(), 0);
+            for (int i = 0; i < ranked.size(); i++) {
+                if (ranked.get(i).getKey().equals(viewer.getUuid())) {
+                    localRank = i + 1;
+                    break;
+                }
+            }
+
+            ServerPlayNetworking.send(
+                    viewer,
+                    RoundCompleteCinematicSync.Payload.active(
+                            totalPar,
+                            ranked.size(),
+                            firstName,
+                            firstScore,
+                            secondName,
+                            secondScore,
+                            thirdName,
+                            thirdScore,
+                            localRank,
+                            localScore
+                    )
+            );
+        }
+    }
+
+    private static String rankedName(MinecraftServer server, List<Map.Entry<UUID, Integer>> ranked, int index) {
+        if (index < 0 || index >= ranked.size()) {
+            return "-";
+        }
+
+        UUID playerId = ranked.get(index).getKey();
+        ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
+        if (player != null) {
+            return player.getGameProfile().getName();
+        }
+
+        return playerId.toString().substring(0, 8);
+    }
+
+    private static int rankedScore(List<Map.Entry<UUID, Integer>> ranked, int index) {
+        if (index < 0 || index >= ranked.size()) {
+            return 0;
+        }
+        return ranked.get(index).getValue();
     }
 }
