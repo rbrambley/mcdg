@@ -3,6 +3,7 @@ package com.mcdg.game;
 import com.mcdg.McdgMod;
 import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
+import com.mcdg.net.AceCinematicSync;
 import com.mcdg.net.HoleMiniMapSync;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.ui.HudStateFormatter;
@@ -249,6 +250,9 @@ public final class HoleProgressTracker {
                 roundStateManager.advanceToNextHole(player.getUuid(), safeNextTee);
                 player.teleport(safeNextTee.getX() + 0.5, safeNextTee.getY() + 1.0, safeNextTee.getZ() + 0.5);
                 updateLieMarker(player, safeNextTee);
+                if (state.holeStrokes() == 1) {
+                    ServerPlayNetworking.send(player, AceCinematicSync.Payload.active(state.currentHole(), currentHole.distanceFeet()));
+                }
                 sendHoleFinishTitle(player, state.holeStrokes(), completedHolePar);
             }
         });

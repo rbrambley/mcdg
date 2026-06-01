@@ -3,6 +3,7 @@ package com.mcdg.client;
 import com.mcdg.game.ChargedDiscItem;
 import com.mcdg.game.McdgItems;
 import com.mcdg.game.ScorecardManager;
+import com.mcdg.net.AceCinematicSync;
 import com.mcdg.net.HoleMiniMapSync;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -36,6 +37,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
+import net.minecraft.particle.ParticleTypes;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.MapColor;
@@ -77,6 +79,8 @@ public final class McdgClientMod implements ClientModInitializer {
     private static final int HUD_CARD_MUTED_TEXT = 0xAAB8CC;
     private static final int HAZARD_OVERLAY_ARGB = 0x8CFF9A32;
     private static final int HAZARD_SAMPLE_STEP_PX = 2;
+    private static final long ACE_CINEMATIC_DURATION_MS = 3600L;
+    private static final long ACE_CINEMATIC_PARTICLE_STEP_MS = 80L;
     private static final int BASKET_GREEN_RADIUS_BLOCKS = 7;
     private static final int BASKET_GREEN_HEIGHT_BLOCKS = 8;
     private static final String[] COMPASS_8 = { "S", "SW", "W", "NW", "N", "NE", "E", "SE" };
@@ -119,6 +123,8 @@ public final class McdgClientMod implements ClientModInitializer {
     private static String pendingWaypointContextKey;
     private static int pendingWaypointX;
     private static int pendingWaypointZ;
+    private static AceCinematicState aceCinematicState;
+    private static long nextAceCinematicParticleAtMs;
     private static final List<ClientWaypoint> clientWaypoints = new ArrayList<>();
 
 
@@ -163,6 +169,7 @@ public final class McdgClientMod implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             maybeAutoConnect(client);
             handleMiniMapHotkeys(client);
+            updateAceCinematicEffects(client);
         });
         ClientSendMessageEvents.ALLOW_CHAT.register(message -> handleWaypointPromptInput(message));
         ClientPlayNetworking.registerGlobalReceiver(HoleMiniMapSync.ID, (payload, context) -> {
@@ -208,6 +215,18 @@ public final class McdgClientMod implements ClientModInitializer {
                 refreshMiniMapRenderCache(context.client(), PASSIVE_MINIMAP_SPAN_BLOCKS);
             });
         });
+        ClientPlayNetworking.registerGlobalReceiver(AceCinematicSync.ID, (payload, context) -> {
+            context.client().execute(() -> {
+                if (!payload.active()) {
+                    aceCinematicState = null;
+                    return;
+                }
+
+                long now = System.currentTimeMillis();
+                aceCinematicState = new AceCinematicState(payload.holeIndex(), payload.distanceFeet(), now, now + ACE_CINEMATIC_DURATION_MS);
+                nextAceCinematicParticleAtMs = now;
+            });
+        });
         HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {
             updateHudTweens();
             renderHoleMiniMapOverlay(drawContext);
@@ -215,6 +234,7 @@ public final class McdgClientMod implements ClientModInitializer {
             renderScorecardOverlay(drawContext);
             renderCompassOverlay(drawContext);
             renderPowerOverlay(drawContext);
+            renderAceCinematicOverlay(drawContext);
         });
     }
 
@@ -1624,6 +1644,88 @@ public final class McdgClientMod implements ClientModInitializer {
         drawContext.drawTextWithShadow(client.textRenderer, Text.literal(Integer.toString(percent) + "%"), barX - 8, barTop - 12, 0x66E3FF);
     }
 
+    private static void updateAceCinematicEffects(MinecraftClient client) {
+        if (aceCinematicState == null) {
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        if (now >= aceCinematicState.endAtMs()) {
+            aceCinematicState = null;
+            return;
+        }
+
+        if (client == null || client.player == null || client.world == null) {
+            return;
+        }
+
+        if (now < nextAceCinematicParticleAtMs) {
+            return;
+        }
+
+        nextAceCinematicParticleAtMs = now + ACE_CINEMATIC_PARTICLE_STEP_MS;
+        double centerX = client.player.getX();
+        double centerY = client.player.getY() + 1.2;
+        double centerZ = client.player.getZ();
+        double phase = (now - aceCinematicState.startAtMs()) / 150.0d;
+
+        for (int i = 0; i < 14; i++) {
+            double angle = phase + ((Math.PI * 2.0d * i) / 14.0d);
+            double radius = 0.9d + ((i % 3) * 0.18d);
+            double px = centerX + (Math.cos(angle) * radius);
+            double pz = centerZ + (Math.sin(angle) * radius);
+            double vy = 0.02d + ((i % 4) * 0.01d);
+            client.world.addParticle(ParticleTypes.END_ROD, px, centerY + ((i % 3) * 0.08d), pz, 0.0d, vy, 0.0d);
+        }
+    }
+
+    private static void renderAceCinematicOverlay(DrawContext drawContext) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player == null || client.options.hudHidden || client.textRenderer == null || aceCinematicState == null) {
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        if (now >= aceCinematicState.endAtMs()) {
+            aceCinematicState = null;
+            return;
+        }
+
+        float duration = Math.max(1.0f, (float) (aceCinematicState.endAtMs() - aceCinematicState.startAtMs()));
+        float progress = Math.max(0.0f, Math.min(1.0f, (now - aceCinematicState.startAtMs()) / duration));
+        float fadeIn = Math.min(1.0f, progress / 0.16f);
+        float fadeOut = Math.min(1.0f, (1.0f - progress) / 0.22f);
+        float alpha = Math.max(0.0f, Math.min(fadeIn, fadeOut));
+        if (alpha <= 0.0f) {
+            return;
+        }
+
+        int width = drawContext.getScaledWindowWidth();
+        int height = drawContext.getScaledWindowHeight();
+        int cardW = 238;
+        int cardH = 72;
+        int x = (width - cardW) / 2;
+        int y = Math.max(18, (height / 2) - 120);
+
+        drawContext.fill(x, y, x + cardW, y + cardH, withAlpha(0xC0141820, alpha));
+        drawContext.fill(x, y, x + cardW, y + 14, withAlpha(0xE3987A19, alpha));
+        drawContext.fill(x, y, x + cardW, y + 1, withAlpha(0xFFE5BD4A, alpha));
+        drawContext.fill(x, y + cardH - 1, x + cardW, y + cardH, withAlpha(0xFFE5BD4A, alpha));
+        drawContext.fill(x, y, x + 1, y + cardH, withAlpha(0xFFE5BD4A, alpha));
+        drawContext.fill(x + cardW - 1, y, x + cardW, y + cardH, withAlpha(0xFFE5BD4A, alpha));
+
+        String title = "ACE!";
+        String sub1 = "Hole-in-One";
+        String sub2 = "Hole " + aceCinematicState.holeIndex() + "  Dist " + aceCinematicState.distanceFeet() + " ft";
+        int titleX = x + ((cardW - client.textRenderer.getWidth(title)) / 2);
+        int sub1X = x + ((cardW - client.textRenderer.getWidth(sub1)) / 2);
+        int sub2X = x + ((cardW - client.textRenderer.getWidth(sub2)) / 2);
+
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(title).formatted(Formatting.GOLD, Formatting.BOLD), titleX, y + 18, withAlpha(0xFFF6D15A, alpha));
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(sub1).formatted(Formatting.YELLOW), sub1X, y + 35, withAlpha(0xFFF3E5B3, alpha));
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(sub2).formatted(Formatting.WHITE), sub2X, y + 49, withAlpha(0xFFF7F8FB, alpha));
+    }
+
     private static void refreshMiniMapRenderCache(MinecraftClient client, int mapSpan) {
         if (client == null || mapSpan <= 0) {
             return;
@@ -2156,6 +2258,14 @@ public final class McdgClientMod implements ClientModInitializer {
                     && centerX == playerFeetX
                     && centerZ == playerFeetZ;
         }
+    }
+
+    private record AceCinematicState(
+            int holeIndex,
+            int distanceFeet,
+            long startAtMs,
+            long endAtMs
+    ) {
     }
 
     private record ClientWaypoint(String name, int x, int z, int color) {

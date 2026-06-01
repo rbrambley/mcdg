@@ -10,6 +10,7 @@ import com.mcdg.game.RoundPresentationService;
 import com.mcdg.game.RoundRespawnHandler;
 import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.ThrowAutoTestService;
+import com.mcdg.net.AceCinematicSync;
 import com.mcdg.net.HoleMiniMapSync;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.CoursePlacementService;
@@ -56,6 +57,7 @@ public final class McdgMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        PayloadTypeRegistry.playS2C().register(AceCinematicSync.ID, AceCinematicSync.CODEC);
         PayloadTypeRegistry.playS2C().register(HoleMiniMapSync.ID, HoleMiniMapSync.CODEC);
         McdgConfig config = McdgConfig.loadDefault();
         McdgItems.register(ACTIVE_COURSE_MANAGER, ROUND_STATE_MANAGER, TOURNAMENT_RULESET_MANAGER, config.enableStrictFlowDebug());
