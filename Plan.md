@@ -6,6 +6,36 @@ Date: 2026-05-30
 
 ---
 
+## Ace Cinematic Update (2026-06-01 Night)
+
+Feature checkpoint commit:
+- 3c29765
+
+Implemented:
+- Added lightweight Ace cinematic that is triggered from the existing Ace hole-result path (no duplicate detector).
+- Server sends an Ace-specific S2C payload only when hole score is `1` on hole completion.
+- Client plays a short celebration sequence:
+  - center-screen `ACE!` card with hole index and hole distance,
+  - timed particle celebration around the player,
+  - automatic timeout/cleanup.
+
+Integration details:
+- Networking payload: `AceCinematicSync`.
+- Server registration: payload registered during mod init.
+- Trigger point: existing hole-finish progression path in `HoleProgressTracker` right before hole-finish title display.
+- Client runtime: receiver + transient cinematic state + render/tick handlers in `McdgClientMod`.
+
+Validation:
+- `gradle quickRegression`: PASS.
+- `gradle build`: PASS.
+
+Follow-up verification:
+1. Manual run: produce an Ace and confirm single trigger (no duplicate celebration).
+2. Confirm cinematic does not block hole progression/teleport to next tee.
+3. Tune card duration/particle density if needed after gameplay pass.
+
+---
+
 ## Guardrail Drift Prevention Update (2026-06-01 Night)
 
 Guardrail checkpoint commit:

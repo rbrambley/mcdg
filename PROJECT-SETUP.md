@@ -2,6 +2,17 @@
 
 # PROJECT-SETUP.md
 
+## Latest Feature Checkpoint (2026-06-01 Night)
+
+- Code checkpoint commit: 3c29765.
+- Added feature:
+  - Ace cinematic presentation wired to the existing Ace hole-result event path.
+  - Server-to-client payload (`AceCinematicSync`) triggers a short client celebration card + particles.
+  - Single-source trigger design avoids duplicate Ace detection/drift.
+- Validation at checkpoint:
+  - `gradle quickRegression`: PASS.
+  - `gradle build`: PASS.
+
 ## Latest Engineering Checkpoint (2026-06-01 Evening)
 
 - Code checkpoint commit: fe5ca6f.
