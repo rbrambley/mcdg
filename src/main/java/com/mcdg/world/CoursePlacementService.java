@@ -65,6 +65,12 @@ public final class CoursePlacementService {
     private static final int BASKET_ENCLOSURE_SCAN_RADIUS = 6;
     private static final int BASKET_ENCLOSURE_CENTER_DEPTH_FAIL = 18;
     private static final int BASKET_ENCLOSURE_CENTER_DEPTH_CHECK = 12;
+    private static final int BASKET_ENCLOSURE_RECOVERY_MIN_DEPTH = 13;
+    private static final int BASKET_ENCLOSURE_RECOVERY_MAX_DEPTH = 35;
+    private static final int BASKET_ENCLOSURE_RECOVERY_WIDTH = 8;
+    private static final int BASKET_ENCLOSURE_RECOVERY_HEADROOM = 4;
+    private static final int BASKET_ENCLOSURE_RECOVERY_LATERAL_STEP = 8;
+    private static final int BASKET_ENCLOSURE_RECOVERY_MAX_LAVA_REROUTE_ATTEMPTS = 3;
     private static final int BASKET_ENCLOSURE_WALL_DEPTH_THRESHOLD = 8;
     private static final double BASKET_ENCLOSURE_HIGH_WALL_RATIO = 0.82;
     private static final int TEE_EXIT_Y_TOLERANCE = 1;
@@ -73,13 +79,16 @@ public final class CoursePlacementService {
     private static final int TEE_MAX_ENCLOSURE_SCORE = 9;
     private static final int TEE_PIT_DEPTH_THRESHOLD = 4;
     private static final int SURFACE_SEARCH_DEPTH_LIMIT = 24;
-    private static final int TEE_MAX_DIRECT_CARRY_GAP = 72;
+    private static final int TEE_MAX_DIRECT_CARRY_GAP = 91;
     private static final int ALT_FAIRWAY_ANCHOR_SEARCH_RADIUS = 80;
-    private static final int ALT_FAIRWAY_FIRST_LEG_MAX_GAP = 26;
-    private static final int ALT_FAIRWAY_FIRST_LEG_MAX_GAP_FALLBACK = 40;
-    private static final int ALT_FAIRWAY_FIRST_LEG_MAX_GAP_EMERGENCY = Integer.MAX_VALUE;
+    private static final int ALT_FAIRWAY_FIRST_LEG_MAX_GAP = 70;
+    private static final int ALT_FAIRWAY_FIRST_LEG_MAX_GAP_FALLBACK = 91;
     private static final int ALT_FAIRWAY_MIN_ADVANCE = 12;
     private static final int ALT_FAIRWAY_MAX_FIRST_LEG = 120;
+    private static final int ALT_FAIRWAY_EMERGENCY_ANCHOR_SEARCH_RADIUS = 140;
+    private static final int ALT_FAIRWAY_EMERGENCY_MAX_FIRST_LEG = 180;
+    private static final int BASKET_APPROACH_ENFORCE_DISTANCE = 12;
+    private static final int BASKET_APPROACH_MIN_WIDTH = 8;
     private static final String ALT_ROUTE_DIAG_ENV = "MCDG_ALT_ROUTE_DIAG";
     private static final int CAMP_SITE_RADIUS = 28;
     private static final int CAMP_SITE_SCAN_STEP = 4;
@@ -145,18 +154,36 @@ public final class CoursePlacementService {
                 protectedPositions
             );
             if (isDeeplyEnclosedBasketSurface(world, basketSurface)) {
-                BlockPos relocatedBasket = relocateBasketSurfaceIfNeeded(world, teeSurface, basketSurface);
-                basketSurface = expandBasketGreenIfWaterNearby(
+                BlockPos recoveredBasket = tryRecoverEnclosedBasketSurface(
+                    world,
+                    teeSurface,
+                    basketSurface,
+                    originalBlocks,
+                    protectedPositions
+                );
+                if (recoveredBasket != null) {
+                    basketSurface = expandBasketGreenIfWaterNearby(
+                        world,
+                        teeSurface,
+                        recoveredBasket,
+                        fairwayWidth,
+                        originalBlocks,
+                        protectedPositions
+                    );
+                } else {
+                    BlockPos relocatedBasket = relocateBasketSurfaceIfNeeded(world, teeSurface, basketSurface);
+                    basketSurface = expandBasketGreenIfWaterNearby(
                         world,
                         teeSurface,
                         relocatedBasket,
                         fairwayWidth,
                         originalBlocks,
                         protectedPositions
-                );
+                    );
+                }
             }
 
-            BlockPos alternateAnchor = findAlternateFairwayAnchor(world, teeSurface, basketSurface);
+            BlockPos alternateAnchor = findAlternateFairwayAnchor(world, teeSurface, basketSurface, hole.par() >= 5);
             if (alternateAnchor != null) {
                 holeAlternateAnchors.put(hole.index(), alternateAnchor.toImmutable());
                 holeRoutingNotes.put(hole.index(), alternateRouteNote(teeSurface, basketSurface, alternateAnchor));
@@ -221,6 +248,16 @@ public final class CoursePlacementService {
                     false
                 );
                 }
+
+                BlockPos finalApproachStart = alternateAnchor != null ? alternateAnchor : teeSurface;
+                enforceBasketApproachLandingZone(
+                    world,
+                    finalApproachStart,
+                    basketSurface,
+                    fairwayWidth,
+                    originalBlocks,
+                    protectedPositions
+                );
 
                     progressCallback.accept(Math.max(1, hole.index() / 2));
         }
@@ -601,6 +638,45 @@ public final class CoursePlacementService {
                 endZ,
                 originalBlocks,
                 protectedPositions
+        );
+    }
+
+    private static void enforceBasketApproachLandingZone(
+            ServerWorld world,
+            BlockPos approachStart,
+            BlockPos basketSurface,
+            int fairwayWidth,
+            Map<BlockPos, BlockState> originalBlocks,
+            Set<BlockPos> protectedPositions
+    ) {
+        int approachGap = computeLongestWaterCarryGap(world, approachStart, basketSurface);
+        if (approachGap <= TEE_MAX_DIRECT_CARRY_GAP) {
+            return;
+        }
+
+        int dx = basketSurface.getX() - approachStart.getX();
+        int dz = basketSurface.getZ() - approachStart.getZ();
+        int steps = Math.max(Math.abs(dx), Math.abs(dz));
+        if (steps < 1) {
+            return;
+        }
+
+        int zoneSteps = Math.min(steps, BASKET_APPROACH_ENFORCE_DISTANCE);
+        int zoneStartStep = Math.max(0, steps - zoneSteps);
+        double startT = zoneStartStep / (double) steps;
+        int zoneStartX = (int) Math.round(approachStart.getX() + (dx * startT));
+        int zoneStartZ = (int) Math.round(approachStart.getZ() + (dz * startT));
+
+        carveFairway(
+                world,
+                zoneStartX,
+                zoneStartZ,
+                basketSurface.getX(),
+                basketSurface.getZ(),
+                Math.max(fairwayWidth, BASKET_APPROACH_MIN_WIDTH),
+                originalBlocks,
+                protectedPositions,
+                false
         );
     }
 
@@ -2230,7 +2306,7 @@ public final class CoursePlacementService {
         return best;
     }
 
-    private static BlockPos findAlternateFairwayAnchor(ServerWorld world, BlockPos teeSurface, BlockPos basketSurface) {
+    private static BlockPos findAlternateFairwayAnchor(ServerWorld world, BlockPos teeSurface, BlockPos basketSurface, boolean forceAlternateRoute) {
         boolean routeDiag = isAltRouteDiagEnabled();
         int directCarryGap = computeLongestWaterCarryGap(world, teeSurface, basketSurface);
         if (routeDiag) {
@@ -2242,14 +2318,21 @@ public final class CoursePlacementService {
                     TEE_MAX_DIRECT_CARRY_GAP
             );
         }
-        if (directCarryGap <= TEE_MAX_DIRECT_CARRY_GAP) {
+        if (!forceAlternateRoute && directCarryGap <= TEE_MAX_DIRECT_CARRY_GAP) {
             if (routeDiag) {
                 McdgMod.LOGGER.info("AltRouteDiag skipped: direct carry does not exceed threshold.");
             }
             return null;
         }
 
-        AlternateAnchorSearchResult strictResult = searchAlternateFairwayAnchor(world, teeSurface, basketSurface, ALT_FAIRWAY_FIRST_LEG_MAX_GAP);
+        AlternateAnchorSearchResult strictResult = searchAlternateFairwayAnchor(
+            world,
+            teeSurface,
+            basketSurface,
+            ALT_FAIRWAY_FIRST_LEG_MAX_GAP,
+            ALT_FAIRWAY_ANCHOR_SEARCH_RADIUS,
+            ALT_FAIRWAY_MAX_FIRST_LEG
+        );
         if (routeDiag) {
             logAltRouteDiagResult("strict", strictResult);
         }
@@ -2257,7 +2340,14 @@ public final class CoursePlacementService {
             return strictResult.anchor();
         }
 
-        AlternateAnchorSearchResult fallbackResult = searchAlternateFairwayAnchor(world, teeSurface, basketSurface, ALT_FAIRWAY_FIRST_LEG_MAX_GAP_FALLBACK);
+        AlternateAnchorSearchResult fallbackResult = searchAlternateFairwayAnchor(
+            world,
+            teeSurface,
+            basketSurface,
+            ALT_FAIRWAY_FIRST_LEG_MAX_GAP_FALLBACK,
+            ALT_FAIRWAY_ANCHOR_SEARCH_RADIUS,
+            ALT_FAIRWAY_MAX_FIRST_LEG
+        );
         if (routeDiag) {
             logAltRouteDiagResult("fallback", fallbackResult);
         }
@@ -2265,7 +2355,14 @@ public final class CoursePlacementService {
             return fallbackResult.anchor();
         }
 
-        AlternateAnchorSearchResult emergencyResult = searchAlternateFairwayAnchor(world, teeSurface, basketSurface, ALT_FAIRWAY_FIRST_LEG_MAX_GAP_EMERGENCY);
+        AlternateAnchorSearchResult emergencyResult = searchAlternateFairwayAnchor(
+            world,
+            teeSurface,
+            basketSurface,
+            TEE_MAX_DIRECT_CARRY_GAP,
+            ALT_FAIRWAY_EMERGENCY_ANCHOR_SEARCH_RADIUS,
+            ALT_FAIRWAY_EMERGENCY_MAX_FIRST_LEG
+        );
         if (routeDiag) {
             logAltRouteDiagResult("emergency", emergencyResult);
         }
@@ -2276,7 +2373,9 @@ public final class CoursePlacementService {
             ServerWorld world,
             BlockPos teeSurface,
             BlockPos basketSurface,
-            int firstLegGapLimit
+            int firstLegGapLimit,
+            int anchorSearchRadius,
+            int maxFirstLeg
     ) {
         BlockPos best = null;
         int bestScore = Integer.MAX_VALUE;
@@ -2289,10 +2388,10 @@ public final class CoursePlacementService {
         int bestFirstGap = -1;
         int bestSecondGap = -1;
 
-        for (int dx = -ALT_FAIRWAY_ANCHOR_SEARCH_RADIUS; dx <= ALT_FAIRWAY_ANCHOR_SEARCH_RADIUS; dx += 2) {
-            for (int dz = -ALT_FAIRWAY_ANCHOR_SEARCH_RADIUS; dz <= ALT_FAIRWAY_ANCHOR_SEARCH_RADIUS; dz += 2) {
+        for (int dx = -anchorSearchRadius; dx <= anchorSearchRadius; dx += 2) {
+            for (int dz = -anchorSearchRadius; dz <= anchorSearchRadius; dz += 2) {
                 int distSq = dx * dx + dz * dz;
-                if (distSq > (ALT_FAIRWAY_ANCHOR_SEARCH_RADIUS * ALT_FAIRWAY_ANCHOR_SEARCH_RADIUS)) {
+                if (distSq > (anchorSearchRadius * anchorSearchRadius)) {
                     continue;
                 }
                 candidatesChecked++;
@@ -2310,7 +2409,7 @@ public final class CoursePlacementService {
                         Math.abs(candidate.getX() - teeSurface.getX()),
                         Math.abs(candidate.getZ() - teeSurface.getZ())
                 );
-                if (firstLeg < ALT_FAIRWAY_MIN_ADVANCE || firstLeg > ALT_FAIRWAY_MAX_FIRST_LEG) {
+                if (firstLeg < ALT_FAIRWAY_MIN_ADVANCE || firstLeg > maxFirstLeg) {
                     rejectedFirstLeg++;
                     continue;
                 }
@@ -2329,6 +2428,9 @@ public final class CoursePlacementService {
                 }
 
                 int secondGap = computeLongestWaterCarryGap(world, candidate, basketSurface);
+                if (secondGap > TEE_MAX_DIRECT_CARRY_GAP) {
+                    continue;
+                }
                 viableCandidates++;
 
                 int score = distSq;
@@ -2468,6 +2570,192 @@ public final class CoursePlacementService {
         }
 
         return best;
+    }
+
+    private static BlockPos tryRecoverEnclosedBasketSurface(
+            ServerWorld world,
+            BlockPos teeSurface,
+            BlockPos basketSurface,
+            Map<BlockPos, BlockState> originalBlocks,
+            Set<BlockPos> protectedPositions
+    ) {
+        int centerSurfaceY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, basketSurface.getX(), basketSurface.getZ()) - 1;
+        int centerDepth = centerSurfaceY - basketSurface.getY();
+        if (centerDepth < BASKET_ENCLOSURE_RECOVERY_MIN_DEPTH || centerDepth > BASKET_ENCLOSURE_RECOVERY_MAX_DEPTH) {
+            return null;
+        }
+
+        int[] lateralOffsets = {
+                0,
+                BASKET_ENCLOSURE_RECOVERY_LATERAL_STEP,
+                -BASKET_ENCLOSURE_RECOVERY_LATERAL_STEP,
+                BASKET_ENCLOSURE_RECOVERY_LATERAL_STEP * 2
+        };
+
+        int maxAttempts = Math.min(lateralOffsets.length - 1, BASKET_ENCLOSURE_RECOVERY_MAX_LAVA_REROUTE_ATTEMPTS);
+        for (int attempt = 0; attempt <= maxAttempts; attempt++) {
+            if (buildBasketRecoveryCorridor(
+                    world,
+                    teeSurface,
+                    basketSurface,
+                    lateralOffsets[attempt],
+                    originalBlocks,
+                    protectedPositions
+            )) {
+                return basketSurface;
+            }
+        }
+
+        return null;
+    }
+
+    private static boolean buildBasketRecoveryCorridor(
+            ServerWorld world,
+            BlockPos teeSurface,
+            BlockPos basketSurface,
+            int lateralOffset,
+            Map<BlockPos, BlockState> originalBlocks,
+            Set<BlockPos> protectedPositions
+    ) {
+        int dx = teeSurface.getX() - basketSurface.getX();
+        int dz = teeSurface.getZ() - basketSurface.getZ();
+        int stepsToTee = Math.max(Math.abs(dx), Math.abs(dz));
+        if (stepsToTee < 4) {
+            return false;
+        }
+
+        int maxSteps = Math.min(stepsToTee, Math.max(24, BASKET_ENCLOSURE_RECOVERY_MAX_DEPTH * 3));
+        int halfWidth = Math.max(1, BASKET_ENCLOSURE_RECOVERY_WIDTH / 2);
+        int sideX = -Integer.compare(dz, 0);
+        int sideZ = Integer.compare(dx, 0);
+        if (sideX == 0 && sideZ == 0) {
+            sideX = 1;
+            sideZ = 0;
+        }
+
+        int currentY = basketSurface.getY();
+        int emergedSteps = 0;
+
+        for (int step = 0; step <= maxSteps; step++) {
+            double t = step / (double) stepsToTee;
+            int rowX = (int) Math.round(basketSurface.getX() + (dx * t)) + (sideX * lateralOffset);
+            int rowZ = (int) Math.round(basketSurface.getZ() + (dz * t)) + (sideZ * lateralOffset);
+            int localSurfaceY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, rowX, rowZ) - 1;
+
+            if (currentY < localSurfaceY) {
+                int remainingSteps = Math.max(1, maxSteps - step + 1);
+                int remainingRise = localSurfaceY - currentY;
+                int climb = 1;
+                if (remainingRise > remainingSteps) {
+                    climb = 2;
+                }
+                currentY += Math.min(2, climb);
+            }
+
+            if (rowHasLava(world, rowX, rowZ, currentY, halfWidth)) {
+                return false;
+            }
+
+            carveRecoveryRow(
+                    world,
+                    rowX,
+                    rowZ,
+                    currentY,
+                    halfWidth,
+                    originalBlocks,
+                    protectedPositions
+            );
+
+            if (currentY >= localSurfaceY) {
+                emergedSteps++;
+            } else {
+                emergedSteps = 0;
+            }
+
+            if (emergedSteps >= 4) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean rowHasLava(ServerWorld world, int rowX, int rowZ, int rowY, int halfWidth) {
+        for (int dx = -halfWidth; dx <= halfWidth; dx++) {
+            for (int dz = -halfWidth; dz <= halfWidth; dz++) {
+                int x = rowX + dx;
+                int z = rowZ + dz;
+                if (isLavaColumn(world, x, z, rowY)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean isLavaColumn(ServerWorld world, int x, int z, int referenceY) {
+        int worldSurfaceY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z) - 1;
+        BlockPos worldSurface = new BlockPos(x, worldSurfaceY, z);
+        BlockState surfaceState = world.getBlockState(worldSurface);
+        if (surfaceState.isOf(Blocks.LAVA) || surfaceState.getFluidState().isOf(net.minecraft.fluid.Fluids.LAVA)) {
+            return true;
+        }
+
+        for (int y = Math.max(world.getBottomY() + 1, referenceY - 2); y <= referenceY + 2; y++) {
+            BlockState state = world.getBlockState(new BlockPos(x, y, z));
+            if (state.isOf(Blocks.LAVA) || state.getFluidState().isOf(net.minecraft.fluid.Fluids.LAVA)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static void carveRecoveryRow(
+            ServerWorld world,
+            int rowX,
+            int rowZ,
+            int rowY,
+            int halfWidth,
+            Map<BlockPos, BlockState> originalBlocks,
+            Set<BlockPos> protectedPositions
+    ) {
+        for (int dx = -halfWidth; dx <= halfWidth; dx++) {
+            for (int dz = -halfWidth; dz <= halfWidth; dz++) {
+                int x = rowX + dx;
+                int z = rowZ + dz;
+
+                BlockPos center = new BlockPos(x, rowY, z);
+                if (isProtected(protectedPositions, center)) {
+                    continue;
+                }
+
+                if (isWaterCrossingColumn(world, x, z)) {
+                    ensureWaterLandingSurface(world, center, 1, originalBlocks, protectedPositions);
+                }
+
+                setTrackedBlock(world, center, Blocks.GRASS_BLOCK.getDefaultState(), originalBlocks);
+
+                BlockPos below = center.down();
+                if (!world.getBlockState(below).isSolidBlock(world, below) || !world.getBlockState(below).getFluidState().isEmpty()) {
+                    setTrackedBlock(world, below, Blocks.DIRT.getDefaultState(), originalBlocks);
+                }
+
+                int localSurfaceY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z) - 1;
+                int clearTop = Math.max(rowY + BASKET_ENCLOSURE_RECOVERY_HEADROOM, localSurfaceY + 2);
+                for (int y = rowY + 1; y <= clearTop; y++) {
+                    BlockPos clearPos = new BlockPos(x, y, z);
+                    if (isProtected(protectedPositions, clearPos)) {
+                        continue;
+                    }
+                    BlockState state = world.getBlockState(clearPos);
+                    if (state.isAir() && state.getFluidState().isEmpty()) {
+                        continue;
+                    }
+                    setTrackedBlock(world, clearPos, Blocks.AIR.getDefaultState(), originalBlocks);
+                }
+            }
+        }
     }
 
     private static boolean isPlayableBasketSurface(ServerWorld world, BlockPos pos) {

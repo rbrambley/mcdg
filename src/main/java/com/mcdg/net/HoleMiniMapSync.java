@@ -29,6 +29,8 @@ public final class HoleMiniMapSync {
             int totalStrokes,
             int cumulativeParDelta,
             boolean strictMode,
+            int strictSurfacePresetOrdinal,
+            int corridorHalfWidth,
             boolean hasAlternateAnchor,
             int alternateAnchorX,
             int alternateAnchorZ,
@@ -53,6 +55,8 @@ public final class HoleMiniMapSync {
                     buf.readVarInt(),
                     buf.readVarInt(),
                     buf.readBoolean(),
+                        buf.readVarInt(),
+                        buf.readVarInt(),
                     buf.readBoolean(),
                     buf.readVarInt(),
                     buf.readVarInt(),
@@ -78,6 +82,8 @@ public final class HoleMiniMapSync {
             buf.writeVarInt(totalStrokes);
             buf.writeVarInt(cumulativeParDelta);
             buf.writeBoolean(strictMode);
+            buf.writeVarInt(strictSurfacePresetOrdinal);
+            buf.writeVarInt(corridorHalfWidth);
             buf.writeBoolean(hasAlternateAnchor);
             buf.writeVarInt(alternateAnchorX);
             buf.writeVarInt(alternateAnchorZ);
@@ -85,7 +91,7 @@ public final class HoleMiniMapSync {
         }
 
         public static Payload inactive() {
-            return new Payload(false, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, false, false, 0, 0, 0);
+            return new Payload(false, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, false, 0, 0, false, 0, 0, 0);
         }
 
         public static Payload active(
@@ -101,6 +107,8 @@ public final class HoleMiniMapSync {
                 int totalStrokes,
                 int cumulativeParDelta,
                 boolean strictMode,
+                int strictSurfacePresetOrdinal,
+                int corridorHalfWidth,
                 boolean hasAlternateAnchor,
                 int alternateAnchorX,
                 int alternateAnchorZ,
@@ -120,6 +128,8 @@ public final class HoleMiniMapSync {
                     totalStrokes,
                     cumulativeParDelta,
                     strictMode,
+                    strictSurfacePresetOrdinal,
+                    corridorHalfWidth,
                     hasAlternateAnchor,
                     alternateAnchorX,
                     alternateAnchorZ,

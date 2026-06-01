@@ -19,10 +19,10 @@ import net.minecraft.world.Heightmap;
 import net.minecraft.world.biome.Biome;
 
 public final class CoursePlacementValidator {
-    private static final int LANDING_GAP_WARNING_BLOCKS = 95;
+    private static final int LANDING_GAP_WARNING_BLOCKS = 80;
     // Keep strict landing-gap validation, but avoid one-block false fails from surface sampling variance.
-    private static final int LANDING_GAP_FAIL_BLOCKS = 120;
-    private static final int ALT_ROUTE_REQUIRED_CARRY_BLOCKS = 72;
+    private static final int LANDING_GAP_FAIL_BLOCKS = 91;
+    private static final int ALT_ROUTE_REQUIRED_CARRY_BLOCKS = 91;
     private static final int LANDING_SCAN_RADIUS = 6;
     private static final int TEE_LAUNCH_CHECK_DISTANCE = 22;
     private static final int TEE_LAUNCH_CHECK_HALF_WIDTH = 3;
@@ -129,27 +129,42 @@ public final class CoursePlacementValidator {
                 holeFailed = true;
             }
 
-            int longestGap = computeLongestWaterCarryGap(world, teePos, basketPos.down());
-            maxLandingGapObserved = Math.max(maxLandingGapObserved, longestGap);
+            int directLongestGap = computeLongestWaterCarryGap(world, teePos, basketPos.down());
             BlockPos alternateAnchor = placedCourseState.holeAlternateAnchors().get(holeIndex);
-            if (longestGap > ALT_ROUTE_REQUIRED_CARRY_BLOCKS && alternateAnchor == null) {
+            int routeLongestGap = directLongestGap;
+            if (alternateAnchor != null) {
+                int teeToAnchorGap = computeLongestWaterCarryGap(world, teePos, alternateAnchor);
+                int anchorToBasketGap = computeLongestWaterCarryGap(world, alternateAnchor, basketPos.down());
+                routeLongestGap = Math.max(teeToAnchorGap, anchorToBasketGap);
+            }
+            maxLandingGapObserved = Math.max(maxLandingGapObserved, routeLongestGap);
+            if (hole.par() >= 5 && alternateAnchor == null) {
                 issues.add(new ValidationIssue(
                         holeIndex,
-                        "alternate_route_missing",
-                        "Long water carry (" + longestGap + " blocks) requires alternate fairway anchor.",
+                        "par5_alternate_route_missing",
+                        "Par 5 holes require an alternate fairway anchor.",
                         midpoint(teePos, basketPos.down())
                 ));
                 holeFailed = true;
             }
-            if (longestGap > LANDING_GAP_FAIL_BLOCKS) {
+            if (directLongestGap > ALT_ROUTE_REQUIRED_CARRY_BLOCKS && alternateAnchor == null) {
                 issues.add(new ValidationIssue(
                         holeIndex,
-                        "landing_gap_too_long",
-                        "Longest no-landing gap is " + longestGap + " blocks (max " + LANDING_GAP_FAIL_BLOCKS + ").",
+                        "alternate_route_missing",
+                        "Long water carry (" + directLongestGap + " blocks) requires alternate fairway anchor.",
                         midpoint(teePos, basketPos.down())
                 ));
                 holeFailed = true;
-            } else if (longestGap > LANDING_GAP_WARNING_BLOCKS) {
+            }
+            if (routeLongestGap > LANDING_GAP_FAIL_BLOCKS) {
+                issues.add(new ValidationIssue(
+                        holeIndex,
+                        "landing_gap_too_long",
+                        "Longest no-landing gap on playable route is " + routeLongestGap + " blocks (max " + LANDING_GAP_FAIL_BLOCKS + ").",
+                        midpoint(teePos, basketPos.down())
+                ));
+                holeFailed = true;
+            } else if (routeLongestGap > LANDING_GAP_WARNING_BLOCKS) {
                 warningLandingGaps++;
             }
 

@@ -128,6 +128,13 @@ public final class HoleProgressTracker {
                     state.holeStrokes()
                 );
                 int cumulativeParDelta = state.totalStrokes() - runningExpectedThrows;
+                int corridorHalfWidth = strictCorridorHalfWidth(
+                    currentHole,
+                    (ServerWorld) player.getWorld(),
+                    tee,
+                    basket,
+                    rulesetManager
+                );
 
                 BlockPos mapFocus = player.getBlockPos();
                 HoleMiniMapSync.Payload miniMapPayload = buildMiniMapPayload(
@@ -141,6 +148,8 @@ public final class HoleProgressTracker {
                         state.lie(),
                         mapFocus,
                         rulesetManager.isStrict(),
+                        rulesetManager.getStrictSurfacePreset().ordinal(),
+                        corridorHalfWidth,
                         alternateAnchor
                 );
 
@@ -319,6 +328,8 @@ public final class HoleProgressTracker {
             BlockPos lie,
             BlockPos mapFocus,
             boolean strictMode,
+                int strictSurfacePresetOrdinal,
+                int corridorHalfWidth,
             BlockPos alternateAnchor
     ) {
         int span;
@@ -350,6 +361,8 @@ public final class HoleProgressTracker {
             totalStrokes,
             cumulativeParDelta,
                 strictMode,
+                strictSurfacePresetOrdinal,
+                corridorHalfWidth,
                 alternateAnchor != null,
                 alternateAnchor == null ? 0 : alternateAnchor.getX(),
                 alternateAnchor == null ? 0 : alternateAnchor.getZ(),

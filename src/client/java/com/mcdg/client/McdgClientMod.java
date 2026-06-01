@@ -75,6 +75,10 @@ public final class McdgClientMod implements ClientModInitializer {
     private static final int HUD_CARD_HEADER_BG = 0xB01B2638;
     private static final int HUD_CARD_TEXT = 0xE8EEF7;
     private static final int HUD_CARD_MUTED_TEXT = 0xAAB8CC;
+    private static final int HAZARD_OVERLAY_ARGB = 0x26FF9A32;
+    private static final int HAZARD_SAMPLE_STEP_PX = 3;
+    private static final int BASKET_GREEN_RADIUS_BLOCKS = 7;
+    private static final int BASKET_GREEN_HEIGHT_BLOCKS = 8;
     private static final String[] COMPASS_8 = { "S", "SW", "W", "NW", "N", "NE", "E", "SE" };
         private static final int[] WAYPOINT_COLORS = {
             0xFFFF4D4D,
@@ -193,6 +197,8 @@ public final class McdgClientMod implements ClientModInitializer {
                         payload.totalStrokes(),
                         payload.cumulativeParDelta(),
                         payload.strictMode(),
+                        payload.strictSurfacePresetOrdinal(),
+                        payload.corridorHalfWidth(),
                         payload.hasAlternateAnchor(),
                         payload.alternateAnchorX(),
                         payload.alternateAnchorZ(),
@@ -358,6 +364,22 @@ public final class McdgClientMod implements ClientModInitializer {
 
             MiniMapState state = miniMapState;
             if (state != null && (System.currentTimeMillis() - miniMapReceivedAtMs) <= MINIMAP_STALE_TIMEOUT_MS) {
+                drawMiniMapStrictHazardOverlay(
+                    drawContext,
+                    client,
+                    state,
+                    playerWorldX,
+                    playerWorldZ,
+                    mapCenterX,
+                    mapCenterY,
+                    mapScale,
+                    mapRotationDegrees,
+                    hudAlpha,
+                    mapCenterX,
+                    mapCenterY,
+                    mapRadius
+                );
+
                 drawMiniMapHoleGuides(
                         drawContext,
                         state,
@@ -668,6 +690,216 @@ public final class McdgClientMod implements ClientModInitializer {
         };
     }
 
+    private static void drawMiniMapStrictHazardOverlay(
+            DrawContext drawContext,
+            MinecraftClient client,
+            MiniMapState state,
+            double centerWorldX,
+            double centerWorldZ,
+            int mapCenterX,
+            int mapCenterY,
+            float mapScale,
+            float mapRotationDegrees,
+            float hudAlpha,
+            float clipCenterX,
+            float clipCenterY,
+            float clipRadius
+    ) {
+        if (!state.strictMode() || client.world == null) {
+            return;
+        }
+
+        ClientWorld world = client.world;
+        int overlayColor = withAlpha(HAZARD_OVERLAY_ARGB, hudAlpha);
+        int sampleStep = Math.max(2, HAZARD_SAMPLE_STEP_PX);
+        float clipRadiusSq = clipRadius * clipRadius;
+        int minY = Math.round(mapCenterY - clipRadius);
+        int maxY = Math.round(mapCenterY + clipRadius);
+        int minX = Math.round(mapCenterX - clipRadius);
+        int maxX = Math.round(mapCenterX + clipRadius);
+
+        BlockPos tee = new BlockPos(state.teeX(), 0, state.teeZ());
+        BlockPos basket = new BlockPos(state.basketX(), 0, state.basketZ());
+        BlockPos basketSurface = basket.down();
+        StrictSurfacePresetClient preset = strictPresetFromOrdinal(state.strictSurfacePresetOrdinal());
+
+        for (int py = minY; py <= maxY; py += sampleStep) {
+            for (int px = minX; px <= maxX; px += sampleStep) {
+                if (!isPointInsideCircle(px, py, clipCenterX, clipCenterY, clipRadiusSq)) {
+                    continue;
+                }
+
+                float screenDx = px - mapCenterX;
+                float screenDz = py - mapCenterY;
+                float[] worldOffsetScaled = rotateMiniMapVector(screenDx, screenDz, -mapRotationDegrees);
+                double worldX = centerWorldX + (worldOffsetScaled[0] / mapScale);
+                double worldZ = centerWorldZ + (worldOffsetScaled[1] / mapScale);
+                int blockX = net.minecraft.util.math.MathHelper.floor(worldX);
+                int blockZ = net.minecraft.util.math.MathHelper.floor(worldZ);
+                int feetY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, blockX, blockZ);
+                BlockPos feet = new BlockPos(blockX, feetY, blockZ);
+
+                if (!isHazardPenaltyAt(world, feet, tee, basket, basketSurface, state.corridorHalfWidth(), preset)) {
+                    continue;
+                }
+
+                fillRectClipped(drawContext, px, py, sampleStep, sampleStep, overlayColor, clipCenterX, clipCenterY, clipRadiusSq);
+            }
+        }
+    }
+
+    private static boolean isHazardPenaltyAt(
+            ClientWorld world,
+            BlockPos feet,
+            BlockPos tee,
+            BlockPos basket,
+            BlockPos basketSurface,
+            int corridorHalfWidth,
+            StrictSurfacePresetClient preset
+    ) {
+        // OB logic first: we only draw hazard, not OB.
+        if (isFluidPenaltyZoneClient(world, feet)) {
+            return false;
+        }
+
+        if (distanceFromPointToSegmentXZ(feet, tee, basket) > corridorHalfWidth) {
+            return false;
+        }
+
+        if (isBasketGreenSafeClient(feet, basketSurface)) {
+            return false;
+        }
+
+        boolean slopeHazard = preset != StrictSurfacePresetClient.FAST
+                && isSteepSlopeHazardClient(world, feet, preset == StrictSurfacePresetClient.TOURNAMENT ? 3 : 4);
+        if (slopeHazard) {
+            return true;
+        }
+
+        return preset == StrictSurfacePresetClient.TOURNAMENT
+                && isDenseRoughHazardClient(world, feet, 11);
+    }
+
+    private static StrictSurfacePresetClient strictPresetFromOrdinal(int ordinal) {
+        return switch (ordinal) {
+            case 0 -> StrictSurfacePresetClient.FAST;
+            case 2 -> StrictSurfacePresetClient.TOURNAMENT;
+            default -> StrictSurfacePresetClient.BALANCED;
+        };
+    }
+
+    private static boolean isBasketGreenSafeClient(BlockPos feet, BlockPos basketSurface) {
+        int dx = feet.getX() - basketSurface.getX();
+        int dz = feet.getZ() - basketSurface.getZ();
+        int dy = feet.getY() - basketSurface.getY();
+        return (dx * dx) + (dz * dz) <= (BASKET_GREEN_RADIUS_BLOCKS * BASKET_GREEN_RADIUS_BLOCKS + 1)
+                && dy >= 0
+                && dy <= BASKET_GREEN_HEIGHT_BLOCKS;
+    }
+
+    private static boolean isFluidPenaltyZoneClient(ClientWorld world, BlockPos feet) {
+        return world.getFluidState(feet).isIn(FluidTags.WATER)
+                || world.getFluidState(feet).isIn(FluidTags.LAVA)
+                || world.getFluidState(feet.down()).isIn(FluidTags.WATER)
+                || world.getFluidState(feet.down()).isIn(FluidTags.LAVA);
+    }
+
+    private static boolean isSteepSlopeHazardClient(ClientWorld world, BlockPos feet, int slopeDeltaThreshold) {
+        int centerY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, feet.getX(), feet.getZ()) - 1;
+        int[] offsets = { -2, 0, 2 };
+        for (int dx : offsets) {
+            for (int dz : offsets) {
+                if (dx == 0 && dz == 0) {
+                    continue;
+                }
+                int sampleY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, feet.getX() + dx, feet.getZ() + dz) - 1;
+                if (Math.abs(sampleY - centerY) >= slopeDeltaThreshold) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean isDenseRoughHazardClient(ClientWorld world, BlockPos feet, int threshold) {
+        int roughHits = 0;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                int x = feet.getX() + dx;
+                int z = feet.getZ() + dz;
+                int topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
+                BlockPos surface = new BlockPos(x, topY, z);
+                BlockState surfaceState = world.getBlockState(surface);
+                BlockState headState = world.getBlockState(surface.up());
+                if (isRoughMaterialClient(surfaceState) || isRoughMaterialClient(headState)) {
+                    roughHits++;
+                }
+            }
+        }
+        return roughHits >= threshold;
+    }
+
+    private static boolean isRoughMaterialClient(BlockState state) {
+        return state.isIn(BlockTags.LOGS)
+                || state.isIn(BlockTags.LEAVES)
+                || state.isOf(Blocks.VINE)
+                || state.isOf(Blocks.SWEET_BERRY_BUSH)
+                || state.isOf(Blocks.CACTUS);
+    }
+
+    private static double distanceFromPointToSegmentXZ(BlockPos point, BlockPos start, BlockPos end) {
+        double px = point.getX() + 0.5;
+        double pz = point.getZ() + 0.5;
+        double sx = start.getX() + 0.5;
+        double sz = start.getZ() + 0.5;
+        double ex = end.getX() + 0.5;
+        double ez = end.getZ() + 0.5;
+
+        double dx = ex - sx;
+        double dz = ez - sz;
+        double lengthSquared = dx * dx + dz * dz;
+        if (lengthSquared < 1.0e-6) {
+            double mx = px - sx;
+            double mz = pz - sz;
+            return Math.sqrt(mx * mx + mz * mz);
+        }
+
+        double t = ((px - sx) * dx + (pz - sz) * dz) / lengthSquared;
+        t = Math.max(0.0, Math.min(1.0, t));
+
+        double closestX = sx + (t * dx);
+        double closestZ = sz + (t * dz);
+        double mx = px - closestX;
+        double mz = pz - closestZ;
+        return Math.sqrt(mx * mx + mz * mz);
+    }
+
+    private static void fillRectClipped(
+            DrawContext drawContext,
+            int x,
+            int y,
+            int width,
+            int height,
+            int color,
+            float clipCenterX,
+            float clipCenterY,
+            float clipRadiusSq
+    ) {
+        for (int py = y; py < y + height; py++) {
+            for (int px = x; px < x + width; px++) {
+                if (isPointInsideCircle(px, py, clipCenterX, clipCenterY, clipRadiusSq)) {
+                    drawContext.fill(px, py, px + 1, py + 1, color);
+                }
+            }
+        }
+    }
+
+    private enum StrictSurfacePresetClient {
+        FAST,
+        BALANCED,
+        TOURNAMENT
+    }
+
     private static void drawMiniMapHoleGuides(
             DrawContext drawContext,
             MiniMapState state,
@@ -808,36 +1040,6 @@ public final class McdgClientMod implements ClientModInitializer {
         drawContext.drawTextWithShadow(client.textRenderer, Text.literal(label), Math.round(x - (textWidth / 2.0f)), Math.round(y - 4.0f), withAlpha(color, hudAlpha));
     }
 
-    private static void drawMiniMapCircularMask(DrawContext drawContext, int left, int top, int size, int fillColor) {
-        float center = (size - 1) / 2.0f;
-        float radius = Math.max(1.0f, center - 1.0f);
-        for (int y = 0; y < size; y++) {
-            float dy = y - center;
-            float chord = (float) Math.sqrt(Math.max(0.0f, (radius * radius) - (dy * dy)));
-            int innerLeft = Math.max(0, (int) Math.floor(center - chord));
-            int innerRight = Math.min(size, (int) Math.ceil(center + chord) + 1);
-            if (innerLeft > 0) {
-                drawContext.fill(left, top + y, left + innerLeft, top + y + 1, fillColor);
-            }
-            if (innerRight < size) {
-                drawContext.fill(left + innerRight, top + y, left + size, top + y + 1, fillColor);
-            }
-        }
-    }
-
-    private static void drawMiniMapLegend(DrawContext drawContext, MinecraftClient client, int startX, int y, float hudAlpha) {
-        drawLegendSwatch(drawContext, client, startX, y, 0xFF3F76E4, "W", hudAlpha);
-        drawLegendSwatch(drawContext, client, startX + 16, y, 0xFF4C8E2F, "T", hudAlpha);
-        drawLegendSwatch(drawContext, client, startX + 32, y, 0xFFA0A0A0, "R", hudAlpha);
-        drawLegendSwatch(drawContext, client, startX + 48, y, 0xFFFFFFFF, "S", hudAlpha);
-        drawLegendSwatch(drawContext, client, startX + 64, y, 0xFFCC8D32, "Hz", hudAlpha);
-        drawLegendSwatch(drawContext, client, startX + 84, y, 0xFF3F76E4, "OB", hudAlpha);
-    }
-
-    private static void drawLegendSwatch(DrawContext drawContext, MinecraftClient client, int x, int y, int color, String label, float hudAlpha) {
-        drawContext.fill(x, y + 2, x + 4, y + 6, withAlpha(color, hudAlpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(label), x + 6, y, withAlpha(0xD3E7FF, hudAlpha));
-    }
 
     private static int scaleColor(int argb, float multiplier) {
         int a = (argb >>> 24) & 0xFF;
@@ -1201,36 +1403,6 @@ public final class McdgClientMod implements ClientModInitializer {
         } catch (IOException ex) {
             LOGGER.warn("Unable to save waypoint store for context {}", loadedWaypointContextKey, ex);
         }
-    }
-
-    private static void drawLine(DrawContext drawContext, int x0, int y0, int x1, int y1, int color) {
-        int dx = Math.abs(x1 - x0);
-        int sx = x0 < x1 ? 1 : -1;
-        int dy = -Math.abs(y1 - y0);
-        int sy = y0 < y1 ? 1 : -1;
-        int err = dx + dy;
-
-        int x = x0;
-        int y = y0;
-        while (true) {
-            drawContext.fill(x, y, x + 1, y + 1, color);
-            if (x == x1 && y == y1) {
-                break;
-            }
-            int e2 = 2 * err;
-            if (e2 >= dy) {
-                err += dy;
-                x += sx;
-            }
-            if (e2 <= dx) {
-                err += dx;
-                y += sy;
-            }
-        }
-    }
-
-    private static void drawDot(DrawContext drawContext, int x, int y, int radius, int color) {
-        drawContext.fill(x - radius, y - radius, x + radius + 1, y + radius + 1, color);
     }
 
     private static void drawDotCircleClipped(
@@ -1963,6 +2135,8 @@ public final class McdgClientMod implements ClientModInitializer {
             int totalStrokes,
             int cumulativeParDelta,
             boolean strictMode,
+            int strictSurfacePresetOrdinal,
+            int corridorHalfWidth,
             boolean hasAlternateAnchor,
             int alternateAnchorX,
             int alternateAnchorZ,
