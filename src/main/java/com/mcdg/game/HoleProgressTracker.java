@@ -210,12 +210,14 @@ public final class HoleProgressTracker {
                             cumulativeParDelta
                     );
                 }
-                // Status action-bar removed in favor of right-side HUD overlays on the client.
-
                 if (!suppressHud && (server.getTicks() % 20) == 0) {
                     if (player.getWorld() instanceof ServerWorld serverWorld) {
                         spawnBreadcrumbLine(serverWorld, player, basket);
                     }
+                }
+
+                if ((server.getTicks() % 20) == 0) {
+                    sendTurnActionBar(server, player, state.currentHole());
                 }
 
                 // Score completion only from the resolved lie, so walking into the basket does not count.
@@ -333,6 +335,37 @@ public final class HoleProgressTracker {
             par += hole.par();
         }
         return par;
+    }
+
+    private static void sendTurnActionBar(MinecraftServer server, ServerPlayerEntity viewer, int hole) {
+        UUID activeTurnPlayerId = ACTIVE_TURN_PLAYER_BY_HOLE.get(hole);
+        if (activeTurnPlayerId == null) {
+            return;
+        }
+
+        long startedAt = ACTIVE_TURN_STARTED_AT_BY_HOLE.getOrDefault(hole, (long) server.getTicks());
+        long elapsedTicks = Math.max(0, server.getTicks() - startedAt);
+        long remainingTicks = Math.max(0, TURN_TIMEOUT_TICKS - elapsedTicks);
+        long remainingSeconds = (remainingTicks + 19) / 20;
+
+        ServerPlayerEntity activeTurnPlayer = server.getPlayerManager().getPlayer(activeTurnPlayerId);
+        String timer = formatTurnTimer(remainingSeconds);
+        if (activeTurnPlayerId.equals(viewer.getUuid())) {
+            viewer.sendMessage(Text.literal("Your turn | " + timer + " left"), true);
+            return;
+        }
+
+        String throwerName = activeTurnPlayer == null
+                ? "Player"
+                : activeTurnPlayer.getGameProfile().getName();
+        viewer.sendMessage(Text.literal("Turn: " + throwerName + " | " + timer + " left"), true);
+    }
+
+    private static String formatTurnTimer(long remainingSeconds) {
+        long clamped = Math.max(0, remainingSeconds);
+        long minutes = clamped / 60;
+        long seconds = clamped % 60;
+        return String.format("%d:%02d", minutes, seconds);
     }
 
     private static void enforceTurnTimeouts(
