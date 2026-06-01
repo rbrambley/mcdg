@@ -15,6 +15,14 @@
   - `gradle smokeRegression`: PASS.
   - `gradle build`: PASS.
 
+## Multiplayer Compatibility Roadmap (Later)
+
+- Add an optional compatibility mode for mixed clients (server mod required, client mod optional).
+- In compatibility mode, keep core server-authoritative gameplay available while disabling client-only HUD/cinematic features for vanilla clients.
+- Maintain an explicit support matrix:
+  - same-version modded clients: full feature set,
+  - vanilla clients: reduced feature set.
+
 ## Latest Feature Checkpoint (2026-06-01 Night - Cleanup Relocation + Final Scene Timing)
 
 - Code checkpoint commit: 0141867.
