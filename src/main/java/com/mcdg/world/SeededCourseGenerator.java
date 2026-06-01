@@ -18,9 +18,10 @@ public final class SeededCourseGenerator implements CourseGenerator {
     private static final int PAR5_MIN_FEET = 701;
     private static final int PAR5_MAX_FEET = 1200;
     private static final int PAR4_MIN_FEET = 401;
-    private static final int HOLE_X_SPACING = 220;
-    private static final int HOLE_Z_SPACING = 180;
-    private static final int TEE_JITTER = 80;
+    private static final int HOLE_GRID_COLUMNS = 3;
+    private static final int HOLE_X_SPACING = 320;
+    private static final int HOLE_Z_SPACING = 280;
+    private static final int TEE_JITTER = 48;
     private static final int MIN_FAIRWAY_WIDTH = 4;
     private static final int MAX_FAIRWAY_WIDTH = 10;
     private static final int MAX_HOLE_ATTEMPTS = 25;
@@ -85,13 +86,15 @@ public final class SeededCourseGenerator implements CourseGenerator {
 
     private Hole generateHoleWithRetries(Random random, int baseX, int baseZ, int holeIndex, List<Hole> placedHoles, boolean forcePar5) {
         int maxAttempts = forcePar5 ? MAX_FORCED_PAR5_ATTEMPTS : MAX_HOLE_ATTEMPTS;
+        int columnIndex = (holeIndex - 1) % HOLE_GRID_COLUMNS;
+        int rowIndex = (holeIndex - 1) / HOLE_GRID_COLUMNS;
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
-            int teeX = baseX + (holeIndex * HOLE_X_SPACING) + random.nextInt((TEE_JITTER * 2) + 1) - TEE_JITTER;
-            int teeZ = baseZ + (holeIndex * HOLE_Z_SPACING) + random.nextInt((TEE_JITTER * 2) + 1) - TEE_JITTER;
+            int teeX = baseX + (columnIndex * HOLE_X_SPACING) + random.nextInt((TEE_JITTER * 2) + 1) - TEE_JITTER;
+            int teeZ = baseZ + (rowIndex * HOLE_Z_SPACING) + random.nextInt((TEE_JITTER * 2) + 1) - TEE_JITTER;
 
             int targetDistanceFeet = forcePar5
                     ? randomRange(random, PAR5_MIN_FEET, PAR5_MAX_FEET)
-                    : randomRange(random, MIN_DISTANCE_FEET, MAX_DISTANCE_FEET);
+                    : randomRange(random, MIN_DISTANCE_FEET, PAR4_MAX_FEET);
             int targetDistanceBlocks = Math.max(1, Math.round(targetDistanceFeet / 3.0f));
             double angle = random.nextDouble() * Math.PI * 2.0;
             int basketX = teeX + (int) Math.round(Math.cos(angle) * targetDistanceBlocks);
@@ -106,6 +109,10 @@ public final class SeededCourseGenerator implements CourseGenerator {
             }
 
             if (forcePar5 && actualDistanceFeet < PAR5_MIN_FEET) {
+                continue;
+            }
+
+            if (!forcePar5 && computePar(actualDistanceFeet) >= 5) {
                 continue;
             }
 
@@ -127,8 +134,8 @@ public final class SeededCourseGenerator implements CourseGenerator {
         // Last resort for forced Par 5 slot: generate a stable Par 4 instead of failing the whole round.
         if (forcePar5) {
             for (int attempt = 1; attempt <= MAX_HOLE_ATTEMPTS; attempt++) {
-                int teeX = baseX + (holeIndex * HOLE_X_SPACING) + random.nextInt((TEE_JITTER * 2) + 1) - TEE_JITTER;
-                int teeZ = baseZ + (holeIndex * HOLE_Z_SPACING) + random.nextInt((TEE_JITTER * 2) + 1) - TEE_JITTER;
+                int teeX = baseX + (columnIndex * HOLE_X_SPACING) + random.nextInt((TEE_JITTER * 2) + 1) - TEE_JITTER;
+                int teeZ = baseZ + (rowIndex * HOLE_Z_SPACING) + random.nextInt((TEE_JITTER * 2) + 1) - TEE_JITTER;
 
                 int targetDistanceFeet = randomRange(random, PAR4_MIN_FEET, PAR4_MAX_FEET);
                 int targetDistanceBlocks = Math.max(1, Math.round(targetDistanceFeet / 3.0f));

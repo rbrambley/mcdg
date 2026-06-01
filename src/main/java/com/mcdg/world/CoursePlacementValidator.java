@@ -29,6 +29,7 @@ public final class CoursePlacementValidator {
     private static final int BASKET_ENCLOSURE_SCAN_RADIUS = 6;
     private static final int BASKET_ENCLOSURE_CENTER_DEPTH_FAIL = 18;
     private static final int BASKET_ENCLOSURE_CENTER_DEPTH_CHECK = 12;
+    private static final int TEE_ENCLOSURE_CENTER_DEPTH_FAIL = 12;
     private static final int BASKET_ENCLOSURE_WALL_DEPTH_THRESHOLD = 8;
     private static final double BASKET_ENCLOSURE_HIGH_WALL_RATIO = 0.82;
     private static final int FINISH_APPROACH_SCAN_DISTANCE = 32;
@@ -75,6 +76,16 @@ public final class CoursePlacementValidator {
             if (!isSafeLandingSurface(world, teePos)) {
                 issues.add(new ValidationIssue(holeIndex, "tee_unsafe", "Tee center is unsafe (fluid/air/canopy-like position).", teePos));
                 unsafeTees++;
+                holeFailed = true;
+            }
+
+            if (isTeeDeeplyEnclosed(world, teePos)) {
+                issues.add(new ValidationIssue(
+                        holeIndex,
+                        "tee_deeply_enclosed",
+                        "Tee is deeply enclosed below surrounding terrain; relocate to a surface-playable area.",
+                        teePos
+                ));
                 holeFailed = true;
             }
 
@@ -398,6 +409,11 @@ public final class CoursePlacementValidator {
 
         return totalSamples > 0
                 && highWallSamples >= Math.max(12, (int) Math.ceil(totalSamples * BASKET_ENCLOSURE_HIGH_WALL_RATIO));
+    }
+
+    private static boolean isTeeDeeplyEnclosed(ServerWorld world, BlockPos teeSurface) {
+        int surfaceY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, teeSurface.getX(), teeSurface.getZ()) - 1;
+        return (surfaceY - teeSurface.getY()) >= TEE_ENCLOSURE_CENTER_DEPTH_FAIL;
     }
 
     private static FinishPlayability evaluateFinishPlayability(ServerWorld world, BlockPos finishOrigin, BlockPos basketBase) {

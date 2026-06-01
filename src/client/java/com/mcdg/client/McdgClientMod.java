@@ -75,8 +75,8 @@ public final class McdgClientMod implements ClientModInitializer {
     private static final int HUD_CARD_HEADER_BG = 0xB01B2638;
     private static final int HUD_CARD_TEXT = 0xE8EEF7;
     private static final int HUD_CARD_MUTED_TEXT = 0xAAB8CC;
-    private static final int HAZARD_OVERLAY_ARGB = 0x26FF9A32;
-    private static final int HAZARD_SAMPLE_STEP_PX = 3;
+    private static final int HAZARD_OVERLAY_ARGB = 0x8CFF9A32;
+    private static final int HAZARD_SAMPLE_STEP_PX = 2;
     private static final int BASKET_GREEN_RADIUS_BLOCKS = 7;
     private static final int BASKET_GREEN_HEIGHT_BLOCKS = 8;
     private static final String[] COMPASS_8 = { "S", "SW", "W", "NW", "N", "NE", "E", "SE" };
@@ -736,7 +736,7 @@ public final class McdgClientMod implements ClientModInitializer {
                 double worldZ = centerWorldZ + (worldOffsetScaled[1] / mapScale);
                 int blockX = net.minecraft.util.math.MathHelper.floor(worldX);
                 int blockZ = net.minecraft.util.math.MathHelper.floor(worldZ);
-                int feetY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, blockX, blockZ);
+                int feetY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, blockX, blockZ) - 1;
                 BlockPos feet = new BlockPos(blockX, feetY, blockZ);
 
                 if (!isHazardPenaltyAt(world, feet, tee, basket, basketSurface, state.corridorHalfWidth(), preset)) {

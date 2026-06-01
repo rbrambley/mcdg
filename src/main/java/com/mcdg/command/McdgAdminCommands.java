@@ -290,6 +290,7 @@ public final class McdgAdminCommands {
                                 sendCourseBuildProgressOverlay(barPlayer, 0, totalHoles, 1, 1);
                         }
                 }
+                source.sendFeedback(() -> Text.literal("Starting course placement near your current surface position..."), false);
 
                 try {
                         BlockPos baseOrigin = BlockPos.ofFloored(source.getPosition());
@@ -314,7 +315,7 @@ public final class McdgAdminCommands {
                                         "start-round-attempt-" + attempt
                                 );
 
-                                if (!hasDeeplyEnclosedBasketIssue(attemptReport)) {
+                                if (!hasRetryablePlacementIssue(attemptReport)) {
                                         break;
                                 }
 
@@ -324,7 +325,7 @@ public final class McdgAdminCommands {
                                 if (attempt < maxPlacementAttempts) {
                                         final int nextAttempt = attempt + 1;
                                         source.sendFeedback(() -> Text.literal(
-                                                "Detected deeply enclosed basket placement. Retrying at a nearby surface anchor (attempt "
+                                                "Detected retryable placement issue (enclosure/route gap). Retrying at a nearby surface anchor (attempt "
                                                         + nextAttempt + "/" + maxPlacementAttempts + ")..."
                                         ), false);
                                 }
@@ -337,7 +338,7 @@ public final class McdgAdminCommands {
                                         }
                                 }
                                 source.sendError(Text.literal(
-                                        "Failed to place a surface-playable course after multiple attempts (deeply enclosed basket detected)."
+                                        "Failed to place a surface-playable course after multiple attempts (enclosure/route issue persisted)."
                                 ));
                                 return 0;
                         }
@@ -669,9 +670,13 @@ public final class McdgAdminCommands {
                 return new Course(generated.seed(), generated.name(), normalized);
         }
 
-        private static boolean hasDeeplyEnclosedBasketIssue(CoursePlacementValidator.ValidationReport report) {
+        private static boolean hasRetryablePlacementIssue(CoursePlacementValidator.ValidationReport report) {
                 for (CoursePlacementValidator.ValidationIssue issue : report.issues()) {
-                        if ("basket_deeply_enclosed".equals(issue.code())) {
+                        if ("basket_deeply_enclosed".equals(issue.code())
+                                || "tee_deeply_enclosed".equals(issue.code())
+                                || "par5_alternate_route_missing".equals(issue.code())
+                                || "alternate_route_missing".equals(issue.code())
+                                || "landing_gap_too_long".equals(issue.code())) {
                                 return true;
                         }
                 }
