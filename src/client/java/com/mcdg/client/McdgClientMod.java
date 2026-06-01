@@ -82,7 +82,7 @@ public final class McdgClientMod implements ClientModInitializer {
     private static final int HAZARD_SAMPLE_STEP_PX = 2;
     private static final long ACE_CINEMATIC_DURATION_MS = 3600L;
     private static final long ACE_CINEMATIC_PARTICLE_STEP_MS = 80L;
-    private static final long ROUND_COMPLETE_CINEMATIC_DURATION_MS = 5200L;
+    private static final long ROUND_COMPLETE_CINEMATIC_DURATION_MS = 20000L;
     private static final int BASKET_GREEN_RADIUS_BLOCKS = 7;
     private static final int BASKET_GREEN_HEIGHT_BLOCKS = 8;
     private static final String[] COMPASS_8 = { "S", "SW", "W", "NW", "N", "NE", "E", "SE" };

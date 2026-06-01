@@ -716,7 +716,7 @@ public final class McdgAdminCommands {
                         return 0;
                 }
 
-                evacuatePlayersBeforeCleanup(source, world);
+                evacuatePlayersBeforeCleanup(source, world, placed);
                 placementService.resetPlacedCourse(world, placed);
                 removeJunkDropsNearCourse(world, placed);
                 removeRoundThrowItemsFromCourseWorldPlayers(source, courseManager);
@@ -729,19 +729,76 @@ public final class McdgAdminCommands {
                 return 1;
         }
 
-        private static void evacuatePlayersBeforeCleanup(ServerCommandSource source, ServerWorld world) {
-                BlockPos safeFeet = resolveSafeFeetNear(world, world.getSpawnPos());
-                double tx = safeFeet.getX() + 0.5;
-                double ty = safeFeet.getY() + 1.0;
-                double tz = safeFeet.getZ() + 0.5;
+        private static void evacuatePlayersBeforeCleanup(ServerCommandSource source, ServerWorld world, PlacedCourseState placed) {
+                BlockPos spawnSafeFeet = resolveSafeFeetNear(world, world.getSpawnPos());
+                ServerPlayerEntity sourcePlayer = source.getPlayer();
+                BlockPos sourceAnchorSafeFeet = sourcePlayer != null && sourcePlayer.getWorld().getRegistryKey().equals(world.getRegistryKey())
+                        ? resolveSafeFeetNear(world, sourcePlayer.getBlockPos())
+                        : spawnSafeFeet;
 
                 for (ServerPlayerEntity player : source.getServer().getPlayerManager().getPlayerList()) {
                         if (!player.getWorld().getRegistryKey().equals(world.getRegistryKey())) {
                                 continue;
                         }
-                        player.teleport(tx, ty, tz);
-                        player.sendMessage(Text.literal("Course cleanup in progress. Moved to a safe location."), true);
+
+                        BlockPos targetFeet = resolveSafeFeetNear(world, player.getBlockPos());
+                        String relocationReason = "nearby";
+
+                        if (isWithinPlacedCourseBuffer(placed, targetFeet, 28)) {
+                                targetFeet = sourceAnchorSafeFeet;
+                                relocationReason = "admin";
+                        }
+                        if (isWithinPlacedCourseBuffer(placed, targetFeet, 28)) {
+                                targetFeet = spawnSafeFeet;
+                                relocationReason = "spawn";
+                        }
+
+                        player.teleport(targetFeet.getX() + 0.5, targetFeet.getY() + 1.0, targetFeet.getZ() + 0.5);
+                        if ("nearby".equals(relocationReason)) {
+                                player.sendMessage(Text.literal("Course cleanup in progress. Relocated to a nearby safe location."), true);
+                        } else {
+                                player.sendMessage(Text.literal("Course cleanup in progress. Relocated to an admin safe zone."), true);
+                        }
                 }
+        }
+
+        private static boolean isWithinPlacedCourseBuffer(PlacedCourseState placed, BlockPos pos, int bufferBlocks) {
+                if (placed == null || pos == null || placed.holeTees().isEmpty()) {
+                        return false;
+                }
+
+                int minX = Integer.MAX_VALUE;
+                int maxX = Integer.MIN_VALUE;
+                int minZ = Integer.MAX_VALUE;
+                int maxZ = Integer.MIN_VALUE;
+
+                for (BlockPos tee : placed.holeTees().values()) {
+                        minX = Math.min(minX, tee.getX());
+                        maxX = Math.max(maxX, tee.getX());
+                        minZ = Math.min(minZ, tee.getZ());
+                        maxZ = Math.max(maxZ, tee.getZ());
+                }
+                for (BlockPos basket : placed.holeBaskets().values()) {
+                        minX = Math.min(minX, basket.getX());
+                        maxX = Math.max(maxX, basket.getX());
+                        minZ = Math.min(minZ, basket.getZ());
+                        maxZ = Math.max(maxZ, basket.getZ());
+                }
+                for (BlockPos alternate : placed.holeAlternateAnchors().values()) {
+                        minX = Math.min(minX, alternate.getX());
+                        maxX = Math.max(maxX, alternate.getX());
+                        minZ = Math.min(minZ, alternate.getZ());
+                        maxZ = Math.max(maxZ, alternate.getZ());
+                }
+
+                int expandedMinX = minX - bufferBlocks;
+                int expandedMaxX = maxX + bufferBlocks;
+                int expandedMinZ = minZ - bufferBlocks;
+                int expandedMaxZ = maxZ + bufferBlocks;
+                return pos.getX() >= expandedMinX
+                        && pos.getX() <= expandedMaxX
+                        && pos.getZ() >= expandedMinZ
+                        && pos.getZ() <= expandedMaxZ;
         }
 
         private static void teleportSourcePlayerToHoleOne(
