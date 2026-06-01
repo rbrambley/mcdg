@@ -5,10 +5,13 @@ import com.mcdg.config.McdgConfig;
 import com.mcdg.game.ActiveCourseManager;
 import com.mcdg.game.HoleProgressTracker;
 import com.mcdg.game.McdgItems;
+import com.mcdg.game.PlayerRoundState;
 import com.mcdg.game.PracticeCourseStorage;
+import com.mcdg.game.RoundInventoryCleaner;
 import com.mcdg.game.RoundPresentationService;
 import com.mcdg.game.RoundRespawnHandler;
 import com.mcdg.game.RoundStateManager;
+import com.mcdg.game.ScorecardManager;
 import com.mcdg.game.ThrowAutoTestService;
 import com.mcdg.net.AceCinematicSync;
 import com.mcdg.net.HoleMiniMapSync;
@@ -21,8 +24,13 @@ import com.mcdg.world.PlacementAutoTestService;
 import com.mcdg.world.SeededCourseGenerator;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.api.ModInitializer;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
+import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,6 +91,9 @@ public final class McdgMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::loadPersistedPracticeCourse);
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::maybeStartHeadlessAutoTest);
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::maybeStartAutoStrictSetup);
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
+            server.execute(() -> restoreRoundParticipantOnJoin(handler.player, server))
+        );
         HoleProgressTracker.register(
             ACTIVE_COURSE_MANAGER,
             ROUND_STATE_MANAGER,
@@ -251,5 +262,109 @@ public final class McdgMod implements ModInitializer {
                 );
             }
         });
+    }
+
+    private static void restoreRoundParticipantOnJoin(ServerPlayerEntity player, net.minecraft.server.MinecraftServer server) {
+        if (!ACTIVE_COURSE_MANAGER.isRoundActive()) {
+            return;
+        }
+
+        if (!ACTIVE_COURSE_MANAGER.getActiveParticipantIds().contains(player.getUuid())) {
+            return;
+        }
+
+        var placed = ACTIVE_COURSE_MANAGER.getPlacedCourseState().orElse(null);
+        if (placed == null) {
+            return;
+        }
+
+        ServerWorld world = server.getWorld(placed.worldKey());
+        if (world == null) {
+            return;
+        }
+
+        BlockPos targetLie = null;
+        var existingState = ROUND_STATE_MANAGER.getState(player.getUuid()).orElse(null);
+        if (existingState != null) {
+            targetLie = existingState.lie();
+        } else {
+            BlockPos firstTee = placed.holeTees().get(1);
+            if (firstTee != null) {
+                targetLie = resolveSafeFeetNear(world, firstTee);
+                ROUND_STATE_MANAGER.startRoundForPlayer(player.getUuid(), targetLie);
+            }
+        }
+
+        RoundInventoryCleaner.restoreRoundInventory(player);
+        ScorecardManager.ensureScorecardInInventory(player);
+
+        if (targetLie != null && player.getWorld().getRegistryKey().equals(world.getRegistryKey())) {
+            BlockPos safeLie = resolveSafeFeetNear(world, targetLie);
+            player.teleport(safeLie.getX() + 0.5, safeLie.getY() + 1.0, safeLie.getZ() + 0.5);
+        }
+
+        PlayerRoundState currentState = ROUND_STATE_MANAGER.getState(player.getUuid()).orElse(null);
+        int hole = currentState == null ? 1 : currentState.currentHole();
+        player.sendMessage(Text.literal("Rejoined active round at hole " + hole + "."), true);
+    }
+
+    private static BlockPos resolveSafeFeetNear(ServerWorld world, BlockPos preferredFeet) {
+        if (isStandableFeet(world, preferredFeet)) {
+            return preferredFeet;
+        }
+
+        for (int dy = 1; dy <= 6; dy++) {
+            BlockPos up = preferredFeet.up(dy);
+            if (isStandableFeet(world, up)) {
+                return up;
+            }
+            BlockPos down = preferredFeet.down(dy);
+            if (isStandableFeet(world, down)) {
+                return down;
+            }
+        }
+
+        for (int radius = 1; radius <= 6; radius++) {
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dz = -radius; dz <= radius; dz++) {
+                    BlockPos candidate = preferredFeet.add(dx, 0, dz);
+                    if (isStandableFeet(world, candidate)) {
+                        return candidate;
+                    }
+                    for (int dy = 1; dy <= 4; dy++) {
+                        BlockPos up = candidate.up(dy);
+                        if (isStandableFeet(world, up)) {
+                            return up;
+                        }
+                        BlockPos down = candidate.down(dy);
+                        if (isStandableFeet(world, down)) {
+                            return down;
+                        }
+                    }
+                }
+            }
+        }
+
+        return preferredFeet;
+    }
+
+    private static boolean isStandableFeet(ServerWorld world, BlockPos feet) {
+        var feetState = world.getBlockState(feet);
+        var headState = world.getBlockState(feet.up());
+        if (!feetState.getCollisionShape(world, feet).isEmpty()) {
+            return false;
+        }
+        if (!headState.getCollisionShape(world, feet.up()).isEmpty()) {
+            return false;
+        }
+
+        BlockPos below = feet.down();
+        var belowState = world.getBlockState(below);
+        if (belowState.isAir()) {
+            return false;
+        }
+
+        var belowShape = belowState.getCollisionShape(world, below);
+        return !belowShape.isEmpty();
     }
 }
