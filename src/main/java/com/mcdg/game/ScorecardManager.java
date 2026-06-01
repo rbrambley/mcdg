@@ -28,6 +28,10 @@ public final class ScorecardManager {
     }
 
     public static void initializeScorecard(ServerPlayerEntity player, Course course) {
+        initializeScorecard(player, course, null);
+    }
+
+    public static void initializeScorecard(ServerPlayerEntity player, Course course, PlacedCourseState placedCourseState) {
         ItemStack stack = findScorecard(player);
         boolean hadExisting = !stack.isEmpty();
         if (!hadExisting) {
@@ -41,7 +45,7 @@ public final class ScorecardManager {
         for (Hole hole : course.holes()) {
             NbtCompound row = new NbtCompound();
             row.putInt(KEY_HOLE_INDEX, hole.index());
-            row.putInt(KEY_DISTANCE_FEET, hole.distanceFeet());
+            row.putInt(KEY_DISTANCE_FEET, resolveScorecardDistanceFeet(hole, placedCourseState));
             row.putInt(KEY_PAR, hole.par());
             row.putInt(KEY_SCORE, -1);
             row.putBoolean(KEY_SIGNATURE, hole.isSignature());
@@ -54,6 +58,24 @@ public final class ScorecardManager {
         if (!hadExisting) {
             player.giveItemStack(stack);
         }
+    }
+
+    private static int resolveScorecardDistanceFeet(Hole hole, PlacedCourseState placedCourseState) {
+        if (placedCourseState == null) {
+            return hole.distanceFeet();
+        }
+
+        var tee = placedCourseState.holeTees().get(hole.index());
+        var basket = placedCourseState.holeBaskets().get(hole.index());
+        if (tee == null || basket == null) {
+            return hole.distanceFeet();
+        }
+
+        double dx = (basket.getX() + 0.5) - (tee.getX() + 0.5);
+        double dy = (basket.getY() + 0.5) - (tee.getY() + 0.5);
+        double dz = (basket.getZ() + 0.5) - (tee.getZ() + 0.5);
+        int meters = Math.max(0, (int) Math.round(Math.sqrt(dx * dx + dy * dy + dz * dz)));
+        return Math.max(0, Math.round(meters * 3.28084f));
     }
 
     public static void recordHoleScore(ServerPlayerEntity player, int holeIndex, int score) {

@@ -360,7 +360,7 @@ public final class McdgAdminCommands {
                                         roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
                                         player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
                                         ensureSingleRoundThrowItem(player);
-                                        ScorecardManager.initializeScorecard(player, course);
+                                        ScorecardManager.initializeScorecard(player, course, placed);
                                         participantIds.add(player.getUuid());
                                         player.sendMessage(Text.literal("Round staging. Moved to Hole 1 tee."), true);
                                         initializedPlayers++;
@@ -375,7 +375,7 @@ public final class McdgAdminCommands {
                                         roundStateManager.startRoundForPlayer(sourcePlayer.getUuid(), safeTee);
                                         sourcePlayer.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
                                         ensureSingleRoundThrowItem(sourcePlayer);
-                                        ScorecardManager.initializeScorecard(sourcePlayer, course);
+                                        ScorecardManager.initializeScorecard(sourcePlayer, course, placed);
                                         participantIds.add(sourcePlayer.getUuid());
                                         sourcePlayer.sendMessage(Text.literal("Round staging. Moved to Hole 1 tee."), true);
                                         initializedPlayers = 1;
@@ -481,7 +481,7 @@ public final class McdgAdminCommands {
                                 roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
                                 player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
                                 ensureSingleRoundThrowItem(player);
-                                ScorecardManager.initializeScorecard(player, course);
+                                ScorecardManager.initializeScorecard(player, course, placed);
                                 participantIds.add(player.getUuid());
                                 player.sendMessage(Text.literal("Round resumed on existing course. Moved to Hole 1 tee."), true);
                                 initializedPlayers++;
@@ -496,7 +496,7 @@ public final class McdgAdminCommands {
                                 roundStateManager.startRoundForPlayer(sourcePlayer.getUuid(), safeTee);
                                 sourcePlayer.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
                                 ensureSingleRoundThrowItem(sourcePlayer);
-                                ScorecardManager.initializeScorecard(sourcePlayer, course);
+                                ScorecardManager.initializeScorecard(sourcePlayer, course, placed);
                                 participantIds.add(sourcePlayer.getUuid());
                                 sourcePlayer.sendMessage(Text.literal("Round resumed on existing course. Moved to Hole 1 tee."), true);
                                 initializedPlayers = 1;
@@ -577,7 +577,9 @@ public final class McdgAdminCommands {
                 String title = "Building Course " + percent + "%";
                 String subtitle = clampedDone + "/" + totalHoles + " holes  |  attempt " + attempt + "/" + maxAttempts;
 
-                player.networkHandler.sendPacket(new TitleFadeS2CPacket(2, 18, 5));
+                int stayTicks = clampedDone == 0 ? 240 : 18;
+                int fadeOutTicks = clampedDone == 0 ? 0 : 5;
+                player.networkHandler.sendPacket(new TitleFadeS2CPacket(2, stayTicks, fadeOutTicks));
                 player.networkHandler.sendPacket(new TitleS2CPacket(Text.literal(title).formatted(Formatting.GOLD, Formatting.BOLD)));
                 player.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal(subtitle).formatted(Formatting.WHITE)));
         }

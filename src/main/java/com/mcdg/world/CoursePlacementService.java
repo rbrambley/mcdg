@@ -830,7 +830,10 @@ public final class CoursePlacementService {
         int[] side = new int[] { -forward[1], forward[0] };
 
         BlockPos hubSeed = teeCenter.add(back[0] * 9, 0, back[1] * 9);
-        BlockPos hubSurface = ensureWaterLandingSurface(world, hubSeed, 9, originalBlocks, protectedPositions);
+        BlockPos hubSurface = normalizePlayableSurface(
+            world,
+            findPreferredSurfacePos(world, hubSeed.getX(), hubSeed.getZ(), true, 16)
+        );
         clearHeadroom(world, hubSurface, 9, 6, originalBlocks, protectedPositions);
 
         buildCourseCentralDeck(world, hubSurface, side, back, originalBlocks, protectedPositions);

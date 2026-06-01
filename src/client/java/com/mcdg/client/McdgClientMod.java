@@ -106,6 +106,7 @@ public final class McdgClientMod implements ClientModInitializer {
     private static MiniMapRenderDebug miniMapRenderDebug = MiniMapRenderDebug.empty();
     private static long nextMiniMapDebugActionBarAtMs = 0L;
     private static long nextMiniMapDebugLogAtMs = 0L;
+    private static long lastMiniMapRenderAtMs = 0L;
     private static int nextWaypointIndex = 1;
     private static boolean waypointLabelsVisible = true;
     private static float miniMapHeadingDegrees = Float.NaN;
@@ -171,7 +172,9 @@ public final class McdgClientMod implements ClientModInitializer {
                     displayedDistanceMeters = Float.NaN;
                     displayedTotalStrokes = Float.NaN;
                     displayedCumulativeDelta = Float.NaN;
+                    // Force a full texture rebuild so the map doesn't stay grey after cleanup.
                     clearMiniMapRenderCache(context.client());
+                    lastMiniMapRenderAtMs = 0L;
                     return;
                 }
 
@@ -204,6 +207,7 @@ public final class McdgClientMod implements ClientModInitializer {
         HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {
             updateHudTweens();
             renderHoleMiniMapOverlay(drawContext);
+            renderRoundInfoOverlay(drawContext);
             renderScorecardOverlay(drawContext);
             renderCompassOverlay(drawContext);
             renderPowerOverlay(drawContext);
@@ -295,7 +299,7 @@ public final class McdgClientMod implements ClientModInitializer {
             return;
         }
 
-        int mapSpan = PASSIVE_MINIMAP_SPAN_BLOCKS;
+        int mapSpan = resolveActiveMiniMapSpan(client);
         boolean debugHud = client.getDebugHud().shouldShowDebugHud();
 
         refreshMiniMapRenderCache(client, mapSpan);
@@ -470,8 +474,8 @@ public final class McdgClientMod implements ClientModInitializer {
         }
 
         int distMeters = Math.max(0, Math.round((float) Math.sqrt(
-                ((state.basketX() - state.lieX()) * (state.basketX() - state.lieX()))
-                        + ((state.basketZ() - state.lieZ()) * (state.basketZ() - state.lieZ()))
+            ((state.basketX() - state.teeX()) * (state.basketX() - state.teeX()))
+                + ((state.basketZ() - state.teeZ()) * (state.basketZ() - state.teeZ()))
         )));
         int distFeet = Math.max(0, Math.round(distMeters * 3.28084f));
 
@@ -1361,7 +1365,14 @@ public final class McdgClientMod implements ClientModInitializer {
         int playerFeetZ = net.minecraft.util.math.MathHelper.floor(client.player.getZ());
 
         if (miniMapRenderCache != null && miniMapRenderCache.matches(mapSpan, playerFeetX, playerFeetZ)) {
-            return;
+            // If current texture still has unloaded-chunk pixels, retry periodically without requiring player movement.
+            if (miniMapRenderDebug.chunkUnloadedSourcePixels() <= 0) {
+                return;
+            }
+            long now = System.currentTimeMillis();
+            if ((now - lastMiniMapRenderAtMs) < 350L) {
+                return;
+            }
         }
 
         if (miniMapRenderCache != null) {
@@ -1380,10 +1391,31 @@ public final class McdgClientMod implements ClientModInitializer {
             Identifier textureId = client.getTextureManager().registerDynamicTexture("mcdg_minimap", texture);
             texture.upload();
             miniMapRenderCache = new MiniMapRenderCache(textureId, texture, mapSpan, playerFeetX, playerFeetZ);
+            lastMiniMapRenderAtMs = System.currentTimeMillis();
         } catch (RuntimeException ex) {
             image.close();
             throw ex;
         }
+    }
+
+    private static int resolveActiveMiniMapSpan(MinecraftClient client) {
+        int baseSpan = PASSIVE_MINIMAP_SPAN_BLOCKS;
+        MiniMapState state = miniMapState;
+        if (client == null || client.player == null || state == null) {
+            return baseSpan;
+        }
+
+        double playerToBasket = Math.sqrt(
+                ((state.basketX() - client.player.getX()) * (state.basketX() - client.player.getX()))
+                        + ((state.basketZ() - client.player.getZ()) * (state.basketZ() - client.player.getZ()))
+        );
+
+        // Center on player; show basket plus a 20-block buffer for OB/hazards, but no more.
+        double halfSpan = playerToBasket + 20.0d;
+        int dynamicSpan = (int) Math.ceil(halfSpan * 2.0d);
+        int payloadSpan = Math.max(0, state.mapSpan());
+        int resolved = Math.max(baseSpan, Math.max(dynamicSpan, payloadSpan));
+        return Math.max(64, Math.min(256, resolved));
     }
 
     private static boolean renderMiniMapFromClientWorld(NativeImage image, MinecraftClient client, int mapSpan) {

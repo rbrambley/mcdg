@@ -35,6 +35,8 @@ import net.minecraft.world.Heightmap;
 public final class HoleProgressTracker {
     private static final int BASKET_RADIUS_BLOCKS = 1;
     private static final int BASKET_HEIGHT_TOLERANCE = 2;
+    private static final int BASKET_GREEN_RADIUS_BLOCKS = 7;
+    private static final int BASKET_GREEN_HEIGHT_BLOCKS = 8;
     private static final int MAX_THROW_RESOLUTION_WAIT_TICKS = 320;
     private static final int THROW_RELEASE_GRACE_TICKS = 8;
     // Temporary safety rollback: keep core throw/lie flow stable while strict landing penalties are reworked.
@@ -466,6 +468,12 @@ public final class HoleProgressTracker {
         }
     }
 
+    private static void sendClankTitle(ServerPlayerEntity player) {
+        player.networkHandler.sendPacket(new TitleFadeS2CPacket(3, 25, 8));
+        player.networkHandler.sendPacket(new TitleS2CPacket(
+                Text.literal("CLANK!").formatted(net.minecraft.util.Formatting.GRAY, net.minecraft.util.Formatting.ITALIC)));
+    }
+
     private static void sendStrictPenaltyTitle(ServerPlayerEntity player, StrictPenaltyType landingPenalty, int penaltyStrokes) {
         String titleText = landingPenalty == StrictPenaltyType.OB ? "OB +" + penaltyStrokes : "Hazard +" + penaltyStrokes;
         String subtitleText = landingPenalty == StrictPenaltyType.OB ? "Returned to lie" : "Penalty applied";
@@ -758,6 +766,14 @@ public final class HoleProgressTracker {
             state = roundStateManager.markLastThrowPenalty(player.getUuid(), false).orElse(state);
         }
 
+        // Never let the lie sit exactly on the basket — treat it as a bounce to the 2-block ring.
+        if (manhattanDistance(resultingLie, basket) == 0) {
+            BlockPos bounced = basketBouncePosition(world, basket);
+            resultingLie = bounced;
+            player.teleport(resultingLie.getX() + 0.5, resultingLie.getY() + 1.0, resultingLie.getZ() + 0.5);
+            sendClankTitle(player);
+        }
+
         roundStateManager.updateLie(player.getUuid(), resultingLie);
         updateLieMarker(player, resultingLie);
         PlayerRoundState updated = roundStateManager.getState(player.getUuid()).orElse(state);
@@ -869,6 +885,16 @@ public final class HoleProgressTracker {
             return StrictPenaltyType.OB;
         }
 
+        double lateral = distanceFromPointToSegmentXZ(feet, tee, basket);
+        if (lateral > corridorHalfWidth) {
+            return StrictPenaltyType.OB;
+        }
+
+        // Basket green: hazard-safe within the placed green, but still not OB-safe.
+        if (isBasketGreenSafe(feet, basket.down())) {
+            return StrictPenaltyType.NONE;
+        }
+
         if (rulesetManager.strictEnableSlopeHazard() && isSteepSlopeHazard(world, feet, rulesetManager.strictSlopeHazardDeltaY())) {
             return StrictPenaltyType.HAZARD;
         }
@@ -877,12 +903,16 @@ public final class HoleProgressTracker {
             return StrictPenaltyType.HAZARD;
         }
 
-        double lateral = distanceFromPointToSegmentXZ(feet, tee, basket);
-        if (lateral > corridorHalfWidth) {
-            return StrictPenaltyType.OB;
-        }
-
         return StrictPenaltyType.NONE;
+    }
+
+    private static boolean isBasketGreenSafe(BlockPos feet, BlockPos basketSurface) {
+        int dx = feet.getX() - basketSurface.getX();
+        int dz = feet.getZ() - basketSurface.getZ();
+        int dy = feet.getY() - basketSurface.getY();
+        return (dx * dx) + (dz * dz) <= (BASKET_GREEN_RADIUS_BLOCKS * BASKET_GREEN_RADIUS_BLOCKS + 1)
+                && dy >= 0
+                && dy <= BASKET_GREEN_HEIGHT_BLOCKS;
     }
 
     private static boolean isFluidPenaltyZone(ServerWorld world, BlockPos feet) {
@@ -950,6 +980,28 @@ public final class HoleProgressTracker {
         }
 
         return longest;
+    }
+
+    /**
+     * Returns a standable position in the 2-block ring around the basket (as if the disc bounced off it).
+     * Tries all 8 adjacent + diagonal offsets at radius 1–2; picks the first solid standable block.
+     * Falls back to one block north if no standable block is found.
+     */
+    private static BlockPos basketBouncePosition(ServerWorld world, BlockPos basket) {
+        int[] offsets = {1, -1, 2, -2};
+        for (int dz : offsets) {
+            for (int dx : offsets) {
+                int dist = Math.abs(dx) + Math.abs(dz);
+                if (dist < 1 || dist > 3) continue;
+                BlockPos candidate = findNearestStandableFeet(world,
+                        new BlockPos(basket.getX() + dx, basket.getY(), basket.getZ() + dz));
+                if (candidate != null && manhattanDistance(candidate, basket) >= 1) {
+                    return candidate;
+                }
+            }
+        }
+        // Absolute fallback: one block north at basket height.
+        return basket.north();
     }
 
     private static boolean isWaterCarryColumn(ServerWorld world, int x, int z) {
