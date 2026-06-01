@@ -33,6 +33,18 @@ Next focus:
 
 ---
 
+## Round Play Polish Update (2026-06-01)
+
+Completed this session:
+- Basket finish zone is now the hopper plus the block above it; bars and lamp remain bounce-only surfaces.
+- Basket green hazard exemption now uses the placed green radius, while water/lava OB and corridor OB still apply normally.
+- `Building Course 0%` now stays visible until terrain generation updates begin, so the build state does not look stalled.
+
+Validation:
+- quickRegression remains green after the gameplay and overlay adjustments.
+
+---
+
 ## Session Continuity Update (2026-05-31)
 
 Note (2026-06-01):
