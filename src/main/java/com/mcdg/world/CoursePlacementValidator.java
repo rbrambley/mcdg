@@ -100,6 +100,16 @@ public final class CoursePlacementValidator {
                 holeFailed = true;
             }
 
+            if (isBasketMarkerFlooded(world, hole, basketPos)) {
+                issues.add(new ValidationIssue(
+                        holeIndex,
+                        "basket_marker_flooded",
+                        "Basket marker column intersects fluid, making finish state unreliable.",
+                        basketPos
+                ));
+                holeFailed = true;
+            }
+
             if (!isSafeBasketBase(world, basketPos.down())) {
                 issues.add(new ValidationIssue(holeIndex, "basket_unsafe", "Basket base is unsafe (water/air/unstable ground).", basketPos.down()));
                 unsafeBaskets++;
@@ -235,6 +245,16 @@ public final class CoursePlacementValidator {
         }
 
         return world.getBlockState(basketStoredPos.up(basketHeight + 2)).isOf(Blocks.LANTERN);
+    }
+
+    private static boolean isBasketMarkerFlooded(ServerWorld world, Hole hole, BlockPos basketStoredPos) {
+        int basketHeight = Math.max(1, hole.basket().basketHeight());
+        for (int i = 0; i <= basketHeight + 2; i++) {
+            if (!world.getFluidState(basketStoredPos.up(i)).isEmpty()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean hasTeeLaunchBlockers(ServerWorld world, BlockPos teeSurface, BlockPos basketSurface) {

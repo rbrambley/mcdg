@@ -73,6 +73,7 @@ public final class CoursePlacementService {
     private static final int BASKET_ENCLOSURE_RECOVERY_MAX_LAVA_REROUTE_ATTEMPTS = 3;
     private static final int BASKET_ENCLOSURE_WALL_DEPTH_THRESHOLD = 8;
     private static final double BASKET_ENCLOSURE_HIGH_WALL_RATIO = 0.82;
+    private static final int BASKET_DRY_COLUMN_CHECK_HEIGHT = 8;
     private static final int TEE_EXIT_Y_TOLERANCE = 1;
     private static final int TEE_MIN_NEARBY_EXITS = 5;
     private static final int TEE_WALL_SCAN_RADIUS = 6;
@@ -620,6 +621,13 @@ public final class CoursePlacementService {
         }
 
         BlockPos base = center.up();
+        // Keep the marker column dry so the basket remains playable and visible.
+        for (int i = 0; i <= basketHeight + 2; i++) {
+            BlockPos markerPos = base.up(i);
+            if (!world.getFluidState(markerPos).isEmpty()) {
+                setTrackedBlock(world, markerPos, Blocks.AIR.getDefaultState(), originalBlocks);
+            }
+        }
         setTrackedBlock(world, base, Blocks.HOPPER.getDefaultState(), originalBlocks);
 
         for (int i = 1; i <= basketHeight + 1; i++) {
@@ -2899,6 +2907,9 @@ public final class CoursePlacementService {
         if (!isWalkableGround(world, pos)) {
             return false;
         }
+        if (hasFluidInBasketMarkerColumn(world, pos, BASKET_DRY_COLUMN_CHECK_HEIGHT)) {
+            return false;
+        }
         if (isLikelyPitSurface(world, pos)) {
             return false;
         }
@@ -2906,6 +2917,16 @@ public final class CoursePlacementService {
             return false;
         }
         return !hasExcessiveTeeEnclosure(world, pos);
+    }
+
+    private static boolean hasFluidInBasketMarkerColumn(ServerWorld world, BlockPos basketSurface, int height) {
+        BlockPos base = basketSurface.up();
+        for (int i = 0; i <= Math.max(1, height); i++) {
+            if (!world.getFluidState(base.up(i)).isEmpty()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isDeeplyEnclosedBasketSurface(ServerWorld world, BlockPos basketSurface) {
