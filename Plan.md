@@ -6,6 +6,28 @@ Date: 2026-05-30
 
 ---
 
+## Basket Water-Column Finish Fix (2026-06-02)
+
+Implemented:
+- Hardened basket placement to prevent unfinishable baskets generated inside water columns.
+- `CoursePlacementService` now rejects basket candidates when the marker column (hopper/bars/lantern stack zone) contains fluid.
+- Basket marker placement now forcibly clears fluid from the marker column before placing hopper/bars/lantern blocks.
+- `CoursePlacementValidator` now emits `basket_marker_flooded` when marker blocks intersect fluid, so lifecycle smoke catches this regression.
+
+Validation + deploy:
+- `gradle quickRegression`: PASS.
+- `gradle smokeRegression`: PASS.
+- `gradle build`: PASS.
+- `Build + Deploy to ATLauncher Test Instance`: PASS.
+  - Lifecycle smoke: pass=3, fail=0, issues=0.
+  - Jar deployed to ATLauncher mods directory.
+
+Manual verification checklist:
+1. Generate multiple rounds near oceans/rivers/waterfalls and confirm basket marker columns are dry and visually unobstructed.
+2. Complete a round on a previously risky watery finish and verify hole completion triggers normally.
+
+---
+
 ## Player-Relative Elevation Guard for Course Creation (2026-06-02)
 
 Code checkpoint commit:

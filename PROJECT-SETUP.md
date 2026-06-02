@@ -2,6 +2,18 @@
 
 # PROJECT-SETUP.md
 
+## Latest Feature Checkpoint (2026-06-02 - Basket Water-Column Finish Fix)
+
+- Added updates:
+  - Basket placement now rejects candidate surfaces whose marker column intersects fluid.
+  - Basket marker placement now clears fluid in the marker column before placing hopper/bars/lantern.
+  - Validator now fails with `basket_marker_flooded` when basket marker column intersects fluid.
+- Validation + deploy at checkpoint:
+  - `gradle quickRegression`: PASS.
+  - `gradle smokeRegression`: PASS.
+  - `gradle build`: PASS.
+  - Build + Deploy to ATLauncher Test Instance: PASS.
+
 ## Latest Feature Checkpoint (2026-06-02 - Player-Relative Course Elevation Guard)
 
 - Code checkpoint commit: b40b709.
