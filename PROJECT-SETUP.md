@@ -41,6 +41,20 @@
   - `gradle build`: PASS.
   - Build + Deploy to ATLauncher Test Instance: PASS.
 
+## Latest Feature Checkpoint (2026-06-02 - Reusable Course Catalog + Placement Fallback)
+
+- Added updates:
+  - Added persisted reusable course catalog storage (`data/mcdg/mcdg-course-catalog.json`).
+  - New admin commands:
+    - `/mcdg listcourses`
+    - `/mcdg usecourse <index>`
+    - `/mcdg prunecourses [keep]`
+  - `startround`/`practicecourse` placement retry window expanded to 9 anchor attempts.
+  - If all placement retries fail for retryable enclosure/route issues, server now attempts fallback to most recent recoverable course in same world before hard-failing.
+  - Successful placements are persisted into reusable catalog for future reuse/recovery.
+- Validation at checkpoint:
+  - `gradle build`: PASS.
+
 ## Latest Feature Checkpoint (2026-06-02 - Player-Relative Course Elevation Guard)
 
 - Code checkpoint commit: b40b709.

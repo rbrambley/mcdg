@@ -6,6 +6,53 @@ Date: 2026-05-30
 
 ---
 
+## Possible Additions Later
+
+- Add admin shortcut command: `/mcdg usecourse latest`.
+  - Behavior: activate the newest reusable catalog entry without requiring an index lookup.
+  - Goal: speed up iteration when repeatedly testing fallback/reuse flows.
+
+---
+
+## Practicecourse Deprecation Plan (Phased)
+
+Phase 0: Freeze + baseline
+- Keep `practicecourse` behavior unchanged while reusable-course flow stabilizes.
+- Track operator usage of `practicecourse`, `resumecourse`, and `usecourse`.
+- Confirm reusable fallback and catalog commands are reliable in live sessions.
+
+Phase 1: Soft deprecation
+- Keep `practicecourse` functional.
+- Add a lightweight deprecation notice on command use.
+- Update help/docs to prioritize unified flow (`createcourse` + `startround` + reusable commands).
+
+Phase 2: Behavioral convergence
+- Route `practicecourse` through the same lifecycle internals as `startround`.
+- Remove command-specific branch differences where possible.
+- Keep persistence/snapshot outputs identical between both command paths.
+
+Phase 3: Alias mode
+- Convert `practicecourse` into a thin alias/forwarder to unified flow.
+- Preserve compatibility for existing scripts/macros.
+- Keep deprecation notice active.
+
+Phase 4: Removal window
+- Announce target removal release (after alias phase proves stable).
+- Keep one release with stronger warning before removal.
+- Remove parser/registration entry after migration window closes.
+
+Phase 5: Cleanup
+- Remove legacy flags/branches kept only for `practicecourse` terminology.
+- Retain snapshot compatibility loaders as needed for older saves.
+- Keep reusable catalog commands as the primary management path.
+
+Rollback safety
+- If regressions appear in phases 2-4, restore alias behavior immediately.
+- Avoid deleting storage/schema compatibility in the same release as command removal.
+- Keep `resumecourse` stable through the entire transition.
+
+---
+
 ## Night Wrap Checkpoint (2026-06-01)
 
 Tonight completed:
