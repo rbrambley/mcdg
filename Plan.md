@@ -6,6 +6,55 @@ Date: 2026-05-30
 
 ---
 
+## Player-Relative Elevation Guard for Course Creation (2026-06-02)
+
+Code checkpoint commit:
+- b40b709
+
+Implemented:
+- Added player-relative minimum Y guardrails during hole anchor placement in `CoursePlacementService`.
+- Tee placement now enforces a strict floor at `playerY - 20` when selecting final tee surface candidates.
+- Basket placement now uses a two-step floor:
+  - target floor `playerY - 20`,
+  - relaxed fallback floor `playerY - 28` when strict floor cannot be satisfied nearby.
+- Added post-floor basket enclosure recheck and fallback recovery/relocation pass to prevent `basket_deeply_enclosed` regressions after elevation repositioning.
+- Added diagnostic logging for floor fallback and unmet-floor cases.
+
+Validation:
+- `gradle quickRegression`: PASS.
+- `gradle smokeRegression`: PASS.
+- `gradle build`: PASS.
+
+Manual verification checklist:
+1. Trigger course creation from elevated terrain and verify tees are not placed deeper than ~20 blocks below source player Y in normal terrain.
+2. Verify baskets prefer the same floor, with occasional relaxed fallback only when terrain constraints require it.
+3. Confirm long-hole routing still generates and remains playable under strict rules.
+
+---
+
+## Cleanup + Long Carry + Score Window Fixes (2026-06-02)
+
+Code checkpoint commit:
+- b40b709
+
+Implemented:
+- `clearcourse` relocation logic now prioritizes nearest safe positions outside the placed-course buffer and removes spawn as the normal fallback path.
+- Strict OB corridor classification now supports alternate-route holes by evaluating distance to tee->anchor and anchor->basket corridor legs.
+  - This preserves strict enforcement while making long-water-carry alternate lines playable.
+- Multiplayer running score panel window changed to show only the last 3 holes (relative to current focus hole) instead of all completed holes.
+
+Validation:
+- `gradle quickRegression`: PASS.
+- `gradle smokeRegression`: PASS.
+- `gradle build`: PASS.
+
+Manual verification checklist:
+1. Run `/mcdg clearcourse` while players are inside course bounds and confirm relocation lands outside the active course area without routine spawn teleports.
+2. Start a long-water-carry hole with an alternate anchor route and confirm strict mode allows in-bounds play along the routed fairway corridor.
+3. During multiplayer round HUD, confirm the running score panel shows only a 3-hole sliding window ending at the current hole.
+
+---
+
 ## Multiplayer Running Score Panel Update (2026-06-01 Night)
 
 Code checkpoint commit:

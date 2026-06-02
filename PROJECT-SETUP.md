@@ -2,6 +2,33 @@
 
 # PROJECT-SETUP.md
 
+## Latest Feature Checkpoint (2026-06-02 - Player-Relative Course Elevation Guard)
+
+- Code checkpoint commit: b40b709.
+
+- Added updates:
+  - Tee placement now applies a player-relative minimum Y floor of `playerY - 20`.
+  - Basket placement now uses strict `playerY - 20` with relaxed fallback `playerY - 28`.
+  - Added post-floor basket enclosure recheck/recovery to avoid enclosed basket regressions after elevation adjustment.
+  - Added diagnostic logs for elevation fallback decisions.
+- Validation at checkpoint:
+  - `gradle quickRegression`: PASS.
+  - `gradle smokeRegression`: PASS.
+  - `gradle build`: PASS.
+
+## Latest Feature Checkpoint (2026-06-02 - Cleanup/Carry/Score Window Fixes)
+
+- Code checkpoint commit: b40b709.
+
+- Added updates:
+  - `clearcourse` evacuation now searches nearest safe positions outside placed-course bounds and avoids spawn as the routine relocation target.
+  - Strict out-of-bounds corridor checks now account for alternate fairway anchors (tee->anchor and anchor->basket path segments).
+  - Multiplayer running score panel now shows a sliding window of the last 3 holes only.
+- Validation at checkpoint:
+  - `gradle quickRegression`: PASS.
+  - `gradle smokeRegression`: PASS.
+  - `gradle build`: PASS.
+
 ## Latest Feature Checkpoint (2026-06-01 Night - Multiplayer Running Score Panel)
 
 - Code checkpoint commit: aa21ba3.
