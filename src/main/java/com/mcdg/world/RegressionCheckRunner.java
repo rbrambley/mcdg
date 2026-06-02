@@ -25,6 +25,9 @@ public final class RegressionCheckRunner {
     private static final Path ADMIN_COMMAND_FILE = Paths.get(
         "src", "main", "java", "com", "mcdg", "command", "McdgAdminCommands.java"
     );
+    private static final Path COURSE_PLACEMENT_FILE = Paths.get(
+        "src", "main", "java", "com", "mcdg", "world", "CoursePlacementService.java"
+    );
     private static final Pattern HOLE_SPECIAL_CASE_PATTERN = Pattern.compile(
             "\\b(?:holeIndex|currentHole|holeNumber|holeId)\\b\\s*(?:==|!=|<=|>=|<|>)\\s*\\d+|\\.index\\(\\)\\s*(?:==|!=|<=|>=|<|>)\\s*\\d+"
     );
@@ -59,6 +62,7 @@ public final class RegressionCheckRunner {
         runArchitectureChecks();
         runMiniMapChecks();
         runPlacementIssueSyncChecks();
+        runCarryPolicyChecks();
         runParDistributionChecks(generator);
 
         Course one = generator.generate(123456789L, HOLE_COUNT);
@@ -248,6 +252,35 @@ public final class RegressionCheckRunner {
                     "Start-round retry gate is missing expected issue code."
             );
         }
+    }
+
+    private static void runCarryPolicyChecks() {
+        if (!Files.exists(COURSE_PLACEMENT_FILE)) {
+            throw new RuntimeException("Course placement regression file missing: " + COURSE_PLACEMENT_FILE);
+        }
+
+        String placementSource;
+        try {
+            placementSource = Files.readString(COURSE_PLACEMENT_FILE, StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to read course placement source for carry-policy regression checks", ex);
+        }
+
+        assertContains(
+            placementSource,
+            "private static final int MAX_WATER_CARRY_BLOCKS = 91;",
+            "Unified max water-carry policy changed unexpectedly."
+        );
+        assertContains(
+            placementSource,
+            "private static final int PAR5_ROUTE_MAX_WATER_CARRY = MAX_WATER_CARRY_BLOCKS;",
+            "Par 5 carry policy diverged from unified max carry policy."
+        );
+        assertContains(
+            placementSource,
+            "private static final int PAR34_ROUTE_MAX_WATER_CARRY = MAX_WATER_CARRY_BLOCKS;",
+            "Par 3/4 carry policy diverged from unified max carry policy."
+        );
     }
 
     private static void runArchitectureChecks() {

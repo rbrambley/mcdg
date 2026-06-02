@@ -26,11 +26,13 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import net.minecraft.block.Blocks;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.ItemEntity;
@@ -48,8 +50,20 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 
 public final class McdgAdminCommands {
+        private static final String ADVANCED_COMMANDS_ENV = "MCDG_SHOW_ADVANCED_COMMANDS";
+        private static final String ADVANCED_COMMANDS_PROPERTY = "mcdg.showAdvancedCommands";
+        private static final boolean SHOW_ADVANCED_COMMANDS = readAdvancedCommandVisibility();
+
     private McdgAdminCommands() {
     }
+
+        private static boolean readAdvancedCommandVisibility() {
+                String value = System.getProperty(ADVANCED_COMMANDS_PROPERTY);
+                if (value == null || value.isBlank()) {
+                        value = System.getenv(ADVANCED_COMMANDS_ENV);
+                }
+                return value != null && value.equalsIgnoreCase("true");
+        }
 
     public static void register(
             CourseGenerator generator,
@@ -67,6 +81,8 @@ public final class McdgAdminCommands {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
                 dispatcher.register(literal("mcdg")
                         .requires(McdgAdminCommands::canUseAdminCommands)
+                        .then(literal("help")
+                                .executes(context -> executeHelp(context.getSource())))
                         .then(literal("createcourse")
                                 .then(argument("seed", LongArgumentType.longArg())
                                         .executes(context -> executeCreateCourse(
@@ -86,31 +102,6 @@ public final class McdgAdminCommands {
                                         skipRoundPresentation,
                                         practiceCourseStorage,
                                         false,
-                                        null
-                                ))
-                                .then(argument("players", EntityArgumentType.players())
-                                        .executes(context -> executeStartRound(
-                                                context.getSource(),
-                                                courseManager,
-                                                placementService,
-                                                placementValidator,
-                                                roundStateManager,
-                                                roundPresentationService,
-                                                skipRoundPresentation,
-                                                practiceCourseStorage,
-                                                false,
-                                                EntityArgumentType.getPlayers(context, "players")
-                                        ))))
-                        .then(literal("practicecourse")
-                                .executes(context -> executeStartRound(
-                                        context.getSource(),
-                                        courseManager,
-                                        placementService,
-                                        placementValidator,
-                                        roundStateManager,
-                                        roundPresentationService,
-                                        skipRoundPresentation,
-                                        practiceCourseStorage,
                                         true,
                                         null
                                 ))
@@ -124,10 +115,93 @@ public final class McdgAdminCommands {
                                                 roundPresentationService,
                                                 skipRoundPresentation,
                                                 practiceCourseStorage,
+                                                false,
                                                 true,
                                                 EntityArgumentType.getPlayers(context, "players")
-                                        ))))
+                                        )))
+                                .then(literal("strict")
+                                        .executes(context -> executeStartRound(
+                                                context.getSource(),
+                                                courseManager,
+                                                placementService,
+                                                placementValidator,
+                                                roundStateManager,
+                                                roundPresentationService,
+                                                skipRoundPresentation,
+                                                practiceCourseStorage,
+                                                false,
+                                                true,
+                                                null
+                                        ))
+                                        .then(argument("players", EntityArgumentType.players())
+                                                .executes(context -> executeStartRound(
+                                                        context.getSource(),
+                                                        courseManager,
+                                                        placementService,
+                                                        placementValidator,
+                                                        roundStateManager,
+                                                        roundPresentationService,
+                                                        skipRoundPresentation,
+                                                        practiceCourseStorage,
+                                                        false,
+                                                        true,
+                                                        EntityArgumentType.getPlayers(context, "players")
+                                                )))))
+                        .then(literal("practicecourse")
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                                .executes(context -> executePracticeCourseDeprecated(
+                                        context.getSource(),
+                                        courseManager,
+                                        placementService,
+                                        placementValidator,
+                                        roundStateManager,
+                                        roundPresentationService,
+                                        skipRoundPresentation,
+                                        practiceCourseStorage,
+                                        true,
+                                        null
+                                ))
+                                .then(argument("players", EntityArgumentType.players())
+                                        .executes(context -> executePracticeCourseDeprecated(
+                                                context.getSource(),
+                                                courseManager,
+                                                placementService,
+                                                placementValidator,
+                                                roundStateManager,
+                                                roundPresentationService,
+                                                skipRoundPresentation,
+                                                practiceCourseStorage,
+                                                true,
+                                                EntityArgumentType.getPlayers(context, "players")
+                                        )))
+                                .then(literal("strict")
+                                        .executes(context -> executePracticeCourseDeprecated(
+                                                context.getSource(),
+                                                courseManager,
+                                                placementService,
+                                                placementValidator,
+                                                roundStateManager,
+                                                roundPresentationService,
+                                                skipRoundPresentation,
+                                                practiceCourseStorage,
+                                                true,
+                                                null
+                                        ))
+                                        .then(argument("players", EntityArgumentType.players())
+                                                .executes(context -> executePracticeCourseDeprecated(
+                                                        context.getSource(),
+                                                        courseManager,
+                                                        placementService,
+                                                        placementValidator,
+                                                        roundStateManager,
+                                                        roundPresentationService,
+                                                        skipRoundPresentation,
+                                                        practiceCourseStorage,
+                                                        true,
+                                                        EntityArgumentType.getPlayers(context, "players")
+                                                )))))
                         .then(literal("resumecourse")
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeResumeCourse(
                                         context.getSource(),
                                         courseManager,
@@ -151,6 +225,7 @@ public final class McdgAdminCommands {
                                         practiceCourseStorage
                                 )))
                         .then(literal("usecourse")
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .then(argument("index", IntegerArgumentType.integer(1))
                                         .executes(context -> executeUseCourse(
                                                 context.getSource(),
@@ -159,7 +234,31 @@ public final class McdgAdminCommands {
                                                 practiceCourseStorage,
                                                 IntegerArgumentType.getInteger(context, "index")
                                         ))))
+                        .then(literal("playcourse")
+                                .then(argument("index", IntegerArgumentType.integer(1))
+                                        .executes(context -> executePlayCourse(
+                                                context.getSource(),
+                                                courseManager,
+                                                roundStateManager,
+                                                roundPresentationService,
+                                                skipRoundPresentation,
+                                                practiceCourseStorage,
+                                                IntegerArgumentType.getInteger(context, "index"),
+                                                null
+                                        ))
+                                        .then(argument("players", EntityArgumentType.players())
+                                                .executes(context -> executePlayCourse(
+                                                        context.getSource(),
+                                                        courseManager,
+                                                        roundStateManager,
+                                                        roundPresentationService,
+                                                        skipRoundPresentation,
+                                                        practiceCourseStorage,
+                                                        IntegerArgumentType.getInteger(context, "index"),
+                                                        EntityArgumentType.getPlayers(context, "players")
+                                                )))))
                         .then(literal("prunecourses")
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executePruneCourses(
                                         context.getSource(),
                                         practiceCourseStorage,
@@ -172,10 +271,12 @@ public final class McdgAdminCommands {
                                                 IntegerArgumentType.getInteger(context, "keep")
                                         ))))
                         .then(literal("resetcourse")
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeCleanupCourse(context.getSource(), courseManager, placementService, roundStateManager, practiceCourseStorage)))
                         .then(literal("cleanupcourse")
                                 .executes(context -> executeCleanupCourse(context.getSource(), courseManager, placementService, roundStateManager, practiceCourseStorage)))
                         .then(literal("gotocourse")
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeGotoCourse(context.getSource(), courseManager)))
                         .then(literal("endround")
                                 .executes(context -> executeEndRound(context.getSource(), courseManager, roundStateManager)))
@@ -194,6 +295,7 @@ public final class McdgAdminCommands {
                                                 EntityArgumentType.getPlayers(context, "players")
                                         ))))
                         .then(literal("roundstatus")
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeRoundStatus(
                                         context.getSource(),
                                         courseManager,
@@ -206,6 +308,7 @@ public final class McdgAdminCommands {
                                 .then(literal("strict")
                                         .executes(context -> executeSetRuleset(context, rulesetManager, TournamentRulesetManager.Ruleset.STRICT)))
                                 .then(literal("surface")
+                                        .requires(McdgAdminCommands::canUseAdvancedCommands)
                                         .executes(context -> executeShowStrictSurfacePreset(context, rulesetManager))
                                         .then(argument("preset", StringArgumentType.word())
                                                 .suggests((context, builder) -> {
@@ -216,19 +319,23 @@ public final class McdgAdminCommands {
                                                 })
                                                 .executes(context -> executeSetStrictSurfacePreset(context, rulesetManager, StringArgumentType.getString(context, "preset"))))))
                         .then(literal("debugperms")
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeDebugPermissions(context.getSource())))
                         .then(literal("validateplacement")
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeValidatePlacement(
                                         context.getSource(),
                                         courseManager,
                                         placementValidator
                                 )))
                         .then(literal("buildcamp")
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeBuildCamp(
                                         context.getSource(),
                                         placementService
                                 )))
                         .then(literal("autotestplacement")
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .then(argument("runs", IntegerArgumentType.integer(1, 200))
                                         .then(argument("holes", IntegerArgumentType.integer(1, 18))
                                                 .executes(context -> executeAutoTestPlacement(
@@ -238,6 +345,7 @@ public final class McdgAdminCommands {
                                                         IntegerArgumentType.getInteger(context, "holes")
                                                 )))))
                         .then(literal("autotestplacementseed")
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .then(argument("runs", IntegerArgumentType.integer(1, 200))
                                         .then(argument("holes", IntegerArgumentType.integer(1, 18))
                                                 .then(argument("seed", LongArgumentType.longArg())
@@ -249,6 +357,7 @@ public final class McdgAdminCommands {
                                                                 LongArgumentType.getLong(context, "seed")
                                                         ))))))
                         .then(literal("autotestshadow")
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeAutoTestShadowStatus(context.getSource(), autoTestService))
                                 .then(literal("status")
                                         .executes(context -> executeAutoTestShadowStatus(context.getSource(), autoTestService)))
@@ -257,8 +366,10 @@ public final class McdgAdminCommands {
                                 .then(literal("off")
                                         .executes(context -> executeAutoTestShadowSet(context.getSource(), autoTestService, false))))
                         .then(literal("cancelautotest")
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeCancelAutoTest(context.getSource(), autoTestService)))
                         .then(literal("autotestthrows")
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .then(argument("count", IntegerArgumentType.integer(1, 200))
                                         .executes(context -> executeAutoTestThrows(
                                                 context.getSource(),
@@ -266,6 +377,7 @@ public final class McdgAdminCommands {
                                                 IntegerArgumentType.getInteger(context, "count")
                                         ))))
                         .then(literal("quickthrowtest")
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .then(argument("seed", LongArgumentType.longArg())
                                         .then(argument("count", IntegerArgumentType.integer(1, 200))
                                                 .executes(context -> executeQuickThrowTest(
@@ -282,6 +394,7 @@ public final class McdgAdminCommands {
                                                         IntegerArgumentType.getInteger(context, "count")
                                                 )))))
                         .then(literal("cancelthrowtest")
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeCancelThrowTest(context.getSource(), throwAutoTestService)))));
     }
 
@@ -292,6 +405,10 @@ public final class McdgAdminCommands {
 
                 // Keep local/integrated dev sessions usable even when OP metadata is not applied.
                 return !source.getServer().isDedicated();
+        }
+
+        private static boolean canUseAdvancedCommands(ServerCommandSource source) {
+                return canUseAdminCommands(source) && SHOW_ADVANCED_COMMANDS;
         }
 
         private static int executeDebugPermissions(ServerCommandSource source) {
@@ -316,10 +433,56 @@ public final class McdgAdminCommands {
                         "mcdg debug perms -> hasPermissionLevel(2)=" + hasPermissionLevelTwo
                                 + ", dedicated=" + dedicated
                                 + ", canUseAdminCommands=" + allowedByGate
+                                + ", showAdvancedCommands=" + SHOW_ADVANCED_COMMANDS
                                 + ", sourceType=" + finalSourceType
                                 + ", source=" + finalSourceIdentity
                 ), false);
                 return 1;
+        }
+
+        private static int executeHelp(ServerCommandSource source) {
+                source.sendFeedback(() -> Text.literal("MCDG quick help:"), false);
+                source.sendFeedback(() -> Text.literal("- New course: /mcdg createcourse <seed> -> /mcdg startround (or /mcdg startround strict)."), false);
+                source.sendFeedback(() -> Text.literal("- Generation model is unified across modes: land-first routing with water-carry cap <= 91 blocks (~300 ft)."), false);
+                source.sendFeedback(() -> Text.literal("- Saved course: /mcdg listcourses -> /mcdg playcourse <index>."), false);
+                source.sendFeedback(() -> Text.literal("- In-round basics: /mcdg joinround, /mcdg endround, /mcdg cleanupcourse."), false);
+                if (SHOW_ADVANCED_COMMANDS) {
+                        source.sendFeedback(() -> Text.literal("- Advanced commands are visible (MCDG_SHOW_ADVANCED_COMMANDS=true)."), false);
+                } else {
+                        source.sendFeedback(() -> Text.literal("- Advanced commands are hidden by default; set MCDG_SHOW_ADVANCED_COMMANDS=true to expose them."), false);
+                }
+                return 1;
+        }
+
+    private static int executePracticeCourseDeprecated(
+                        ServerCommandSource source,
+                        ActiveCourseManager courseManager,
+                        CoursePlacementService placementService,
+                        CoursePlacementValidator placementValidator,
+                        RoundStateManager roundStateManager,
+                        RoundPresentationService roundPresentationService,
+                        boolean skipRoundPresentation,
+                        PracticeCourseStorage practiceCourseStorage,
+                        boolean allowReusableFallback,
+                        Collection<ServerPlayerEntity> selectedPlayers
+        ) {
+                source.sendFeedback(() -> Text.literal(
+                        "practicecourse is deprecated. Use /mcdg startround for new generation or /mcdg playcourse <index> for saved courses."
+                ), false);
+
+                return executeStartRound(
+                        source,
+                        courseManager,
+                        placementService,
+                        placementValidator,
+                        roundStateManager,
+                        roundPresentationService,
+                        skipRoundPresentation,
+                        practiceCourseStorage,
+                        true,
+                        allowReusableFallback,
+                        selectedPlayers
+                );
         }
 
     private static int executeCreateCourse(
@@ -361,6 +524,7 @@ public final class McdgAdminCommands {
                                         boolean skipRoundPresentation,
                                         PracticeCourseStorage practiceCourseStorage,
                                         boolean persistentCourse,
+                                        boolean allowReusableFallback,
                                         Collection<ServerPlayerEntity> selectedPlayers
         ) {
                 Course course = courseManager.getActiveCourse().orElse(null);
@@ -393,6 +557,8 @@ public final class McdgAdminCommands {
 
                 ServerWorld world = source.getWorld();
                 int totalHoles = course.holes().size();
+                long requestedSeed = course.seed();
+                boolean startedFromFallback = false;
 
                 // Show a center-screen progress title before terrain generation starts.
                 for (var barPlayer : source.getServer().getPlayerManager().getPlayerList()) {
@@ -453,13 +619,14 @@ public final class McdgAdminCommands {
                                 }
                         }
 
-                        if (placed == null) {
+                        if (placed == null && allowReusableFallback) {
                                 Optional<PracticeCourseStorage.LoadedPracticeCourse> reusableFallback =
                                         practiceCourseStorage.loadMostRecentReusable(source.getServer(), world.getRegistryKey());
                                 if (reusableFallback.isPresent()) {
                                         PracticeCourseStorage.LoadedPracticeCourse fallback = reusableFallback.get();
                                         course = ensureSingleSignatureHole(fallback.course());
                                         placed = fallback.placedCourseState();
+                                        startedFromFallback = true;
                                         source.sendFeedback(() -> Text.literal(
                                                 "Placement retries exhausted. Reusing the most recent recoverable course snapshot in this world."
                                         ), false);
@@ -500,8 +667,12 @@ public final class McdgAdminCommands {
                         removeRoundThrowItemsFromPlayers(participants);
 
                         List<UUID> participantIds = new ArrayList<>();
+                        BlockPos firstTee = placed.holeTees().get(1);
+                        if (firstTee == null) {
+                                source.sendError(Text.literal("Placed course data is missing hole 1 tee position. Rebuild with /mcdg startround."));
+                                return 0;
+                        }
                         for (ServerPlayerEntity player : participants) {
-                                BlockPos firstTee = placed.holeTees().getOrDefault(1, player.getBlockPos());
                                 BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
                                 roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
                                 player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
@@ -517,20 +688,30 @@ public final class McdgAdminCommands {
                         final int trackedPlayers = initializedPlayers;
                         announceSignatureHole(source, course, participantIds);
 
+                        courseManager.setActiveCourse(course);
                         courseManager.setPlacedCourseState(placed);
                         courseManager.setPersistentPlacedCourse(persistentCourse);
                         courseManager.setLegacyPracticeSnapshot(false);
                         if (persistentCourse) {
                                 practiceCourseStorage.save(source.getServer(), course, placed);
                         }
-                        // Compact is the default placement target; persist all successful placements for reuse/recovery.
-                        practiceCourseStorage.saveReusable(
-                                source.getServer(),
-                                course,
-                                placed,
-                                persistentCourse ? "practicecourse" : "startround",
-                                true
-                        );
+                        if (!startedFromFallback) {
+                                // Compact is the default placement target; persist successful placements for reuse/recovery.
+                                practiceCourseStorage.saveReusable(
+                                        source.getServer(),
+                                        course,
+                                        placed,
+                                        persistentCourse ? "practicecourse" : "startround",
+                                        true
+                                );
+                        }
+
+                        if (startedFromFallback) {
+                                long fallbackSeed = course.seed();
+                                source.sendFeedback(() -> Text.literal(
+                                        "Started fallback course seed=" + fallbackSeed + " (requested seed=" + requestedSeed + ")."
+                                ), false);
+                        }
 
                         if (skipRoundPresentation) {
                                 courseManager.setRoundActive(true);
@@ -608,6 +789,15 @@ public final class McdgAdminCommands {
                         ), false);
                 }
 
+                SavedCourseIntegrity integrity = validateSavedCourseIntegrity(world, course, placed);
+                if (!integrity.valid()) {
+                        source.sendError(Text.literal(
+                                "Saved course data is stale/unplayable: " + integrity.reason()
+                                        + ". Rebuild with /mcdg startround or choose another /mcdg playcourse entry."
+                        ));
+                        return 0;
+                }
+
                 int totalHoles = course.holes().size();
                 List<ServerPlayerEntity> participants = resolveRoundParticipants(
                         source,
@@ -624,8 +814,12 @@ public final class McdgAdminCommands {
                 removeRoundThrowItemsFromPlayers(participants);
 
                 List<UUID> participantIds = new ArrayList<>();
+                BlockPos firstTee = placed.holeTees().get(1);
+                if (firstTee == null) {
+                        source.sendError(Text.literal("Saved course data is missing hole 1 tee position. Rebuild with /mcdg startround."));
+                        return 0;
+                }
                 for (ServerPlayerEntity player : participants) {
-                        BlockPos firstTee = placed.holeTees().getOrDefault(1, player.getBlockPos());
                         BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
                         roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
                         player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
@@ -675,6 +869,39 @@ public final class McdgAdminCommands {
                         ServerCommandSource source,
                         PracticeCourseStorage practiceCourseStorage
         ) {
+                Set<Integer> staleIndices = new HashSet<>();
+                List<PracticeCourseStorage.ReusableCourseEntry> initialEntries = practiceCourseStorage.listReusable(source.getServer());
+                for (PracticeCourseStorage.ReusableCourseEntry entry : initialEntries) {
+                        Optional<PracticeCourseStorage.LoadedPracticeCourse> loaded =
+                                practiceCourseStorage.loadReusableByIndex(source.getServer(), entry.index());
+                        if (loaded.isEmpty()) {
+                                staleIndices.add(entry.index());
+                                continue;
+                        }
+
+                        PracticeCourseStorage.LoadedPracticeCourse reusable = loaded.get();
+                        ServerWorld world = source.getServer().getWorld(reusable.placedCourseState().worldKey());
+                        if (world == null) {
+                                staleIndices.add(entry.index());
+                                continue;
+                        }
+
+                        SavedCourseIntegrity integrity = validateSavedCourseIntegrity(world, reusable.course(), reusable.placedCourseState());
+                        if (!integrity.valid()) {
+                                staleIndices.add(entry.index());
+                        }
+                }
+
+                if (!staleIndices.isEmpty()) {
+                        int removed = practiceCourseStorage.pruneReusableByIndices(source.getServer(), staleIndices);
+                        if (removed > 0) {
+                                final int pruned = removed;
+                                source.sendFeedback(() -> Text.literal(
+                                        "Pruned " + pruned + " stale/unplayable reusable entries from catalog."
+                                ), false);
+                        }
+                }
+
                 List<PracticeCourseStorage.ReusableCourseEntry> entries = practiceCourseStorage.listReusable(source.getServer());
                 if (entries.isEmpty()) {
                         source.sendFeedback(() -> Text.literal("No reusable courses are saved yet."), false);
@@ -682,6 +909,7 @@ public final class McdgAdminCommands {
                 }
 
                 source.sendFeedback(() -> Text.literal("Reusable courses (newest first): " + entries.size()), false);
+                source.sendFeedback(() -> Text.literal("Tip: use /mcdg playcourse <index> to select and start a saved course in one step."), false);
                 for (PracticeCourseStorage.ReusableCourseEntry entry : entries) {
                         source.sendFeedback(() -> Text.literal(
                                 "#" + entry.index()
@@ -733,9 +961,106 @@ public final class McdgAdminCommands {
                 source.sendFeedback(() -> Text.literal(
                         "Reusable course #" + oneBasedIndex + " activated: "
                                 + (active == null ? "unknown" : active.name())
-                                + " (holes=" + holes + "). Use /mcdg resumecourse or /mcdg startround."
+                                + " (holes=" + holes + "). Use /mcdg resumecourse to play this saved placement, or /mcdg startround to generate a new placement."
                 ), true);
                 return 1;
+        }
+
+        private static int executePlayCourse(
+                        ServerCommandSource source,
+                        ActiveCourseManager courseManager,
+                        RoundStateManager roundStateManager,
+                        RoundPresentationService roundPresentationService,
+                        boolean skipRoundPresentation,
+                        PracticeCourseStorage practiceCourseStorage,
+                        int oneBasedIndex,
+                        Collection<ServerPlayerEntity> selectedPlayers
+        ) {
+                int activated = executeUseCourse(
+                        source,
+                        courseManager,
+                        roundStateManager,
+                        practiceCourseStorage,
+                        oneBasedIndex
+                );
+                if (activated == 0) {
+                        return 0;
+                }
+
+                return executeResumeCourse(
+                        source,
+                        courseManager,
+                        roundStateManager,
+                        roundPresentationService,
+                        skipRoundPresentation,
+                        selectedPlayers
+                );
+        }
+
+        private static SavedCourseIntegrity validateSavedCourseIntegrity(ServerWorld world, Course course, PlacedCourseState placed) {
+                if (placed.holeTees().isEmpty() || placed.holeBaskets().isEmpty()) {
+                        return new SavedCourseIntegrity(false, "missing tee/basket placement maps");
+                }
+
+                BlockPos holeOneTee = placed.holeTees().get(1);
+                if (holeOneTee == null) {
+                        return new SavedCourseIntegrity(false, "hole 1 tee is missing");
+                }
+
+                for (Hole hole : course.holes()) {
+                        int holeIndex = hole.index();
+                        BlockPos teePos = placed.holeTees().get(holeIndex);
+                        if (teePos == null) {
+                                return new SavedCourseIntegrity(false, "hole " + holeIndex + " tee is missing");
+                        }
+                        if (!isExpectedTeePad(world, teePos)) {
+                                return new SavedCourseIntegrity(false, "hole " + holeIndex + " tee pad is missing");
+                        }
+
+                        BlockPos basketPos = placed.holeBaskets().get(holeIndex);
+                        if (basketPos == null) {
+                                return new SavedCourseIntegrity(false, "hole " + holeIndex + " basket is missing");
+                        }
+                        if (!isExpectedBasketMarker(world, hole, basketPos)) {
+                                return new SavedCourseIntegrity(false, "hole " + holeIndex + " basket marker is missing");
+                        }
+                }
+
+                return new SavedCourseIntegrity(true, "ok");
+        }
+
+        private static boolean isExpectedTeePad(ServerWorld world, BlockPos teeCenter) {
+                for (int dx = -1; dx <= 1; dx++) {
+                        for (int dz = -1; dz <= 1; dz++) {
+                                BlockPos sample = teeCenter.add(dx, 0, dz);
+                                if (dx == 0 && dz == 0) {
+                                        if (!world.getBlockState(sample).isOf(Blocks.LIME_CONCRETE)) {
+                                                return false;
+                                        }
+                                } else if (!world.getBlockState(sample).isOf(Blocks.SMOOTH_STONE)) {
+                                        return false;
+                                }
+                        }
+                }
+                return true;
+        }
+
+        private static boolean isExpectedBasketMarker(ServerWorld world, Hole hole, BlockPos basketStoredPos) {
+                if (!world.getBlockState(basketStoredPos).isOf(Blocks.HOPPER)) {
+                        return false;
+                }
+
+                int basketHeight = Math.max(1, hole.basket().basketHeight());
+                for (int i = 1; i <= basketHeight + 1; i++) {
+                        if (!world.getBlockState(basketStoredPos.up(i)).isOf(Blocks.IRON_BARS)) {
+                                return false;
+                        }
+                }
+
+                return world.getBlockState(basketStoredPos.up(basketHeight + 2)).isOf(Blocks.LANTERN);
+        }
+
+        private record SavedCourseIntegrity(boolean valid, String reason) {
         }
 
         private static int executePruneCourses(
@@ -1583,6 +1908,7 @@ public final class McdgAdminCommands {
                         true,
                         practiceCourseStorage,
                         false,
+                        true,
                         null
                 );
                 if (started == 0) {

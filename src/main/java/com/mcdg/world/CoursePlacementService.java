@@ -102,8 +102,10 @@ public final class CoursePlacementService {
     private static final int COURSE_ANCHOR_WATER_RATIO_SCORE_WEIGHT = 22000;
     private static final int COURSE_ANCHOR_WATER_REJECT_PENALTY = 180000;
     private static final int ROUTE_POLICY_MAX_RETRIES = 5;
-    private static final int PAR5_ROUTE_MAX_WATER_CARRY = 0;
-    private static final int PAR34_ROUTE_MAX_WATER_CARRY = 91;
+    // About 300 ft max carry (1 block ~= 3.28 ft); keep all hole types on the same carry policy.
+    private static final int MAX_WATER_CARRY_BLOCKS = 91;
+    private static final int PAR5_ROUTE_MAX_WATER_CARRY = MAX_WATER_CARRY_BLOCKS;
+    private static final int PAR34_ROUTE_MAX_WATER_CARRY = MAX_WATER_CARRY_BLOCKS;
     private static final int BASKET_APPROACH_ENFORCE_DISTANCE = 12;
     private static final int BASKET_APPROACH_MIN_WIDTH = 8;
     private static final String ALT_ROUTE_DIAG_ENV = "MCDG_ALT_ROUTE_DIAG";
@@ -514,7 +516,7 @@ public final class CoursePlacementService {
             }
 
             McdgMod.LOGGER.info(
-                    "Par 5 route policy fallback applied | hole={} seedPar={} effectivePar=4 reason=water_carry_nonzero",
+                    "Par 5 route policy fallback applied | hole={} seedPar={} effectivePar=4 reason=water_carry_over_limit",
                     hole.index(),
                     hole.par()
             );

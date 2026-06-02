@@ -20,8 +20,10 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 import net.minecraft.block.BlockState;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
@@ -95,6 +97,15 @@ public final class PracticeCourseStorage {
             Files.createDirectories(path.getParent());
             CourseCatalogSnapshot catalog = readCatalogSnapshot(path);
             CourseCatalogEntrySnapshot entry = CourseCatalogEntrySnapshot.from(snapshot, sourceTag, compactPreferred);
+
+            // Keep only the newest entry for identical world+seed+layout snapshots.
+            String targetWorldKey = snapshot.worldKey;
+            long targetSeed = snapshot.course == null ? Long.MIN_VALUE : snapshot.course.seed;
+            String targetLayoutSignature = entry.layoutSignature == null
+                    ? buildLayoutSignature(snapshot.course)
+                    : entry.layoutSignature;
+            catalog.entries.removeIf(existing -> isDuplicateReusableEntry(existing, targetWorldKey, targetSeed, targetLayoutSignature));
+
             catalog.entries.add(entry);
             catalog.entries.sort(Comparator.comparingLong((CourseCatalogEntrySnapshot value) -> value.createdAtMs).reversed());
             if (catalog.entries.size() > MAX_CATALOG_ENTRIES) {
@@ -269,6 +280,47 @@ public final class PracticeCourseStorage {
         }
     }
 
+    public int pruneReusableByIndices(MinecraftServer server, Set<Integer> oneBasedIndices) {
+        if (oneBasedIndices == null || oneBasedIndices.isEmpty()) {
+            return 0;
+        }
+
+        Path path = resolveCatalogPath(server);
+        if (!Files.exists(path)) {
+            return 0;
+        }
+
+        try {
+            CourseCatalogSnapshot catalog = readCatalogSnapshot(path);
+            if (catalog.entries == null || catalog.entries.isEmpty()) {
+                return 0;
+            }
+
+            List<CourseCatalogEntrySnapshot> sortedEntries = sortedEntries(catalog.entries);
+            List<CourseCatalogEntrySnapshot> keptEntries = new ArrayList<>();
+            int removed = 0;
+            for (int i = 0; i < sortedEntries.size(); i++) {
+                int index = i + 1;
+                if (oneBasedIndices.contains(index)) {
+                    removed++;
+                } else {
+                    keptEntries.add(sortedEntries.get(i));
+                }
+            }
+
+            if (removed <= 0) {
+                return 0;
+            }
+
+            catalog.entries = keptEntries;
+            Files.writeString(path, GSON.toJson(catalog));
+            return removed;
+        } catch (IOException | RuntimeException ex) {
+            McdgMod.LOGGER.error("Failed to prune reusable entries by indices at {}", path, ex);
+            return 0;
+        }
+    }
+
     private Path resolvePath(MinecraftServer server) {
         return server.getSavePath(WorldSavePath.ROOT).resolve("data").resolve(McdgMod.MOD_ID).resolve(FILE_NAME);
     }
@@ -302,6 +354,46 @@ public final class PracticeCourseStorage {
         }
         sorted.sort(Comparator.comparingLong((CourseCatalogEntrySnapshot value) -> value.createdAtMs).reversed());
         return sorted;
+    }
+
+    private boolean isDuplicateReusableEntry(CourseCatalogEntrySnapshot existing, String targetWorldKey, long targetSeed, String targetLayoutSignature) {
+        if (existing == null || existing.snapshot == null || existing.snapshot.course == null) {
+            return false;
+        }
+
+        String existingWorldKey = existing.snapshot.worldKey;
+        long existingSeed = existing.snapshot.course.seed;
+        String existingLayoutSignature = existing.layoutSignature;
+        if (existingLayoutSignature == null || existingLayoutSignature.isBlank()) {
+            existingLayoutSignature = buildLayoutSignature(existing.snapshot.course);
+        }
+
+        return Objects.equals(existingWorldKey, targetWorldKey)
+                && existingSeed == targetSeed
+                && Objects.equals(existingLayoutSignature, targetLayoutSignature);
+    }
+
+    private static String buildLayoutSignature(CourseSnapshot course) {
+        if (course == null || course.holes == null || course.holes.isEmpty()) {
+            return "empty";
+        }
+
+        StringBuilder signature = new StringBuilder();
+        signature.append("holes=").append(course.holes.size());
+        for (HoleSnapshot hole : course.holes) {
+            if (hole == null || hole.tee == null || hole.basket == null) {
+                continue;
+            }
+            signature
+                    .append("|h").append(hole.index)
+                    .append(":p").append(hole.par)
+                    .append(":d").append(hole.distanceFeet)
+                    .append(":t").append(hole.tee.x()).append(',').append(hole.tee.y()).append(',').append(hole.tee.z())
+                    .append(":b").append(hole.basket.x()).append(',').append(hole.basket.y()).append(',').append(hole.basket.z())
+                    .append(":bh").append(hole.basket.basketHeight())
+                    .append(":sig=").append(hole.signatureType == null ? "NONE" : hole.signatureType);
+        }
+        return signature.toString();
     }
 
     public record LoadedPracticeCourse(Course course, PlacedCourseState placedCourseState, boolean legacyFormat) {
@@ -605,6 +697,7 @@ public final class PracticeCourseStorage {
         private long createdAtMs;
         private String sourceTag;
         private boolean compactPreferred;
+        private String layoutSignature;
         private PracticeCourseSnapshot snapshot;
 
         private static CourseCatalogEntrySnapshot from(PracticeCourseSnapshot snapshot, String sourceTag, boolean compactPreferred) {
@@ -612,6 +705,7 @@ public final class PracticeCourseStorage {
             entry.createdAtMs = System.currentTimeMillis();
             entry.sourceTag = sourceTag == null ? "unknown" : sourceTag;
             entry.compactPreferred = compactPreferred;
+            entry.layoutSignature = buildLayoutSignature(snapshot.course);
             entry.snapshot = snapshot;
             return entry;
         }
