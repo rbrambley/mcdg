@@ -51,6 +51,65 @@ Next Recommended Sequence:
 
 ---
 
+## Compact Course Layout Initiative (Agreed Plan)
+
+Objective:
+- Make compact routing the new default course layout behavior without shortening hole lengths.
+- Keep holes close together in a condensed footprint.
+- Favor hole 9 finishing near hole 1.
+- Prevent illegal 2D fairway crisscross; allow overlap only when safely separated vertically.
+
+Agreed constraints:
+- Default layout mode: compact.
+- 9-hole target footprint: about `450 x 450` blocks.
+- Hole 9 return objective: soft target near hole 1.
+  - preferred: `<= 60` blocks from hole 1 tee,
+  - warning threshold: `> 90` blocks.
+- Crossing policy:
+  - disallow 2D fairway intersections,
+  - allow above/below overlap only with enforced vertical safety clearance.
+
+Pros:
+- Smaller world footprint with stronger venue feel.
+- Better spectator/admin flow and easier round regrouping.
+- Preserves long-hole gameplay by routing shape rather than shortening distance.
+
+Tradeoffs:
+- Routing/solver complexity increases.
+- More constrained generation can increase retry frequency.
+- Requires stronger regression metrics and fallback policy to keep reliability high.
+
+Implementation phases:
+1. Compact default routing skeleton:
+  - introduce compact envelope targeting in seeded generator path;
+  - keep existing distance/par goals unchanged.
+2. Conflict-aware corridor reservation:
+  - reserve route volumes per hole during generation;
+  - reject 2D intersections by default.
+3. Vertical overlap safety:
+  - permit overlap only when vertical clearance rule passes;
+  - require landing-zone separation at overlap-adjacent regions.
+4. Hole 9 return scoring:
+  - add soft score objective for hole 9 basket proximity to hole 1 tee;
+  - do not hard-fail solely on return distance.
+5. Reliability fallback tiers:
+  - Tier A: strict compact constraints;
+  - Tier B: slightly relaxed spacing/envelope;
+  - Tier C: final legacy fallback to avoid hard generation failure.
+6. Regression and smoke coverage:
+  - add compact footprint metric checks;
+  - add illegal-crossing checks;
+  - add vertical-overlap clearance checks;
+  - add hole 9 return-distance warning metric.
+
+Exit criteria before full release confidence:
+- quick/smoke/lifecycle green with compact mode as default.
+- no illegal crossing issues in autotest samples.
+- acceptable compact placement pass rate with fallback usage tracked.
+- manual multiplayer pass confirms readability/playability in condensed layouts.
+
+---
+
 ## Basket Water-Column Finish Fix (2026-06-02)
 
 Implemented:
