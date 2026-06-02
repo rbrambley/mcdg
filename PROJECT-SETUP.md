@@ -490,28 +490,44 @@ Current priority adjustment:
 
 ## Current Admin Commands
 
+Default visible commands (simple flow):
 - `/mcdg createcourse <seed>`
+- `/mcdg help`
 - `/mcdg startround`
-- `/mcdg practicecourse`
+- `/mcdg startround strict`
 - `/mcdg endround`
-- `/mcdg resetcourse`
 - `/mcdg cleanupcourse`
-- `/mcdg resumecourse`
+- `/mcdg listcourses`
+- `/mcdg playcourse <index>`
+- `/mcdg joinround [players]`
 - `/mcdg ruleset` (shows current mode)
 - `/mcdg ruleset <casual|strict>`
-- `/mcdg buildcamp`
-- `/mcdg autotestplacement <runs> <holes>`
-- `/mcdg cancelautotest`
-- `/mcdg autotestthrows <count>`
-- `/mcdg quickthrowtest <seed> <count>`
-- `/mcdg cancelthrowtest`
+
+Advanced commands (hidden by default):
+- `practicecourse`, `practicecourse strict` (deprecated compatibility alias)
+- `resumecourse`, `usecourse <index>`, `prunecourses [keep]`
+- `resetcourse`, `gotocourse`, `roundstatus`
+- `ruleset surface <preset>`
+- `debugperms`, `validateplacement`, `buildcamp`
+- `autotestplacement`, `autotestplacementseed`, `autotestshadow`, `cancelautotest`
+- `autotestthrows`, `quickthrowtest`, `cancelthrowtest`
+
+Advanced command visibility toggle:
+- Set JVM property `-Dmcdg.showAdvancedCommands=true`, or
+- Set environment variable `MCDG_SHOW_ADVANCED_COMMANDS=true`.
 
 Behavior notes:
+- `help` prints the recommended two-path workflow (new-course vs saved-course) and current advanced-command visibility.
 - `startround` places the active course in a nearby forest biome and tracks changed blocks.
-- `practicecourse` does the same placement flow but also saves course + placement metadata to disk so the course can be resumed after restart.
+- `startround` and `startround strict` use the same unified generation model.
+- Unified generation policy: land-first placement with max water carry capped at `91` blocks (~300 ft) across hole types.
+- `playcourse <index>` is the one-step saved-course flow (select + resume).
+- `practicecourse` and `practicecourse strict` are deprecated and now intended only for compatibility during transition.
+- Default `startround` can fall back to the most recent reusable course in-world when retries are exhausted, and reports both fallback and requested seeds.
 - `endround` ends round state but keeps placed structures until cleanup/reset.
 - `resetcourse` and `cleanupcourse` both restore original blocks from tracked edit history and clear any persisted practice-course snapshot.
-- `resumecourse` starts a round on an already placed course without rebuilding it, including a persisted practice course reloaded on server start.
+- `listcourses` shows reusable saved entries (newest first).
+- `playcourse <index>` is the preferred saved-course command for normal operators.
 - `autotestplacement` runs repeat placement validation loops and writes a report under `run/logs`.
 - `buildcamp` creates a separate permanent lodging site only when explicitly requested by the player.
 

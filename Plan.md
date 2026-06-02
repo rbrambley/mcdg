@@ -20,6 +20,17 @@ Validation status:
   - Lifecycle smoke: pass=3, fail=0, issues=0.
   - Max landing gap: 10.
 
+  Field validation update (ATLauncher, 2026-06-02):
+  - Fresh autotest run completed successfully on the ATLauncher instance.
+  - Manual flow validated: created a new course, played a round, disconnected, resumed the same course.
+  - Persistence/listing check validated: resumed course appears correctly in `listcourses`.
+
+Command + generation model update (2026-06-02):
+- `/mcdg playcourse <index>` is now the primary saved-course flow (select + resume).
+- Default command surface is simplified; advanced/debug commands are hidden unless enabled.
+- Saved-course integrity guard now blocks stale entries (missing tee/basket structures) and `listcourses` prunes invalid entries.
+- Course generation policy is unified across modes/holes: land-first placement with max water carry capped at `91` blocks (~300 ft).
+
 ---
 
 ## Possible Additions Later
@@ -122,8 +133,9 @@ Open:
   - last-3-hole score panel behavior in live multiplayer.
 - Multiplayer reliability closeout:
   - repeatable 2-player full round,
-  - disconnect/rejoin mid-round validation,
+  - disconnect/rejoin mid-round validation (single-player reconnect/resume validated on 2026-06-02; 2-player verification still pending),
   - state consistency checks across both clients through round completion.
+  - current blocker: no second player available for live two-client validation.
 - Strict/resume closeout runs:
   - one clean manual strict 9-hole round,
   - `practicecourse` -> restart -> `resumecourse` verification.
@@ -135,9 +147,10 @@ Open:
 
 Next Recommended Sequence:
 1. Run manual verification pass for the newest June 2 fixes and check off each scenario above.
-2. Run multiplayer reliability closeout (2-player + disconnect/rejoin) and capture outcomes.
-3. Run strict/resume closeout pair and mark verification standard complete.
-4. Finish release-readiness docs/UX items before any new feature wave.
+2. Run strict/resume closeout pair and mark verification standard complete.
+3. Continue solo validation coverage and capture evidence while waiting on a second player.
+4. Run multiplayer reliability closeout (2-player + disconnect/rejoin) once a second tester is available.
+5. Finish release-readiness docs/UX items before any new feature wave.
 
 ---
 
