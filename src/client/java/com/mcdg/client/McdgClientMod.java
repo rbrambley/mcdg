@@ -21,6 +21,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
@@ -36,6 +37,7 @@ import net.minecraft.client.network.ServerInfo;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.client.item.ModelPredicateProviderRegistry;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
@@ -89,6 +91,11 @@ public final class McdgClientMod implements ClientModInitializer {
     private static final long ROUND_COMPLETE_CINEMATIC_DURATION_MS = 20000L;
     private static final int BASKET_GREEN_RADIUS_BLOCKS = 7;
     private static final int BASKET_GREEN_HEIGHT_BLOCKS = 8;
+    private static final Identifier TRAINING_DISC_CHARGED_PREDICATE = new Identifier("mcdg", "charged");
+    private static final Identifier MINIMAP_TEE_MARKER_TEXTURE = new Identifier("mcdg", "textures/block/mcdg_tee_marker.png");
+    private static final Identifier MINIMAP_BASKET_MARKER_TEXTURE = new Identifier("mcdg", "textures/block/mcdg_basket_marker.png");
+    private static final Identifier MINIMAP_LIE_MARKER_TEXTURE = new Identifier("mcdg", "textures/block/mcdg_lie_marker.png");
+    private static final Identifier MINIMAP_BREADCRUMB_TEXTURE = new Identifier("mcdg", "textures/block/mcdg_breadcrumb.png");
     private static final String[] COMPASS_8 = { "S", "SW", "W", "NW", "N", "NE", "E", "SE" };
         private static final int[] WAYPOINT_COLORS = {
             0xFFFF4D4D,
@@ -120,7 +127,7 @@ public final class McdgClientMod implements ClientModInitializer {
     private static long lastMiniMapRenderAtMs = 0L;
     private static int nextWaypointIndex = 1;
     private static boolean waypointLabelsVisible = true;
-    private static float miniMapHeadingDegrees = Float.NaN;
+    private static boolean miniMapJoinWarmupPending;
     private static String loadedWaypointContextKey = "";
     private static WaypointPromptStage waypointPromptStage = WaypointPromptStage.NONE;
     private static String pendingWaypointName;
@@ -136,6 +143,17 @@ public final class McdgClientMod implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        ModelPredicateProviderRegistry.register(
+                McdgItems.TRAINING_DISC,
+                TRAINING_DISC_CHARGED_PREDICATE,
+                (stack, world, entity, seed) -> {
+                    if (!ChargedDiscItem.isClientChargeVisible()) {
+                        return 0.0f;
+                    }
+                    return ChargedDiscItem.getClientChargePercent() >= 0.15f ? 1.0f : 0.0f;
+                }
+        );
+
         increaseMiniMapSizeKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
             "key.mcdg.minimap_size_up",
                 InputUtil.Type.KEYSYM,
@@ -184,6 +202,22 @@ public final class McdgClientMod implements ClientModInitializer {
         // are still streaming in.
         ClientChunkEvents.CHUNK_LOAD.register((world, chunk) -> {
             lastMiniMapRenderAtMs = 0L;
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (miniMapJoinWarmupPending && client != null && client.player != null) {
+                refreshMiniMapRenderCache(client, resolveActiveMiniMapSpan(client));
+                miniMapJoinWarmupPending = false;
+            }
+        });
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            miniMapJoinWarmupPending = true;
+            lastMiniMapRenderAtMs = 0L;
+            clearMiniMapRenderCache(client);
+        });
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            miniMapJoinWarmupPending = false;
+            miniMapState = null;
+            miniMapReceivedAtMs = 0L;
+            clearMiniMapRenderCache(client);
         });
         ClientSendMessageEvents.ALLOW_CHAT.register(message -> handleWaypointPromptInput(message));
         ClientPlayNetworking.registerGlobalReceiver(HoleMiniMapSync.ID, (payload, context) -> {
@@ -470,6 +504,17 @@ public final class McdgClientMod implements ClientModInitializer {
 
             drawWaypoints(drawContext, client, mapCenterX, mapCenterY, playerWorldX, playerWorldZ, mapScale, mapRotationDegrees, hudAlpha, waypointLabelsVisible, mapCenterX, mapCenterY, mapRadius);
 
+                drawMiniMapIconClipped(
+                    drawContext,
+                    MINIMAP_LIE_MARKER_TEXTURE,
+                    playerPx,
+                    playerPz,
+                    9,
+                    mapCenterX,
+                    mapCenterY,
+                    mapRadius
+                );
+
             drawHeadingTriangleClipped(
                     drawContext,
                     playerPx,
@@ -483,6 +528,18 @@ public final class McdgClientMod implements ClientModInitializer {
                     mapCenterY,
                     mapRadius
             );
+                    // Keep lie visibility even when the player arrow sits on top of the same center pixel.
+                    drawCircleBandClipped(
+                        drawContext,
+                        playerPx,
+                        playerPz,
+                        6,
+                        1,
+                        withAlpha(0xFF7CFF6B, hudAlpha),
+                        mapCenterX,
+                        mapCenterY,
+                        mapRadius
+                    );
             drawCircleOutline(drawContext, mapCenterX, mapCenterY, mapRadius, withAlpha(HUD_CARD_BORDER, hudAlpha));
             drawMiniMapCardinalLabels(drawContext, client, mapCenterX, mapCenterY, miniMapSize, mapRotationDegrees, hudAlpha);
             drawContext.disableScissor();
@@ -510,7 +567,7 @@ public final class McdgClientMod implements ClientModInitializer {
             float[] rotated = rotateMiniMapVector(waypointDx, waypointDz, mapRotationDegrees);
             int waypointPx = mapCenterX + Math.round(rotated[0]);
             int waypointPz = mapCenterY + Math.round(rotated[1]);
-            drawDotCircleClipped(drawContext, waypointPx, waypointPz, 2, withAlpha(waypoint.color(), hudAlpha), clipCenterX, clipCenterY, clipRadius);
+            drawMiniMapIconClipped(drawContext, MINIMAP_BREADCRUMB_TEXTURE, waypointPx, waypointPz, 7, clipCenterX, clipCenterY, clipRadius);
             if (drawLabels && isPointInsideCircle(waypointPx + 4, waypointPz - 6, clipCenterX, clipCenterY, clipRadius * clipRadius)) {
                 drawContext.drawTextWithShadow(client.textRenderer, Text.literal(waypoint.name()), waypointPx + 3, waypointPz - 8, withAlpha(0xE8EEF7, hudAlpha));
             }
@@ -532,40 +589,9 @@ public final class McdgClientMod implements ClientModInitializer {
             return 0.0f;
         }
 
-        // Prefer movement heading while grounded; use look heading when idle.
-        // Holding last heading in-air prevents jump-induced spin jitter.
-        double velocityX = client.player.getVelocity().x;
-        double velocityZ = client.player.getVelocity().z;
-        double horizontalSpeedSq = (velocityX * velocityX) + (velocityZ * velocityZ);
-        float lookHeading = 180.0f - client.player.getYaw();
-        float targetHeading;
-        if (horizontalSpeedSq > 0.0025d && client.player.isOnGround()) {
-            float movementYaw = (float) Math.toDegrees(Math.atan2(-velocityX, velocityZ));
-            targetHeading = 180.0f - movementYaw;
-        } else if (!client.player.isOnGround() && !Float.isNaN(miniMapHeadingDegrees)) {
-            targetHeading = miniMapHeadingDegrees;
-        } else if (!Float.isNaN(miniMapHeadingDegrees)) {
-            targetHeading = lookHeading;
-        } else {
-            targetHeading = lookHeading;
-        }
-
-        if (Float.isNaN(miniMapHeadingDegrees)) {
-            miniMapHeadingDegrees = targetHeading;
-            return miniMapHeadingDegrees;
-        }
-
-        float smoothing = client.player.isOnGround() ? 0.42f : 0.18f;
-        miniMapHeadingDegrees = lerpAngleDegrees(miniMapHeadingDegrees, targetHeading, smoothing);
-        if (Math.abs(shortestAngleDeltaDegrees(miniMapHeadingDegrees, targetHeading)) < 0.75f) {
-            miniMapHeadingDegrees = targetHeading;
-        }
-        return miniMapHeadingDegrees;
-    }
-
-    private static float lerpAngleDegrees(float from, float to, float t) {
-        float delta = ((to - from + 540.0f) % 360.0f) - 180.0f;
-        return from + (delta * Math.max(0.0f, Math.min(1.0f, t)));
+        // Lock map orientation to look heading for stable cardinals and no movement-lag drift.
+        float lookHeading = normalizeDegrees(180.0f - client.player.getYaw());
+        return lookHeading;
     }
 
     private static float shortestAngleDeltaDegrees(float from, float to) {
@@ -861,7 +887,7 @@ public final class McdgClientMod implements ClientModInitializer {
             float clipCenterY,
             float clipRadius
     ) {
-        if (!state.strictMode() || client.world == null) {
+        if (client.world == null) {
             return;
         }
 
@@ -1070,6 +1096,12 @@ public final class McdgClientMod implements ClientModInitializer {
             float clipCenterY,
             float clipRadius
     ) {
+        float teeDx = (float) (((state.teeX() + 0.5d) - centerWorldX) * mapScale);
+        float teeDz = (float) (((state.teeZ() + 0.5d) - centerWorldZ) * mapScale);
+        float[] rotatedTee = rotateMiniMapVector(teeDx, teeDz, mapRotationDegrees);
+        int teePx = Math.round(mapCenterX + rotatedTee[0]);
+        int teePy = Math.round(mapCenterY + rotatedTee[1]);
+
         float basketDx = (float) (((state.basketX() + 0.5d) - centerWorldX) * mapScale);
         float basketDz = (float) (((state.basketZ() + 0.5d) - centerWorldZ) * mapScale);
         float[] rotatedBasket = rotateMiniMapVector(basketDx, basketDz, mapRotationDegrees);
@@ -1083,6 +1115,9 @@ public final class McdgClientMod implements ClientModInitializer {
 
         drawCircleBandClipped(drawContext, basketPx, basketPy, ring200RadiusPx, 1, ring200Color, clipCenterX, clipCenterY, clipRadius);
         drawCircleBandClipped(drawContext, basketPx, basketPy, ring100RadiusPx, 1, ring100Color, clipCenterX, clipCenterY, clipRadius);
+
+        drawMiniMapIconClipped(drawContext, MINIMAP_TEE_MARKER_TEXTURE, teePx, teePy, 8, clipCenterX, clipCenterY, clipRadius);
+        drawMiniMapIconClipped(drawContext, MINIMAP_BASKET_MARKER_TEXTURE, Math.round(basketPx), Math.round(basketPy), 8, clipCenterX, clipCenterY, clipRadius);
 
         drawMiniMapBasketFlagClipped(
                 drawContext,
@@ -1122,6 +1157,24 @@ public final class McdgClientMod implements ClientModInitializer {
         drawPixelClipped(drawContext, centerX + 1, centerY - 5, flagColor, clipCenterX, clipCenterY, clipRadius);
         drawPixelClipped(drawContext, centerX + 2, centerY - 5, flagColor, clipCenterX, clipCenterY, clipRadius);
         drawPixelClipped(drawContext, centerX + 1, centerY - 4, flagColor, clipCenterX, clipCenterY, clipRadius);
+    }
+
+    private static void drawMiniMapIconClipped(
+            DrawContext drawContext,
+            Identifier texture,
+            int centerX,
+            int centerY,
+            int size,
+            float clipCenterX,
+            float clipCenterY,
+            float clipRadius
+    ) {
+        if (size <= 0 || !isPointInsideCircle(centerX, centerY, clipCenterX, clipCenterY, clipRadius * clipRadius)) {
+            return;
+        }
+
+        int half = size / 2;
+        drawContext.drawTexture(texture, centerX - half, centerY - half, 0, 0, size, size, size, size);
     }
 
     private static void drawPixelClipped(
@@ -1537,26 +1590,6 @@ public final class McdgClientMod implements ClientModInitializer {
             Files.write(storePath, lines, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
         } catch (IOException ex) {
             LOGGER.warn("Unable to save waypoint store for context {}", loadedWaypointContextKey, ex);
-        }
-    }
-
-    private static void drawDotCircleClipped(
-            DrawContext drawContext,
-            int x,
-            int y,
-            int radius,
-            int color,
-            float clipCenterX,
-            float clipCenterY,
-            float clipRadius
-    ) {
-        float clipRadiusSq = clipRadius * clipRadius;
-        for (int py = y - radius; py <= y + radius; py++) {
-            for (int px = x - radius; px <= x + radius; px++) {
-                if (isPointInsideCircle(px, py, clipCenterX, clipCenterY, clipRadiusSq)) {
-                    drawContext.fill(px, py, px + 1, py + 1, color);
-                }
-            }
         }
     }
 
@@ -2042,7 +2075,8 @@ public final class McdgClientMod implements ClientModInitializer {
                     chunkUnloadedSourcePixels++;
                 }
                 if (!usedClientSample) {
-                    baseColor = 0xFF5E6F86;
+                    // Avoid a gray flash on join; use biome-derived fallback when terrain is not yet available.
+                    baseColor = miniMapBiomeFallbackColor(client.world, worldX, worldZ);
                 }
 
                 int shadedArgb = applyVisibleSurfaceShading(client.world, worldX, worldZ, baseColor);
@@ -2270,35 +2304,15 @@ public final class McdgClientMod implements ClientModInitializer {
     }
 
     private enum MiniMapSampleSource {
-        VISIBLE_SURFACE("visible-surface"),
-        HEIGHTMAP_FALLBACK("heightmap-fallback"),
-        CHUNK_UNLOADED("chunk-unloaded");
-
-        private final String debugLabel;
-
-        MiniMapSampleSource(String debugLabel) {
-            this.debugLabel = debugLabel;
-        }
-
-        private String debugLabel() {
-            return debugLabel;
-        }
+        VISIBLE_SURFACE,
+        HEIGHTMAP_FALLBACK,
+        CHUNK_UNLOADED
     }
 
     private enum MiniMapFluidKind {
-        NONE("solid"),
-        WATER("water"),
-        LAVA("lava");
-
-        private final String debugLabel;
-
-        MiniMapFluidKind(String debugLabel) {
-            this.debugLabel = debugLabel;
-        }
-
-        private String debugLabel() {
-            return debugLabel;
-        }
+        NONE,
+        WATER,
+        LAVA
     }
 
     private record SurfaceResolveResult(BlockPos surface, MiniMapSampleSource source) {

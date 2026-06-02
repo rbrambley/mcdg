@@ -682,6 +682,7 @@ public final class PracticeCourseStorage {
     }
 
     private static final class CourseCatalogSnapshot {
+        @SuppressWarnings("unused")
         private int version;
         private List<CourseCatalogEntrySnapshot> entries;
 

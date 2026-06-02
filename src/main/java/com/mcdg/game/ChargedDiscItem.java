@@ -16,6 +16,7 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.UseAction;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 public final class ChargedDiscItem extends Item {
@@ -194,7 +195,8 @@ public final class ChargedDiscItem extends Item {
                 0.8f + world.getRandom().nextFloat() * 0.4f
         );
 
-        roundStateManager.recordThrow(serverPlayer.getUuid(), serverPlayer.getBlockPos());
+        BlockPos recordedThrowLie = state == null ? serverPlayer.getBlockPos() : state.lie();
+        roundStateManager.recordThrow(serverPlayer.getUuid(), recordedThrowLie);
         if (strictFlowDebug) {
             McdgMod.LOGGER.info(
                 "Strict throw release | player={} usedTicks={} charge={} velocity={} pos={} strict={}",

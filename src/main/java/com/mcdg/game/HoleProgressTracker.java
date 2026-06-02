@@ -15,6 +15,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Objects;
 import java.util.Set;
@@ -328,6 +329,29 @@ public final class HoleProgressTracker {
         }
 
         return ThrowTurnGate.blocked("Wait your turn. Another player throws first.");
+    }
+
+    public static Optional<BlockPos> relocatePlayerToSafeLie(ServerPlayerEntity player, RoundStateManager roundStateManager) {
+        if (player == null || roundStateManager == null) {
+            return Optional.empty();
+        }
+
+        PlayerRoundState state = roundStateManager.getState(player.getUuid()).orElse(null);
+        if (state == null) {
+            return Optional.empty();
+        }
+
+        ServerWorld world = player.getServerWorld();
+        BlockPos safeLie = findNearestStandableFeet(world, state.lie());
+        if (!isStandableFeetBlock(world, safeLie)) {
+            return Optional.empty();
+        }
+
+        roundStateManager.updateLie(player.getUuid(), safeLie);
+        updateLieMarker(player, safeLie);
+        player.teleport(safeLie.getX() + 0.5, safeLie.getY() + 1.0, safeLie.getZ() + 0.5);
+        LAST_RESOLUTION_REASON.put(player.getUuid(), "GOTOLIE");
+        return Optional.of(safeLie);
     }
 
     public static void sendRunningScoreboardToPlayer(
@@ -1327,6 +1351,11 @@ public final class HoleProgressTracker {
             sendClankTitle(player);
         }
 
+        resultingLie = findNearestStandableFeet(world, resultingLie);
+        if (!isStandableFeetBlock(world, resultingLie)) {
+            resultingLie = findNearestStandableFeet(world, throwLie);
+        }
+
         roundStateManager.updateLie(player.getUuid(), resultingLie);
         updateLieMarker(player, resultingLie);
         PlayerRoundState updated = roundStateManager.getState(player.getUuid()).orElse(state);
@@ -1760,6 +1789,12 @@ public final class HoleProgressTracker {
                     }
                 }
             }
+        }
+
+        int fallbackY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, baseFeet.getX(), baseFeet.getZ());
+        BlockPos fallback = new BlockPos(baseFeet.getX(), fallbackY, baseFeet.getZ());
+        if (isStandableFeetBlock(world, fallback)) {
+            return fallback;
         }
 
         return baseFeet;

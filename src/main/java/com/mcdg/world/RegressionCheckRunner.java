@@ -200,8 +200,8 @@ public final class RegressionCheckRunner {
         );
         assertContains(
             source,
-            "if (horizontalSpeedSq > 0.0025d && client.player.isOnGround())",
-            "Minimap baseline must use grounded movement heading to avoid jump jitter."
+            "float lookHeading = normalizeDegrees(180.0f - client.player.getYaw());",
+            "Minimap baseline must lock heading to player look yaw for stable compass/cardinals."
         );
         assertContains(
             source,

@@ -56,7 +56,6 @@ public final class CoursePlacementService {
     private static final int FINISH_APPROACH_MAX_EXTRA_RADIUS = 3;
     private static final int FINISH_APPROACH_WIDEN_DISTANCE = 28;
     private static final int FINISH_HAZARD_SCAN_HALF_WIDTH = 7;
-    private static final int FINISH_HAZARD_MIN_COLUMNS = 18;
     private static final int TEE_ISLAND_RADIUS = 2;
     private static final int BASKET_ISLAND_RADIUS = 7;
     private static final int SIGNATURE_RING_RADIUS = 4;
@@ -765,10 +764,6 @@ public final class CoursePlacementService {
         return new CourseBounds(minX, minZ, maxX, maxZ, centerX, centerZ);
     }
 
-    private static BlockPos findPreferredCourseAnchor(ServerWorld world, BlockPos origin, Course course, CourseBounds courseBounds) {
-        return findPreferredCourseAnchor(world, origin, course, courseBounds, Set.of());
-    }
-
     private static BlockPos findPreferredCourseAnchor(
             ServerWorld world,
             BlockPos origin,
@@ -781,7 +776,7 @@ public final class CoursePlacementService {
         BlockPos best = resolveSurfacePos(world, x, z);
         int bestScore = scoreCourseAnchor(world, best, x, z, course, courseBounds, rejectedAnchorKeys);
 
-        int ringStep = ANCHOR_SEARCH_RADIUS >= 128 ? 8 : (ANCHOR_SEARCH_RADIUS >= 48 ? 4 : 1);
+        int ringStep = 4;
         for (int radius = ringStep; radius <= ANCHOR_SEARCH_RADIUS; radius += ringStep) {
             for (int sx = x - radius; sx <= x + radius; sx += ringStep) {
                 BlockPos north = resolveSurfacePos(world, sx, z - radius);
