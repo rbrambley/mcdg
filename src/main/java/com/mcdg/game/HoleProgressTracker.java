@@ -135,6 +135,7 @@ public final class HoleProgressTracker {
                             currentHole,
                             tee,
                             basket,
+                            alternateAnchor,
                             roundStateManager,
                             rulesetManager,
                             hudScoringDebug,
@@ -1154,6 +1155,7 @@ public final class HoleProgressTracker {
             Hole currentHole,
             BlockPos tee,
             BlockPos basket,
+            BlockPos alternateAnchor,
             RoundStateManager roundStateManager,
             TournamentRulesetManager rulesetManager,
                 boolean hudScoringDebug,
@@ -1244,8 +1246,8 @@ public final class HoleProgressTracker {
         BlockPos firstOutCrossing = null;
         StrictPenaltyType landingPenalty = StrictPenaltyType.NONE;
         if (ENABLE_STRICT_LANDING_PENALTIES && rulesetManager.isStrict()) {
-            StrictPenaltyType currentFeetPenalty = classifyOutType(world, currentFeet, currentHole, tee, basket, rulesetManager);
-            StrictPenaltyType standableFeetPenalty = classifyOutType(world, landingFeet, currentHole, tee, basket, rulesetManager);
+            StrictPenaltyType currentFeetPenalty = classifyOutType(world, currentFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
+            StrictPenaltyType standableFeetPenalty = classifyOutType(world, landingFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
             landingPenalty = combinePenalty(currentFeetPenalty, standableFeetPenalty);
             if (landingPenalty != StrictPenaltyType.NONE) {
                 if (strictFlowDebug) {
@@ -1270,6 +1272,7 @@ public final class HoleProgressTracker {
                             currentHole,
                             tee,
                             basket,
+                                alternateAnchor,
                             rulesetManager
                     );
                     resultingLie = crossing.safeLie();
@@ -1416,10 +1419,11 @@ public final class HoleProgressTracker {
             Hole currentHole,
             BlockPos tee,
             BlockPos basket,
+            BlockPos alternateAnchor,
             TournamentRulesetManager rulesetManager
     ) {
         int corridorHalfWidth = strictCorridorHalfWidth(currentHole, world, tee, basket, rulesetManager);
-        return classifyOutTypeWithCorridor(world, feet, currentHole, tee, basket, rulesetManager, corridorHalfWidth);
+        return classifyOutTypeWithCorridor(world, feet, currentHole, tee, basket, alternateAnchor, rulesetManager, corridorHalfWidth);
     }
 
     private static StrictPenaltyType classifyOutTypeWithCorridor(
@@ -1428,6 +1432,7 @@ public final class HoleProgressTracker {
             Hole currentHole,
             BlockPos tee,
             BlockPos basket,
+            BlockPos alternateAnchor,
             TournamentRulesetManager rulesetManager,
             int corridorHalfWidth
     ) {
@@ -1435,7 +1440,7 @@ public final class HoleProgressTracker {
             return StrictPenaltyType.OB;
         }
 
-        double lateral = distanceFromPointToSegmentXZ(feet, tee, basket);
+        double lateral = distanceFromPlayableRouteXZ(feet, tee, basket, alternateAnchor);
         if (lateral > corridorHalfWidth) {
             return StrictPenaltyType.OB;
         }
@@ -1613,6 +1618,16 @@ public final class HoleProgressTracker {
         return Math.sqrt(mx * mx + mz * mz);
     }
 
+    private static double distanceFromPlayableRouteXZ(BlockPos point, BlockPos tee, BlockPos basket, BlockPos alternateAnchor) {
+        if (alternateAnchor == null) {
+            return distanceFromPointToSegmentXZ(point, tee, basket);
+        }
+
+        double firstLeg = distanceFromPointToSegmentXZ(point, tee, alternateAnchor);
+        double secondLeg = distanceFromPointToSegmentXZ(point, alternateAnchor, basket);
+        return Math.min(firstLeg, secondLeg);
+    }
+
     private static CrossingResolution findLastSolidBeforeOutCrossing(
             ServerWorld world,
             BlockPos throwLie,
@@ -1620,6 +1635,7 @@ public final class HoleProgressTracker {
             Hole currentHole,
             BlockPos tee,
             BlockPos basket,
+            BlockPos alternateAnchor,
             TournamentRulesetManager rulesetManager
     ) {
         BlockPos start = findNearestStandableFeet(world, throwLie);
@@ -1636,7 +1652,7 @@ public final class HoleProgressTracker {
             int z = (int) Math.floor((start.getZ() + 0.5) + ((end.getZ() + 0.5 - (start.getZ() + 0.5)) * t));
             BlockPos probeRaw = new BlockPos(x, y, z);
 
-            if (classifyOutType(world, probeRaw, currentHole, tee, basket, rulesetManager) != StrictPenaltyType.NONE) {
+            if (classifyOutType(world, probeRaw, currentHole, tee, basket, alternateAnchor, rulesetManager) != StrictPenaltyType.NONE) {
                 if (firstOut == null) {
                     firstOut = probeRaw.toImmutable();
                 }
@@ -1645,7 +1661,7 @@ public final class HoleProgressTracker {
 
             BlockPos standableProbe = findNearestStandableFeet(world, probeRaw);
             if (isStandableFeetBlock(world, standableProbe)
-                    && classifyOutType(world, standableProbe, currentHole, tee, basket, rulesetManager) == StrictPenaltyType.NONE) {
+                    && classifyOutType(world, standableProbe, currentHole, tee, basket, alternateAnchor, rulesetManager) == StrictPenaltyType.NONE) {
                 lastInBoundsSolid = standableProbe;
             }
         }

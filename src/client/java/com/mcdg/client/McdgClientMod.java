@@ -722,7 +722,10 @@ public final class McdgClientMod implements ClientModInitializer {
             return;
         }
 
-        int visibleHoleCount = Math.max(1, Math.min(state.totalHoles(), state.focusHole()));
+        int focusHole = Math.max(1, Math.min(state.totalHoles(), state.focusHole()));
+        int startHole = Math.max(1, focusHole - 2);
+        int endHole = focusHole;
+        int visibleHoleCount = Math.max(1, endHole - startHole + 1);
         int nameColW = client.textRenderer.getWidth("Player");
         int totalColW = client.textRenderer.getWidth("Tot");
         for (RunningRoundScoreRow row : state.rows()) {
@@ -747,9 +750,9 @@ public final class McdgClientMod implements ClientModInitializer {
         drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Player"), cursorX, headerY, withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
         cursorX += nameColW + colGap;
 
-        for (int hole = 1; hole <= visibleHoleCount; hole++) {
+        for (int hole = startHole; hole <= endHole; hole++) {
             String label = Integer.toString(hole);
-            int color = hole == state.focusHole() ? 0xFFEAC26F : HUD_CARD_MUTED_TEXT;
+            int color = hole == focusHole ? 0xFFEAC26F : HUD_CARD_MUTED_TEXT;
             drawContext.drawTextWithShadow(
                     client.textRenderer,
                     Text.literal(label),
@@ -772,10 +775,10 @@ public final class McdgClientMod implements ClientModInitializer {
             drawContext.drawTextWithShadow(client.textRenderer, Text.literal(displayName), x + 6, rowY, withAlpha(rowColor, hudAlpha));
 
             int rowCursorX = x + 6 + nameColW + colGap;
-            for (int hole = 1; hole <= visibleHoleCount; hole++) {
+            for (int hole = startHole; hole <= endHole; hole++) {
                 int value = (hole - 1) < row.holeScores().size() ? row.holeScores().get(hole - 1) : -1;
                 String text = value < 0 ? "-" : Integer.toString(value);
-                int valueColor = hole == state.focusHole() ? 0xFFF5D684 : rowColor;
+                int valueColor = hole == focusHole ? 0xFFF5D684 : rowColor;
                 drawContext.drawTextWithShadow(
                         client.textRenderer,
                         Text.literal(text),

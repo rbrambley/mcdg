@@ -79,6 +79,10 @@ public final class CoursePlacementService {
     private static final int TEE_MAX_ENCLOSURE_SCORE = 9;
     private static final int TEE_PIT_DEPTH_THRESHOLD = 4;
     private static final int SURFACE_SEARCH_DEPTH_LIMIT = 24;
+    private static final int PLAYER_RELATIVE_TEE_MIN_Y_OFFSET = 20;
+    private static final int PLAYER_RELATIVE_BASKET_TARGET_MIN_Y_OFFSET = 20;
+    private static final int PLAYER_RELATIVE_BASKET_ABSOLUTE_MIN_Y_OFFSET = 28;
+    private static final int PLAYER_RELATIVE_Y_REPOSITION_RADIUS = 96;
     private static final int TEE_MAX_DIRECT_CARRY_GAP = 91;
     private static final int ALT_FAIRWAY_ANCHOR_SEARCH_RADIUS = 80;
     private static final int ALT_FAIRWAY_FIRST_LEG_MAX_GAP = 70;
@@ -103,6 +107,9 @@ public final class CoursePlacementService {
     public PlacedCourseState placeCourse(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback) {
         // Current MVP behavior: place relative to the player's surface location.
         BlockPos anchor = findPreferredSurfacePos(world, origin.getX(), origin.getZ(), true, ANCHOR_SEARCH_RADIUS);
+        int teeMinY = origin.getY() - PLAYER_RELATIVE_TEE_MIN_Y_OFFSET;
+        int basketTargetMinY = origin.getY() - PLAYER_RELATIVE_BASKET_TARGET_MIN_Y_OFFSET;
+        int basketAbsoluteMinY = origin.getY() - PLAYER_RELATIVE_BASKET_ABSOLUTE_MIN_Y_OFFSET;
 
         Map<BlockPos, BlockState> originalBlocks = new HashMap<>();
         Map<Integer, BlockPos> holeTees = new HashMap<>();
@@ -180,6 +187,86 @@ public final class CoursePlacementService {
                         originalBlocks,
                         protectedPositions
                     );
+                }
+            }
+
+            teeSurface = enforceMinimumSurfaceY(
+                world,
+                teeSurface,
+                teeMinY,
+                PLAYER_RELATIVE_Y_REPOSITION_RADIUS,
+                true
+            );
+            if (teeSurface.getY() < teeMinY) {
+                McdgMod.LOGGER.warn(
+                    "Tee elevation floor unmet after search | hole={} teeY={} minY={} playerY={}",
+                    hole.index(),
+                    teeSurface.getY(),
+                    teeMinY,
+                    origin.getY()
+                );
+            }
+
+            BlockPos strictBasketSurface = enforceMinimumSurfaceY(
+                world,
+                basketSurface,
+                basketTargetMinY,
+                PLAYER_RELATIVE_Y_REPOSITION_RADIUS,
+                false
+            );
+            if (strictBasketSurface.getY() < basketTargetMinY) {
+                basketSurface = enforceMinimumSurfaceY(
+                    world,
+                    strictBasketSurface,
+                    basketAbsoluteMinY,
+                    PLAYER_RELATIVE_Y_REPOSITION_RADIUS,
+                    false
+                );
+                if (basketSurface.getY() < basketAbsoluteMinY) {
+                    McdgMod.LOGGER.warn(
+                        "Basket elevation floor unmet after relaxed search | hole={} basketY={} targetMinY={} absoluteMinY={} playerY={}",
+                        hole.index(),
+                        basketSurface.getY(),
+                        basketTargetMinY,
+                        basketAbsoluteMinY,
+                        origin.getY()
+                    );
+                } else {
+                    McdgMod.LOGGER.info(
+                        "Basket elevation used relaxed floor fallback | hole={} basketY={} targetMinY={} absoluteMinY={} playerY={}",
+                        hole.index(),
+                        basketSurface.getY(),
+                        basketTargetMinY,
+                        basketAbsoluteMinY,
+                        origin.getY()
+                    );
+                }
+            } else {
+                basketSurface = strictBasketSurface;
+            }
+
+            if (isDeeplyEnclosedBasketSurface(world, basketSurface)) {
+                BlockPos recoveredBasket = tryRecoverEnclosedBasketSurface(
+                    world,
+                    teeSurface,
+                    basketSurface,
+                    originalBlocks,
+                    protectedPositions
+                );
+                if (recoveredBasket != null && !isDeeplyEnclosedBasketSurface(world, recoveredBasket)) {
+                    basketSurface = recoveredBasket;
+                } else {
+                    BlockPos relocatedBasket = relocateBasketSurfaceIfNeeded(world, teeSurface, basketSurface);
+                    relocatedBasket = enforceMinimumSurfaceY(
+                        world,
+                        relocatedBasket,
+                        basketAbsoluteMinY,
+                        PLAYER_RELATIVE_Y_REPOSITION_RADIUS,
+                        false
+                    );
+                    if (!isDeeplyEnclosedBasketSurface(world, relocatedBasket)) {
+                        basketSurface = relocatedBasket;
+                    }
                 }
             }
 
@@ -381,6 +468,56 @@ public final class CoursePlacementService {
         }
 
         return preferLand ? refineLandCandidate(world, best, x, z) : best;
+    }
+
+    private static BlockPos enforceMinimumSurfaceY(
+            ServerWorld world,
+            BlockPos surface,
+            int minY,
+            int searchRadius,
+            boolean requirePlayableTee
+    ) {
+        if (surface.getY() >= minY) {
+            return surface;
+        }
+
+        BlockPos best = surface;
+        int bestScore = Integer.MAX_VALUE;
+        int step = 4;
+
+        for (int radius = step; radius <= searchRadius; radius += step) {
+            for (int dx = -radius; dx <= radius; dx += step) {
+                for (int dz = -radius; dz <= radius; dz += step) {
+                    if (Math.abs(dx) != radius && Math.abs(dz) != radius) {
+                        continue;
+                    }
+
+                    BlockPos candidate = normalizePlayableSurface(
+                        world,
+                        resolveSurfacePos(world, surface.getX() + dx, surface.getZ() + dz)
+                    );
+                    if (candidate.getY() < minY || isUnsafeSurface(world, candidate)) {
+                        continue;
+                    }
+                    if (requirePlayableTee && !isPlayableTeeSurface(world, candidate)) {
+                        continue;
+                    }
+
+                    int score = Math.abs(dx) + Math.abs(dz);
+                    score += Math.abs(candidate.getY() - minY) * 2;
+                    if (score < bestScore) {
+                        bestScore = score;
+                        best = candidate;
+                    }
+                }
+            }
+
+            if (bestScore != Integer.MAX_VALUE) {
+                return best;
+            }
+        }
+
+        return surface;
     }
 
     private static BlockPos refineLandCandidate(ServerWorld world, BlockPos base, int targetX, int targetZ) {

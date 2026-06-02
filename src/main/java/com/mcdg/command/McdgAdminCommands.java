@@ -784,11 +784,13 @@ public final class McdgAdminCommands {
         }
 
         private static void evacuatePlayersBeforeCleanup(ServerCommandSource source, ServerWorld world, PlacedCourseState placed) {
-                BlockPos spawnSafeFeet = resolveSafeFeetNear(world, world.getSpawnPos());
                 ServerPlayerEntity sourcePlayer = source.getPlayer();
                 BlockPos sourceAnchorSafeFeet = sourcePlayer != null && sourcePlayer.getWorld().getRegistryKey().equals(world.getRegistryKey())
                         ? resolveSafeFeetNear(world, sourcePlayer.getBlockPos())
-                        : spawnSafeFeet;
+                        : resolveSafeFeetNear(world, world.getSpawnPos());
+                if (isWithinPlacedCourseBuffer(placed, sourceAnchorSafeFeet, 28)) {
+                        sourceAnchorSafeFeet = findNearestSafeOutsideCourse(world, placed, sourceAnchorSafeFeet, 28);
+                }
 
                 for (ServerPlayerEntity player : source.getServer().getPlayerManager().getPlayerList()) {
                         if (!player.getWorld().getRegistryKey().equals(world.getRegistryKey())) {
@@ -799,21 +801,44 @@ public final class McdgAdminCommands {
                         String relocationReason = "nearby";
 
                         if (isWithinPlacedCourseBuffer(placed, targetFeet, 28)) {
+                                targetFeet = findNearestSafeOutsideCourse(world, placed, targetFeet, 28);
+                                relocationReason = "nearby-safe";
+                        }
+                        if (isWithinPlacedCourseBuffer(placed, targetFeet, 28)) {
                                 targetFeet = sourceAnchorSafeFeet;
                                 relocationReason = "admin";
                         }
-                        if (isWithinPlacedCourseBuffer(placed, targetFeet, 28)) {
-                                targetFeet = spawnSafeFeet;
-                                relocationReason = "spawn";
-                        }
 
                         player.teleport(targetFeet.getX() + 0.5, targetFeet.getY() + 1.0, targetFeet.getZ() + 0.5);
-                        if ("nearby".equals(relocationReason)) {
+                        if ("nearby".equals(relocationReason) || "nearby-safe".equals(relocationReason)) {
                                 player.sendMessage(Text.literal("Course cleanup in progress. Relocated to a nearby safe location."), true);
                         } else {
                                 player.sendMessage(Text.literal("Course cleanup in progress. Relocated to an admin safe zone."), true);
                         }
                 }
+        }
+
+        private static BlockPos findNearestSafeOutsideCourse(ServerWorld world, PlacedCourseState placed, BlockPos originFeet, int bufferBlocks) {
+                BlockPos safeOrigin = resolveSafeFeetNear(world, originFeet);
+                if (!isWithinPlacedCourseBuffer(placed, safeOrigin, bufferBlocks)) {
+                        return safeOrigin;
+                }
+
+                for (int radius = 12; radius <= 144; radius += 12) {
+                        for (int dx = -radius; dx <= radius; dx += 4) {
+                                for (int dz = -radius; dz <= radius; dz += 4) {
+                                        if (Math.abs(dx) != radius && Math.abs(dz) != radius) {
+                                                continue;
+                                        }
+                                        BlockPos candidate = resolveSafeFeetNear(world, safeOrigin.add(dx, 0, dz));
+                                        if (!isWithinPlacedCourseBuffer(placed, candidate, bufferBlocks)) {
+                                                return candidate;
+                                        }
+                                }
+                        }
+                }
+
+                return safeOrigin;
         }
 
         private static boolean isWithinPlacedCourseBuffer(PlacedCourseState placed, BlockPos pos, int bufferBlocks) {
