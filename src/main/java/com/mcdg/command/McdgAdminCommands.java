@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -143,6 +144,32 @@ public final class McdgAdminCommands {
                                                 roundPresentationService,
                                                 skipRoundPresentation,
                                                 EntityArgumentType.getPlayers(context, "players")
+                                        ))))
+                        .then(literal("listcourses")
+                                .executes(context -> executeListCourses(
+                                        context.getSource(),
+                                        practiceCourseStorage
+                                )))
+                        .then(literal("usecourse")
+                                .then(argument("index", IntegerArgumentType.integer(1))
+                                        .executes(context -> executeUseCourse(
+                                                context.getSource(),
+                                                courseManager,
+                                                roundStateManager,
+                                                practiceCourseStorage,
+                                                IntegerArgumentType.getInteger(context, "index")
+                                        ))))
+                        .then(literal("prunecourses")
+                                .executes(context -> executePruneCourses(
+                                        context.getSource(),
+                                        practiceCourseStorage,
+                                        6
+                                ))
+                                .then(argument("keep", IntegerArgumentType.integer(0, 100))
+                                        .executes(context -> executePruneCourses(
+                                                context.getSource(),
+                                                practiceCourseStorage,
+                                                IntegerArgumentType.getInteger(context, "keep")
                                         ))))
                         .then(literal("resetcourse")
                                 .executes(context -> executeCleanupCourse(context.getSource(), courseManager, placementService, roundStateManager, practiceCourseStorage)))
@@ -359,7 +386,7 @@ public final class McdgAdminCommands {
                 try {
                         BlockPos baseOrigin = BlockPos.ofFloored(source.getPosition());
                         PlacedCourseState placed = null;
-                        final int maxPlacementAttempts = 5;
+                        final int maxPlacementAttempts = 9;
 
                         for (int attempt = 1; attempt <= maxPlacementAttempts; attempt++) {
                                 BlockPos attemptOrigin = offsetOriginForAttempt(baseOrigin, attempt);
@@ -391,6 +418,19 @@ public final class McdgAdminCommands {
                                         source.sendFeedback(() -> Text.literal(
                                                 "Detected retryable placement issue (enclosure/route gap). Retrying at a nearby surface anchor (attempt "
                                                         + nextAttempt + "/" + maxPlacementAttempts + ")..."
+                                        ), false);
+                                }
+                        }
+
+                        if (placed == null) {
+                                Optional<PracticeCourseStorage.LoadedPracticeCourse> reusableFallback =
+                                        practiceCourseStorage.loadMostRecentReusable(source.getServer(), world.getRegistryKey());
+                                if (reusableFallback.isPresent()) {
+                                        PracticeCourseStorage.LoadedPracticeCourse fallback = reusableFallback.get();
+                                        course = ensureSingleSignatureHole(fallback.course());
+                                        placed = fallback.placedCourseState();
+                                        source.sendFeedback(() -> Text.literal(
+                                                "Placement retries exhausted. Reusing the most recent recoverable course snapshot in this world."
                                         ), false);
                                 }
                         }
@@ -452,6 +492,14 @@ public final class McdgAdminCommands {
                         if (persistentCourse) {
                                 practiceCourseStorage.save(source.getServer(), course, placed);
                         }
+                        // Compact is the default placement target; persist all successful placements for reuse/recovery.
+                        practiceCourseStorage.saveReusable(
+                                source.getServer(),
+                                course,
+                                placed,
+                                persistentCourse ? "practicecourse" : "startround",
+                                true
+                        );
 
                         if (skipRoundPresentation) {
                                 courseManager.setRoundActive(true);
@@ -588,6 +636,91 @@ public final class McdgAdminCommands {
 
                 source.sendFeedback(() -> Text.literal(
                         "Round resume presentation started. Players=" + trackedPlayers + "."
+                ), true);
+                return 1;
+        }
+
+        private static int executeListCourses(
+                        ServerCommandSource source,
+                        PracticeCourseStorage practiceCourseStorage
+        ) {
+                List<PracticeCourseStorage.ReusableCourseEntry> entries = practiceCourseStorage.listReusable(source.getServer());
+                if (entries.isEmpty()) {
+                        source.sendFeedback(() -> Text.literal("No reusable courses are saved yet."), false);
+                        return 1;
+                }
+
+                source.sendFeedback(() -> Text.literal("Reusable courses (newest first): " + entries.size()), false);
+                for (PracticeCourseStorage.ReusableCourseEntry entry : entries) {
+                        source.sendFeedback(() -> Text.literal(
+                                "#" + entry.index()
+                                        + " " + entry.name()
+                                        + " seed=" + entry.seed()
+                                        + " holes=" + entry.holeCount()
+                                        + " world=" + entry.worldKey()
+                                        + " source=" + entry.sourceTag()
+                                        + " compact=" + (entry.compactPreferred() ? "yes" : "no")
+                        ), false);
+                }
+                return 1;
+        }
+
+        private static int executeUseCourse(
+                        ServerCommandSource source,
+                        ActiveCourseManager courseManager,
+                        RoundStateManager roundStateManager,
+                        PracticeCourseStorage practiceCourseStorage,
+                        int oneBasedIndex
+        ) {
+                if (courseManager.isRoundActive()) {
+                        source.sendError(Text.literal("Round is active. End the round before switching reusable courses."));
+                        return 0;
+                }
+
+                Optional<PracticeCourseStorage.LoadedPracticeCourse> selected =
+                        practiceCourseStorage.loadReusableByIndex(source.getServer(), oneBasedIndex);
+                if (selected.isEmpty()) {
+                        source.sendError(Text.literal("Reusable course #" + oneBasedIndex + " was not found."));
+                        return 0;
+                }
+
+                PracticeCourseStorage.LoadedPracticeCourse loaded = selected.get();
+                if (source.getServer().getWorld(loaded.placedCourseState().worldKey()) == null) {
+                        source.sendError(Text.literal("Reusable course #" + oneBasedIndex + " points to an unavailable world."));
+                        return 0;
+                }
+
+                clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
+                courseManager.setActiveCourse(ensureSingleSignatureHole(loaded.course()));
+                courseManager.setPlacedCourseState(loaded.placedCourseState());
+                courseManager.setPersistentPlacedCourse(true);
+                courseManager.setLegacyPracticeSnapshot(loaded.legacyFormat());
+                courseManager.setRoundActive(false);
+
+                Course active = courseManager.getActiveCourse().orElse(null);
+                int holes = active == null ? 0 : active.holes().size();
+                source.sendFeedback(() -> Text.literal(
+                        "Reusable course #" + oneBasedIndex + " activated: "
+                                + (active == null ? "unknown" : active.name())
+                                + " (holes=" + holes + "). Use /mcdg resumecourse or /mcdg startround."
+                ), true);
+                return 1;
+        }
+
+        private static int executePruneCourses(
+                        ServerCommandSource source,
+                        PracticeCourseStorage practiceCourseStorage,
+                        int keepCount
+        ) {
+                int removed = practiceCourseStorage.pruneReusable(source.getServer(), keepCount);
+                if (removed <= 0) {
+                        source.sendFeedback(() -> Text.literal("No reusable courses were pruned. Keep count=" + keepCount + "."), false);
+                        return 1;
+                }
+
+                final int finalRemoved = removed;
+                source.sendFeedback(() -> Text.literal(
+                        "Pruned " + finalRemoved + " reusable courses. Keep count=" + keepCount + "."
                 ), true);
                 return 1;
         }
@@ -747,6 +880,10 @@ public final class McdgAdminCommands {
                         case 3 -> baseOrigin.add(-48, 0, 0);
                         case 4 -> baseOrigin.add(0, 0, 48);
                         case 5 -> baseOrigin.add(0, 0, -48);
+                        case 6 -> baseOrigin.add(72, 0, 72);
+                        case 7 -> baseOrigin.add(-72, 0, 72);
+                        case 8 -> baseOrigin.add(72, 0, -72);
+                        case 9 -> baseOrigin.add(-72, 0, -72);
                         default -> baseOrigin;
                 };
         }

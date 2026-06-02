@@ -72,7 +72,6 @@ public final class McdgClientMod implements ClientModInitializer {
     private static final int PASSIVE_MINIMAP_SPAN_BLOCKS = 96;
     private static final int MINIMAP_TEXTURE_SIZE = 128; // Higher sample density while keeping a wider world span.
     private static final int[] MINIMAP_SIZES = { 84, 104, 126 };
-    private static final int[] MINIMAP_PANEL_ALPHA = { 0x8A, 0x6F, 0x58 };
     private static final int[] MINIMAP_SURFACE_ALPHA = { 0xD0, 0xB8, 0x9A };
     private static final int HUD_CARD_BG = 0xA5121822;
     private static final int HUD_CARD_BORDER = 0xA63A4E66;
@@ -114,8 +113,6 @@ public final class McdgClientMod implements ClientModInitializer {
     private static float displayedTotalStrokes = Float.NaN;
     private static float displayedCumulativeDelta = Float.NaN;
     private static MiniMapRenderDebug miniMapRenderDebug = MiniMapRenderDebug.empty();
-    private static long nextMiniMapDebugActionBarAtMs = 0L;
-    private static long nextMiniMapDebugLogAtMs = 0L;
     private static long lastMiniMapRenderAtMs = 0L;
     private static int nextWaypointIndex = 1;
     private static boolean waypointLabelsVisible = true;
@@ -396,7 +393,6 @@ public final class McdgClientMod implements ClientModInitializer {
         double playerWorldX = client.player.getX();
         double playerWorldZ = client.player.getZ();
         int playerFeetX = net.minecraft.util.math.MathHelper.floor(playerWorldX);
-        int playerFeetY = net.minecraft.util.math.MathHelper.floor(client.player.getY());
         int playerFeetZ = net.minecraft.util.math.MathHelper.floor(playerWorldZ);
         // Sub-block pixel shift: smooth map scroll as player moves within a block.
         double centerBlockX = (miniMapRenderCache != null ? miniMapRenderCache.centerX() : playerFeetX) + 0.5d;
@@ -1197,27 +1193,6 @@ public final class McdgClientMod implements ClientModInitializer {
         int g = Math.max(0, Math.min(255, Math.round(((argb >>> 8) & 0xFF) * multiplier)));
         int b = Math.max(0, Math.min(255, Math.round((argb & 0xFF) * multiplier)));
         return (a << 24) | (r << 16) | (g << 8) | b;
-    }
-
-    private static int blendRgb(int fromArgb, int toArgb, float weight) {
-        float t = Math.max(0.0f, Math.min(1.0f, weight));
-        int a = (fromArgb >>> 24) & 0xFF;
-        int r = lerpChannel((fromArgb >>> 16) & 0xFF, (toArgb >>> 16) & 0xFF, t);
-        int g = lerpChannel((fromArgb >>> 8) & 0xFF, (toArgb >>> 8) & 0xFF, t);
-        int b = lerpChannel(fromArgb & 0xFF, toArgb & 0xFF, t);
-        return (a << 24) | (r << 16) | (g << 8) | b;
-    }
-
-    private static int lerpColor(int from, int to, float t) {
-        int a = lerpChannel((from >>> 24) & 0xFF, (to >>> 24) & 0xFF, t);
-        int r = lerpChannel((from >>> 16) & 0xFF, (to >>> 16) & 0xFF, t);
-        int g = lerpChannel((from >>> 8) & 0xFF, (to >>> 8) & 0xFF, t);
-        int b = lerpChannel(from & 0xFF, to & 0xFF, t);
-        return (a << 24) | (r << 16) | (g << 8) | b;
-    }
-
-    private static int lerpChannel(int from, int to, float t) {
-        return Math.max(0, Math.min(255, Math.round(from + ((to - from) * t))));
     }
 
     private static void drawHudCard(DrawContext drawContext, MinecraftClient client, int x, int y, int w, int h, String title, float alpha) {
@@ -2034,15 +2009,6 @@ public final class McdgClientMod implements ClientModInitializer {
         float textureRadiusSq = textureRadius * textureRadius;
         double centerWorldX = (playerFeetX + 0.5d);
         double centerWorldZ = (playerFeetZ + 0.5d);
-        String centerSource = "unknown";
-        String centerFluid = MiniMapFluidKind.NONE.debugLabel();
-        int centerSurfaceY = worldBottom(client.world);
-        int centerWorldSampleX = 0;
-        int centerWorldSampleZ = 0;
-        int clientSamplePixels = 0;
-        int serverFallbackPixels = 0;
-        int visibleSurfaceSourcePixels = 0;
-        int heightmapFallbackSourcePixels = 0;
         int chunkUnloadedSourcePixels = 0;
 
         for (int py = 0; py < MINIMAP_TEXTURE_SIZE; py++) {
@@ -2062,25 +2028,11 @@ public final class McdgClientMod implements ClientModInitializer {
                 TerrainSampleResult terrainSample = sampleClientWorldTerrain(client.world, worldX, worldZ);
                 boolean usedClientSample = terrainSample.color() != MINIMAP_COLOR_UNSET;
                 int baseColor = terrainSample.color();
-                switch (terrainSample.source()) {
-                    case VISIBLE_SURFACE -> visibleSurfaceSourcePixels++;
-                    case HEIGHTMAP_FALLBACK -> heightmapFallbackSourcePixels++;
-                    case CHUNK_UNLOADED -> chunkUnloadedSourcePixels++;
-                }
-                if (usedClientSample) {
-                    clientSamplePixels++;
+                if (terrainSample.source() == MiniMapSampleSource.CHUNK_UNLOADED) {
+                    chunkUnloadedSourcePixels++;
                 }
                 if (!usedClientSample) {
-                    serverFallbackPixels++;
                     baseColor = 0xFF5E6F86;
-                }
-
-                if (px == centerPx && py == centerPy) {
-                    centerSource = terrainSample.source().debugLabel();
-                    centerFluid = terrainSample.fluidKind().debugLabel();
-                    centerSurfaceY = terrainSample.surfaceY();
-                    centerWorldSampleX = worldX;
-                    centerWorldSampleZ = worldZ;
                 }
 
                 int shadedArgb = applyVisibleSurfaceShading(client.world, worldX, worldZ, baseColor);
@@ -2088,39 +2040,9 @@ public final class McdgClientMod implements ClientModInitializer {
             }
         }
 
-        miniMapRenderDebug = new MiniMapRenderDebug(
-            centerSource,
-            centerFluid,
-            centerSurfaceY,
-            centerWorldSampleX,
-            centerWorldSampleZ,
-            clientSamplePixels,
-            serverFallbackPixels,
-            visibleSurfaceSourcePixels,
-            heightmapFallbackSourcePixels,
-            chunkUnloadedSourcePixels
-        );
+        miniMapRenderDebug = new MiniMapRenderDebug(chunkUnloadedSourcePixels);
 
         return true;
-    }
-
-    private static void publishMiniMapDebug(MinecraftClient client) {
-        if (client == null || client.player == null) {
-            return;
-        }
-
-        long now = System.currentTimeMillis();
-        String summary = miniMapRenderDebug.summary();
-
-        if (now >= nextMiniMapDebugActionBarAtMs) {
-            client.player.sendMessage(Text.literal(summary).formatted(Formatting.YELLOW), true);
-            nextMiniMapDebugActionBarAtMs = now + 1500L;
-        }
-
-        if (now >= nextMiniMapDebugLogAtMs) {
-            LOGGER.info("MinimapDebug {}", summary);
-            nextMiniMapDebugLogAtMs = now + 5000L;
-        }
     }
 
     private static TerrainSampleResult sampleClientWorldTerrain(ClientWorld world, int x, int z) {
@@ -2355,36 +2277,14 @@ public final class McdgClientMod implements ClientModInitializer {
     ) {
     }
 
-    private record MiniMapRenderDebug(
-            String centerSource,
-            String centerFluid,
-            int centerSurfaceY,
-            int centerWorldX,
-            int centerWorldZ,
-            int clientPixels,
-            int serverPixels,
-            int visibleSurfaceSourcePixels,
-            int heightmapFallbackSourcePixels,
-            int chunkUnloadedSourcePixels
-    ) {
+    private record MiniMapRenderDebug(int chunkUnloadedSourcePixels) {
         private static MiniMapRenderDebug empty() {
-            return new MiniMapRenderDebug("n/a", "n/a", 0, 0, 0, 0, 0, 0, 0, 0);
+            return new MiniMapRenderDebug(0);
         }
 
         private static MiniMapRenderDebug serverOnly() {
             int allPixels = MINIMAP_TEXTURE_SIZE * MINIMAP_TEXTURE_SIZE;
-            return new MiniMapRenderDebug("server-only", "n/a", 0, 0, 0, 0, allPixels, 0, 0, allPixels);
-        }
-
-        private String summary() {
-            return "MM src=" + centerSource
-                    + " y=" + centerSurfaceY
-                    + " fluid=" + centerFluid
-                    + " vis=" + visibleSurfaceSourcePixels
-                    + " fb=" + heightmapFallbackSourcePixels
-                    + " miss=" + chunkUnloadedSourcePixels
-                    + " c=" + clientPixels
-                    + " s=" + serverPixels;
+            return new MiniMapRenderDebug(allPixels);
         }
     }
 

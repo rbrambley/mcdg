@@ -339,9 +339,4 @@ public final class RegressionCheckRunner {
         }
     }
 
-    private static void assertNotContains(String text, String forbidden, String message) {
-        if (text.contains(forbidden)) {
-            throw new RuntimeException(message + " Forbidden snippet: " + forbidden);
-        }
-    }
 }

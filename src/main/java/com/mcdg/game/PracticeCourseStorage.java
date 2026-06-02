@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,8 @@ import net.minecraft.world.World;
 public final class PracticeCourseStorage {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String FILE_NAME = "mcdg-practice-course.json";
+    private static final String CATALOG_FILE_NAME = "mcdg-course-catalog.json";
+    private static final int MAX_CATALOG_ENTRIES = 12;
     private static final int CURRENT_SNAPSHOT_VERSION = 4;
 
     public void save(MinecraftServer server, Course course, PlacedCourseState placedCourseState) {
@@ -84,11 +87,236 @@ public final class PracticeCourseStorage {
         }
     }
 
+    public void saveReusable(MinecraftServer server, Course course, PlacedCourseState placedCourseState, String sourceTag, boolean compactPreferred) {
+        PracticeCourseSnapshot snapshot = PracticeCourseSnapshot.from(course, placedCourseState);
+        Path path = resolveCatalogPath(server);
+
+        try {
+            Files.createDirectories(path.getParent());
+            CourseCatalogSnapshot catalog = readCatalogSnapshot(path);
+            CourseCatalogEntrySnapshot entry = CourseCatalogEntrySnapshot.from(snapshot, sourceTag, compactPreferred);
+            catalog.entries.add(entry);
+            catalog.entries.sort(Comparator.comparingLong((CourseCatalogEntrySnapshot value) -> value.createdAtMs).reversed());
+            if (catalog.entries.size() > MAX_CATALOG_ENTRIES) {
+                catalog.entries = new ArrayList<>(catalog.entries.subList(0, MAX_CATALOG_ENTRIES));
+            }
+            Files.writeString(path, GSON.toJson(catalog));
+        } catch (IOException | RuntimeException ex) {
+            McdgMod.LOGGER.error("Failed to save reusable course catalog to {}", path, ex);
+        }
+    }
+
+    public Optional<LoadedPracticeCourse> loadMostRecentReusable(MinecraftServer server, RegistryKey<World> preferredWorld) {
+        Path path = resolveCatalogPath(server);
+        if (!Files.exists(path)) {
+            return Optional.empty();
+        }
+
+        try {
+            CourseCatalogSnapshot catalog = readCatalogSnapshot(path);
+            if (catalog.entries == null || catalog.entries.isEmpty()) {
+                return Optional.empty();
+            }
+
+            catalog.entries.sort(Comparator.comparingLong((CourseCatalogEntrySnapshot value) -> value.createdAtMs).reversed());
+            for (CourseCatalogEntrySnapshot entry : catalog.entries) {
+                if (entry == null || entry.snapshot == null) {
+                    continue;
+                }
+                RegistryKey<World> worldKey = entry.snapshot.parseWorldKey();
+                if (worldKey == null) {
+                    continue;
+                }
+                if (preferredWorld != null && !preferredWorld.equals(worldKey)) {
+                    continue;
+                }
+
+                Course parsedCourse = entry.snapshot.course.toCourse();
+                PlacedCourseState parsedPlaced = entry.snapshot.toPlacedCourseState(worldKey);
+                boolean legacyFormat = entry.snapshot.isLegacyFormat();
+                return Optional.of(new LoadedPracticeCourse(parsedCourse, parsedPlaced, legacyFormat));
+            }
+            return Optional.empty();
+        } catch (IOException | RuntimeException ex) {
+            McdgMod.LOGGER.error("Failed to load reusable course catalog from {}", path, ex);
+            return Optional.empty();
+        }
+    }
+
+    public Optional<LoadedPracticeCourse> loadReusableByIndex(MinecraftServer server, int oneBasedIndex) {
+        if (oneBasedIndex < 1) {
+            return Optional.empty();
+        }
+
+        Path path = resolveCatalogPath(server);
+        if (!Files.exists(path)) {
+            return Optional.empty();
+        }
+
+        try {
+            CourseCatalogSnapshot catalog = readCatalogSnapshot(path);
+            if (catalog.entries == null || catalog.entries.isEmpty()) {
+                return Optional.empty();
+            }
+
+            List<CourseCatalogEntrySnapshot> sortedEntries = sortedEntries(catalog.entries);
+            int zeroBasedIndex = oneBasedIndex - 1;
+            if (zeroBasedIndex >= sortedEntries.size()) {
+                return Optional.empty();
+            }
+
+            CourseCatalogEntrySnapshot entry = sortedEntries.get(zeroBasedIndex);
+            if (entry == null || entry.snapshot == null) {
+                return Optional.empty();
+            }
+
+            RegistryKey<World> worldKey = entry.snapshot.parseWorldKey();
+            if (worldKey == null) {
+                return Optional.empty();
+            }
+
+            Course parsedCourse = entry.snapshot.course.toCourse();
+            PlacedCourseState parsedPlaced = entry.snapshot.toPlacedCourseState(worldKey);
+            return Optional.of(new LoadedPracticeCourse(parsedCourse, parsedPlaced, entry.snapshot.isLegacyFormat()));
+        } catch (IOException | RuntimeException ex) {
+            McdgMod.LOGGER.error("Failed to load reusable course #{} from {}", oneBasedIndex, path, ex);
+            return Optional.empty();
+        }
+    }
+
+    public List<ReusableCourseEntry> listReusable(MinecraftServer server) {
+        Path path = resolveCatalogPath(server);
+        if (!Files.exists(path)) {
+            return List.of();
+        }
+
+        try {
+            CourseCatalogSnapshot catalog = readCatalogSnapshot(path);
+            if (catalog.entries == null || catalog.entries.isEmpty()) {
+                return List.of();
+            }
+
+            List<CourseCatalogEntrySnapshot> sortedEntries = sortedEntries(catalog.entries);
+            List<ReusableCourseEntry> result = new ArrayList<>();
+            int index = 1;
+            for (CourseCatalogEntrySnapshot entry : sortedEntries) {
+                if (entry == null || entry.snapshot == null || entry.snapshot.course == null) {
+                    continue;
+                }
+
+                String worldValue = entry.snapshot.worldKey == null ? "unknown" : entry.snapshot.worldKey;
+                CourseSnapshot courseSnapshot = entry.snapshot.course;
+                int holes = courseSnapshot.holes == null ? 0 : courseSnapshot.holes.size();
+                result.add(new ReusableCourseEntry(
+                        index,
+                        entry.createdAtMs,
+                        entry.sourceTag == null ? "unknown" : entry.sourceTag,
+                        entry.compactPreferred,
+                        worldValue,
+                        courseSnapshot.seed,
+                        courseSnapshot.name == null ? "unnamed" : courseSnapshot.name,
+                        holes
+                ));
+                index++;
+            }
+            return result;
+        } catch (IOException | RuntimeException ex) {
+            McdgMod.LOGGER.error("Failed to list reusable courses from {}", path, ex);
+            return List.of();
+        }
+    }
+
+    public int pruneReusable(MinecraftServer server, int keepCount) {
+        int safeKeep = Math.max(0, keepCount);
+        Path path = resolveCatalogPath(server);
+        if (!Files.exists(path)) {
+            return 0;
+        }
+
+        try {
+            CourseCatalogSnapshot catalog = readCatalogSnapshot(path);
+            if (catalog.entries == null || catalog.entries.isEmpty()) {
+                return 0;
+            }
+
+            List<CourseCatalogEntrySnapshot> sortedEntries = sortedEntries(catalog.entries);
+            int existingCount = sortedEntries.size();
+            if (existingCount <= safeKeep) {
+                return 0;
+            }
+
+            catalog.entries = new ArrayList<>(sortedEntries.subList(0, safeKeep));
+            Files.writeString(path, GSON.toJson(catalog));
+            return existingCount - safeKeep;
+        } catch (IOException | RuntimeException ex) {
+            McdgMod.LOGGER.error("Failed to prune reusable course catalog at {}", path, ex);
+            return 0;
+        }
+    }
+
+    public int reusableCount(MinecraftServer server) {
+        Path path = resolveCatalogPath(server);
+        if (!Files.exists(path)) {
+            return 0;
+        }
+
+        try {
+            CourseCatalogSnapshot catalog = readCatalogSnapshot(path);
+            return catalog.entries == null ? 0 : catalog.entries.size();
+        } catch (IOException | RuntimeException ex) {
+            McdgMod.LOGGER.error("Failed to read reusable course count from {}", path, ex);
+            return 0;
+        }
+    }
+
     private Path resolvePath(MinecraftServer server) {
         return server.getSavePath(WorldSavePath.ROOT).resolve("data").resolve(McdgMod.MOD_ID).resolve(FILE_NAME);
     }
 
+    private Path resolveCatalogPath(MinecraftServer server) {
+        return server.getSavePath(WorldSavePath.ROOT).resolve("data").resolve(McdgMod.MOD_ID).resolve(CATALOG_FILE_NAME);
+    }
+
+    private CourseCatalogSnapshot readCatalogSnapshot(Path path) throws IOException {
+        if (!Files.exists(path)) {
+            return CourseCatalogSnapshot.empty();
+        }
+
+        String json = Files.readString(path);
+        CourseCatalogSnapshot parsed = GSON.fromJson(json, CourseCatalogSnapshot.class);
+        if (parsed == null) {
+            return CourseCatalogSnapshot.empty();
+        }
+        if (parsed.entries == null) {
+            parsed.entries = new ArrayList<>();
+        }
+        return parsed;
+    }
+
+    private List<CourseCatalogEntrySnapshot> sortedEntries(List<CourseCatalogEntrySnapshot> entries) {
+        List<CourseCatalogEntrySnapshot> sorted = new ArrayList<>();
+        for (CourseCatalogEntrySnapshot entry : entries) {
+            if (entry != null) {
+                sorted.add(entry);
+            }
+        }
+        sorted.sort(Comparator.comparingLong((CourseCatalogEntrySnapshot value) -> value.createdAtMs).reversed());
+        return sorted;
+    }
+
     public record LoadedPracticeCourse(Course course, PlacedCourseState placedCourseState, boolean legacyFormat) {
+    }
+
+    public record ReusableCourseEntry(
+            int index,
+            long createdAtMs,
+            String sourceTag,
+            boolean compactPreferred,
+            String worldKey,
+            long seed,
+            String name,
+            int holeCount
+    ) {
     }
 
     private static final class PracticeCourseSnapshot {
@@ -358,6 +586,34 @@ public final class PracticeCourseStorage {
             } catch (RuntimeException ex) {
                 return null;
             }
+        }
+    }
+
+    private static final class CourseCatalogSnapshot {
+        private int version;
+        private List<CourseCatalogEntrySnapshot> entries;
+
+        private static CourseCatalogSnapshot empty() {
+            CourseCatalogSnapshot snapshot = new CourseCatalogSnapshot();
+            snapshot.version = 1;
+            snapshot.entries = new ArrayList<>();
+            return snapshot;
+        }
+    }
+
+    private static final class CourseCatalogEntrySnapshot {
+        private long createdAtMs;
+        private String sourceTag;
+        private boolean compactPreferred;
+        private PracticeCourseSnapshot snapshot;
+
+        private static CourseCatalogEntrySnapshot from(PracticeCourseSnapshot snapshot, String sourceTag, boolean compactPreferred) {
+            CourseCatalogEntrySnapshot entry = new CourseCatalogEntrySnapshot();
+            entry.createdAtMs = System.currentTimeMillis();
+            entry.sourceTag = sourceTag == null ? "unknown" : sourceTag;
+            entry.compactPreferred = compactPreferred;
+            entry.snapshot = snapshot;
+            return entry;
         }
     }
 }
