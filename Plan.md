@@ -6,6 +6,51 @@ Date: 2026-05-30
 
 ---
 
+## Master Status Snapshot (Current)
+
+Use this section as the primary tracker. Historical sections below remain for implementation detail and validation evidence.
+
+Done:
+- Core 9-hole generation and round flow are implemented and repeatedly green in `quickRegression`, `smokeRegression`, and full deploy gate.
+- Multiplayer core systems are implemented:
+  - explicit participant enrollment,
+  - late join (`/mcdg joinround`),
+  - reconnect restore,
+  - turn-order enforcement and timeout penalties,
+  - running multiplayer score panel.
+- Cleanup relocation logic is hardened (outside-course safe relocation priority).
+- Long-water-carry routing and strict corridor handling are hardened for alternate-route playability.
+- Player-relative course elevation guard is implemented (tee strict floor, basket strict+relaxed floor).
+- Basket water-column finish blocker is fixed and guarded by validator rule (`basket_marker_flooded`).
+- Recent fixes are deployed to ATLauncher test instance with successful lifecycle smoke.
+
+Open:
+- Manual verification closeout for newest fixes:
+  - watery basket finish scenarios,
+  - elevation-floor behavior on varied terrain,
+  - cleanup relocation behavior in live multiplayer,
+  - last-3-hole score panel behavior in live multiplayer.
+- Multiplayer reliability closeout:
+  - repeatable 2-player full round,
+  - disconnect/rejoin mid-round validation,
+  - state consistency checks across both clients through round completion.
+- Strict/resume closeout runs:
+  - one clean manual strict 9-hole round,
+  - `practicecourse` -> restart -> `resumecourse` verification.
+- Release-readiness docs and UX completion:
+  - compatibility/performance matrix,
+  - in-game help/admin lifecycle docs,
+  - menu-driven UX + persistence diagnostics/recovery work.
+- Optional compatibility mode backlog remains open (modded + vanilla mixed-client support matrix).
+
+Next Recommended Sequence:
+1. Run manual verification pass for the newest June 2 fixes and check off each scenario above.
+2. Run multiplayer reliability closeout (2-player + disconnect/rejoin) and capture outcomes.
+3. Run strict/resume closeout pair and mark verification standard complete.
+4. Finish release-readiness docs/UX items before any new feature wave.
+
+---
+
 ## Basket Water-Column Finish Fix (2026-06-02)
 
 Implemented:
