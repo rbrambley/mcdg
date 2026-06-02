@@ -2,6 +2,20 @@
 
 # PROJECT-SETUP.md
 
+## Latest Feature Checkpoint (2026-06-02 - Land-First Course Reliability)
+
+- Code checkpoint commit: `bcdeaad`.
+
+- Added updates:
+  - Course placement now favors land-first layouts and falls back to a safe par 4 when a par 5 cannot satisfy the zero-water-carry policy.
+  - Finish-zone recovery now prefers land islands when the basket is not water-adjacent and expands toward the validator's safe-column threshold.
+  - Effective placed pars are now tracked so fallbacked par 5 slots are validated as par 4.
+
+- Validation at checkpoint:
+  - `gradle build`: PASS.
+  - `gradle smokeRegression`: PASS.
+  - Build + Deploy to ATLauncher Test Instance: PASS.
+
 ## Latest Workflow Checkpoint (2026-06-01 - Private Multiplayer Test-Pack Automation)
 
 - Code checkpoint commit: `53ff3e2`.

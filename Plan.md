@@ -6,6 +6,22 @@ Date: 2026-05-30
 
 ---
 
+## Land-First Reliability Checkpoint (2026-06-02)
+
+Implemented / validated:
+- Course placement now prefers land-first hole layouts and falls back to a safe par 4 when a par 5 cannot meet the zero-water-carry policy.
+- Finish-zone recovery now expands toward the validator's safe-column threshold and prefers land islands when the basket is not water-adjacent.
+- The validator respects effective placed par, so fallbacked par 5 slots are treated as par 4 for route checks.
+
+Validation status:
+- `gradle build`: PASS.
+- `gradle smokeRegression`: PASS.
+- ATLauncher deploy gate: PASS.
+  - Lifecycle smoke: pass=3, fail=0, issues=0.
+  - Max landing gap: 10.
+
+---
+
 ## Possible Additions Later
 
 - Add admin shortcut command: `/mcdg usecourse latest`.
