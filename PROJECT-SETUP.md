@@ -2,6 +2,33 @@
 
 # PROJECT-SETUP.md
 
+## Latest Workflow Checkpoint (2026-06-01 - Private Multiplayer Test-Pack Automation)
+
+- Code checkpoint commit: `53ff3e2`.
+- Added updates:
+  - New script `scripts/package-mp-test-bundles.ps1` to produce frozen client/server multiplayer test zips from ATLauncher instance content.
+  - Added templated tester docs:
+    - `scripts/templates/test-pack/README-CLIENT.txt`
+    - `scripts/templates/test-pack/README-SERVER.txt`
+    - `scripts/templates/test-pack/BUG-REPORT-TEMPLATE.txt`
+  - Script also generates `VERSION.txt` and SHA256 checksum manifests for reproducible test distribution.
+- Validation at checkpoint:
+  - Script run completed successfully and produced both client/server archives under `build/test-packs`.
+
+## Latest Workflow Checkpoint (2026-06-01 - Test Resource Pack Scaffold)
+
+- Code checkpoint commit: `e6de8af`.
+- Added updates:
+  - Scaffolded `resourcepacks/MCDG-Test-Resources` with:
+    - `pack.mcmeta`
+    - `ASSET-SPECS.md`
+    - `README.md`
+    - `assets/mcdg/sounds.json`
+    - texture/sound target folders for rapid art/audio iteration.
+  - Enhanced `scripts/package-mp-test-bundles.ps1` with optional `-IncludeRepoResourcePack` to include scaffold pack in client test bundles.
+- Validation at checkpoint:
+  - Script run with `-IncludeRepoResourcePack` succeeded and included `MCDG-Test-Resources` in generated client bundle staging.
+
 ## Latest Feature Checkpoint (2026-06-02 - Basket Water-Column Finish Fix)
 
 - Added updates:

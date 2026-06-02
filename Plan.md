@@ -6,6 +6,33 @@ Date: 2026-05-30
 
 ---
 
+## Night Wrap Checkpoint (2026-06-01)
+
+Tonight completed:
+- Locked compact-layout direction as default generation target (condensed footprint, soft hole-9 return near hole-1, non-crisscross with safe vertical overlap policy).
+- Added private multiplayer test-pack automation for client/server zip distribution from ATLauncher instance content.
+- Added test resource-pack scaffold for readability/audio iteration and wired bundling script support to include it in client test packs.
+
+Key commits:
+- `46faa5f` Prevent flooded basket markers and add validation guard.
+- `e7a444c` Update docs for basket water-column finish fix.
+- `12d26b5` Add master done/open snapshot to plan.
+- `6e2cfca` Add agreed compact default course layout initiative plan.
+- `53ff3e2` Add multiplayer test pack bundling script and templates.
+- `e6de8af` Scaffold test resource pack and bundle integration.
+
+Operational status:
+- Build and deploy gates were green after latest gameplay safety fixes.
+- Multiplayer test-pack generation script is validated end-to-end.
+- Resource-pack scaffold exists and is ready for art/sound drop-in work.
+
+First actions next session:
+1. Run manual validation pass for newest gameplay fixes (watery basket/elevation/cleanup/score-window scenarios).
+2. Start compact-layout implementation Phase 1 (default compact routing skeleton + envelope targeting).
+3. Create first playable resource-pack art pass for critical readability assets.
+
+---
+
 ## Master Status Snapshot (Current)
 
 Use this section as the primary tracker. Historical sections below remain for implementation detail and validation evidence.
