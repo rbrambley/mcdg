@@ -1,7 +1,8 @@
 param(
     [string]$ReleaseId = (Get-Date -Format "yyyy-MM-dd") + "-r1",
     [string]$InstancePath = "D:\ATLauncher\instances\TestInstanceMinecraft1206withFabric",
-    [string]$OutputRoot = (Join-Path $PSScriptRoot "..\build\test-packs")
+    [string]$OutputRoot = (Join-Path $PSScriptRoot "..\build\test-packs"),
+    [switch]$IncludeRepoResourcePack
 )
 
 Set-StrictMode -Version Latest
@@ -96,6 +97,18 @@ foreach ($dir in $clientDirs) {
     $copied = Copy-IfExists -Source $source -Destination $clientRoot
     if (-not $copied) {
         Write-Info "Skipping missing client path: $dir"
+    }
+}
+
+if ($IncludeRepoResourcePack) {
+    $repoPackSource = Join-Path $PSScriptRoot "..\resourcepacks\MCDG-Test-Resources"
+    if (Test-Path $repoPackSource) {
+        $clientResourcepacks = Join-Path $clientRoot "resourcepacks"
+        New-Item -ItemType Directory -Path $clientResourcepacks -Force | Out-Null
+        Copy-Item -Path $repoPackSource -Destination $clientResourcepacks -Recurse -Force
+        Write-Info "Included repo resource pack: MCDG-Test-Resources"
+    } else {
+        Write-Info "Requested repo resource pack include, but source was not found: $repoPackSource"
     }
 }
 
