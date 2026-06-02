@@ -12,7 +12,8 @@ public record PlacedCourseState(
         Map<BlockPos, BlockState> originalBlocks,
         Map<Integer, BlockPos> holeTees,
         Map<Integer, BlockPos> holeBaskets,
-        Map<Integer, BlockPos> holeAlternateAnchors
+    Map<Integer, BlockPos> holeAlternateAnchors,
+    Map<Integer, Integer> effectiveHolePars
 ) {
     public PlacedCourseState(
             RegistryKey<World> worldKey,
@@ -20,7 +21,17 @@ public record PlacedCourseState(
             Map<Integer, BlockPos> holeTees,
             Map<Integer, BlockPos> holeBaskets
     ) {
-        this(worldKey, originalBlocks, holeTees, holeBaskets, Map.of());
+        this(worldKey, originalBlocks, holeTees, holeBaskets, Map.of(), Map.of());
+    }
+
+    public PlacedCourseState(
+            RegistryKey<World> worldKey,
+            Map<BlockPos, BlockState> originalBlocks,
+            Map<Integer, BlockPos> holeTees,
+            Map<Integer, BlockPos> holeBaskets,
+            Map<Integer, BlockPos> holeAlternateAnchors
+    ) {
+        this(worldKey, originalBlocks, holeTees, holeBaskets, holeAlternateAnchors, Map.of());
     }
 
     public PlacedCourseState {
@@ -30,14 +41,15 @@ public record PlacedCourseState(
         if (originalBlocks == null) {
             throw new IllegalArgumentException("originalBlocks is required");
         }
-        if (holeTees == null || holeBaskets == null || holeAlternateAnchors == null) {
-            throw new IllegalArgumentException("holeTees, holeBaskets, and holeAlternateAnchors are required");
+        if (holeTees == null || holeBaskets == null || holeAlternateAnchors == null || effectiveHolePars == null) {
+            throw new IllegalArgumentException("holeTees, holeBaskets, holeAlternateAnchors, and effectiveHolePars are required");
         }
 
         originalBlocks = Map.copyOf(new HashMap<>(originalBlocks));
         holeTees = copyPosMap(holeTees);
         holeBaskets = copyPosMap(holeBaskets);
         holeAlternateAnchors = copyPosMap(holeAlternateAnchors);
+        effectiveHolePars = Map.copyOf(new HashMap<>(effectiveHolePars));
     }
 
     private static Map<Integer, BlockPos> copyPosMap(Map<Integer, BlockPos> source) {

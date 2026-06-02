@@ -68,6 +68,8 @@ public final class CoursePlacementValidator {
                 continue;
             }
 
+            int effectivePar = placedCourseState.effectiveHolePars().getOrDefault(holeIndex, hole.par());
+
             if (!validateTeePadBlocks(world, teePos)) {
                 issues.add(new ValidationIssue(holeIndex, "tee_pad_invalid", "Tee pad blocks are not in expected 3x3 shape/material.", teePos));
                 holeFailed = true;
@@ -159,7 +161,7 @@ public final class CoursePlacementValidator {
                 routeLongestGap = Math.max(teeToAnchorGap, anchorToBasketGap);
             }
             maxLandingGapObserved = Math.max(maxLandingGapObserved, routeLongestGap);
-            if (hole.par() >= 5 && alternateAnchor == null) {
+            if (effectivePar >= 5 && alternateAnchor == null) {
                 issues.add(new ValidationIssue(
                         holeIndex,
                         "par5_alternate_route_missing",

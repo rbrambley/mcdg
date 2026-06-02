@@ -31,6 +31,7 @@ import net.minecraft.world.biome.Biome;
 public final class PlacementAutoTestService {
     private static final DateTimeFormatter REPORT_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
     private static final String AUTOTEST_SHUTDOWN_ENV = "MCDG_AUTOTEST_SHUTDOWN";
+    private static final String AUTOTEST_SHADOW_SURFACE_ENV = "MCDG_AUTOTEST_SHADOW_SURFACE_RULE";
 
     private final CourseGenerator generator;
     private final CoursePlacementService placementService;
@@ -39,6 +40,7 @@ public final class PlacementAutoTestService {
     private final RoundStateManager roundStateManager;
 
     private AutoTestSession activeSession;
+    private Boolean shadowSurfaceRuleOverride;
 
     public PlacementAutoTestService(
             CourseGenerator generator,
@@ -90,13 +92,15 @@ public final class PlacementAutoTestService {
         }
 
         long resolvedBaseSeed = baseSeedOverride == null ? System.currentTimeMillis() : baseSeedOverride;
-        activeSession = new AutoTestSession(source, world, runs, holes, biomeAnchors, progressBar, resolvedBaseSeed);
+        boolean shadowSurfaceRuleMode = isShadowSurfaceRuleEnabledEffective();
+        activeSession = new AutoTestSession(source, world, runs, holes, biomeAnchors, progressBar, resolvedBaseSeed, shadowSurfaceRuleMode);
         HoleProgressTracker.beginAutotestLieMarkerTrail();
 
         String startMessage = "Starting autotest: runs=" + runs
                 + ", holes=" + holes
                 + ", biomeAnchors=" + biomeAnchors.size()
                 + ", baseSeed=" + resolvedBaseSeed
+            + (shadowSurfaceRuleMode ? ", shadowSurfaceRule=true" : "")
                 + ". Use /mcdg cancelautotest to stop.";
         source.sendFeedback(() -> Text.literal(startMessage), true);
         return 1;
@@ -111,6 +115,22 @@ public final class PlacementAutoTestService {
         activeSession.cancelRequested = true;
         source.sendFeedback(() -> Text.literal("Autotest cancellation requested. Finishing current run..."), true);
         return 1;
+    }
+
+    public boolean isShadowSurfaceRuleOverrideSet() {
+        return shadowSurfaceRuleOverride != null;
+    }
+
+    public boolean isShadowSurfaceRuleEnabledNow() {
+        return isShadowSurfaceRuleEnabledEffective();
+    }
+
+    public void setShadowSurfaceRuleOverride(boolean enabled) {
+        shadowSurfaceRuleOverride = enabled;
+    }
+
+    public void clearShadowSurfaceRuleOverride() {
+        shadowSurfaceRuleOverride = null;
     }
 
     public void tick(MinecraftServer server) {
@@ -153,52 +173,139 @@ public final class PlacementAutoTestService {
                 + " (pass=" + session.passRuns + ", fail=" + session.failRuns + ")");
 
         Course course;
-        PlacedCourseState placed = null;
         try {
             course = generator.generate(seed, session.holes);
-            placed = placementService.placeCourse(session.world, runOrigin, course, progress -> {
-            });
+        } catch (RuntimeException ex) {
+            ScenarioOutcome failed = ScenarioOutcome.failure(runNumber, seed, ex.getMessage());
+            applyScenarioOutcome(session, failed, false);
+            if (session.shadowSurfaceRuleMode) {
+                applyScenarioOutcome(session, failed, true);
+            }
+            session.completedRuns++;
+            float pctFailed = Math.min(1.0f, session.completedRuns / (float) Math.max(1, session.runs));
+            session.progressBar.setPercent(pctFailed);
+            return;
+        }
+
+        ScenarioOutcome baseline = executeScenario(session, runNumber, seed, runOrigin, course, false);
+        applyScenarioOutcome(session, baseline, false);
+
+        if (session.shadowSurfaceRuleMode) {
+            ScenarioOutcome shadow = executeScenario(session, runNumber, seed, runOrigin, course, true);
+            applyScenarioOutcome(session, shadow, true);
+        }
+
+        session.completedRuns++;
+        float pct = Math.min(1.0f, session.completedRuns / (float) Math.max(1, session.runs));
+        session.progressBar.setPercent(pct);
+    }
+
+    private ScenarioOutcome executeScenario(
+            AutoTestSession session,
+            int runNumber,
+            long seed,
+            BlockPos runOrigin,
+            Course course,
+            boolean shadowSurfaceRule
+    ) {
+        PlacedCourseState placed = null;
+        try {
+            if (shadowSurfaceRule) {
+                placed = placementService.placeCourseWithHeightmapSurfaceRule(session.world, runOrigin, course, progress -> {
+                });
+            } else {
+                placed = placementService.placeCourse(session.world, runOrigin, course, progress -> {
+                });
+            }
 
             CoursePlacementValidator.ValidationReport report = placementValidator.validatePlacedCourse(
                     session.world,
                     course,
                     placed,
-                    "batch-run-" + runNumber
+                    (shadowSurfaceRule ? "shadow-surface-run-" : "batch-run-") + runNumber
             );
+            return ScenarioOutcome.success(runNumber, seed, report);
+        } catch (RuntimeException ex) {
+            return ScenarioOutcome.failure(runNumber, seed, ex.getMessage());
+        } finally {
+            if (placed != null) {
+                placementService.resetPlacedCourse(session.world, placed);
+            }
+        }
+    }
 
-            session.totalIssues += report.issueCount();
-            session.warningLandingGaps += report.metrics().getOrDefault("warning_landing_gaps", 0);
-            session.maxLandingGap = Math.max(session.maxLandingGap, report.metrics().getOrDefault("max_landing_gap", 0));
-            session.biomeRunCounts.merge(report.biome(), 1, Integer::sum);
-
-            if (report.passed()) {
-                session.passRuns++;
+    private void applyScenarioOutcome(AutoTestSession session, ScenarioOutcome outcome, boolean shadow) {
+        if (outcome.errorMessage != null) {
+            if (shadow) {
+                session.shadowFailRuns++;
+                session.shadowTotalIssues++;
+                if (session.shadowSampleFailures.size() < 12) {
+                    session.shadowSampleFailures.add(
+                            "run=" + outcome.runNumber + " seed=" + outcome.seed + " error=" + outcome.errorMessage
+                    );
+                }
             } else {
                 session.failRuns++;
-                if (!report.issues().isEmpty() && session.sampleFailures.size() < 12) {
-                    CoursePlacementValidator.ValidationIssue first = report.issues().get(0);
+                session.totalIssues++;
+                if (session.sampleFailures.size() < 12) {
                     session.sampleFailures.add(
-                            "run=" + runNumber
-                                    + " seed=" + seed
+                            "run=" + outcome.runNumber + " seed=" + outcome.seed + " error=" + outcome.errorMessage
+                    );
+                }
+            }
+            return;
+        }
+
+        CoursePlacementValidator.ValidationReport report = outcome.report;
+        if (shadow) {
+            session.shadowTotalIssues += report.issueCount();
+            session.shadowWarningLandingGaps += report.metrics().getOrDefault("warning_landing_gaps", 0);
+            session.shadowMaxLandingGap = Math.max(session.shadowMaxLandingGap, report.metrics().getOrDefault("max_landing_gap", 0));
+            session.shadowBiomeRunCounts.merge(report.biome(), 1, Integer::sum);
+            for (CoursePlacementValidator.ValidationIssue issue : report.issues()) {
+                session.shadowIssueCodeCounts.merge(issue.code(), 1, Integer::sum);
+            }
+
+            if (report.passed()) {
+                session.shadowPassRuns++;
+            } else {
+                session.shadowFailRuns++;
+                if (!report.issues().isEmpty() && session.shadowSampleFailures.size() < 12) {
+                    CoursePlacementValidator.ValidationIssue first = report.issues().get(0);
+                    session.shadowSampleFailures.add(
+                            "run=" + outcome.runNumber
+                                    + " seed=" + outcome.seed
                                     + " hole=" + first.holeIndex()
                                     + " code=" + first.code()
                                     + " biome=" + report.biome()
                     );
                 }
             }
-        } catch (RuntimeException ex) {
+            return;
+        }
+
+        session.totalIssues += report.issueCount();
+        session.warningLandingGaps += report.metrics().getOrDefault("warning_landing_gaps", 0);
+        session.maxLandingGap = Math.max(session.maxLandingGap, report.metrics().getOrDefault("max_landing_gap", 0));
+        session.biomeRunCounts.merge(report.biome(), 1, Integer::sum);
+        for (CoursePlacementValidator.ValidationIssue issue : report.issues()) {
+            session.issueCodeCounts.merge(issue.code(), 1, Integer::sum);
+        }
+
+        if (report.passed()) {
+            session.passRuns++;
+        } else {
             session.failRuns++;
-            session.totalIssues++;
-            if (session.sampleFailures.size() < 12) {
-                session.sampleFailures.add("run=" + runNumber + " seed=" + seed + " error=" + ex.getMessage());
+            if (!report.issues().isEmpty() && session.sampleFailures.size() < 12) {
+                CoursePlacementValidator.ValidationIssue first = report.issues().get(0);
+                session.sampleFailures.add(
+                        "run=" + outcome.runNumber
+                                + " seed=" + outcome.seed
+                                + " hole=" + first.holeIndex()
+                                + " code=" + first.code()
+                                + " biome=" + report.biome()
+                );
             }
-        } finally {
-            if (placed != null) {
-                placementService.resetPlacedCourse(session.world, placed);
-            }
-            session.completedRuns++;
-            float pct = Math.min(1.0f, session.completedRuns / (float) Math.max(1, session.runs));
-            session.progressBar.setPercent(pct);
         }
     }
 
@@ -225,6 +332,18 @@ public final class PlacementAutoTestService {
                 + ", biomes=[" + biomeSummary + "]";
         session.source.sendFeedback(() -> Text.literal(summary), true);
 
+        if (session.shadowSurfaceRuleMode) {
+            String shadowBiomeSummary = biomeSummary(session.shadowBiomeRunCounts);
+            String shadowSummary = "Shadow(surfaceRule): pass=" + session.shadowPassRuns
+                + ", fail=" + session.shadowFailRuns
+                + ", issues=" + session.shadowTotalIssues
+                + ", warningLandingGaps=" + session.shadowWarningLandingGaps
+                + ", maxLandingGap=" + session.shadowMaxLandingGap
+                + ", processedRuns=" + session.completedRuns + "/" + session.runs
+                + ", biomes=[" + shadowBiomeSummary + "]";
+            session.source.sendFeedback(() -> Text.literal(shadowSummary), false);
+        }
+
         Path reportPath = writeReportFile(session, status, summary);
         if (reportPath != null) {
             String reportMessage = "Autotest report: " + reportPath;
@@ -233,6 +352,12 @@ public final class PlacementAutoTestService {
 
         for (String failure : session.sampleFailures) {
             session.source.sendFeedback(() -> Text.literal(" - " + failure), false);
+        }
+
+        if (session.shadowSurfaceRuleMode) {
+            for (String failure : session.shadowSampleFailures) {
+                session.source.sendFeedback(() -> Text.literal(" - shadow " + failure), false);
+            }
         }
 
         roundStateManager.clearAll();
@@ -283,6 +408,50 @@ public final class PlacementAutoTestService {
                 }
             }
 
+            lines.add("Issue code counts:");
+            if (session.issueCodeCounts.isEmpty()) {
+                lines.add(" - none");
+            } else {
+                for (Map.Entry<String, Integer> entry : session.issueCodeCounts.entrySet()) {
+                    lines.add(" - " + entry.getKey() + "=" + entry.getValue());
+                }
+            }
+
+            if (session.shadowSurfaceRuleMode) {
+                lines.add("Shadow mode: surface-rule A/B enabled");
+                lines.add("Shadow pass runs: " + session.shadowPassRuns);
+                lines.add("Shadow fail runs: " + session.shadowFailRuns);
+                lines.add("Shadow total issues: " + session.shadowTotalIssues);
+                lines.add("Shadow warning landing gaps: " + session.shadowWarningLandingGaps);
+                lines.add("Shadow max landing gap: " + session.shadowMaxLandingGap);
+                lines.add("Shadow biome counts:");
+                if (session.shadowBiomeRunCounts.isEmpty()) {
+                    lines.add(" - none");
+                } else {
+                    for (Map.Entry<String, Integer> entry : session.shadowBiomeRunCounts.entrySet()) {
+                        lines.add(" - " + entry.getKey() + "=" + entry.getValue());
+                    }
+                }
+
+                lines.add("Shadow sample failures:");
+                if (session.shadowSampleFailures.isEmpty()) {
+                    lines.add(" - none");
+                } else {
+                    for (String failure : session.shadowSampleFailures) {
+                        lines.add(" - " + failure);
+                    }
+                }
+
+                lines.add("Shadow issue code counts:");
+                if (session.shadowIssueCodeCounts.isEmpty()) {
+                    lines.add(" - none");
+                } else {
+                    for (Map.Entry<String, Integer> entry : session.shadowIssueCodeCounts.entrySet()) {
+                        lines.add(" - " + entry.getKey() + "=" + entry.getValue());
+                    }
+                }
+            }
+
             Files.write(timestamped, lines, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
             Files.write(latest, lines, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
             return timestamped;
@@ -297,6 +466,37 @@ public final class PlacementAutoTestService {
         session.progressBar.setName(Text.literal(title));
     }
 
+    private boolean isShadowSurfaceRuleEnabledEffective() {
+        if (shadowSurfaceRuleOverride != null) {
+            return shadowSurfaceRuleOverride;
+        }
+        return isShadowSurfaceRuleEnabledFromEnv();
+    }
+
+    private static boolean isShadowSurfaceRuleEnabledFromEnv() {
+        String value = System.getenv(AUTOTEST_SHADOW_SURFACE_ENV);
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+
+        String normalized = value.trim();
+        return normalized.equalsIgnoreCase("1")
+                || normalized.equalsIgnoreCase("true")
+                || normalized.equalsIgnoreCase("yes")
+                || normalized.equalsIgnoreCase("on");
+    }
+
+    private static String biomeSummary(Map<String, Integer> biomeRunCounts) {
+        StringBuilder summary = new StringBuilder();
+        for (Map.Entry<String, Integer> entry : biomeRunCounts.entrySet()) {
+            if (!summary.isEmpty()) {
+                summary.append(", ");
+            }
+            summary.append(entry.getKey()).append("=").append(entry.getValue());
+        }
+        return summary.toString();
+    }
+
     private static List<BlockPos> collectBiomeAnchors(
             ServerWorld world,
             BlockPos center,
@@ -305,6 +505,7 @@ public final class PlacementAutoTestService {
             int maxBiomes
     ) {
         Map<String, BlockPos> anchorsByBiome = new LinkedHashMap<>();
+        Map<String, BlockPos> fallbackNonExcludedAnchorsByBiome = new LinkedHashMap<>();
         int stride = Math.max(32, step);
 
         for (int dx = -searchRadius; dx <= searchRadius; dx += stride) {
@@ -318,11 +519,28 @@ public final class PlacementAutoTestService {
                     continue;
                 }
 
+                if (!isExcludedSurfaceAutotestBiome(biome)) {
+                    fallbackNonExcludedAnchorsByBiome.putIfAbsent(biome, sample.toImmutable());
+                }
+                if (isExcludedSurfaceAutotestBiome(biome)) {
+                    continue;
+                }
+                if (isPoorAutotestAnchor(world, center, sample)) {
+                    continue;
+                }
+
                 anchorsByBiome.putIfAbsent(biome, sample.toImmutable());
                 if (anchorsByBiome.size() >= maxBiomes) {
                     return List.copyOf(anchorsByBiome.values());
                 }
             }
+        }
+
+        if (anchorsByBiome.isEmpty()) {
+            if (!fallbackNonExcludedAnchorsByBiome.isEmpty()) {
+                return List.copyOf(fallbackNonExcludedAnchorsByBiome.values().stream().limit(maxBiomes).toList());
+            }
+            return List.of(center.toImmutable());
         }
 
         return List.copyOf(anchorsByBiome.values());
@@ -340,6 +558,58 @@ public final class PlacementAutoTestService {
         return biomeId.contains("cave") || biomeId.contains("deep_dark");
     }
 
+    private static boolean isExcludedSurfaceAutotestBiome(String biomeId) {
+        return biomeId.contains("ocean")
+                || biomeId.contains("river")
+                || biomeId.contains("beach")
+                || biomeId.contains("shore")
+                || biomeId.contains("stony_shore")
+                || biomeId.contains("snowy_beach");
+    }
+
+    private static boolean isPoorAutotestAnchor(ServerWorld world, BlockPos center, BlockPos sample) {
+        int verticalDelta = Math.abs(sample.getY() - center.getY());
+        if (verticalDelta > 24) {
+            return true;
+        }
+
+        int waterColumns = 0;
+        int radius = 8;
+        int step = 4;
+        for (int dx = -radius; dx <= radius; dx += step) {
+            for (int dz = -radius; dz <= radius; dz += step) {
+                BlockPos probe = sample.add(dx, 0, dz);
+                if (!world.getFluidState(probe).isEmpty() || !world.getFluidState(probe.up()).isEmpty()) {
+                    waterColumns++;
+                }
+            }
+        }
+
+        return waterColumns >= 4;
+    }
+
+    private static final class ScenarioOutcome {
+        private final int runNumber;
+        private final long seed;
+        private final CoursePlacementValidator.ValidationReport report;
+        private final String errorMessage;
+
+        private ScenarioOutcome(int runNumber, long seed, CoursePlacementValidator.ValidationReport report, String errorMessage) {
+            this.runNumber = runNumber;
+            this.seed = seed;
+            this.report = report;
+            this.errorMessage = errorMessage;
+        }
+
+        private static ScenarioOutcome success(int runNumber, long seed, CoursePlacementValidator.ValidationReport report) {
+            return new ScenarioOutcome(runNumber, seed, report, null);
+        }
+
+        private static ScenarioOutcome failure(int runNumber, long seed, String errorMessage) {
+            return new ScenarioOutcome(runNumber, seed, null, errorMessage);
+        }
+    }
+
     private static final class AutoTestSession {
         private final ServerCommandSource source;
         private final ServerWorld world;
@@ -348,6 +618,7 @@ public final class PlacementAutoTestService {
         private final List<BlockPos> biomeAnchors;
         private final ServerBossBar progressBar;
         private final long baseSeed;
+        private final boolean shadowSurfaceRuleMode;
 
         private int completedRuns;
         private int passRuns;
@@ -356,9 +627,18 @@ public final class PlacementAutoTestService {
         private int warningLandingGaps;
         private int maxLandingGap;
         private boolean cancelRequested;
+        private int shadowPassRuns;
+        private int shadowFailRuns;
+        private int shadowTotalIssues;
+        private int shadowWarningLandingGaps;
+        private int shadowMaxLandingGap;
 
         private final Map<String, Integer> biomeRunCounts = new LinkedHashMap<>();
         private final List<String> sampleFailures = new ArrayList<>();
+        private final Map<String, Integer> issueCodeCounts = new LinkedHashMap<>();
+        private final Map<String, Integer> shadowBiomeRunCounts = new LinkedHashMap<>();
+        private final List<String> shadowSampleFailures = new ArrayList<>();
+        private final Map<String, Integer> shadowIssueCodeCounts = new LinkedHashMap<>();
 
         private AutoTestSession(
                 ServerCommandSource source,
@@ -367,7 +647,8 @@ public final class PlacementAutoTestService {
                 int holes,
                 List<BlockPos> biomeAnchors,
                 ServerBossBar progressBar,
-                long baseSeed
+                long baseSeed,
+                boolean shadowSurfaceRuleMode
         ) {
             this.source = source;
             this.world = world;
@@ -376,6 +657,7 @@ public final class PlacementAutoTestService {
             this.biomeAnchors = biomeAnchors;
             this.progressBar = progressBar;
             this.baseSeed = baseSeed;
+            this.shadowSurfaceRuleMode = shadowSurfaceRuleMode;
         }
     }
 }

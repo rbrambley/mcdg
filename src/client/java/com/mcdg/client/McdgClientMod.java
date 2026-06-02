@@ -43,6 +43,8 @@ import net.minecraft.particle.ParticleTypes;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.MapColor;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.registry.tag.FluidTags;
 import net.minecraft.text.MutableText;
@@ -56,6 +58,7 @@ import net.minecraft.client.util.InputUtil;
 import net.minecraft.util.StringHelper;
 import net.minecraft.util.WorldSavePath;
 import net.minecraft.world.Heightmap;
+import net.minecraft.world.biome.Biome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.lwjgl.glfw.GLFW;
@@ -184,8 +187,7 @@ public final class McdgClientMod implements ClientModInitializer {
                     displayedDistanceFeet = Float.NaN;
                     displayedTotalStrokes = Float.NaN;
                     displayedCumulativeDelta = Float.NaN;
-                    // Force a full texture rebuild so the map doesn't stay grey after cleanup.
-                    clearMiniMapRenderCache(context.client());
+                    // Keep the last rendered passive terrain texture to avoid a grey flash on round end.
                     lastMiniMapRenderAtMs = 0L;
                     return;
                 }
@@ -2047,8 +2049,9 @@ public final class McdgClientMod implements ClientModInitializer {
 
     private static TerrainSampleResult sampleClientWorldTerrain(ClientWorld world, int x, int z) {
         if (!world.isChunkLoaded(x >> 4, z >> 4)) {
+            int fallback = miniMapBiomeFallbackColor(world, x, z);
             return new TerrainSampleResult(
-                    MINIMAP_COLOR_UNSET,
+                    fallback,
                     false,
                     MiniMapSampleSource.CHUNK_UNLOADED,
                     MiniMapFluidKind.NONE,
@@ -2174,6 +2177,31 @@ public final class McdgClientMod implements ClientModInitializer {
 
     private static int worldBottom(ClientWorld world) {
         return world == null ? 0 : world.getBottomY();
+    }
+
+    private static int miniMapBiomeFallbackColor(ClientWorld world, int x, int z) {
+        String biomeId = biomeId(world.getBiome(new BlockPos(x, world.getSeaLevel(), z)));
+        if (biomeId.contains("ocean") || biomeId.contains("river") || biomeId.contains("beach") || biomeId.contains("shore")) {
+            return 0xFF3F76E4;
+        }
+        if (biomeId.contains("desert") || biomeId.contains("badlands") || biomeId.contains("savanna")) {
+            return 0xFFD7BF7A;
+        }
+        if (biomeId.contains("snow") || biomeId.contains("frozen") || biomeId.contains("ice")) {
+            return 0xFFE9F2FF;
+        }
+        if (biomeId.contains("jungle") || biomeId.contains("forest") || biomeId.contains("taiga") || biomeId.contains("grove")) {
+            return 0xFF5EA54A;
+        }
+        return 0xFF7FB238;
+    }
+
+    private static String biomeId(RegistryEntry<Biome> biome) {
+        RegistryKey<Biome> key = biome.getKey().orElse(null);
+        if (key == null) {
+            return "unknown";
+        }
+        return key.getValue().getPath();
     }
 
     private static boolean isVisualNoiseSurface(BlockState state) {

@@ -48,6 +48,8 @@ public final class CoursePlacementService {
     private static final int WATER_ADJACENT_BASKET_GREEN_RADIUS = 12;
     private static final int WATER_ADJACENT_SCAN_RADIUS = 9;
     private static final int WATER_ADJACENT_MIN_COLUMNS = 10;
+    private static final int FINISH_GREEN_MIN_SAFE_COLUMNS = 36;
+    private static final int FINISH_GREEN_MAX_RADIUS = 24;
     private static final int FINISH_APPROACH_SCAN_DISTANCE = 32;
     private static final int FINISH_APPROACH_SAMPLE_INTERVAL = 8;
     private static final int FINISH_APPROACH_BASE_RADIUS = 4;
@@ -60,7 +62,7 @@ public final class CoursePlacementService {
     private static final int SIGNATURE_RING_RADIUS = 4;
     private static final int TEE_LAUNCH_CLEAR_DISTANCE = 22;
     private static final int TEE_LAUNCH_CLEAR_HALF_WIDTH = 3;
-    private static final int TEE_RELOCATION_RADIUS = 12;
+    private static final int TEE_RELOCATION_RADIUS = 28;
     private static final int BASKET_RELOCATION_RADIUS = 24;
     private static final int BASKET_ENCLOSURE_SCAN_RADIUS = 6;
     private static final int BASKET_ENCLOSURE_CENTER_DEPTH_FAIL = 18;
@@ -78,6 +80,7 @@ public final class CoursePlacementService {
     private static final int TEE_MIN_NEARBY_EXITS = 5;
     private static final int TEE_WALL_SCAN_RADIUS = 6;
     private static final int TEE_MAX_ENCLOSURE_SCORE = 9;
+    private static final int TEE_PREFILTER_ENCLOSURE_DEPTH_FAIL = 10;
     private static final int TEE_PIT_DEPTH_THRESHOLD = 4;
     private static final int SURFACE_SEARCH_DEPTH_LIMIT = 24;
     private static final int PLAYER_RELATIVE_TEE_MIN_Y_OFFSET = 20;
@@ -85,13 +88,22 @@ public final class CoursePlacementService {
     private static final int PLAYER_RELATIVE_BASKET_ABSOLUTE_MIN_Y_OFFSET = 28;
     private static final int PLAYER_RELATIVE_Y_REPOSITION_RADIUS = 96;
     private static final int TEE_MAX_DIRECT_CARRY_GAP = 91;
-    private static final int ALT_FAIRWAY_ANCHOR_SEARCH_RADIUS = 80;
-    private static final int ALT_FAIRWAY_FIRST_LEG_MAX_GAP = 70;
+    private static final int ALT_FAIRWAY_TARGET_ROUTE_GAP = 87;
+    private static final int ALT_FAIRWAY_ANCHOR_SEARCH_RADIUS = 112;
+    private static final int ALT_FAIRWAY_FIRST_LEG_MAX_GAP = 76;
     private static final int ALT_FAIRWAY_FIRST_LEG_MAX_GAP_FALLBACK = 91;
-    private static final int ALT_FAIRWAY_MIN_ADVANCE = 12;
-    private static final int ALT_FAIRWAY_MAX_FIRST_LEG = 120;
-    private static final int ALT_FAIRWAY_EMERGENCY_ANCHOR_SEARCH_RADIUS = 140;
-    private static final int ALT_FAIRWAY_EMERGENCY_MAX_FIRST_LEG = 180;
+    private static final int ALT_FAIRWAY_MIN_ADVANCE = 8;
+    private static final int ALT_FAIRWAY_MAX_FIRST_LEG = 144;
+    private static final int ALT_FAIRWAY_EMERGENCY_ANCHOR_SEARCH_RADIUS = 196;
+    private static final int ALT_FAIRWAY_EMERGENCY_MAX_FIRST_LEG = 240;
+    private static final int COURSE_ANCHOR_MAX_RETRIES = 4;
+    private static final double COURSE_ANCHOR_HARD_REJECT_WATER_RATIO = 0.22;
+    private static final double COURSE_ANCHOR_MAX_WATER_SAMPLE_RATIO = 0.30;
+    private static final int COURSE_ANCHOR_WATER_RATIO_SCORE_WEIGHT = 22000;
+    private static final int COURSE_ANCHOR_WATER_REJECT_PENALTY = 180000;
+    private static final int ROUTE_POLICY_MAX_RETRIES = 5;
+    private static final int PAR5_ROUTE_MAX_WATER_CARRY = 0;
+    private static final int PAR34_ROUTE_MAX_WATER_CARRY = 91;
     private static final int BASKET_APPROACH_ENFORCE_DISTANCE = 12;
     private static final int BASKET_APPROACH_MIN_WIDTH = 8;
     private static final String ALT_ROUTE_DIAG_ENV = "MCDG_ALT_ROUTE_DIAG";
@@ -101,13 +113,65 @@ public final class CoursePlacementService {
     private static final int CAMP_SITE_MIN_SAFE_PERCENT = 65;
     private static final int CAMP_SITE_MARKER_SEARCH_RADIUS = 192;
     private static final BlockState CAMP_SITE_MARKER_BLOCK = Blocks.LODESTONE.getDefaultState();
+    private boolean enforceHeightmapSurfaceRule;
 
     public record LodgingBuildResult(boolean success, String message, BlockPos center) {
     }
 
+    public PlacedCourseState placeCourseWithHeightmapSurfaceRule(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback) {
+        boolean previous = enforceHeightmapSurfaceRule;
+        enforceHeightmapSurfaceRule = true;
+        try {
+            return placeCourse(world, origin, course, progressCallback);
+        } finally {
+            enforceHeightmapSurfaceRule = previous;
+        }
+    }
+
     public PlacedCourseState placeCourse(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback) {
         // Current MVP behavior: place relative to the player's surface location.
-        BlockPos anchor = findPreferredSurfacePos(world, origin.getX(), origin.getZ(), true, ANCHOR_SEARCH_RADIUS);
+        CourseBounds courseBounds = findCourseBounds(course);
+        Set<Long> rejectedAnchorKeys = new HashSet<>();
+        BlockPos anchor = null;
+        double projectedWaterRatio = 0.0;
+        String anchorBiome = "unknown";
+        for (int attempt = 1; attempt <= COURSE_ANCHOR_MAX_RETRIES; attempt++) {
+            anchor = findPreferredCourseAnchor(world, origin, course, courseBounds, rejectedAnchorKeys);
+            projectedWaterRatio = estimateProjectedWaterRatio(world, course, anchor, courseBounds);
+            anchorBiome = biomeId(world.getBiome(anchor));
+            McdgMod.LOGGER.info(
+                    "Course anchor candidate attempt={}/{} anchor=({}, {}, {}) biome={} projectedWaterRatio={}",
+                    attempt,
+                    COURSE_ANCHOR_MAX_RETRIES,
+                    anchor.getX(),
+                    anchor.getY(),
+                    anchor.getZ(),
+                    anchorBiome,
+                    String.format(java.util.Locale.ROOT, "%.3f", projectedWaterRatio)
+            );
+
+            if (projectedWaterRatio <= COURSE_ANCHOR_HARD_REJECT_WATER_RATIO) {
+                break;
+            }
+
+            rejectedAnchorKeys.add(anchorClusterKey(anchor));
+            if (attempt == COURSE_ANCHOR_MAX_RETRIES) {
+                McdgMod.LOGGER.warn(
+                        "Course anchor retries exhausted; using water-heavy anchor biome={} projectedWaterRatio={}",
+                        anchorBiome,
+                        String.format(java.util.Locale.ROOT, "%.3f", projectedWaterRatio)
+                );
+            }
+        }
+
+        McdgMod.LOGGER.info(
+                "Course anchor selected anchor=({}, {}, {}) biome={} projectedWaterRatio={}",
+                anchor.getX(),
+                anchor.getY(),
+                anchor.getZ(),
+                anchorBiome,
+                String.format(java.util.Locale.ROOT, "%.3f", projectedWaterRatio)
+        );
         int teeMinY = origin.getY() - PLAYER_RELATIVE_TEE_MIN_Y_OFFSET;
         int basketTargetMinY = origin.getY() - PLAYER_RELATIVE_BASKET_TARGET_MIN_Y_OFFSET;
         int basketAbsoluteMinY = origin.getY() - PLAYER_RELATIVE_BASKET_ABSOLUTE_MIN_Y_OFFSET;
@@ -116,13 +180,13 @@ public final class CoursePlacementService {
         Map<Integer, BlockPos> holeTees = new HashMap<>();
         Map<Integer, BlockPos> holeBaskets = new HashMap<>();
         Map<Integer, BlockPos> holeAlternateAnchors = new HashMap<>();
+        Map<Integer, Integer> holeEffectivePars = new HashMap<>();
         Map<Integer, String> holeRoutingNotes = new HashMap<>();
         Set<BlockPos> protectedPositions = new HashSet<>();
         int startingHoleIndex = course.holes().isEmpty() ? 1 : course.holes().get(0).index();
 
-        int[] min = findCourseMinBounds(course);
-        int offsetX = anchor.getX() - min[0] + 12;
-        int offsetZ = anchor.getZ() - min[1] + 12;
+        int offsetX = anchor.getX() - courseBounds.centerX();
+        int offsetZ = anchor.getZ() - courseBounds.centerZ();
 
         // Phase 1: resolve all tee/basket surfaces and prepare no-overwrite protection zones.
         for (Hole hole : course.holes()) {
@@ -135,14 +199,14 @@ public final class CoursePlacementService {
                 // Build islands if unsafe and use normalized top-surface positions for reliable tee/basket visibility.
                 BlockPos teeSurface = ensureLandIslandSurface(
                     world,
-                    normalizePlayableSurface(world, findPreferredSurfacePos(world, teeX, teeZ, true, HOLE_SEARCH_RADIUS)),
+                    resolveHoleSurface(world, teeX, teeZ),
                     TEE_ISLAND_RADIUS,
                     originalBlocks,
                     protectedPositions
                 );
                 BlockPos basketSurface = ensureLandIslandSurface(
                     world,
-                    normalizePlayableSurface(world, findPreferredSurfacePos(world, basketX, basketZ, true, HOLE_SEARCH_RADIUS)),
+                    resolveHoleSurface(world, basketX, basketZ),
                     BASKET_ISLAND_RADIUS,
                     originalBlocks,
                     protectedPositions
@@ -271,10 +335,26 @@ public final class CoursePlacementService {
                 }
             }
 
-            BlockPos alternateAnchor = findAlternateFairwayAnchor(world, teeSurface, basketSurface, hole.par() >= 5);
+            HoleRoutePolicyResult routeResult = enforceHoleRoutePolicy(
+                    world,
+                    hole,
+                    teeSurface,
+                    basketSurface,
+                    originalBlocks,
+                    protectedPositions
+            );
+
+            teeSurface = routeResult.teeSurface();
+            basketSurface = routeResult.basketSurface();
+            holeEffectivePars.put(hole.index(), routeResult.effectivePar());
+
+            BlockPos alternateAnchor = routeResult.alternateAnchor();
             if (alternateAnchor != null) {
                 holeAlternateAnchors.put(hole.index(), alternateAnchor.toImmutable());
                 holeRoutingNotes.put(hole.index(), alternateRouteNote(teeSurface, basketSurface, alternateAnchor));
+            }
+            if (routeResult.routingNote() != null && !routeResult.routingNote().isBlank()) {
+                holeRoutingNotes.put(hole.index(), routeResult.routingNote());
             }
 
             holeTees.put(hole.index(), teeSurface.toImmutable());
@@ -376,6 +456,8 @@ public final class CoursePlacementService {
             );
             if (hole.index() == startingHoleIndex) {
                 placeCourseCentralHub(world, teeSurface, basketSurface, originalBlocks, protectedPositions);
+                // Hub construction can overlap the starting hole footprint; enforce the tee pad shape afterwards.
+                placeTeePad(world, teeSurface, originalBlocks);
             }
             placeBasketMarker(world, basketSurface, originalBlocks, hole.basket().basketHeight());
             if (hole.isSignature()) {
@@ -387,7 +469,250 @@ public final class CoursePlacementService {
 
         // Phase 4 intentionally disabled for now (fairway lantern pass) to avoid long generation stalls.
 
-        return new PlacedCourseState(world.getRegistryKey(), originalBlocks, holeTees, holeBaskets, holeAlternateAnchors);
+        return new PlacedCourseState(world.getRegistryKey(), originalBlocks, holeTees, holeBaskets, holeAlternateAnchors, holeEffectivePars);
+    }
+
+    private HoleRoutePolicyResult enforceHoleRoutePolicy(
+            ServerWorld world,
+            Hole hole,
+            BlockPos initialTee,
+            BlockPos initialBasket,
+            Map<BlockPos, BlockState> originalBlocks,
+            Set<BlockPos> protectedPositions
+    ) {
+        BlockPos teeSurface = initialTee;
+        BlockPos basketSurface = initialBasket;
+
+        if (hole.par() >= 5) {
+            for (int attempt = 1; attempt <= ROUTE_POLICY_MAX_RETRIES; attempt++) {
+                BlockPos alternateAnchor = findAlternateFairwayAnchor(world, teeSurface, basketSurface, true);
+                int routeGap = routeLongestCarryGap(world, teeSurface, basketSurface, alternateAnchor);
+                if (routeGap <= PAR5_ROUTE_MAX_WATER_CARRY) {
+                    basketSurface = ensureBasketGreenLandingZone(
+                            world,
+                            teeSurface,
+                            teeSurface,
+                            basketSurface,
+                            resolveHoleFairwayWidth(hole),
+                            originalBlocks,
+                            protectedPositions
+                    );
+                    return new HoleRoutePolicyResult(teeSurface, basketSurface, alternateAnchor, 5, "");
+                }
+
+                basketSurface = chooseLowerCarryBasketSurface(world, teeSurface, basketSurface, PAR5_ROUTE_MAX_WATER_CARRY);
+                basketSurface = ensureBasketGreenLandingZone(
+                        world,
+                        teeSurface,
+                    teeSurface,
+                        basketSurface,
+                        resolveHoleFairwayWidth(hole),
+                        originalBlocks,
+                        protectedPositions
+                );
+                teeSurface = relocateTeeSurfaceIfNeeded(world, teeSurface, basketSurface);
+            }
+
+            McdgMod.LOGGER.info(
+                    "Par 5 route policy fallback applied | hole={} seedPar={} effectivePar=4 reason=water_carry_nonzero",
+                    hole.index(),
+                    hole.par()
+            );
+        }
+
+        for (int attempt = 1; attempt <= ROUTE_POLICY_MAX_RETRIES; attempt++) {
+            BlockPos alternateAnchor = findAlternateFairwayAnchor(world, teeSurface, basketSurface, false);
+            int routeGap = routeLongestCarryGap(world, teeSurface, basketSurface, alternateAnchor);
+            if (routeGap <= PAR34_ROUTE_MAX_WATER_CARRY) {
+                basketSurface = ensureBasketGreenLandingZone(
+                        world,
+                        teeSurface,
+                    teeSurface,
+                        basketSurface,
+                        resolveHoleFairwayWidth(hole),
+                        originalBlocks,
+                        protectedPositions
+                );
+                String note = hole.par() >= 5 ? "Par 5 fallback: safe par 4 layout" : "";
+                return new HoleRoutePolicyResult(teeSurface, basketSurface, alternateAnchor, Math.min(hole.par(), 4), note);
+            }
+
+            basketSurface = chooseLowerCarryBasketSurface(world, teeSurface, basketSurface, PAR34_ROUTE_MAX_WATER_CARRY);
+            basketSurface = ensureBasketGreenLandingZone(
+                    world,
+                    teeSurface,
+                    teeSurface,
+                    basketSurface,
+                    resolveHoleFairwayWidth(hole),
+                    originalBlocks,
+                    protectedPositions
+            );
+            teeSurface = relocateTeeSurfaceIfNeeded(world, teeSurface, basketSurface);
+        }
+
+        McdgMod.LOGGER.warn(
+            "Route policy could not fully satisfy carry target after {} attempts; using best land-safe fallback | hole={} seedPar={} bestAllowedCarry={}",
+            ROUTE_POLICY_MAX_RETRIES,
+            hole.index(),
+            hole.par(),
+            PAR34_ROUTE_MAX_WATER_CARRY
+        );
+        basketSurface = ensureBasketGreenLandingZone(
+            world,
+            teeSurface,
+            teeSurface,
+            basketSurface,
+            resolveHoleFairwayWidth(hole),
+            originalBlocks,
+            protectedPositions
+        );
+        return new HoleRoutePolicyResult(teeSurface, basketSurface, null, Math.min(hole.par(), 4), "Land-safe fallback");
+    }
+
+    private static int routeLongestCarryGap(
+            ServerWorld world,
+            BlockPos teeSurface,
+            BlockPos basketSurface,
+            BlockPos alternateAnchor
+    ) {
+        int directGap = computeLongestWaterCarryGap(world, teeSurface, basketSurface);
+        if (alternateAnchor == null) {
+            return directGap;
+        }
+
+        int firstGap = computeLongestWaterCarryGap(world, teeSurface, alternateAnchor);
+        int secondGap = computeLongestWaterCarryGap(world, alternateAnchor, basketSurface);
+        return Math.max(firstGap, secondGap);
+    }
+
+    private static BlockPos chooseLowerCarryBasketSurface(
+            ServerWorld world,
+            BlockPos teeSurface,
+            BlockPos baselineBasket,
+            int targetCarryGap
+    ) {
+        BlockPos best = baselineBasket;
+        int bestGap = computeLongestWaterCarryGap(world, teeSurface, baselineBasket);
+        int bestScore = Integer.MAX_VALUE;
+        int scanRadius = BASKET_RELOCATION_RADIUS;
+
+        for (int dx = -scanRadius; dx <= scanRadius; dx += 4) {
+            for (int dz = -scanRadius; dz <= scanRadius; dz += 4) {
+                int distSq = dx * dx + dz * dz;
+                if (distSq > (scanRadius * scanRadius)) {
+                    continue;
+                }
+
+                BlockPos candidate = normalizePlayableSurface(
+                        world,
+                        resolveSurfacePos(world, baselineBasket.getX() + dx, baselineBasket.getZ() + dz)
+                );
+                if (!isPlayableBasketSurface(world, candidate)) {
+                    continue;
+                }
+
+                int candidateGap = computeLongestWaterCarryGap(world, teeSurface, candidate);
+                int score = (candidateGap * 1000) + distSq + Math.abs(candidate.getY() - baselineBasket.getY()) * 8;
+                if (score < bestScore) {
+                    bestScore = score;
+                    best = candidate;
+                    bestGap = candidateGap;
+                    if (candidateGap <= targetCarryGap) {
+                        return best;
+                    }
+                }
+            }
+        }
+
+        return bestGap < computeLongestWaterCarryGap(world, teeSurface, baselineBasket) ? best : baselineBasket;
+    }
+
+    private static BlockPos ensureBasketGreenLandingZone(
+            ServerWorld world,
+            BlockPos teeSurface,
+            BlockPos finishOrigin,
+            BlockPos basketSurface,
+            int fairwayWidth,
+            Map<BlockPos, BlockState> originalBlocks,
+            Set<BlockPos> protectedPositions
+    ) {
+        BlockPos expanded = basketSurface;
+        int targetRadius = Math.max(WATER_ADJACENT_BASKET_GREEN_RADIUS, resolveFinishGreenRadius(0, fairwayWidth));
+        int currentRadius = Math.max(1, targetRadius);
+
+        for (int pass = 0; pass < 5; pass++) {
+            boolean waterAdjacent = isWaterAdjacentArea(
+                world,
+                expanded,
+                WATER_ADJACENT_SCAN_RADIUS,
+                WATER_ADJACENT_MIN_COLUMNS
+            );
+            if (waterAdjacent) {
+            expanded = ensureWaterLandingSurface(
+                world,
+                expanded,
+                currentRadius,
+                originalBlocks,
+                protectedPositions
+            );
+            } else {
+            expanded = ensureLandIslandSurface(
+                world,
+                expanded,
+                currentRadius,
+                originalBlocks,
+                protectedPositions
+            );
+            }
+
+            clearHeadroom(
+                    world,
+                    expanded,
+                    currentRadius,
+                    6,
+                    originalBlocks,
+                    protectedPositions
+            );
+            shapePlayableFinishApproach(
+                    world,
+                    finishOrigin,
+                    expanded,
+                    fairwayWidth,
+                    currentRadius,
+                    countFinishHazardColumns(world, finishOrigin, expanded),
+                    originalBlocks,
+                    protectedPositions
+            );
+
+            if (countSafeLandingColumns(world, expanded, 8) >= FINISH_GREEN_MIN_SAFE_COLUMNS) {
+                if (isDeeplyEnclosedBasketSurface(world, expanded)) {
+                    BlockPos recovered = tryRecoverEnclosedBasketSurface(
+                            world,
+                            teeSurface,
+                            expanded,
+                            originalBlocks,
+                            protectedPositions
+                    );
+                    if (recovered != null && !isDeeplyEnclosedBasketSurface(world, recovered)) {
+                        return recovered;
+                    }
+
+                    BlockPos relocated = relocateBasketSurfaceIfNeeded(world, teeSurface, expanded);
+                    if (!isDeeplyEnclosedBasketSurface(world, relocated)) {
+                        return relocated;
+                    }
+                } else {
+                    return expanded;
+                }
+            }
+
+            currentRadius = Math.min(FINISH_GREEN_MAX_RADIUS, currentRadius + 2);
+            if (currentRadius >= FINISH_GREEN_MAX_RADIUS) {
+                break;
+            }
+        }
+
+        return expanded;
     }
 
     public void resetPlacedCourse(ServerWorld world, PlacedCourseState placedCourseState) {
@@ -416,17 +741,163 @@ public final class CoursePlacementService {
         return new LodgingBuildResult(true, "Permanent lodging site built.", campCenter);
     }
 
-    private static int[] findCourseMinBounds(Course course) {
+    private static CourseBounds findCourseBounds(Course course) {
         int minX = Integer.MAX_VALUE;
         int minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxZ = Integer.MIN_VALUE;
 
         for (Hole hole : course.holes()) {
             minX = Math.min(minX, Math.min(hole.tee().x(), hole.basket().x()));
             minZ = Math.min(minZ, Math.min(hole.tee().z(), hole.basket().z()));
+            maxX = Math.max(maxX, Math.max(hole.tee().x(), hole.basket().x()));
+            maxZ = Math.max(maxZ, Math.max(hole.tee().z(), hole.basket().z()));
         }
 
-        return new int[] { minX, minZ };
+        if (minX == Integer.MAX_VALUE) {
+            return new CourseBounds(0, 0, 0, 0, 0, 0);
+        }
+
+        int centerX = (minX + maxX) / 2;
+        int centerZ = (minZ + maxZ) / 2;
+        return new CourseBounds(minX, minZ, maxX, maxZ, centerX, centerZ);
     }
+
+    private static BlockPos findPreferredCourseAnchor(ServerWorld world, BlockPos origin, Course course, CourseBounds courseBounds) {
+        return findPreferredCourseAnchor(world, origin, course, courseBounds, Set.of());
+    }
+
+    private static BlockPos findPreferredCourseAnchor(
+            ServerWorld world,
+            BlockPos origin,
+            Course course,
+            CourseBounds courseBounds,
+            Set<Long> rejectedAnchorKeys
+    ) {
+        int x = origin.getX();
+        int z = origin.getZ();
+        BlockPos best = resolveSurfacePos(world, x, z);
+        int bestScore = scoreCourseAnchor(world, best, x, z, course, courseBounds, rejectedAnchorKeys);
+
+        int ringStep = ANCHOR_SEARCH_RADIUS >= 128 ? 8 : (ANCHOR_SEARCH_RADIUS >= 48 ? 4 : 1);
+        for (int radius = ringStep; radius <= ANCHOR_SEARCH_RADIUS; radius += ringStep) {
+            for (int sx = x - radius; sx <= x + radius; sx += ringStep) {
+                BlockPos north = resolveSurfacePos(world, sx, z - radius);
+                int northScore = scoreCourseAnchor(world, north, x, z, course, courseBounds, rejectedAnchorKeys);
+                if (northScore < bestScore) {
+                    bestScore = northScore;
+                    best = north;
+                }
+
+                BlockPos south = resolveSurfacePos(world, sx, z + radius);
+                int southScore = scoreCourseAnchor(world, south, x, z, course, courseBounds, rejectedAnchorKeys);
+                if (southScore < bestScore) {
+                    bestScore = southScore;
+                    best = south;
+                }
+            }
+
+            for (int sz = z - radius + ringStep; sz <= z + radius - ringStep; sz += ringStep) {
+                BlockPos west = resolveSurfacePos(world, x - radius, sz);
+                int westScore = scoreCourseAnchor(world, west, x, z, course, courseBounds, rejectedAnchorKeys);
+                if (westScore < bestScore) {
+                    bestScore = westScore;
+                    best = west;
+                }
+
+                BlockPos east = resolveSurfacePos(world, x + radius, sz);
+                int eastScore = scoreCourseAnchor(world, east, x, z, course, courseBounds, rejectedAnchorKeys);
+                if (eastScore < bestScore) {
+                    bestScore = eastScore;
+                    best = east;
+                }
+            }
+        }
+
+        return refineLandCandidate(world, best, x, z);
+    }
+
+    private static int scoreCourseAnchor(
+            ServerWorld world,
+            BlockPos candidate,
+            int targetX,
+            int targetZ,
+            Course course,
+            CourseBounds courseBounds,
+            Set<Long> rejectedAnchorKeys
+    ) {
+        int score = scoreSurface(world, candidate, targetX, targetZ, true) + localWaterPenalty(world, candidate);
+        if (rejectedAnchorKeys.contains(anchorClusterKey(candidate))) {
+            score += 2_000_000;
+        }
+
+        double waterRatio = estimateProjectedWaterRatio(world, course, candidate, courseBounds);
+        score += (int) Math.round(waterRatio * COURSE_ANCHOR_WATER_RATIO_SCORE_WEIGHT);
+
+        if (waterRatio > COURSE_ANCHOR_MAX_WATER_SAMPLE_RATIO) {
+            score += COURSE_ANCHOR_WATER_REJECT_PENALTY;
+            score += (int) Math.round((waterRatio - COURSE_ANCHOR_MAX_WATER_SAMPLE_RATIO) * 100000.0);
+        }
+
+        return score;
+    }
+
+    private static double estimateProjectedWaterRatio(
+            ServerWorld world,
+            Course course,
+            BlockPos anchor,
+            CourseBounds courseBounds
+    ) {
+        if (course.holes().isEmpty()) {
+            return 0.0;
+        }
+
+        int offsetX = anchor.getX() - courseBounds.centerX();
+        int offsetZ = anchor.getZ() - courseBounds.centerZ();
+        int waterSamples = 0;
+        int totalSamples = 0;
+
+        for (Hole hole : course.holes()) {
+            waterSamples += projectedWaterSample(world, hole.tee().x(), hole.tee().z(), offsetX, offsetZ);
+            waterSamples += projectedWaterSample(world, hole.basket().x(), hole.basket().z(), offsetX, offsetZ);
+            waterSamples += projectedWaterSample(
+                    world,
+                    (hole.tee().x() + hole.basket().x()) / 2,
+                    (hole.tee().z() + hole.basket().z()) / 2,
+                    offsetX,
+                    offsetZ
+            );
+            totalSamples += 3;
+        }
+
+        return totalSamples == 0 ? 0.0 : (waterSamples / (double) totalSamples);
+    }
+
+    private static int projectedWaterSample(ServerWorld world, int templateX, int templateZ, int offsetX, int offsetZ) {
+        int worldX = templateX + offsetX;
+        int worldZ = templateZ + offsetZ;
+        return isWaterCrossingColumn(world, worldX, worldZ) ? 1 : 0;
+    }
+
+    private static long anchorClusterKey(BlockPos pos) {
+        // Use 16-block clusters so that rejecting a refined anchor also penalises
+        // nearby raw candidates that refine to the same spot.
+        long cx = (long) (pos.getX() >> 4);
+        long cz = (long) (pos.getZ() >> 4);
+        return (cx << 32) ^ (cz & 0xffffffffL);
+    }
+
+    private record CourseBounds(int minX, int minZ, int maxX, int maxZ, int centerX, int centerZ) {
+    }
+
+        private record HoleRoutePolicyResult(
+            BlockPos teeSurface,
+            BlockPos basketSurface,
+            BlockPos alternateAnchor,
+            int effectivePar,
+            String routingNote
+        ) {
+        }
 
     private static BlockPos findPreferredSurfacePos(ServerWorld world, int x, int z, boolean preferLand, int searchRadius) {
         BlockPos best = resolveSurfacePos(world, x, z);
@@ -469,6 +940,81 @@ public final class CoursePlacementService {
         }
 
         return preferLand ? refineLandCandidate(world, best, x, z) : best;
+    }
+
+    private BlockPos resolveHoleSurface(ServerWorld world, int x, int z) {
+        if (!enforceHeightmapSurfaceRule) {
+            return normalizePlayableSurface(world, findPreferredSurfacePos(world, x, z, true, HOLE_SEARCH_RADIUS));
+        }
+
+        BlockPos direct = resolveWorldSurfaceGround(world, x, z);
+        if (isValidHeightmapRuleGround(world, direct)) {
+            return direct;
+        }
+
+        BlockPos best = null;
+        int bestScore = Integer.MAX_VALUE;
+        int step = 2;
+        for (int radius = step; radius <= HOLE_SEARCH_RADIUS; radius += step) {
+            for (int dx = -radius; dx <= radius; dx += step) {
+                for (int dz = -radius; dz <= radius; dz += step) {
+                    if (Math.abs(dx) != radius && Math.abs(dz) != radius) {
+                        continue;
+                    }
+
+                    BlockPos candidate = resolveWorldSurfaceGround(world, x + dx, z + dz);
+                    if (!isValidHeightmapRuleGround(world, candidate)) {
+                        continue;
+                    }
+
+                    int score = Math.abs(dx) + Math.abs(dz);
+                    score += Math.abs(candidate.getY() - direct.getY()) * 2;
+                    if (score < bestScore) {
+                        bestScore = score;
+                        best = candidate;
+                    }
+                }
+            }
+
+            if (best != null) {
+                return best;
+            }
+        }
+
+        return normalizePlayableSurface(world, findPreferredSurfacePos(world, x, z, true, HOLE_SEARCH_RADIUS));
+    }
+
+    private static BlockPos resolveWorldSurfaceGround(ServerWorld world, int x, int z) {
+        world.getChunk(x >> 4, z >> 4);
+        int surfaceY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z) - 1;
+        if (surfaceY <= world.getBottomY()) {
+            surfaceY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
+        }
+        return new BlockPos(x, surfaceY, z);
+    }
+
+    private static boolean isValidHeightmapRuleGround(ServerWorld world, BlockPos groundPos) {
+        BlockState ground = world.getBlockState(groundPos);
+        if (!ground.isSolidBlock(world, groundPos)) {
+            return false;
+        }
+        if (!ground.getFluidState().isEmpty()) {
+            return false;
+        }
+        if (ground.isIn(BlockTags.LEAVES) || ground.getBlock() instanceof PlantBlock) {
+            return false;
+        }
+
+        BlockState feet = world.getBlockState(groundPos.up());
+        BlockState head = world.getBlockState(groundPos.up(2));
+        if (!feet.isAir() || !head.isAir()) {
+            return false;
+        }
+        if (!feet.getFluidState().isEmpty() || !head.getFluidState().isEmpty()) {
+            return false;
+        }
+
+        return world.isSkyVisible(groundPos.up());
     }
 
     private static BlockPos enforceMinimumSurfaceY(
@@ -2237,7 +2783,7 @@ public final class CoursePlacementService {
         return new BlockPos(center.getX(), islandY, center.getZ());
     }
 
-    private static BlockPos expandBasketGreenIfWaterNearby(
+        private static BlockPos expandBasketGreenIfWaterNearby(
             ServerWorld world,
             BlockPos finishOrigin,
             BlockPos basketSurface,
@@ -2245,44 +2791,15 @@ public final class CoursePlacementService {
             Map<BlockPos, BlockState> originalBlocks,
             Set<BlockPos> protectedPositions
     ) {
-        int finishHazardColumns = countFinishHazardColumns(world, finishOrigin, basketSurface);
-        boolean waterAdjacent = isWaterAdjacentArea(
-                world,
-                basketSurface,
-                WATER_ADJACENT_SCAN_RADIUS,
-                WATER_ADJACENT_MIN_COLUMNS
+        return ensureBasketGreenLandingZone(
+            world,
+            finishOrigin,
+            finishOrigin,
+            basketSurface,
+            fairwayWidth,
+            originalBlocks,
+            protectedPositions
         );
-        if (!waterAdjacent && finishHazardColumns < FINISH_HAZARD_MIN_COLUMNS) {
-            return basketSurface;
-        }
-
-        int greenRadius = resolveFinishGreenRadius(finishHazardColumns, fairwayWidth);
-        BlockPos expanded = ensureWaterLandingSurface(
-                world,
-                basketSurface,
-                greenRadius,
-                originalBlocks,
-                protectedPositions
-        );
-        clearHeadroom(
-                world,
-                expanded,
-                greenRadius,
-                6,
-                originalBlocks,
-                protectedPositions
-        );
-        shapePlayableFinishApproach(
-                world,
-                finishOrigin,
-                expanded,
-                fairwayWidth,
-                greenRadius,
-                finishHazardColumns,
-                originalBlocks,
-                protectedPositions
-        );
-        return expanded;
     }
 
     private static int resolveFinishGreenRadius(int finishHazardColumns, int fairwayWidth) {
@@ -2380,6 +2897,26 @@ public final class CoursePlacementService {
         return waterColumns;
     }
 
+    private static int countSafeLandingColumns(ServerWorld world, BlockPos center, int radius) {
+        int safeColumns = 0;
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                if ((dx * dx) + (dz * dz) > (radius * radius + 1)) {
+                    continue;
+                }
+
+                int sampleX = center.getX() + dx;
+                int sampleZ = center.getZ() + dz;
+                int topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, sampleX, sampleZ) - 1;
+                BlockPos sample = new BlockPos(sampleX, topY, sampleZ);
+                if (isWalkableGround(world, sample)) {
+                    safeColumns++;
+                }
+            }
+        }
+        return safeColumns;
+    }
+
     private static boolean isUnsafeSurface(ServerWorld world, BlockPos pos) {
         BlockState state = world.getBlockState(pos);
         if (state.isAir() || !state.getFluidState().isEmpty()) {
@@ -2420,31 +2957,35 @@ public final class CoursePlacementService {
 
         BlockPos best = teeSurface;
         int bestScore = Integer.MAX_VALUE;
-        int step = 2;
-        int searchRadius = TEE_RELOCATION_RADIUS;
+        for (int searchRadius : new int[] { TEE_RELOCATION_RADIUS, TEE_RELOCATION_RADIUS * 2 }) {
+            int step = searchRadius <= TEE_RELOCATION_RADIUS ? 2 : 4;
+            for (int dx = -searchRadius; dx <= searchRadius; dx += step) {
+                for (int dz = -searchRadius; dz <= searchRadius; dz += step) {
+                    int distSq = dx * dx + dz * dz;
+                    if (distSq > (searchRadius * searchRadius)) {
+                        continue;
+                    }
 
-        for (int dx = -searchRadius; dx <= searchRadius; dx += step) {
-            for (int dz = -searchRadius; dz <= searchRadius; dz += step) {
-                int distSq = dx * dx + dz * dz;
-                if (distSq > (searchRadius * searchRadius)) {
-                    continue;
-                }
+                    BlockPos candidate = normalizePlayableSurface(
+                            world,
+                            resolveSurfacePos(world, teeSurface.getX() + dx, teeSurface.getZ() + dz)
+                    );
+                    if (!isPlayableTeeSurface(world, candidate)) {
+                        continue;
+                    }
 
-                BlockPos candidate = normalizePlayableSurface(
-                        world,
-                        resolveSurfacePos(world, teeSurface.getX() + dx, teeSurface.getZ() + dz)
-                );
-                if (!isPlayableTeeSurface(world, candidate)) {
-                    continue;
+                    int score = distSq;
+                    score += Math.max(0, Math.abs(candidate.getY() - teeSurface.getY()) - 1) * 10;
+                    score += Math.abs(candidate.getX() - basketSurface.getX()) + Math.abs(candidate.getZ() - basketSurface.getZ());
+                    if (score < bestScore) {
+                        bestScore = score;
+                        best = candidate;
+                    }
                 }
+            }
 
-                int score = distSq;
-                score += Math.max(0, Math.abs(candidate.getY() - teeSurface.getY()) - 1) * 10;
-                score += Math.abs(candidate.getX() - basketSurface.getX()) + Math.abs(candidate.getZ() - basketSurface.getZ());
-                if (score < bestScore) {
-                    bestScore = score;
-                    best = candidate;
-                }
+            if (bestScore != Integer.MAX_VALUE) {
+                return best;
             }
         }
 
@@ -2463,7 +3004,7 @@ public final class CoursePlacementService {
                     TEE_MAX_DIRECT_CARRY_GAP
             );
         }
-        if (!forceAlternateRoute && directCarryGap <= TEE_MAX_DIRECT_CARRY_GAP) {
+        if (!forceAlternateRoute && directCarryGap <= ALT_FAIRWAY_TARGET_ROUTE_GAP) {
             if (routeDiag) {
                 McdgMod.LOGGER.info("AltRouteDiag skipped: direct carry does not exceed threshold.");
             }
@@ -2561,7 +3102,7 @@ public final class CoursePlacementService {
 
                 int distTeeToBasket = Math.abs(basketSurface.getX() - teeSurface.getX()) + Math.abs(basketSurface.getZ() - teeSurface.getZ());
                 int distAnchorToBasket = Math.abs(basketSurface.getX() - candidate.getX()) + Math.abs(basketSurface.getZ() - candidate.getZ());
-                if (distAnchorToBasket > (distTeeToBasket - ALT_FAIRWAY_MIN_ADVANCE)) {
+                if (distAnchorToBasket > (distTeeToBasket + ALT_FAIRWAY_MIN_ADVANCE)) {
                     rejectedNoAdvance++;
                     continue;
                 }
@@ -2573,7 +3114,7 @@ public final class CoursePlacementService {
                 }
 
                 int secondGap = computeLongestWaterCarryGap(world, candidate, basketSurface);
-                if (secondGap > TEE_MAX_DIRECT_CARRY_GAP) {
+                if (secondGap > ALT_FAIRWAY_TARGET_ROUTE_GAP) {
                     continue;
                 }
                 viableCandidates++;
@@ -2973,6 +3514,9 @@ public final class CoursePlacementService {
         if (!isWalkableGround(world, pos)) {
             return false;
         }
+        if (isDeeplyEnclosedTeeSurface(world, pos)) {
+            return false;
+        }
         if (isLikelyPitSurface(world, pos)) {
             return false;
         }
@@ -3010,6 +3554,11 @@ public final class CoursePlacementService {
         }
 
         return nearbyExits >= TEE_MIN_NEARBY_EXITS;
+    }
+
+    private static boolean isDeeplyEnclosedTeeSurface(ServerWorld world, BlockPos teeSurface) {
+        int surfaceY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, teeSurface.getX(), teeSurface.getZ()) - 1;
+        return (surfaceY - teeSurface.getY()) >= TEE_PREFILTER_ENCLOSURE_DEPTH_FAIL;
     }
 
     private static boolean isLikelyPitSurface(ServerWorld world, BlockPos center) {

@@ -237,6 +237,25 @@ public final class McdgAdminCommands {
                                                         IntegerArgumentType.getInteger(context, "runs"),
                                                         IntegerArgumentType.getInteger(context, "holes")
                                                 )))))
+                        .then(literal("autotestplacementseed")
+                                .then(argument("runs", IntegerArgumentType.integer(1, 200))
+                                        .then(argument("holes", IntegerArgumentType.integer(1, 18))
+                                                .then(argument("seed", LongArgumentType.longArg())
+                                                        .executes(context -> executeAutoTestPlacementSeeded(
+                                                                context.getSource(),
+                                                                autoTestService,
+                                                                IntegerArgumentType.getInteger(context, "runs"),
+                                                                IntegerArgumentType.getInteger(context, "holes"),
+                                                                LongArgumentType.getLong(context, "seed")
+                                                        ))))))
+                        .then(literal("autotestshadow")
+                                .executes(context -> executeAutoTestShadowStatus(context.getSource(), autoTestService))
+                                .then(literal("status")
+                                        .executes(context -> executeAutoTestShadowStatus(context.getSource(), autoTestService)))
+                                .then(literal("on")
+                                        .executes(context -> executeAutoTestShadowSet(context.getSource(), autoTestService, true)))
+                                .then(literal("off")
+                                        .executes(context -> executeAutoTestShadowSet(context.getSource(), autoTestService, false))))
                         .then(literal("cancelautotest")
                                 .executes(context -> executeCancelAutoTest(context.getSource(), autoTestService)))
                         .then(literal("autotestthrows")
@@ -391,13 +410,25 @@ public final class McdgAdminCommands {
                         for (int attempt = 1; attempt <= maxPlacementAttempts; attempt++) {
                                 BlockPos attemptOrigin = offsetOriginForAttempt(baseOrigin, attempt);
                                 final int displayAttempt = attempt;
-                                placed = placementService.placeCourse(world, attemptOrigin, course, holesDone -> {
-                                        for (var barPlayer : source.getServer().getPlayerManager().getPlayerList()) {
-                                                if (barPlayer.getWorld().getRegistryKey().equals(world.getRegistryKey())) {
-                                                        sendCourseBuildProgressOverlay(barPlayer, holesDone, totalHoles, displayAttempt, maxPlacementAttempts);
+                                try {
+                                        placed = placementService.placeCourse(world, attemptOrigin, course, holesDone -> {
+                                                for (var barPlayer : source.getServer().getPlayerManager().getPlayerList()) {
+                                                        if (barPlayer.getWorld().getRegistryKey().equals(world.getRegistryKey())) {
+                                                                sendCourseBuildProgressOverlay(barPlayer, holesDone, totalHoles, displayAttempt, maxPlacementAttempts);
+                                                        }
                                                 }
+                                        });
+                                } catch (RuntimeException placementEx) {
+                                        if (attempt < maxPlacementAttempts) {
+                                                final int nextAttempt = attempt + 1;
+                                                source.sendFeedback(() -> Text.literal(
+                                                        "Placement policy rejected this anchor (" + placementEx.getMessage()
+                                                                + "). Retrying nearby (attempt " + nextAttempt + "/" + maxPlacementAttempts + ")..."
+                                                ), false);
+                                                continue;
                                         }
-                                });
+                                        throw placementEx;
+                                }
 
                                 CoursePlacementValidator.ValidationReport attemptReport = placementValidator.validatePlacedCourse(
                                         world,
@@ -1468,6 +1499,44 @@ public final class McdgAdminCommands {
                         int holes
         ) {
                 return autoTestService.start(source, runs, holes);
+        }
+
+        private static int executeAutoTestPlacementSeeded(
+                        ServerCommandSource source,
+                        PlacementAutoTestService autoTestService,
+                        int runs,
+                        int holes,
+                        long seed
+        ) {
+                source.sendFeedback(() -> Text.literal(
+                        "Starting seeded autotest with baseSeed=" + seed + "."
+                ), false);
+                return autoTestService.start(source, runs, holes, seed);
+        }
+
+        private static int executeAutoTestShadowStatus(
+                        ServerCommandSource source,
+                        PlacementAutoTestService autoTestService
+        ) {
+                boolean enabled = autoTestService.isShadowSurfaceRuleEnabledNow();
+                boolean override = autoTestService.isShadowSurfaceRuleOverrideSet();
+                String mode = override ? "manual override" : "environment/default";
+                source.sendFeedback(() -> Text.literal(
+                        "Autotest shadow mode is " + (enabled ? "ON" : "OFF") + " (" + mode + ")."
+                ), false);
+                return 1;
+        }
+
+        private static int executeAutoTestShadowSet(
+                        ServerCommandSource source,
+                        PlacementAutoTestService autoTestService,
+                        boolean enabled
+        ) {
+                autoTestService.setShadowSurfaceRuleOverride(enabled);
+                source.sendFeedback(() -> Text.literal(
+                        "Autotest shadow mode override set to " + (enabled ? "ON" : "OFF") + "."
+                ), true);
+                return 1;
         }
 
         private static int executeCancelAutoTest(ServerCommandSource source, PlacementAutoTestService autoTestService) {
