@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Locale;
 import java.util.List;
 import java.util.Objects;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -176,6 +177,13 @@ public final class McdgClientMod implements ClientModInitializer {
             handleMiniMapHotkeys(client);
             updateAceCinematicEffects(client);
             updateRoundCompleteCinematicEffects(client);
+        });
+        // When a chunk arrives from the server, reset the minimap rebuild timer so the
+        // next render frame picks up the newly loaded terrain rather than waiting up to
+        // 350 ms.  This fixes the gray minimap seen on initial server join while chunks
+        // are still streaming in.
+        ClientChunkEvents.CHUNK_LOAD.register((world, chunk) -> {
+            lastMiniMapRenderAtMs = 0L;
         });
         ClientSendMessageEvents.ALLOW_CHAT.register(message -> handleWaypointPromptInput(message));
         ClientPlayNetworking.registerGlobalReceiver(HoleMiniMapSync.ID, (payload, context) -> {
