@@ -1208,12 +1208,11 @@ public final class HoleProgressTracker {
         ServerWorld world = player.getServerWorld();
         BlockPos throwLie = state.lie();
         BlockPos currentFeet = player.getBlockPos();
-        boolean movedFromThrowLie = hasPlayerMovedFromThrowLie(currentFeet, throwLie);
 
         // Wait for the exact throw pearl (plus a short release grace window) before resolving lie.
         // This avoids stale, older pearls from keeping resolution pinned at the tee.
-        boolean trackedPearlInFlight = !movedFromThrowLie && hasTrackedPearlInFlight(world, player, throwLie);
-        boolean withinReleaseGrace = !movedFromThrowLie && isWithinThrowReleaseGrace(world, player.getUuid());
+        boolean trackedPearlInFlight = hasTrackedPearlInFlight(world, player, throwLie);
+        boolean withinReleaseGrace = isWithinThrowReleaseGrace(world, player.getUuid());
         if (trackedPearlInFlight || withinReleaseGrace) {
             int pendingTicks = LAST_THROW_PENDING_TICKS.merge(player.getUuid(), 1, Integer::sum);
             if (pendingTicks <= MAX_THROW_RESOLUTION_WAIT_TICKS) {
