@@ -142,6 +142,56 @@ tasks.named('fullRegression') {
     dependsOn tasks.named('verifyFullLifecycleReport')
 }
 
+tasks.register('verifyTesterPackParity') {
+    group = 'verification'
+    description = 'Verifies current git commit matches tester-pack MANIFEST.json commit.'
+
+    doLast {
+        String manifestPathValue = (project.findProperty('testerPackManifest') ?: System.getenv('MCDG_TESTER_PACK_MANIFEST')) as String
+        if (manifestPathValue == null || manifestPathValue.isBlank()) {
+            throw new RuntimeException('Tester-pack manifest path is required. Pass -PtesterPackManifest=<path> or set MCDG_TESTER_PACK_MANIFEST.')
+        }
+
+        File manifestFile = file(manifestPathValue)
+        if (!manifestFile.exists()) {
+            throw new RuntimeException("Tester-pack manifest not found: ${manifestFile}")
+        }
+
+        String manifestText = manifestFile.getText('UTF-8')
+        def commitMatcher = (manifestText =~ /"Commit"\s*:\s*"([a-fA-F0-9]{40})"/)
+        String manifestCommit = commitMatcher.find() ? commitMatcher.group(1) : null
+        if (manifestCommit == null || manifestCommit.isBlank()) {
+            throw new RuntimeException("Tester-pack manifest missing Git.Commit field: ${manifestFile}")
+        }
+
+        def stdout = new ByteArrayOutputStream()
+        exec {
+            commandLine 'git', 'rev-parse', 'HEAD'
+            standardOutput = stdout
+        }
+        String headCommit = stdout.toString('UTF-8').trim()
+
+        if (headCommit != manifestCommit) {
+            throw new RuntimeException("Tester-pack commit parity failed. Manifest=${manifestCommit}, HEAD=${headCommit}")
+        }
+
+        def dirtyMatcher = (manifestText =~ /"Dirty"\s*:\s*(true|false)/)
+        boolean manifestDirty = dirtyMatcher.find() && dirtyMatcher.group(1).equalsIgnoreCase('true')
+        if (manifestDirty) {
+            throw new RuntimeException('Tester-pack manifest indicates dirty source tree (Git.Dirty=true).')
+        }
+
+        println "Tester-pack parity verified for commit ${headCommit}."
+    }
+}
+
+tasks.register('releaseRegressionGate') {
+    group = 'verification'
+    description = 'Runs full regression checks and verifies tester-pack commit parity.'
+    dependsOn tasks.named('fullRegression')
+    dependsOn tasks.named('verifyTesterPackParity')
+}
+
 publishing {
     publications {
         mavenJava(MavenPublication) {

@@ -28,6 +28,18 @@ public final class RegressionCheckRunner {
     private static final Path COURSE_PLACEMENT_FILE = Paths.get(
         "src", "main", "java", "com", "mcdg", "world", "CoursePlacementService.java"
     );
+    private static final Path HOLE_PROGRESS_TRACKER_FILE = Paths.get(
+        "src", "main", "java", "com", "mcdg", "game", "HoleProgressTracker.java"
+    );
+    private static final Path ACE_CINEMATIC_SYNC_FILE = Paths.get(
+        "src", "main", "java", "com", "mcdg", "net", "AceCinematicSync.java"
+    );
+    private static final Path ROUND_COMPLETE_CINEMATIC_SYNC_FILE = Paths.get(
+        "src", "main", "java", "com", "mcdg", "net", "RoundCompleteCinematicSync.java"
+    );
+    private static final Path ROUND_RUNNING_SCORES_SYNC_FILE = Paths.get(
+        "src", "main", "java", "com", "mcdg", "net", "RoundRunningScoresSync.java"
+    );
     private static final Pattern HOLE_SPECIAL_CASE_PATTERN = Pattern.compile(
             "\\b(?:holeIndex|currentHole|holeNumber|holeId)\\b\\s*(?:==|!=|<=|>=|<|>)\\s*\\d+|\\.index\\(\\)\\s*(?:==|!=|<=|>=|<|>)\\s*\\d+"
     );
@@ -63,6 +75,9 @@ public final class RegressionCheckRunner {
         runMiniMapChecks();
         runPlacementIssueSyncChecks();
         runCarryPolicyChecks();
+        runGameplayFlowChecks();
+        runScoreboardContractChecks();
+        runCinematicContractChecks();
         runParDistributionChecks(generator);
 
         Course one = generator.generate(123456789L, HOLE_COUNT);
@@ -205,8 +220,8 @@ public final class RegressionCheckRunner {
         );
         assertContains(
             source,
-            "private static float shortestAngleDeltaDegrees(float from, float to)",
-            "Minimap baseline must include angular stability helper."
+            "private static float[] rotateMiniMapVector(float x, float y, float rotationDegrees)",
+            "Minimap baseline must include map-space rotation helper."
         );
         assertContains(
             source,
@@ -280,6 +295,155 @@ public final class RegressionCheckRunner {
             placementSource,
             "private static final int PAR34_ROUTE_MAX_WATER_CARRY = MAX_WATER_CARRY_BLOCKS;",
             "Par 3/4 carry policy diverged from unified max carry policy."
+        );
+    }
+
+    private static void runGameplayFlowChecks() {
+        if (!Files.exists(HOLE_PROGRESS_TRACKER_FILE)) {
+            throw new RuntimeException("Gameplay flow regression file missing: " + HOLE_PROGRESS_TRACKER_FILE);
+        }
+
+        String source;
+        try {
+            source = Files.readString(HOLE_PROGRESS_TRACKER_FILE, StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to read gameplay flow source for regression checks", ex);
+        }
+
+        assertContains(
+            source,
+            "if ((now - startedAt) >= TURN_TIMEOUT_TICKS) {",
+            "Turn-timeout regression: timeout condition was removed or changed unexpectedly."
+        );
+        assertContains(
+            source,
+            "applyTurnTimeoutPenalty(server, roundStateManager, expected, expectedState, placed);",
+            "Turn-timeout regression: timeout penalty application is missing."
+        );
+        assertContains(
+            source,
+            "TURN_SKIP_ONCE_BY_HOLE.put(hole, expected);",
+            "Turn-timeout regression: skip-once guard should remain in place after timeout penalty."
+        );
+        assertContains(
+            source,
+            "for (int priorHole = focusHole - 1; priorHole >= 1; priorHole--) {",
+            "Scoreboard ordering regression: prior-hole tie-break loop is missing."
+        );
+        assertContains(
+            source,
+            "int aRank = HOLE_ONE_RANDOM_ORDER.getOrDefault(a, Integer.MAX_VALUE);",
+            "Scoreboard ordering regression: hole-one random tie-break fallback is missing."
+        );
+    }
+
+    private static void runScoreboardContractChecks() {
+        if (!Files.exists(ROUND_RUNNING_SCORES_SYNC_FILE)) {
+            throw new RuntimeException("Running-scores sync file missing: " + ROUND_RUNNING_SCORES_SYNC_FILE);
+        }
+
+        String source;
+        try {
+            source = Files.readString(ROUND_RUNNING_SCORES_SYNC_FILE, StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to read running-scores sync source for regression checks", ex);
+        }
+
+        assertContains(
+            source,
+            "public static final Identifier CHANNEL = Identifier.of(McdgMod.MOD_ID, \"round_running_scores\");",
+            "Running-scores regression: channel ID changed unexpectedly."
+        );
+        assertContains(
+            source,
+            "return new PlayerRow(playerName, online, List.copyOf(holeScores), runningTotal);",
+            "Running-scores regression: PlayerRow read path should preserve immutable score list semantics."
+        );
+        assertContains(
+            source,
+            "return new Payload(false, 0, 0, List.of());",
+            "Running-scores regression: inactive payload contract changed unexpectedly."
+        );
+    }
+
+    private static void runCinematicContractChecks() {
+        if (!Files.exists(HOLE_PROGRESS_TRACKER_FILE)) {
+            throw new RuntimeException("Cinematic regression file missing: " + HOLE_PROGRESS_TRACKER_FILE);
+        }
+        if (!Files.exists(ACE_CINEMATIC_SYNC_FILE)) {
+            throw new RuntimeException("Ace cinematic sync file missing: " + ACE_CINEMATIC_SYNC_FILE);
+        }
+        if (!Files.exists(ROUND_COMPLETE_CINEMATIC_SYNC_FILE)) {
+            throw new RuntimeException("Round-complete cinematic sync file missing: " + ROUND_COMPLETE_CINEMATIC_SYNC_FILE);
+        }
+
+        String trackerSource;
+        String aceSource;
+        String roundCompleteSource;
+        try {
+            trackerSource = Files.readString(HOLE_PROGRESS_TRACKER_FILE, StandardCharsets.UTF_8);
+            aceSource = Files.readString(ACE_CINEMATIC_SYNC_FILE, StandardCharsets.UTF_8);
+            roundCompleteSource = Files.readString(ROUND_COMPLETE_CINEMATIC_SYNC_FILE, StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to read cinematic sources for regression checks", ex);
+        }
+
+        assertContains(
+            trackerSource,
+            "if (state.holeStrokes() == 1) {",
+            "Cinematic regression: ace trigger guard for first throw is missing."
+        );
+        assertContains(
+            trackerSource,
+            "ServerPlayNetworking.send(player, AceCinematicSync.Payload.active(state.currentHole(), currentHole.distanceFeet()));",
+            "Cinematic regression: ace cinematic network trigger changed unexpectedly."
+        );
+        assertContains(
+            trackerSource,
+            "sendRoundCompleteCinematic(server, placed.worldKey(), roundStateManager, totalPar);",
+            "Cinematic regression: round-complete cinematic trigger is missing."
+        );
+
+        assertContains(
+            aceSource,
+            "public static final Identifier CHANNEL = Identifier.of(McdgMod.MOD_ID, \"ace_cinematic\");",
+            "Cinematic regression: ace channel ID changed unexpectedly."
+        );
+        assertContains(
+            aceSource,
+            "public record Payload(",
+            "Cinematic regression: ace payload record contract is missing."
+        );
+        assertContains(
+            aceSource,
+            "int holeIndex",
+            "Cinematic regression: ace payload hole index field is missing."
+        );
+        assertContains(
+            aceSource,
+            "int distanceFeet",
+            "Cinematic regression: ace payload distance field is missing."
+        );
+
+        assertContains(
+            roundCompleteSource,
+            "public static final Identifier CHANNEL = Identifier.of(McdgMod.MOD_ID, \"round_complete_cinematic\");",
+            "Cinematic regression: round-complete channel ID changed unexpectedly."
+        );
+        assertContains(
+            roundCompleteSource,
+            "String firstName",
+            "Cinematic regression: round-complete payload podium fields are missing."
+        );
+        assertContains(
+            roundCompleteSource,
+            "int localRank",
+            "Cinematic regression: round-complete local rank field is missing."
+        );
+        assertContains(
+            roundCompleteSource,
+            "int localScore",
+            "Cinematic regression: round-complete local score field is missing."
         );
     }
 

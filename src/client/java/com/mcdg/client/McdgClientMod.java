@@ -594,10 +594,6 @@ public final class McdgClientMod implements ClientModInitializer {
         return lookHeading;
     }
 
-    private static float shortestAngleDeltaDegrees(float from, float to) {
-        return ((to - from + 540.0f) % 360.0f) - 180.0f;
-    }
-
     private static void renderRoundInfoOverlay(DrawContext drawContext) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null || client.options.hudHidden || client.textRenderer == null) {

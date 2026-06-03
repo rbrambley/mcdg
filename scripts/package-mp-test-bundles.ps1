@@ -2,11 +2,48 @@ param(
     [string]$ReleaseId = (Get-Date -Format "yyyy-MM-dd") + "-r1",
     [string]$InstancePath = "D:\ATLauncher\instances\TestInstanceMinecraft1206withFabric",
     [string]$OutputRoot = (Join-Path $PSScriptRoot "..\build\test-packs"),
-    [switch]$IncludeRepoResourcePack
+    [switch]$IncludeRepoResourcePack,
+    [string]$GateProfile = "baseline-v1",
+    [switch]$AllowDirtyTree
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+
+function Get-GitState {
+    param([string]$RepoRoot)
+
+    $commit = (& git -C $RepoRoot rev-parse HEAD).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($commit)) {
+        throw "Unable to resolve git commit for repo: $RepoRoot"
+    }
+
+    $statusLines = & git -C $RepoRoot status --porcelain
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to determine git working-tree state for repo: $RepoRoot"
+    }
+
+    $dirty = @($statusLines | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -gt 0
+
+    return [pscustomobject]@{
+        Commit = $commit
+        Dirty = $dirty
+        StatusLines = @($statusLines)
+    }
+}
+
+function Assert-CleanGitTree {
+    param(
+        [pscustomobject]$GitState,
+        [switch]$AllowDirty
+    )
+
+    if ($GitState.Dirty -and -not $AllowDirty.IsPresent) {
+        throw "Working tree has uncommitted changes. Commit or stash changes before packaging, or pass -AllowDirtyTree to override."
+    }
+}
 
 function Write-Info {
     param([string]$Message)
@@ -70,6 +107,9 @@ function Write-DirectoryChecksums {
 if (-not (Test-Path $InstancePath)) {
     throw "InstancePath not found: $InstancePath"
 }
+
+$gitState = Get-GitState -RepoRoot $repoRoot
+Assert-CleanGitTree -GitState $gitState -AllowDirty:$AllowDirtyTree.IsPresent
 
 $templateRoot = Join-Path $PSScriptRoot "templates\test-pack"
 if (-not (Test-Path $templateRoot)) {
@@ -205,9 +245,38 @@ $bundleChecksums += "$clientZipHash *$(Split-Path -Leaf $clientZip)"
 $bundleChecksums += "$serverZipHash *$(Split-Path -Leaf $serverZip)"
 Set-Content -Path (Join-Path $stageRoot "SHA256SUMS.txt") -Value $bundleChecksums -Encoding UTF8
 
+$manifestPath = Join-Path $stageRoot "MANIFEST.json"
+$manifest = [ordered]@{
+    ReleaseId = $ReleaseId
+    GeneratedAt = $generatedAt
+    GateProfile = $GateProfile
+    Git = [ordered]@{
+        Commit = $gitState.Commit
+        Dirty = [bool]$gitState.Dirty
+    }
+    Runtime = [ordered]@{
+        MinecraftVersion = "1.20.6"
+        FabricLoaderVersion = "0.16.10"
+        JavaVersion = "21"
+    }
+    Artifacts = [ordered]@{
+        ClientZip = [ordered]@{
+            File = (Split-Path -Leaf $clientZip)
+            Sha256 = $clientZipHash
+        }
+        ServerZip = [ordered]@{
+            File = (Split-Path -Leaf $serverZip)
+            Sha256 = $serverZipHash
+        }
+    }
+}
+
+$manifest | ConvertTo-Json -Depth 8 | Set-Content -Path $manifestPath -Encoding UTF8
+
 Write-Info "Done"
 Write-Host ""
 Write-Host "Release staging folder: $stageRoot"
 Write-Host "Client zip: $clientZip"
 Write-Host "Server zip: $serverZip"
 Write-Host "Top-level checksums: $(Join-Path $stageRoot 'SHA256SUMS.txt')"
+Write-Host "Manifest: $manifestPath"
