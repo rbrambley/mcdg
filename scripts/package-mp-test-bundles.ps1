@@ -132,11 +132,17 @@ $tokenMap = @{
     RELEASE_ID = $ReleaseId
     GENERATED_AT = $generatedAt
     INSTANCE_PATH = $InstancePath
+    MINECRAFT_VERSION = "1.20.6"
+    FABRIC_LOADER_VERSION = "0.16.10"
+    JAVA_VERSION = "21"
 }
 
 Write-Info "Rendering README templates"
 Render-TemplateFile -TemplatePath (Join-Path $templateRoot "README-CLIENT.txt") -TargetPath (Join-Path $clientRoot "README-CLIENT.txt") -Tokens $tokenMap
 Render-TemplateFile -TemplatePath (Join-Path $templateRoot "README-SERVER.txt") -TargetPath (Join-Path $serverRoot "README-SERVER.txt") -Tokens $tokenMap
+Render-TemplateFile -TemplatePath (Join-Path $templateRoot "USER-GUIDE.txt") -TargetPath (Join-Path $stageRoot "USER-GUIDE.txt") -Tokens $tokenMap
+Render-TemplateFile -TemplatePath (Join-Path $templateRoot "USER-GUIDE.txt") -TargetPath (Join-Path $clientRoot "USER-GUIDE.txt") -Tokens $tokenMap
+Render-TemplateFile -TemplatePath (Join-Path $templateRoot "USER-GUIDE.txt") -TargetPath (Join-Path $serverRoot "USER-GUIDE.txt") -Tokens $tokenMap
 
 $bugTemplateSource = Join-Path $templateRoot "BUG-REPORT-TEMPLATE.txt"
 Copy-Item -Path $bugTemplateSource -Destination (Join-Path $stageRoot "BUG-REPORT-TEMPLATE.txt") -Force

@@ -5,9 +5,9 @@ Generated: {{GENERATED_AT}}
 Source instance: {{INSTANCE_PATH}}
 
 Requirements
-- Minecraft 1.20.6 server runtime
-- Fabric Loader 0.16.10
-- Java 21
+- Minecraft {{MINECRAFT_VERSION}} server runtime
+- Fabric Loader {{FABRIC_LOADER_VERSION}}
+- Java {{JAVA_VERSION}}
 
 Install Steps
 1. Stop the server.
@@ -18,6 +18,7 @@ Install Steps
    - config
    - defaultconfigs
 5. Start server and watch startup log for missing mod or mismatch errors.
+6. Use USER-GUIDE.txt for command reference and tester instructions.
 
 Multiplayer Rules
 - Server and all clients must use the same release ID.
