@@ -76,6 +76,7 @@ public final class McdgClientMod implements ClientModInitializer {
     private static final long MINIMAP_STALE_TIMEOUT_MS = 15000L;
     private static final int MINIMAP_COLOR_UNSET = Integer.MIN_VALUE;
     private static final int PASSIVE_MINIMAP_SPAN_BLOCKS = 96;
+    private static final int MINIMAP_JOIN_PRIME_TICKS = 100;
     private static final int MINIMAP_TEXTURE_SIZE = 128; // Higher sample density while keeping a wider world span.
     private static final int[] MINIMAP_SIZES = { 84, 104, 126 };
     private static final int[] MINIMAP_SURFACE_ALPHA = { 0xD0, 0xB8, 0x9A };
@@ -128,6 +129,7 @@ public final class McdgClientMod implements ClientModInitializer {
     private static int nextWaypointIndex = 1;
     private static boolean waypointLabelsVisible = true;
     private static boolean miniMapJoinWarmupPending;
+    private static int miniMapJoinPrimeTicksRemaining;
     private static String loadedWaypointContextKey = "";
     private static WaypointPromptStage waypointPromptStage = WaypointPromptStage.NONE;
     private static String pendingWaypointName;
@@ -193,6 +195,7 @@ public final class McdgClientMod implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             maybeAutoConnect(client);
             handleMiniMapHotkeys(client);
+            tickMiniMapJoinPrime(client);
             updateAceCinematicEffects(client);
             updateRoundCompleteCinematicEffects(client);
         });
@@ -202,19 +205,16 @@ public final class McdgClientMod implements ClientModInitializer {
         // are still streaming in.
         ClientChunkEvents.CHUNK_LOAD.register((world, chunk) -> {
             lastMiniMapRenderAtMs = 0L;
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (miniMapJoinWarmupPending && client != null && client.player != null) {
-                refreshMiniMapRenderCache(client, resolveActiveMiniMapSpan(client));
-                miniMapJoinWarmupPending = false;
-            }
         });
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             miniMapJoinWarmupPending = true;
+            miniMapJoinPrimeTicksRemaining = MINIMAP_JOIN_PRIME_TICKS;
             lastMiniMapRenderAtMs = 0L;
             clearMiniMapRenderCache(client);
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             miniMapJoinWarmupPending = false;
+            miniMapJoinPrimeTicksRemaining = 0;
             miniMapState = null;
             miniMapReceivedAtMs = 0L;
             clearMiniMapRenderCache(client);
@@ -229,6 +229,8 @@ public final class McdgClientMod implements ClientModInitializer {
                     displayedDistanceFeet = Float.NaN;
                     displayedTotalStrokes = Float.NaN;
                     displayedCumulativeDelta = Float.NaN;
+                    miniMapJoinWarmupPending = true;
+                    miniMapJoinPrimeTicksRemaining = MINIMAP_JOIN_PRIME_TICKS;
                     // Keep the last rendered passive terrain texture to avoid a grey flash on round end.
                     lastMiniMapRenderAtMs = 0L;
                     return;
@@ -366,6 +368,30 @@ public final class McdgClientMod implements ClientModInitializer {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
+    private static void tickMiniMapJoinPrime(MinecraftClient client) {
+        if (!miniMapJoinWarmupPending) {
+            return;
+        }
+
+        if (client == null || client.player == null || client.world == null) {
+            return;
+        }
+
+        // Prime like a movement-triggered refresh for a short post-join window,
+        // without actually moving the player.
+        lastMiniMapRenderAtMs = 0L;
+        refreshMiniMapRenderCache(client, resolveActiveMiniMapSpan(client));
+
+        if (miniMapJoinPrimeTicksRemaining > 0) {
+            miniMapJoinPrimeTicksRemaining--;
+        }
+
+        if (miniMapJoinPrimeTicksRemaining <= 0) {
+            miniMapJoinWarmupPending = false;
+            miniMapJoinPrimeTicksRemaining = 0;
+        }
+    }
+
 
     private static void renderCompassOverlay(DrawContext drawContext) {
         MinecraftClient client = MinecraftClient.getInstance();
@@ -456,6 +482,21 @@ public final class McdgClientMod implements ClientModInitializer {
         float mapRadius = (miniMapSize / 2.0f) - 1.0f;
         drawFilledCircle(drawContext, mapCenterX, mapCenterY, mapRadius, withAlpha((surfaceAlpha << 24) | 0x121212, hudAlpha));
 
+        // Always paint a live biome fallback first so the card is never plain gray
+        // if the dynamic texture fails to render during join/reconnect timing.
+        drawMiniMapBiomeFallbackSurface(
+            drawContext,
+            client,
+            mapX,
+            mapY,
+            miniMapSize,
+            mapSpan,
+            playerWorldX,
+            playerWorldZ,
+            mapRotationDegrees,
+            hudAlpha
+        );
+
         if (miniMapRenderCache != null && miniMapRenderCache.textureId() != null) {
             drawContext.enableScissor(mapX, mapY, mapX + miniMapSize, mapY + miniMapSize);
             var matrices = drawContext.getMatrices();
@@ -543,6 +584,103 @@ public final class McdgClientMod implements ClientModInitializer {
             drawCircleOutline(drawContext, mapCenterX, mapCenterY, mapRadius, withAlpha(HUD_CARD_BORDER, hudAlpha));
             drawMiniMapCardinalLabels(drawContext, client, mapCenterX, mapCenterY, miniMapSize, mapRotationDegrees, hudAlpha);
             drawContext.disableScissor();
+        } else {
+            drawMiniMapBiomeFallbackSurface(
+                    drawContext,
+                    client,
+                    mapX,
+                    mapY,
+                    miniMapSize,
+                    mapSpan,
+                    playerWorldX,
+                    playerWorldZ,
+                    mapRotationDegrees,
+                    hudAlpha
+            );
+
+            drawWaypoints(drawContext, client, mapCenterX, mapCenterY, playerWorldX, playerWorldZ, mapScale, mapRotationDegrees, hudAlpha, waypointLabelsVisible, mapCenterX, mapCenterY, mapRadius);
+
+            drawMiniMapIconClipped(
+                    drawContext,
+                    MINIMAP_LIE_MARKER_TEXTURE,
+                    playerPx,
+                    playerPz,
+                    9,
+                    mapCenterX,
+                    mapCenterY,
+                    mapRadius
+            );
+
+            drawHeadingTriangleClipped(
+                    drawContext,
+                    playerPx,
+                    playerPz,
+                    playerFacingOnMapDegrees,
+                    8.0f,
+                    5.0f,
+                    withAlpha(0xFFFF5A3D, hudAlpha),
+                    withAlpha(0xFF10161F, hudAlpha),
+                    mapCenterX,
+                    mapCenterY,
+                    mapRadius
+            );
+
+            drawCircleBandClipped(
+                    drawContext,
+                    playerPx,
+                    playerPz,
+                    6,
+                    1,
+                    withAlpha(0xFF7CFF6B, hudAlpha),
+                    mapCenterX,
+                    mapCenterY,
+                    mapRadius
+            );
+
+            drawCircleOutline(drawContext, mapCenterX, mapCenterY, mapRadius, withAlpha(HUD_CARD_BORDER, hudAlpha));
+            drawMiniMapCardinalLabels(drawContext, client, mapCenterX, mapCenterY, miniMapSize, mapRotationDegrees, hudAlpha);
+        }
+    }
+
+    private static void drawMiniMapBiomeFallbackSurface(
+            DrawContext drawContext,
+            MinecraftClient client,
+            int mapX,
+            int mapY,
+            int miniMapSize,
+            int mapSpan,
+            double playerWorldX,
+            double playerWorldZ,
+            float mapRotationDegrees,
+            float hudAlpha
+    ) {
+        if (client == null || client.world == null || miniMapSize <= 0 || mapSpan <= 0) {
+            return;
+        }
+
+        int center = miniMapSize / 2;
+        float radius = (miniMapSize / 2.0f) - 1.0f;
+        float radiusSq = radius * radius;
+
+        for (int py = 0; py < miniMapSize; py++) {
+            float localY = (py + 0.5f) - center;
+            for (int px = 0; px < miniMapSize; px++) {
+                float localX = (px + 0.5f) - center;
+                if (((localX * localX) + (localY * localY)) > radiusSq) {
+                    continue;
+                }
+
+                float[] worldDelta = rotateMiniMapVector(localX, localY, -mapRotationDegrees);
+                int worldX = net.minecraft.util.math.MathHelper.floor(playerWorldX + ((worldDelta[0] / Math.max(1.0f, miniMapSize)) * mapSpan));
+                int worldZ = net.minecraft.util.math.MathHelper.floor(playerWorldZ + ((worldDelta[1] / Math.max(1.0f, miniMapSize)) * mapSpan));
+
+                int color = miniMapBiomeFallbackColor(client.world, worldX, worldZ);
+                if (client.world.isChunkLoaded(worldX >> 4, worldZ >> 4)) {
+                    color = applyVisibleSurfaceShading(client.world, worldX, worldZ, color);
+                }
+
+                drawContext.fill(mapX + px, mapY + py, mapX + px + 1, mapY + py + 1, withAlpha(color, hudAlpha));
+            }
         }
     }
 
@@ -1981,25 +2119,26 @@ public final class McdgClientMod implements ClientModInitializer {
         int playerFeetZ = net.minecraft.util.math.MathHelper.floor(client.player.getZ());
 
         if (miniMapRenderCache != null && miniMapRenderCache.matches(mapSpan, playerFeetX, playerFeetZ)) {
-            // If current texture still has unloaded-chunk pixels, retry periodically without requiring player movement.
-            if (miniMapRenderDebug.chunkUnloadedSourcePixels() <= 0) {
-                return;
-            }
-            long now = System.currentTimeMillis();
-            if ((now - lastMiniMapRenderAtMs) < 350L) {
-                return;
+            if (!miniMapJoinWarmupPending) {
+                // If current texture still has unresolved surface pixels, retry periodically without requiring player movement.
+                if (miniMapRenderDebug.unresolvedSurfacePixels() <= 0) {
+                    return;
+                }
+                long now = System.currentTimeMillis();
+                if ((now - lastMiniMapRenderAtMs) < 350L) {
+                    return;
+                }
             }
         }
 
-        if (miniMapRenderCache != null) {
-            clearMiniMapRenderCache(client);
-        }
+        MiniMapRenderCache previousCache = miniMapRenderCache;
 
         NativeImage image = new NativeImage(NativeImage.Format.RGBA, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE, false);
         try {
             boolean renderedFromClientWorld = renderMiniMapFromClientWorld(image, client, mapSpan);
             if (!renderedFromClientWorld) {
                 miniMapRenderDebug = MiniMapRenderDebug.serverOnly();
+                image.close();
                 return;
             }
 
@@ -2007,6 +2146,9 @@ public final class McdgClientMod implements ClientModInitializer {
             Identifier textureId = client.getTextureManager().registerDynamicTexture("mcdg_minimap", texture);
             texture.upload();
             miniMapRenderCache = new MiniMapRenderCache(textureId, texture, mapSpan, playerFeetX, playerFeetZ);
+            if (previousCache != null && previousCache != miniMapRenderCache) {
+                clearMiniMapRenderCache(client, previousCache);
+            }
             lastMiniMapRenderAtMs = System.currentTimeMillis();
         } catch (RuntimeException ex) {
             image.close();
@@ -2049,6 +2191,7 @@ public final class McdgClientMod implements ClientModInitializer {
         double centerWorldX = (playerFeetX + 0.5d);
         double centerWorldZ = (playerFeetZ + 0.5d);
         int chunkUnloadedSourcePixels = 0;
+        int unresolvedSurfacePixels = 0;
 
         for (int py = 0; py < MINIMAP_TEXTURE_SIZE; py++) {
             float dz = (py - centerPy) / texDenominator;
@@ -2070,6 +2213,9 @@ public final class McdgClientMod implements ClientModInitializer {
                 if (terrainSample.source() == MiniMapSampleSource.CHUNK_UNLOADED) {
                     chunkUnloadedSourcePixels++;
                 }
+                if (terrainSample.source() != MiniMapSampleSource.VISIBLE_SURFACE) {
+                    unresolvedSurfacePixels++;
+                }
                 if (!usedClientSample) {
                     // Avoid a gray flash on join; use biome-derived fallback when terrain is not yet available.
                     baseColor = miniMapBiomeFallbackColor(client.world, worldX, worldZ);
@@ -2080,7 +2226,7 @@ public final class McdgClientMod implements ClientModInitializer {
             }
         }
 
-        miniMapRenderDebug = new MiniMapRenderDebug(chunkUnloadedSourcePixels);
+        miniMapRenderDebug = new MiniMapRenderDebug(chunkUnloadedSourcePixels, unresolvedSurfacePixels);
 
         return true;
     }
@@ -2100,8 +2246,9 @@ public final class McdgClientMod implements ClientModInitializer {
         int topSurfaceY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z) - 1;
         int startY = topSurfaceY;
         if (startY < world.getBottomY()) {
+            int fallback = miniMapBiomeFallbackColor(world, x, z);
             return new TerrainSampleResult(
-                    0xFF5E6F86,
+                fallback,
                     false,
                     MiniMapSampleSource.HEIGHTMAP_FALLBACK,
                     MiniMapFluidKind.NONE,
@@ -2254,8 +2401,12 @@ public final class McdgClientMod implements ClientModInitializer {
     }
 
     private static int applyVisibleSurfaceShading(ClientWorld world, int x, int z, int baseColor) {
-        if (baseColor == MINIMAP_COLOR_UNSET || !world.isChunkLoaded(x >> 4, z >> 4)) {
+        if (baseColor == MINIMAP_COLOR_UNSET) {
             return 0xFF5E6F86;
+        }
+        if (!world.isChunkLoaded(x >> 4, z >> 4)) {
+            // Keep biome fallback colors for unloaded chunks to avoid gray flashes while chunks stream in.
+            return baseColor;
         }
 
         int currentY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z) - 1;
@@ -2323,14 +2474,14 @@ public final class McdgClientMod implements ClientModInitializer {
     ) {
     }
 
-    private record MiniMapRenderDebug(int chunkUnloadedSourcePixels) {
+    private record MiniMapRenderDebug(int chunkUnloadedSourcePixels, int unresolvedSurfacePixels) {
         private static MiniMapRenderDebug empty() {
-            return new MiniMapRenderDebug(0);
+            return new MiniMapRenderDebug(0, 0);
         }
 
         private static MiniMapRenderDebug serverOnly() {
             int allPixels = MINIMAP_TEXTURE_SIZE * MINIMAP_TEXTURE_SIZE;
-            return new MiniMapRenderDebug(allPixels);
+            return new MiniMapRenderDebug(allPixels, allPixels);
         }
     }
 
@@ -2388,12 +2539,20 @@ public final class McdgClientMod implements ClientModInitializer {
             return;
         }
 
-        if (client != null) {
-            client.getTextureManager().destroyTexture(miniMapRenderCache.textureId());
+        clearMiniMapRenderCache(client, miniMapRenderCache);
+        miniMapRenderCache = null;
+    }
+
+    private static void clearMiniMapRenderCache(MinecraftClient client, MiniMapRenderCache cache) {
+        if (cache == null) {
+            return;
         }
 
-        miniMapRenderCache.texture().close();
-        miniMapRenderCache = null;
+        if (client != null) {
+            client.getTextureManager().destroyTexture(cache.textureId());
+        }
+
+        cache.texture().close();
     }
 
     private enum WaypointPromptStage {
