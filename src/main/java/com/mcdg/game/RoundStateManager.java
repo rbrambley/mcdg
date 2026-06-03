@@ -71,6 +71,36 @@ public final class RoundStateManager {
         return Map.copyOf(completedTotalByPlayer);
     }
 
+    public void setState(UUID playerId, PlayerRoundState state) {
+        if (playerId == null || state == null) {
+            return;
+        }
+        stateByPlayer.put(playerId, state);
+    }
+
+    public void setCompletedTotal(UUID playerId, int totalStrokes) {
+        if (playerId == null) {
+            return;
+        }
+        if (totalStrokes < 0) {
+            completedTotalByPlayer.remove(playerId);
+            return;
+        }
+        completedTotalByPlayer.put(playerId, totalStrokes);
+    }
+
+    public void restoreSnapshot(Map<UUID, PlayerRoundState> states, Map<UUID, Integer> completedTotals) {
+        stateByPlayer.clear();
+        completedTotalByPlayer.clear();
+
+        if (states != null && !states.isEmpty()) {
+            stateByPlayer.putAll(states);
+        }
+        if (completedTotals != null && !completedTotals.isEmpty()) {
+            completedTotalByPlayer.putAll(completedTotals);
+        }
+    }
+
     public void clearPlayer(UUID playerId) {
         stateByPlayer.remove(playerId);
         completedTotalByPlayer.remove(playerId);

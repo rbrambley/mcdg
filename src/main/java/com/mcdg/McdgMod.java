@@ -6,10 +6,12 @@ import com.mcdg.game.ActiveCourseManager;
 import com.mcdg.game.HoleProgressTracker;
 import com.mcdg.game.McdgItems;
 import com.mcdg.game.PlayerRoundState;
+import com.mcdg.game.PlayerRoundSessionStorage;
 import com.mcdg.game.PracticeCourseStorage;
 import com.mcdg.game.RoundInventoryCleaner;
 import com.mcdg.game.RoundPresentationService;
 import com.mcdg.game.RoundRespawnHandler;
+import com.mcdg.game.RoundSessionStorage;
 import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.ScorecardManager;
 import com.mcdg.game.ThrowAutoTestService;
@@ -29,9 +31,17 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +52,7 @@ public final class McdgMod implements ModInitializer {
     private static final String AUTOTEST_BASE_SEED_ENV = "MCDG_AUTOTEST_BASE_SEED";
     private static final String AUTO_STRICT_SETUP_ENV = "MCDG_AUTO_STRICT_SETUP";
     private static final int AUTO_STRICT_SETUP_MAX_WAIT_TICKS = 20 * 120;
+    private static final int ROUND_SESSION_AUTOSAVE_INTERVAL_TICKS = 20;
 
     private static final CourseGenerator COURSE_GENERATOR = new SeededCourseGenerator();
     private static final ActiveCourseManager ACTIVE_COURSE_MANAGER = new ActiveCourseManager();
@@ -51,6 +62,8 @@ public final class McdgMod implements ModInitializer {
     private static final TournamentRulesetManager TOURNAMENT_RULESET_MANAGER = new TournamentRulesetManager();
     private static final RoundPresentationService ROUND_PRESENTATION_SERVICE = new RoundPresentationService();
     private static final PracticeCourseStorage PRACTICE_COURSE_STORAGE = new PracticeCourseStorage();
+    private static final RoundSessionStorage ROUND_SESSION_STORAGE = new RoundSessionStorage();
+    private static final PlayerRoundSessionStorage PLAYER_ROUND_SESSION_STORAGE = new PlayerRoundSessionStorage();
         private static final ThrowAutoTestService THROW_AUTO_TEST_SERVICE = new ThrowAutoTestService(
             ACTIVE_COURSE_MANAGER,
             ROUND_STATE_MANAGER
@@ -64,6 +77,8 @@ public final class McdgMod implements ModInitializer {
     );
         private static Long pendingAutoStrictSetupSeed;
         private static int pendingAutoStrictSetupWaitTicks;
+        private static int roundSessionAutosaveTicks;
+        private static String lastRoundSessionSignature = "";
 
     @Override
     public void onInitialize() {
@@ -84,15 +99,20 @@ public final class McdgMod implements ModInitializer {
             config.skipRoundPresentation(),
             TOURNAMENT_RULESET_MANAGER,
             PRACTICE_COURSE_STORAGE,
-            THROW_AUTO_TEST_SERVICE
+            THROW_AUTO_TEST_SERVICE,
+            ROUND_SESSION_STORAGE,
+            PLAYER_ROUND_SESSION_STORAGE
         );
         ServerTickEvents.END_SERVER_TICK.register(PLACEMENT_AUTO_TEST_SERVICE::tick);
         ServerTickEvents.END_SERVER_TICK.register(THROW_AUTO_TEST_SERVICE::tick);
         ServerTickEvents.END_SERVER_TICK.register(ROUND_PRESENTATION_SERVICE::tick);
         ServerTickEvents.END_SERVER_TICK.register(McdgMod::handlePendingAutoStrictSetup);
+        ServerTickEvents.END_SERVER_TICK.register(McdgMod::autosaveRoundSession);
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::loadPersistedPracticeCourse);
+        ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::loadPersistedRoundSession);
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::maybeStartHeadlessAutoTest);
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::maybeStartAutoStrictSetup);
+        ServerLifecycleEvents.SERVER_STOPPING.register(McdgMod::flushRoundSessionOnShutdown);
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
             server.execute(() -> restoreRoundParticipantOnJoin(handler.player, server))
         );
@@ -266,6 +286,142 @@ public final class McdgMod implements ModInitializer {
         });
     }
 
+    private static void loadPersistedRoundSession(MinecraftServer server) {
+        ROUND_SESSION_STORAGE.load(server, LOGGER).ifPresent(snapshot -> {
+            var course = ACTIVE_COURSE_MANAGER.getActiveCourse().orElse(null);
+            var placed = ACTIVE_COURSE_MANAGER.getPlacedCourseState().orElse(null);
+
+            if (course == null || placed == null) {
+                LOGGER.warn("Discarding persisted round session: no persisted course is available.");
+                ROUND_SESSION_STORAGE.clear(server, LOGGER);
+                return;
+            }
+
+            String placedWorldKey = placed.worldKey().getValue().toString();
+            if (!Objects.equals(placedWorldKey, snapshot.worldKey())) {
+                LOGGER.warn("Discarding persisted round session: world mismatch (snapshot={}, current={}).", snapshot.worldKey(), placedWorldKey);
+                ROUND_SESSION_STORAGE.clear(server, LOGGER);
+                return;
+            }
+
+            if (snapshot.courseSeed() != course.seed()) {
+                LOGGER.warn("Discarding persisted round session: seed mismatch (snapshot={}, current={}).", snapshot.courseSeed(), course.seed());
+                ROUND_SESSION_STORAGE.clear(server, LOGGER);
+                return;
+            }
+
+            if (snapshot.holeCount() != course.holes().size()) {
+                LOGGER.warn("Discarding persisted round session: hole count mismatch (snapshot={}, current={}).", snapshot.holeCount(), course.holes().size());
+                ROUND_SESSION_STORAGE.clear(server, LOGGER);
+                return;
+            }
+
+            ROUND_STATE_MANAGER.restoreSnapshot(snapshot.playerStates(), snapshot.completedTotals());
+            ACTIVE_COURSE_MANAGER.setActiveParticipantIds(snapshot.participantIds());
+            ACTIVE_COURSE_MANAGER.setRoundActive(snapshot.roundActive());
+
+            LOGGER.info(
+                    "Restored persisted round session with {} participants and {} live player states.",
+                    snapshot.participantIds().size(),
+                    snapshot.playerStates().size()
+            );
+        });
+
+        lastRoundSessionSignature = buildRoundSessionSignature();
+        roundSessionAutosaveTicks = 0;
+    }
+
+    private static void autosaveRoundSession(MinecraftServer server) {
+        roundSessionAutosaveTicks++;
+        if (roundSessionAutosaveTicks < ROUND_SESSION_AUTOSAVE_INTERVAL_TICKS) {
+            return;
+        }
+        roundSessionAutosaveTicks = 0;
+        persistRoundSession(server, false);
+    }
+
+    private static void flushRoundSessionOnShutdown(MinecraftServer server) {
+        persistRoundSession(server, true);
+    }
+
+    private static void persistRoundSession(MinecraftServer server, boolean force) {
+        String signature = buildRoundSessionSignature();
+        if (!force && Objects.equals(signature, lastRoundSessionSignature)) {
+            return;
+        }
+
+        if (ACTIVE_COURSE_MANAGER.isRoundActive()) {
+            var course = ACTIVE_COURSE_MANAGER.getActiveCourse().orElse(null);
+            var placed = ACTIVE_COURSE_MANAGER.getPlacedCourseState().orElse(null);
+            if (course != null && placed != null) {
+                // Keep the latest playable layout available so persisted round sessions can restore after restart.
+                PRACTICE_COURSE_STORAGE.save(server, course, placed);
+            }
+        }
+
+        ROUND_SESSION_STORAGE.save(server, ACTIVE_COURSE_MANAGER, ROUND_STATE_MANAGER, LOGGER);
+        lastRoundSessionSignature = signature;
+    }
+
+    private static String buildRoundSessionSignature() {
+        StringBuilder builder = new StringBuilder();
+        builder.append("active=").append(ACTIVE_COURSE_MANAGER.isRoundActive());
+
+        ACTIVE_COURSE_MANAGER.getPlacedCourseState().ifPresent(placed ->
+                builder.append("|world=").append(placed.worldKey().getValue())
+        );
+        ACTIVE_COURSE_MANAGER.getActiveCourse().ifPresent(course -> {
+            builder.append("|seed=").append(course.seed());
+            builder.append("|holes=").append(course.holes().size());
+        });
+
+        List<String> participantIds = new ArrayList<>();
+        for (UUID participantId : ACTIVE_COURSE_MANAGER.getActiveParticipantIds()) {
+            if (participantId != null) {
+                participantIds.add(participantId.toString());
+            }
+        }
+        Collections.sort(participantIds);
+        builder.append("|participants=").append(String.join(",", participantIds));
+
+        Map<UUID, PlayerRoundState> states = ROUND_STATE_MANAGER.snapshotStates();
+        List<String> stateTokens = new ArrayList<>();
+        for (Map.Entry<UUID, PlayerRoundState> entry : states.entrySet()) {
+            UUID playerId = entry.getKey();
+            PlayerRoundState state = entry.getValue();
+            if (playerId == null || state == null) {
+                continue;
+            }
+            BlockPos lie = state.lie();
+            stateTokens.add(
+                    playerId
+                            + ":h" + state.currentHole()
+                            + ":hs" + state.holeStrokes()
+                            + ":ts" + state.totalStrokes()
+                            + ":lp" + state.lastThrowPenalty()
+                            + ":x" + lie.getX()
+                            + ":y" + lie.getY()
+                            + ":z" + lie.getZ()
+            );
+        }
+        Collections.sort(stateTokens);
+        builder.append("|states=").append(String.join(",", stateTokens));
+
+        Map<UUID, Integer> completedTotals = ROUND_STATE_MANAGER.snapshotCompletedRounds();
+        List<String> completedTokens = new ArrayList<>();
+        for (Map.Entry<UUID, Integer> entry : completedTotals.entrySet()) {
+            UUID playerId = entry.getKey();
+            Integer total = entry.getValue();
+            if (playerId != null && total != null) {
+                completedTokens.add(playerId + ":" + total);
+            }
+        }
+        Collections.sort(completedTokens);
+        builder.append("|completed=").append(String.join(",", completedTokens));
+
+        return builder.toString();
+    }
+
     private static void restoreRoundParticipantOnJoin(ServerPlayerEntity player, net.minecraft.server.MinecraftServer server) {
         if (!ACTIVE_COURSE_MANAGER.isRoundActive()) {
             return;
@@ -292,7 +448,7 @@ public final class McdgMod implements ModInitializer {
         } else {
             BlockPos firstTee = placed.holeTees().get(1);
             if (firstTee != null) {
-                targetLie = resolveSafeFeetNear(world, firstTee);
+                targetLie = resolveSafeFeetNearWithin(world, firstTee, 2);
                 ROUND_STATE_MANAGER.startRoundForPlayer(player.getUuid(), targetLie);
             }
         }
@@ -300,12 +456,16 @@ public final class McdgMod implements ModInitializer {
         RoundInventoryCleaner.restoreRoundInventory(player);
         ScorecardManager.ensureScorecardInInventory(player);
 
-        if (targetLie != null && player.getWorld().getRegistryKey().equals(world.getRegistryKey())) {
-            BlockPos safeLie = resolveSafeFeetNear(world, targetLie);
-            player.teleport(safeLie.getX() + 0.5, safeLie.getY() + 1.0, safeLie.getZ() + 0.5);
-        }
-
         PlayerRoundState currentState = ROUND_STATE_MANAGER.getState(player.getUuid()).orElse(null);
+
+        if (targetLie != null && player.getWorld().getRegistryKey().equals(world.getRegistryKey())) {
+            BlockPos safeLie = resolveSafeFeetNearWithin(world, targetLie, 2);
+            ROUND_STATE_MANAGER.setState(player.getUuid(), currentState == null
+                    ? new PlayerRoundState(1, safeLie, 0, 0, false)
+                    : currentState.withLie(safeLie));
+            player.teleport(safeLie.getX() + 0.5, safeLie.getY() + 1.0, safeLie.getZ() + 0.5);
+            currentState = ROUND_STATE_MANAGER.getState(player.getUuid()).orElse(null);
+        }
         int hole = currentState == null ? 1 : currentState.currentHole();
         player.sendMessage(Text.literal("Rejoined active round at hole " + hole + "."), true);
         HoleProgressTracker.sendRunningScoreboardToPlayer(player, ACTIVE_COURSE_MANAGER, ROUND_STATE_MANAGER);
@@ -342,6 +502,31 @@ public final class McdgMod implements ModInitializer {
                         BlockPos down = candidate.down(dy);
                         if (isStandableFeet(world, down)) {
                             return down;
+                        }
+                    }
+                }
+            }
+        }
+
+        return preferredFeet;
+    }
+
+    private static BlockPos resolveSafeFeetNearWithin(ServerWorld world, BlockPos preferredFeet, int maxRadius) {
+        int safeRadius = Math.max(0, maxRadius);
+        if (isStandableFeet(world, preferredFeet)) {
+            return preferredFeet;
+        }
+
+        for (int radius = 1; radius <= safeRadius; radius++) {
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dz = -radius; dz <= radius; dz++) {
+                    if ((dx * dx) + (dz * dz) > (safeRadius * safeRadius)) {
+                        continue;
+                    }
+                    for (int dy = -2; dy <= 2; dy++) {
+                        BlockPos candidate = preferredFeet.add(dx, dy, dz);
+                        if (isStandableFeet(world, candidate)) {
+                            return candidate;
                         }
                     }
                 }

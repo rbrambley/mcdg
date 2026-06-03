@@ -97,6 +97,23 @@ public final class ActiveCourseManager {
         }
     }
 
+    public void removeActiveParticipantId(UUID participantId) {
+        if (participantId != null) {
+            activeParticipantIds.remove(participantId);
+        }
+    }
+
+    public void removeActiveParticipantIds(Collection<UUID> participantIds) {
+        if (participantIds == null || participantIds.isEmpty()) {
+            return;
+        }
+        for (UUID participantId : participantIds) {
+            if (participantId != null) {
+                activeParticipantIds.remove(participantId);
+            }
+        }
+    }
+
     public void clearActiveParticipantIds() {
         activeParticipantIds.clear();
     }

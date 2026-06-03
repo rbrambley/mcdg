@@ -9,10 +9,13 @@ import com.mcdg.data.SignatureHoleType;
 import com.mcdg.game.ActiveCourseManager;
 import com.mcdg.game.HoleProgressTracker;
 import com.mcdg.game.McdgItems;
+import com.mcdg.game.PlayerRoundState;
+import com.mcdg.game.PlayerRoundSessionStorage;
 import com.mcdg.game.PlacedCourseState;
 import com.mcdg.game.PracticeCourseStorage;
 import com.mcdg.game.RoundInventoryCleaner;
 import com.mcdg.game.RoundPresentationService;
+import com.mcdg.game.RoundSessionStorage;
 import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.ScorecardManager;
 import com.mcdg.game.ThrowAutoTestService;
@@ -55,6 +58,12 @@ public final class McdgAdminCommands {
         private static final String ADVANCED_COMMANDS_PROPERTY = "mcdg.showAdvancedCommands";
         private static final boolean SHOW_ADVANCED_COMMANDS = readAdvancedCommandVisibility();
 
+        private enum ResumeSourceSelection {
+                PREFER_MANUAL,
+                MANUAL_ONLY,
+                AUTO_ONLY
+        }
+
     private McdgAdminCommands() {
     }
 
@@ -77,7 +86,9 @@ public final class McdgAdminCommands {
             boolean skipRoundPresentation,
             TournamentRulesetManager rulesetManager,
             PracticeCourseStorage practiceCourseStorage,
-            ThrowAutoTestService throwAutoTestService
+            ThrowAutoTestService throwAutoTestService,
+            RoundSessionStorage roundSessionStorage,
+            PlayerRoundSessionStorage playerRoundSessionStorage
     ) {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
                 dispatcher.register(literal("mcdg")
@@ -303,6 +314,97 @@ public final class McdgAdminCommands {
                                         courseManager,
                                         roundStateManager
                                 )))
+                        .then(literal("savesession").requires(McdgAdminCommands::canUseAdminCommands)
+                                .executes(context -> executeSaveSession(
+                                        context.getSource(),
+                                        courseManager,
+                                        roundStateManager,
+                                        playerRoundSessionStorage,
+                                        null
+                                ))
+                                .then(argument("players", EntityArgumentType.players())
+                                        .executes(context -> executeSaveSession(
+                                                context.getSource(),
+                                                courseManager,
+                                                roundStateManager,
+                                                playerRoundSessionStorage,
+                                                EntityArgumentType.getPlayers(context, "players")
+                                        ))))
+                        .then(literal("resumesession").requires(McdgAdminCommands::canUseAdminCommands)
+                                .executes(context -> executeResumeSession(
+                                        context.getSource(),
+                                        courseManager,
+                                        roundStateManager,
+                                        practiceCourseStorage,
+                                        playerRoundSessionStorage,
+                                        ResumeSourceSelection.PREFER_MANUAL,
+                                        null
+                                ))
+                                .then(argument("players", EntityArgumentType.players())
+                                        .executes(context -> executeResumeSession(
+                                                context.getSource(),
+                                                courseManager,
+                                                roundStateManager,
+                                                practiceCourseStorage,
+                                                playerRoundSessionStorage,
+                                                ResumeSourceSelection.PREFER_MANUAL,
+                                                EntityArgumentType.getPlayers(context, "players")
+                                        )))
+                                .then(literal("manual")
+                                        .executes(context -> executeResumeSession(
+                                                context.getSource(),
+                                                courseManager,
+                                                roundStateManager,
+                                                practiceCourseStorage,
+                                                playerRoundSessionStorage,
+                                                ResumeSourceSelection.MANUAL_ONLY,
+                                                null
+                                        ))
+                                        .then(argument("players", EntityArgumentType.players())
+                                                .executes(context -> executeResumeSession(
+                                                        context.getSource(),
+                                                        courseManager,
+                                                        roundStateManager,
+                                                        practiceCourseStorage,
+                                                        playerRoundSessionStorage,
+                                                        ResumeSourceSelection.MANUAL_ONLY,
+                                                        EntityArgumentType.getPlayers(context, "players")
+                                                ))))
+                                .then(literal("auto")
+                                        .executes(context -> executeResumeSession(
+                                                context.getSource(),
+                                                courseManager,
+                                                roundStateManager,
+                                                practiceCourseStorage,
+                                                playerRoundSessionStorage,
+                                                ResumeSourceSelection.AUTO_ONLY,
+                                                null
+                                        ))
+                                        .then(argument("players", EntityArgumentType.players())
+                                                .executes(context -> executeResumeSession(
+                                                        context.getSource(),
+                                                        courseManager,
+                                                        roundStateManager,
+                                                        practiceCourseStorage,
+                                                        playerRoundSessionStorage,
+                                                        ResumeSourceSelection.AUTO_ONLY,
+                                                        EntityArgumentType.getPlayers(context, "players")
+                                                )))))
+                        .then(literal("roundsession").requires(McdgAdminCommands::canUseAdminCommands)
+                                .executes(context -> executeRoundSessionStatus(
+                                        context.getSource(),
+                                        roundSessionStorage
+                                ))
+                                .then(literal("status")
+                                        .executes(context -> executeRoundSessionStatus(
+                                                context.getSource(),
+                                                roundSessionStorage
+                                        )))
+                                .then(literal("clear")
+                                        .executes(context -> executeRoundSessionClear(
+                                                context.getSource(),
+                                                roundSessionStorage
+                                        ))))
                         .then(literal("ruleset").requires(McdgAdminCommands::canUseAdminCommands)
                                 .executes(context -> executeShowRuleset(context, rulesetManager))
                                 .then(literal("casual")
@@ -448,6 +550,8 @@ public final class McdgAdminCommands {
                 source.sendFeedback(() -> Text.literal("- Generation model is unified across modes: land-first routing with water-carry cap <= 91 blocks (~300 ft)."), false);
                 source.sendFeedback(() -> Text.literal("- Saved course: /mcdg listcourses -> /mcdg playcourse <index>."), false);
                 source.sendFeedback(() -> Text.literal("- In-round basics: /mcdg joinround, /mcdg endround, /mcdg cleanupcourse."), false);
+                source.sendFeedback(() -> Text.literal("- Player sessions: /mcdg savesession [players], /mcdg resumesession [manual|auto] [players]."), false);
+                source.sendFeedback(() -> Text.literal("- Persisted round session: /mcdg roundsession status | /mcdg roundsession clear."), false);
                 if (SHOW_ADVANCED_COMMANDS) {
                         source.sendFeedback(() -> Text.literal("- Advanced commands are visible (MCDG_SHOW_ADVANCED_COMMANDS=true)."), false);
                 } else {
@@ -1615,6 +1719,283 @@ public final class McdgAdminCommands {
                 return 1;
         }
 
+        private static int executeSaveSession(
+                        ServerCommandSource source,
+                        ActiveCourseManager courseManager,
+                        RoundStateManager roundStateManager,
+                        PlayerRoundSessionStorage playerRoundSessionStorage,
+                        Collection<ServerPlayerEntity> selectedPlayers
+        ) {
+                if (!courseManager.isRoundActive()) {
+                        source.sendError(Text.literal("No active round. Start or resume a round first."));
+                        return 0;
+                }
+
+                Course course = courseManager.getActiveCourse().orElse(null);
+                PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
+                if (course == null || placed == null) {
+                        source.sendError(Text.literal("No active course placement found. Cannot save player session."));
+                        return 0;
+                }
+
+                ServerWorld world = source.getServer().getWorld(placed.worldKey());
+                if (world == null) {
+                        source.sendError(Text.literal("Course world is unavailable."));
+                        return 0;
+                }
+
+                List<ServerPlayerEntity> players = resolveRoundParticipants(source, world, selectedPlayers, "savesession");
+                if (players.isEmpty()) {
+                        source.sendError(Text.literal("No eligible players selected for this world."));
+                        return 0;
+                }
+
+                Set<UUID> activeParticipants = courseManager.getActiveParticipantIds();
+                List<UUID> removedIds = new ArrayList<>();
+                int saved = 0;
+                int skipped = 0;
+                for (ServerPlayerEntity player : players) {
+                        UUID playerId = player.getUuid();
+                        if (!activeParticipants.contains(playerId)) {
+                                skipped++;
+                                continue;
+                        }
+
+                        PlayerRoundState state = roundStateManager.getState(playerId).orElse(null);
+                        if (state == null) {
+                                skipped++;
+                                continue;
+                        }
+
+                        boolean persisted = playerRoundSessionStorage.savePlayer(
+                                source.getServer(),
+                                playerId,
+                                course,
+                                placed,
+                                state,
+                                null
+                        );
+                        if (!persisted) {
+                                skipped++;
+                                continue;
+                        }
+
+                        roundStateManager.clearPlayer(playerId);
+                        removedIds.add(playerId);
+                        removeRoundThrowItems(player);
+                        player.sendMessage(Text.literal(
+                                "Session saved at hole " + state.currentHole() + " (strokes " + state.totalStrokes() + ")."
+                        ), true);
+                        saved++;
+                }
+
+                if (!removedIds.isEmpty()) {
+                        courseManager.removeActiveParticipantIds(removedIds);
+                        if (courseManager.getActiveParticipantIds().isEmpty()) {
+                                courseManager.setRoundActive(false);
+                        }
+                }
+
+                final int savedCount = saved;
+                final int skippedCount = skipped;
+                final boolean roundStillActive = courseManager.isRoundActive();
+                source.sendFeedback(() -> Text.literal(
+                        "Save session complete. Saved=" + savedCount
+                                + ", skipped=" + skippedCount
+                                + ", roundActive=" + roundStillActive + "."
+                ), true);
+
+                return savedCount > 0 ? 1 : 0;
+        }
+
+        private static int executeResumeSession(
+                        ServerCommandSource source,
+                        ActiveCourseManager courseManager,
+                        RoundStateManager roundStateManager,
+                        PracticeCourseStorage practiceCourseStorage,
+                        PlayerRoundSessionStorage playerRoundSessionStorage,
+                        ResumeSourceSelection sourceSelection,
+                        Collection<ServerPlayerEntity> selectedPlayers
+        ) {
+                Course course = courseManager.getActiveCourse().orElse(null);
+                PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
+                if (course == null || placed == null) {
+                        var loaded = practiceCourseStorage.load(source.getServer()).orElse(null);
+                        if (loaded != null) {
+                                course = loaded.course();
+                                placed = loaded.placedCourseState();
+                                courseManager.setActiveCourse(course);
+                                courseManager.setPlacedCourseState(placed);
+                                courseManager.setPersistentPlacedCourse(true);
+                                courseManager.setLegacyPracticeSnapshot(loaded.legacyFormat());
+                        }
+                }
+
+                if (course == null || placed == null) {
+                        source.sendError(Text.literal("No saved course context found. Start a round or load a course first."));
+                        return 0;
+                }
+
+                ServerWorld world = source.getServer().getWorld(placed.worldKey());
+                if (world == null) {
+                        source.sendError(Text.literal("Course world is unavailable."));
+                        return 0;
+                }
+
+                List<ServerPlayerEntity> players = resolveRoundParticipants(source, world, selectedPlayers, "resumesession");
+                if (players.isEmpty()) {
+                        source.sendError(Text.literal("No eligible players selected for this world."));
+                        return 0;
+                }
+
+                int resumed = 0;
+                int skipped = 0;
+                int manualUsed = 0;
+                int autoUsed = 0;
+                for (ServerPlayerEntity player : players) {
+                        UUID playerId = player.getUuid();
+                        var manual = playerRoundSessionStorage.loadPlayer(source.getServer(), playerId, null).orElse(null);
+                        PlayerRoundState autoState = roundStateManager.getState(playerId).orElse(null);
+
+                        PlayerRoundState chosenState = null;
+                        boolean usedManual = false;
+                        if (sourceSelection != ResumeSourceSelection.AUTO_ONLY && manual != null) {
+                                if (isManualSessionCompatible(manual, course, placed)) {
+                                        chosenState = manual.state();
+                                        usedManual = true;
+                                }
+                        }
+
+                        if (chosenState == null && sourceSelection != ResumeSourceSelection.MANUAL_ONLY && autoState != null) {
+                                chosenState = autoState;
+                                usedManual = false;
+                        }
+
+                        if (chosenState == null) {
+                                skipped++;
+                                continue;
+                        }
+
+                        BlockPos restoredFeet = resolveSafeFeetNearWithin(world, chosenState.lie(), 2);
+                        PlayerRoundState restoredState = chosenState.withLie(restoredFeet);
+
+                        roundStateManager.setState(playerId, restoredState);
+                        courseManager.addActiveParticipantId(playerId);
+                        courseManager.setRoundActive(true);
+
+                        RoundInventoryCleaner.restoreRoundInventory(player);
+                        ScorecardManager.ensureScorecardInInventory(player);
+                        player.teleport(restoredFeet.getX() + 0.5, restoredFeet.getY() + 1.0, restoredFeet.getZ() + 0.5);
+
+                        if (usedManual) {
+                                playerRoundSessionStorage.clearPlayer(source.getServer(), playerId, null);
+                                manualUsed++;
+                        } else {
+                                autoUsed++;
+                        }
+
+                        player.sendMessage(Text.literal(
+                                "Session resumed at hole " + restoredState.currentHole()
+                                        + " (strokes " + restoredState.totalStrokes() + ")"
+                                        + (usedManual ? " from manual save." : " from auto state.")
+                        ), true);
+                        resumed++;
+                }
+
+                final int resumedCount = resumed;
+                final int skippedCount = skipped;
+                final int manualCount = manualUsed;
+                final int autoCount = autoUsed;
+                source.sendFeedback(() -> Text.literal(
+                        "Resume session complete. Resumed=" + resumedCount
+                                + " (manual=" + manualCount + ", auto=" + autoCount + ")"
+                                + ", skipped=" + skippedCount + "."
+                ), true);
+                return resumedCount > 0 ? 1 : 0;
+        }
+
+        private static boolean isManualSessionCompatible(
+                        PlayerRoundSessionStorage.LoadedPlayerRoundSession session,
+                        Course course,
+                        PlacedCourseState placed
+        ) {
+                if (session == null || course == null || placed == null) {
+                        return false;
+                }
+                if (!placed.worldKey().getValue().toString().equals(session.worldKey())) {
+                        return false;
+                }
+                if (course.seed() != session.courseSeed()) {
+                        return false;
+                }
+                return course.holes().size() == session.holeCount();
+        }
+
+        private static int executeRoundSessionStatus(
+                        ServerCommandSource source,
+                        RoundSessionStorage roundSessionStorage
+        ) {
+                Optional<RoundSessionStorage.LoadedRoundSession> snapshot = roundSessionStorage.load(source.getServer(), null);
+                if (snapshot.isEmpty()) {
+                        source.sendFeedback(() -> Text.literal("Round session snapshot: none."), false);
+                        return 1;
+                }
+
+                RoundSessionStorage.LoadedRoundSession loaded = snapshot.get();
+                int participantCount = loaded.participantIds().size();
+                int stateCount = loaded.playerStates().size();
+                int completedCount = loaded.completedTotals().size();
+                String worldKey = loaded.worldKey();
+                long seed = loaded.courseSeed();
+                int holes = loaded.holeCount();
+
+                source.sendFeedback(() -> Text.literal(
+                        "Round session snapshot: active=" + loaded.roundActive()
+                                + ", participants=" + participantCount
+                                + ", states=" + stateCount
+                                + ", completed=" + completedCount
+                                + ", world=" + worldKey
+                                + ", seed=" + seed
+                                + ", holes=" + holes
+                ), false);
+
+                int listed = 0;
+                for (UUID participantId : loaded.participantIds()) {
+                        if (listed >= 10) {
+                                break;
+                        }
+
+                        ServerPlayerEntity onlinePlayer = source.getServer().getPlayerManager().getPlayer(participantId);
+                        String label = onlinePlayer == null
+                                ? participantId.toString().substring(0, 8)
+                                : onlinePlayer.getName().getString();
+                        var state = loaded.playerStates().get(participantId);
+                        String stateLabel = state == null
+                                ? "no-state"
+                                : ("H" + state.currentHole() + " strokes=" + state.totalStrokes());
+                        source.sendFeedback(() -> Text.literal(" - " + label + " | " + stateLabel), false);
+                        listed++;
+                }
+
+                if (participantCount > listed) {
+                        int remaining = participantCount - listed;
+                        source.sendFeedback(() -> Text.literal(" - ... and " + remaining + " more participant(s)."), false);
+                }
+                return 1;
+        }
+
+        private static int executeRoundSessionClear(
+                        ServerCommandSource source,
+                        RoundSessionStorage roundSessionStorage
+        ) {
+                roundSessionStorage.clear(source.getServer(), null);
+                source.sendFeedback(() -> Text.literal(
+                        "Cleared persisted round session snapshot."
+                                + " If a round is currently active, autosave may recreate it shortly."
+                ), true);
+                return 1;
+        }
+
         private static int executeShowRuleset(
                         CommandContext<ServerCommandSource> context,
                         TournamentRulesetManager rulesetManager
@@ -1984,6 +2365,31 @@ public final class McdgAdminCommands {
                                                 BlockPos candidateDown = candidate.down(dy);
                                                 if (isStandableFeet(world, candidateDown)) {
                                                         return candidateDown;
+                                                }
+                                        }
+                                }
+                        }
+                }
+
+                return preferredFeet;
+        }
+
+        private static BlockPos resolveSafeFeetNearWithin(ServerWorld world, BlockPos preferredFeet, int maxRadius) {
+                int safeRadius = Math.max(0, maxRadius);
+                if (isStandableFeet(world, preferredFeet)) {
+                        return preferredFeet;
+                }
+
+                for (int radius = 1; radius <= safeRadius; radius++) {
+                        for (int dx = -radius; dx <= radius; dx++) {
+                                for (int dz = -radius; dz <= radius; dz++) {
+                                        if ((dx * dx) + (dz * dz) > (safeRadius * safeRadius)) {
+                                                continue;
+                                        }
+                                        for (int dy = -2; dy <= 2; dy++) {
+                                                BlockPos candidate = preferredFeet.add(dx, dy, dz);
+                                                if (isStandableFeet(world, candidate)) {
+                                                        return candidate;
                                                 }
                                         }
                                 }
