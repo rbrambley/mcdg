@@ -500,7 +500,7 @@ public final class BuildCourseSessionManager {
     }
 
     public int executeResume(ServerCommandSource source) {
-        if (!ensureOwner(source, false)) {
+        if (!ensureOwner(source, true)) {
             return 0;
         }
         session.paused = false;
@@ -701,6 +701,7 @@ public final class BuildCourseSessionManager {
             return 0;
         }
         clearRebuildToken();
+        session.rebuildHoleIndex = -1;
         session.updatedAtMs = System.currentTimeMillis();
         save(source.getServer());
         source.sendFeedback(() -> Text.literal("Rebuild confirmation canceled."), false);
