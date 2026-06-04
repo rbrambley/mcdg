@@ -270,12 +270,13 @@ public final class RoundSessionStorage {
         }
 
         private PlayerRoundState toPlayerRoundState() {
-            if (currentHole < 1 || holeStrokes < 0 || totalStrokes < 0) {
+            int activeOrdinal = currentHole;
+            if (activeOrdinal < 1 || holeStrokes < 0 || totalStrokes < 0) {
                 return null;
             }
             try {
                 return new PlayerRoundState(
-                        currentHole,
+                        activeOrdinal,
                         new BlockPos(lieX, lieY, lieZ),
                         holeStrokes,
                         totalStrokes,

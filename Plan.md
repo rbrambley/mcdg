@@ -71,6 +71,11 @@ Command + generation model update (2026-06-02):
   - Behavior: activate the newest reusable catalog entry without requiring an
     index lookup.
   - Goal: speed up iteration when repeatedly testing fallback/reuse flows.
+- Multidimension course persistence refactor for the new buildcourse flow.
+  - Goal: preserve per-hole dimension data so mixed-dimension builder sessions
+    can save, load, and replay correctly in `listcourses`/`playcourse`.
+  - Follow-up: expand the course snapshot/storage model once the single-dimension
+    Phase 1 flow is validated.
 
 ---
 

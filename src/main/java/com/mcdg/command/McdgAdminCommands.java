@@ -19,6 +19,7 @@ import com.mcdg.game.RoundSessionStorage;
 import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.ScorecardManager;
 import com.mcdg.game.ThrowAutoTestService;
+import com.mcdg.game.BuildCourseSessionManager;
 import com.mcdg.net.WaypointSync;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.PlacementAutoTestService;
@@ -97,7 +98,8 @@ public final class McdgAdminCommands {
             PracticeCourseStorage practiceCourseStorage,
             ThrowAutoTestService throwAutoTestService,
             RoundSessionStorage roundSessionStorage,
-            PlayerRoundSessionStorage playerRoundSessionStorage
+            PlayerRoundSessionStorage playerRoundSessionStorage,
+            BuildCourseSessionManager buildCourseSessionManager
     ) {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
                 dispatcher.register(literal("mcdg")
@@ -132,6 +134,7 @@ public final class McdgAdminCommands {
                                                 ))))
                                 .then(literal("confirm-cancel").requires(McdgAdminCommands::canUseAdminCommands)
                                         .executes(context -> executeMenuConfirmCancel(context.getSource()))))
+                        .then(buildCourseSessionManager.registerNode().requires(McdgAdminCommands::canUseAdminCommands))
                         .then(literal("help").requires(McdgAdminCommands::canUseAdminCommands)
                                 .executes(context -> executeHelp(context.getSource())))
                         .then(literal("gotolie")
@@ -710,6 +713,7 @@ public final class McdgAdminCommands {
 
         private static int executeMenuCourses(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
                 source.sendFeedback(() -> Text.literal("Courses").formatted(Formatting.GOLD, Formatting.BOLD), false);
+                source.sendFeedback(() -> menuButton("Build Course", "/mcdg buildcourse", Formatting.GREEN, true), false);
                 source.sendFeedback(() -> menuButton("List Courses", "/mcdg listcourses", Formatting.AQUA, true), false);
                 source.sendFeedback(() -> menuButton("Play Course", "/mcdg playcourse ", Formatting.GOLD, false), false);
                 source.sendFeedback(() -> menuButton("Remove Course", "/mcdg removecourse ", Formatting.RED, false), false);

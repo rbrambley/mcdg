@@ -145,14 +145,15 @@ public final class PlayerRoundSessionStorage {
         }
 
         private Optional<LoadedPlayerRoundSession> toLoadedSession() {
-            if (worldKey == null || worldKey.isBlank() || holeCount <= 0 || currentHole < 1 || holeStrokes < 0 || totalStrokes < 0) {
+            int activeOrdinal = currentHole;
+            if (worldKey == null || worldKey.isBlank() || holeCount <= 0 || activeOrdinal < 1 || holeStrokes < 0 || totalStrokes < 0) {
                 return Optional.empty();
             }
 
             PlayerRoundState state;
             try {
                 state = new PlayerRoundState(
-                        currentHole,
+                        activeOrdinal,
                         new BlockPos(lieX, lieY, lieZ),
                         holeStrokes,
                         totalStrokes,

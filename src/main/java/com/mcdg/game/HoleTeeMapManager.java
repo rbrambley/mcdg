@@ -24,23 +24,23 @@ public final class HoleTeeMapManager {
     private HoleTeeMapManager() {
     }
 
-    public static void ensureHoleMapForPlayer(ServerPlayerEntity player, int holeIndex, BlockPos tee, BlockPos basket) {
+    public static void ensureHoleMapForPlayer(ServerPlayerEntity player, int ordinal, BlockPos tee, BlockPos basket) {
         if (player == null || player.getWorld() == null || !(player.getWorld() instanceof ServerWorld world)) {
             return;
         }
-        if (tee == null || basket == null || holeIndex <= 0) {
+        if (tee == null || basket == null || !isSupportedOrdinal(ordinal)) {
             return;
         }
 
         int existingSlot = findManagedHoleMapSlot(player);
         if (existingSlot >= 0) {
             ItemStack existing = player.getInventory().getStack(existingSlot);
-            if (managedHoleIndex(existing) == holeIndex) {
+            if (managedHoleIndex(existing) == ordinal) {
                 return;
             }
         }
 
-        ItemStack updatedMap = createHoleMap(world, holeIndex, tee, basket);
+        ItemStack updatedMap = createHoleMap(world, ordinal, tee, basket);
         if (existingSlot >= 0) {
             player.getInventory().setStack(existingSlot, updatedMap);
             player.getInventory().markDirty();
@@ -102,7 +102,11 @@ public final class HoleTeeMapManager {
         return customNbt.contains(KEY_HOLE_MAP);
     }
 
-    private static ItemStack createHoleMap(ServerWorld world, int holeIndex, BlockPos tee, BlockPos basket) {
+    private static boolean isSupportedOrdinal(int ordinal) {
+        return ordinal > 0;
+    }
+
+    private static ItemStack createHoleMap(ServerWorld world, int ordinal, BlockPos tee, BlockPos basket) {
         int centerX = Math.floorDiv(tee.getX() + basket.getX(), 2);
         int centerZ = Math.floorDiv(tee.getZ() + basket.getZ(), 2);
 
@@ -116,7 +120,7 @@ public final class HoleTeeMapManager {
         }
 
         ItemStack map = FilledMapItem.createMap(world, centerX, centerZ, scale, true, false);
-        map.set(DataComponentTypes.CUSTOM_NAME, Text.literal("Hole " + holeIndex + " Map"));
+        map.set(DataComponentTypes.CUSTOM_NAME, Text.literal("Hole " + ordinal + " Map"));
         MapState mapState = FilledMapItem.getMapState(map, world);
         if (mapState != null) {
             preRenderHoleMap(world, mapState);
@@ -126,7 +130,7 @@ public final class HoleTeeMapManager {
         MapState.addDecorationsNbt(map, basket, "mcdg_basket", MapDecorationTypes.TARGET_X);
         NbtComponent.set(DataComponentTypes.CUSTOM_DATA, map, nbt -> {
             NbtCompound root = new NbtCompound();
-            root.putInt(KEY_HOLE_INDEX, holeIndex);
+            root.putInt(KEY_HOLE_INDEX, ordinal);
             nbt.put(KEY_HOLE_MAP, root);
         });
         return map;

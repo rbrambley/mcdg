@@ -115,6 +115,7 @@ public final class CoursePlacementService {
     private static final int CAMP_SITE_MARKER_SEARCH_RADIUS = 192;
     private static final BlockState CAMP_SITE_MARKER_BLOCK = Blocks.LODESTONE.getDefaultState();
     private boolean enforceHeightmapSurfaceRule;
+    private boolean useFixedAnchor;
 
     public record LodgingBuildResult(boolean success, String message, BlockPos center) {
     }
@@ -129,6 +130,20 @@ public final class CoursePlacementService {
         }
     }
 
+    /**
+     * Places a course using {@code origin} as the exact anchor — no anchor search radius is applied.
+     * Use this for buildcourse hole placement so the result matches the preview position.
+     */
+    public PlacedCourseState placeCourseAtFixedOrigin(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback) {
+        boolean previous = useFixedAnchor;
+        useFixedAnchor = true;
+        try {
+            return placeCourse(world, origin, course, progressCallback);
+        } finally {
+            useFixedAnchor = previous;
+        }
+    }
+
     public PlacedCourseState placeCourse(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback) {
         // Current MVP behavior: place relative to the player's surface location.
         CourseBounds courseBounds = findCourseBounds(course);
@@ -136,32 +151,44 @@ public final class CoursePlacementService {
         BlockPos anchor = null;
         double projectedWaterRatio = 0.0;
         String anchorBiome = "unknown";
-        for (int attempt = 1; attempt <= COURSE_ANCHOR_MAX_RETRIES; attempt++) {
-            anchor = findPreferredCourseAnchor(world, origin, course, courseBounds, rejectedAnchorKeys);
+        if (useFixedAnchor) {
+            // buildcourse: use origin directly so placement matches preview position exactly.
+            anchor = resolveSurfacePos(world, origin.getX(), origin.getZ());
             projectedWaterRatio = estimateProjectedWaterRatio(world, course, anchor, courseBounds);
             anchorBiome = biomeId(world.getBiome(anchor));
             McdgMod.LOGGER.info(
-                    "Course anchor candidate attempt={}/{} anchor=({}, {}, {}) biome={} projectedWaterRatio={}",
-                    attempt,
-                    COURSE_ANCHOR_MAX_RETRIES,
-                    anchor.getX(),
-                    anchor.getY(),
-                    anchor.getZ(),
-                    anchorBiome,
+                    "Course anchor fixed (buildcourse) anchor=({}, {}, {}) biome={} projectedWaterRatio={}",
+                    anchor.getX(), anchor.getY(), anchor.getZ(), anchorBiome,
                     String.format(java.util.Locale.ROOT, "%.3f", projectedWaterRatio)
             );
-
-            if (projectedWaterRatio <= COURSE_ANCHOR_HARD_REJECT_WATER_RATIO) {
-                break;
-            }
-
-            rejectedAnchorKeys.add(anchorClusterKey(anchor));
-            if (attempt == COURSE_ANCHOR_MAX_RETRIES) {
-                McdgMod.LOGGER.warn(
-                        "Course anchor retries exhausted; using water-heavy anchor biome={} projectedWaterRatio={}",
+        } else {
+            for (int attempt = 1; attempt <= COURSE_ANCHOR_MAX_RETRIES; attempt++) {
+                anchor = findPreferredCourseAnchor(world, origin, course, courseBounds, rejectedAnchorKeys);
+                projectedWaterRatio = estimateProjectedWaterRatio(world, course, anchor, courseBounds);
+                anchorBiome = biomeId(world.getBiome(anchor));
+                McdgMod.LOGGER.info(
+                        "Course anchor candidate attempt={}/{} anchor=({}, {}, {}) biome={} projectedWaterRatio={}",
+                        attempt,
+                        COURSE_ANCHOR_MAX_RETRIES,
+                        anchor.getX(),
+                        anchor.getY(),
+                        anchor.getZ(),
                         anchorBiome,
                         String.format(java.util.Locale.ROOT, "%.3f", projectedWaterRatio)
                 );
+
+                if (projectedWaterRatio <= COURSE_ANCHOR_HARD_REJECT_WATER_RATIO) {
+                    break;
+                }
+
+                rejectedAnchorKeys.add(anchorClusterKey(anchor));
+                if (attempt == COURSE_ANCHOR_MAX_RETRIES) {
+                    McdgMod.LOGGER.warn(
+                            "Course anchor retries exhausted; using water-heavy anchor biome={} projectedWaterRatio={}",
+                            anchorBiome,
+                            String.format(java.util.Locale.ROOT, "%.3f", projectedWaterRatio)
+                    );
+                }
             }
         }
 
@@ -455,7 +482,7 @@ public final class CoursePlacementService {
                 holeRoutingNotes.getOrDefault(hole.index(), ""),
                 originalBlocks
             );
-            if (hole.index() == startingHoleIndex) {
+            if (hole.index() == startingHoleIndex && startingHoleIndex == 1) {
                 placeCourseCentralHub(world, teeSurface, basketSurface, originalBlocks, protectedPositions);
                 // Hub construction can overlap the starting hole footprint; enforce the tee pad shape afterwards.
                 placeTeePad(world, teeSurface, originalBlocks);

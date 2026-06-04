@@ -7,6 +7,7 @@ import com.mcdg.game.HoleProgressTracker;
 import com.mcdg.game.McdgItems;
 import com.mcdg.game.PlayerRoundState;
 import com.mcdg.game.PlayerRoundSessionStorage;
+import com.mcdg.game.BuildCourseSessionManager;
 import com.mcdg.game.PracticeCourseStorage;
 import com.mcdg.game.RoundInventoryCleaner;
 import com.mcdg.game.RoundPresentationService;
@@ -66,6 +67,11 @@ public final class McdgMod implements ModInitializer {
     private static final PracticeCourseStorage PRACTICE_COURSE_STORAGE = new PracticeCourseStorage();
     private static final RoundSessionStorage ROUND_SESSION_STORAGE = new RoundSessionStorage();
     private static final PlayerRoundSessionStorage PLAYER_ROUND_SESSION_STORAGE = new PlayerRoundSessionStorage();
+    private static final BuildCourseSessionManager BUILD_COURSE_SESSION_MANAGER = new BuildCourseSessionManager(
+            COURSE_PLACEMENT_SERVICE,
+            COURSE_PLACEMENT_VALIDATOR,
+            PRACTICE_COURSE_STORAGE
+    );
         private static final ThrowAutoTestService THROW_AUTO_TEST_SERVICE = new ThrowAutoTestService(
             ACTIVE_COURSE_MANAGER,
             ROUND_STATE_MANAGER
@@ -107,18 +113,22 @@ public final class McdgMod implements ModInitializer {
             PRACTICE_COURSE_STORAGE,
             THROW_AUTO_TEST_SERVICE,
             ROUND_SESSION_STORAGE,
-            PLAYER_ROUND_SESSION_STORAGE
+            PLAYER_ROUND_SESSION_STORAGE,
+            BUILD_COURSE_SESSION_MANAGER
         );
         ServerTickEvents.END_SERVER_TICK.register(PLACEMENT_AUTO_TEST_SERVICE::tick);
         ServerTickEvents.END_SERVER_TICK.register(THROW_AUTO_TEST_SERVICE::tick);
         ServerTickEvents.END_SERVER_TICK.register(ROUND_PRESENTATION_SERVICE::tick);
+        ServerTickEvents.END_SERVER_TICK.register(BUILD_COURSE_SESSION_MANAGER::tick);
         ServerTickEvents.END_SERVER_TICK.register(McdgMod::handlePendingAutoStrictSetup);
         ServerTickEvents.END_SERVER_TICK.register(McdgMod::autosaveRoundSession);
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::loadPersistedPracticeCourse);
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::loadPersistedRoundSession);
+        ServerLifecycleEvents.SERVER_STARTED.register(BUILD_COURSE_SESSION_MANAGER::load);
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::maybeStartHeadlessAutoTest);
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::maybeStartAutoStrictSetup);
         ServerLifecycleEvents.SERVER_STOPPING.register(McdgMod::flushRoundSessionOnShutdown);
+        ServerLifecycleEvents.SERVER_STOPPING.register(BUILD_COURSE_SESSION_MANAGER::save);
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
             server.execute(() -> restoreRoundParticipantOnJoin(handler.player, server))
         );

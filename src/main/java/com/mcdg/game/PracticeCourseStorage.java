@@ -458,9 +458,11 @@ public final class PracticeCourseStorage {
             existingLayoutSignature = buildLayoutSignature(existing.snapshot.course);
         }
 
+        // Deduplicate by world + seed only. Seeds from buildcourse are 64-bit random longs,
+        // so the same seed in the same world is always the same logical course regardless
+        // of whether startround re-placed it at slightly different block positions.
         return Objects.equals(existingWorldKey, targetWorldKey)
-                && existingSeed == targetSeed
-                && Objects.equals(existingLayoutSignature, targetLayoutSignature);
+                && existingSeed == targetSeed;
     }
 
     private static String buildLayoutSignature(CourseSnapshot course) {
