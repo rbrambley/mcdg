@@ -5,6 +5,7 @@ import com.mcdg.data.Course;
 import com.mcdg.data.FairwaySegment;
 import com.mcdg.data.Hole;
 import com.mcdg.game.PlacedCourseState;
+import com.mcdg.util.BiomeUtil;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
@@ -139,7 +140,7 @@ public final class CoursePlacementService {
         for (int attempt = 1; attempt <= COURSE_ANCHOR_MAX_RETRIES; attempt++) {
             anchor = findPreferredCourseAnchor(world, origin, course, courseBounds, rejectedAnchorKeys);
             projectedWaterRatio = estimateProjectedWaterRatio(world, course, anchor, courseBounds);
-            anchorBiome = biomeId(world.getBiome(anchor));
+            anchorBiome = BiomeUtil.biomeId(world.getBiome(anchor));
             McdgMod.LOGGER.info(
                     "Course anchor candidate attempt={}/{} anchor=({}, {}, {}) biome={} projectedWaterRatio={}",
                     attempt,
@@ -2596,7 +2597,7 @@ public final class CoursePlacementService {
 
     private static int tunedPathRadius(ServerWorld world, BlockPos pos, int baseRadius) {
         RegistryEntry<Biome> biome = world.getBiome(pos);
-        String biomeId = biomeId(biome);
+        String biomeId = BiomeUtil.biomeId(biome);
 
         if (biome.isIn(BiomeTags.IS_MOUNTAIN) || biome.isIn(BiomeTags.IS_HILL)) {
             return Math.max(1, baseRadius - 1);
@@ -2616,7 +2617,7 @@ public final class CoursePlacementService {
 
     private static BlockState selectPathMaterial(ServerWorld world, BlockPos pos) {
         RegistryEntry<Biome> biome = world.getBiome(pos);
-        String biomeId = biomeId(biome);
+        String biomeId = BiomeUtil.biomeId(biome);
 
         if (biome.isIn(BiomeTags.IS_MOUNTAIN) || biome.isIn(BiomeTags.IS_HILL)) {
             return Blocks.GRAVEL.getDefaultState();
@@ -2649,13 +2650,7 @@ public final class CoursePlacementService {
         return Blocks.DIRT_PATH.getDefaultState();
     }
 
-    private static String biomeId(RegistryEntry<Biome> biome) {
-        RegistryKey<Biome> key = biome.getKey().orElse(null);
-        if (key == null) {
-            return "";
-        }
-        return key.getValue().getPath();
-    }
+
 
     private static boolean isBiome(String biomeId, String... names) {
         for (String name : names) {
@@ -3663,7 +3658,7 @@ public final class CoursePlacementService {
     }
 
     private static boolean isWaterBiome(ServerWorld world, BlockPos pos) {
-        String id = biomeId(world.getBiome(pos));
+        String id = BiomeUtil.biomeId(world.getBiome(pos));
         return id.contains("ocean") || id.contains("river") || id.contains("beach");
     }
 

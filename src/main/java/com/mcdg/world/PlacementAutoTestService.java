@@ -17,8 +17,8 @@ import java.util.List;
 import java.util.Map;
 import net.minecraft.entity.boss.BossBar;
 import net.minecraft.entity.boss.ServerBossBar;
+import com.mcdg.util.BiomeUtil;
 import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -26,7 +26,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.Heightmap;
-import net.minecraft.world.biome.Biome;
+
 
 public final class PlacementAutoTestService {
     private static final DateTimeFormatter REPORT_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
@@ -514,7 +514,7 @@ public final class PlacementAutoTestService {
                 int z = center.getZ() + dz;
                 int y = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
                 BlockPos sample = new BlockPos(x, y, z);
-                String biome = biomeId(world.getBiome(sample));
+                String biome = BiomeUtil.biomeId(world.getBiome(sample));
                 if (isUndergroundBiome(biome)) {
                     continue;
                 }
@@ -546,13 +546,6 @@ public final class PlacementAutoTestService {
         return List.copyOf(anchorsByBiome.values());
     }
 
-    private static String biomeId(RegistryEntry<Biome> biome) {
-        RegistryKey<Biome> key = biome.getKey().orElse(null);
-        if (key == null) {
-            return "unknown";
-        }
-        return key.getValue().getPath();
-    }
 
     private static boolean isUndergroundBiome(String biomeId) {
         return biomeId.contains("cave") || biomeId.contains("deep_dark");

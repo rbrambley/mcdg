@@ -1,6 +1,8 @@
 package com.mcdg.game;
 
 import com.mcdg.McdgMod;
+import com.mcdg.util.McdgGeometry;
+import com.mcdg.util.ServerSurfaceUtil;
 import com.mcdg.data.Course;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -165,11 +167,11 @@ public final class ThrowAutoTestService {
                 if (!meaningful) {
                     session.resolvedUnchangedLieThrows++;
                     session.consecutiveUnchangedLieThrows++;
-                    int horizontalDelta = horizontalDistance(session.lastThrowLie, state.lie());
+                    int horizontalDelta = McdgGeometry.horizontalDistance(session.lastThrowLie, state.lie());
                     String failure =
                             "failed throw=" + session.throwsLaunched
-                            + " outcome=NON_MEANINGFUL_LIE from=" + formatPos(session.lastThrowLie)
-                            + " to=" + formatPos(state.lie())
+                            + " outcome=NON_MEANINGFUL_LIE from=" + McdgGeometry.formatPos(session.lastThrowLie)
+                            + " to=" + McdgGeometry.formatPos(state.lie())
                             + " horizontalDelta=" + horizontalDelta
                                     + " hole=" + state.currentHole();
                     session.logLines.add(failure);
@@ -192,8 +194,8 @@ public final class ThrowAutoTestService {
                 }
                 session.logLines.add(
                         "resolved throw=" + session.throwsLaunched
-                                + " outcome=LIE_UPDATED from=" + formatPos(session.lastThrowLie)
-                                + " to=" + formatPos(state.lie())
+                                + " outcome=LIE_UPDATED from=" + McdgGeometry.formatPos(session.lastThrowLie)
+                                + " to=" + McdgGeometry.formatPos(state.lie())
                                 + " hole=" + state.currentHole()
                 );
                 session.waitingForLieResolution = false;
@@ -308,8 +310,8 @@ public final class ThrowAutoTestService {
         session.logLines.add(
             "launch throw=" + session.throwsLaunched
                 + " hole=" + state.currentHole()
-                + " lie=" + formatPos(lie)
-                + " basket=" + formatPos(basket)
+                + " lie=" + McdgGeometry.formatPos(lie)
+                + " basket=" + McdgGeometry.formatPos(basket)
                 + " yaw=" + String.format("%.2f", yaw)
                 + " pitch=" + String.format("%.2f", pitch)
                 + " speed=" + String.format("%.2f", speed)
@@ -390,11 +392,11 @@ public final class ThrowAutoTestService {
         session.progressBar.setPercent(progress);
 
         String state = waiting ? "waiting for landing" : "ready";
-        String basketText = basket == null ? "basket: -" : "basket: " + formatPos(basket);
+        String basketText = basket == null ? "basket: -" : "basket: " + McdgGeometry.formatPos(basket);
         session.progressBar.setName(Text.literal(
                 "Throw autotest " + launched + "/" + session.targetThrows
                         + " | hole " + hole
-                        + " | lie " + formatPos(lie)
+                        + " | lie " + McdgGeometry.formatPos(lie)
                         + " | " + state
                         + " | " + basketText
         ));
@@ -540,9 +542,6 @@ public final class ThrowAutoTestService {
         }
     }
 
-    private static String formatPos(BlockPos pos) {
-        return pos.getX() + "," + pos.getY() + "," + pos.getZ();
-    }
 
     private static boolean hasMeaningfulLieResolution(
             BlockPos throwLie,
@@ -554,14 +553,9 @@ public final class ThrowAutoTestService {
             return true;
         }
 
-        return horizontalDistance(throwLie, currentLie) > 0;
+        return McdgGeometry.horizontalDistance(throwLie, currentLie) > 0;
     }
 
-    private static int horizontalDistance(BlockPos from, BlockPos to) {
-        int dx = Math.abs(from.getX() - to.getX());
-        int dz = Math.abs(from.getZ() - to.getZ());
-        return Math.max(dx, dz);
-    }
 
     private static float clampPitch(float pitch) {
         return Math.max(-85.0f, Math.min(85.0f, pitch));
@@ -576,17 +570,17 @@ public final class ThrowAutoTestService {
         BlockPos playerFeet = player.getBlockPos();
         BlockPos nearestPlayerFeet = resolveSafeFeetNear(world, playerFeet);
         StringBuilder builder = new StringBuilder();
-        builder.append("playerFeet=").append(formatPos(playerFeet));
-        builder.append(" nearestStandable=").append(formatPos(nearestPlayerFeet));
-        builder.append(" stateLie=").append(formatPos(state.lie()));
+        builder.append("playerFeet=").append(McdgGeometry.formatPos(playerFeet));
+        builder.append(" nearestStandable=").append(McdgGeometry.formatPos(nearestPlayerFeet));
+        builder.append(" stateLie=").append(McdgGeometry.formatPos(state.lie()));
         if (session.lastLaunchPlayerFeet != null) {
-            builder.append(" launchFeet=").append(formatPos(session.lastLaunchPlayerFeet));
+            builder.append(" launchFeet=").append(McdgGeometry.formatPos(session.lastLaunchPlayerFeet));
         }
         if (session.lastLaunchSafeFeet != null) {
-            builder.append(" safeFeet=").append(formatPos(session.lastLaunchSafeFeet));
+            builder.append(" safeFeet=").append(McdgGeometry.formatPos(session.lastLaunchSafeFeet));
         }
         if (session.lastLaunchBasket != null) {
-            builder.append(" basket=").append(formatPos(session.lastLaunchBasket));
+            builder.append(" basket=").append(McdgGeometry.formatPos(session.lastLaunchBasket));
         }
         if (session.lastLaunchFrom != null && session.lastLaunchTo != null) {
             builder.append(" launchPath=").append(traceImmediateBlockage(world, session.lastLaunchFrom, session.lastLaunchTo));
@@ -612,7 +606,7 @@ public final class ThrowAutoTestService {
                         }
 
                         BlockPos candidate = preferredFeet.add(dx, dy, dz);
-                        if (!isStandableFeet(world, candidate) || !hasClearImmediateLaunchPath(world, candidate, basket)) {
+                        if (!ServerSurfaceUtil.isStandableFeet(world, candidate) || !hasClearImmediateLaunchPath(world, candidate, basket)) {
                             continue;
                         }
 
@@ -637,7 +631,7 @@ public final class ThrowAutoTestService {
 
     private static String traceImmediateBlockage(ServerWorld world, Vec3d from, Vec3d to) {
         BlockPos blocked = firstBlockingPos(world, from, to);
-        return blocked == null ? "clear" : "blocked@" + formatPos(blocked);
+        return blocked == null ? "clear" : "blocked@" + McdgGeometry.formatPos(blocked);
     }
 
     private static BlockPos firstBlockingPos(ServerWorld world, Vec3d from, Vec3d to) {
@@ -691,17 +685,17 @@ public final class ThrowAutoTestService {
     }
 
     private static BlockPos resolveSafeFeetNear(ServerWorld world, BlockPos preferredFeet) {
-        if (isStandableFeet(world, preferredFeet)) {
+        if (ServerSurfaceUtil.isStandableFeet(world, preferredFeet)) {
             return preferredFeet;
         }
 
         for (int dy = 1; dy <= 6; dy++) {
             BlockPos up = preferredFeet.up(dy);
-            if (isStandableFeet(world, up)) {
+            if (ServerSurfaceUtil.isStandableFeet(world, up)) {
                 return up;
             }
             BlockPos down = preferredFeet.down(dy);
-            if (isStandableFeet(world, down)) {
+            if (ServerSurfaceUtil.isStandableFeet(world, down)) {
                 return down;
             }
         }
@@ -713,7 +707,7 @@ public final class ThrowAutoTestService {
                         continue;
                     }
                     BlockPos candidate = preferredFeet.add(dx, 0, dz);
-                    if (isStandableFeet(world, candidate)) {
+                    if (ServerSurfaceUtil.isStandableFeet(world, candidate)) {
                         return candidate;
                     }
                 }
@@ -723,29 +717,7 @@ public final class ThrowAutoTestService {
         return preferredFeet;
     }
 
-    private static boolean isStandableFeet(ServerWorld world, BlockPos feet) {
-        if (!world.getFluidState(feet).isEmpty()) {
-            return false;
-        }
-        if (!world.getBlockState(feet).getCollisionShape(world, feet).isEmpty()) {
-            return false;
-        }
 
-        BlockPos head = feet.up();
-        if (!world.getFluidState(head).isEmpty()) {
-            return false;
-        }
-        if (!world.getBlockState(head).getCollisionShape(world, head).isEmpty()) {
-            return false;
-        }
-
-        BlockPos ground = feet.down();
-        if (!world.getFluidState(ground).isEmpty()) {
-            return false;
-        }
-
-        return !world.getBlockState(ground).getCollisionShape(world, ground).isEmpty();
-    }
 
     private static final class AutoThrowSession {
         private final ServerCommandSource source;

@@ -38,10 +38,7 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.item.ItemStack;
-import net.minecraft.network.packet.s2c.play.ClearTitleS2CPacket;
-import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
-import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
-import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
+import com.mcdg.util.TitleOverlay;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -1125,13 +1122,13 @@ public final class McdgAdminCommands {
 
                 int stayTicks = clampedDone == 0 ? 240 : 18;
                 int fadeOutTicks = clampedDone == 0 ? 0 : 5;
-                player.networkHandler.sendPacket(new TitleFadeS2CPacket(2, stayTicks, fadeOutTicks));
-                player.networkHandler.sendPacket(new TitleS2CPacket(Text.literal(title).formatted(Formatting.GOLD, Formatting.BOLD)));
-                player.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal(subtitle).formatted(Formatting.WHITE)));
+                TitleOverlay.send(player, 2, stayTicks, fadeOutTicks,
+                        Text.literal(title).formatted(Formatting.GOLD, Formatting.BOLD),
+                        Text.literal(subtitle).formatted(Formatting.WHITE));
         }
 
         private static void clearCourseBuildProgressOverlay(ServerPlayerEntity player) {
-                player.networkHandler.sendPacket(new ClearTitleS2CPacket(true));
+                TitleOverlay.clear(player);
         }
 
         private static void announceSignatureHole(ServerCommandSource source, Course course, List<java.util.UUID> participantIds) {
@@ -1162,9 +1159,9 @@ public final class McdgAdminCommands {
         }
 
         private static void showSignatureHoleOverlay(ServerPlayerEntity player, Hole hole) {
-                player.networkHandler.sendPacket(new TitleFadeS2CPacket(6, 60, 12));
-                player.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("Signature Hole: H" + hole.index()).formatted(Formatting.GOLD, Formatting.BOLD)));
-                player.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal(hole.signatureType().displayName()).formatted(Formatting.WHITE)));
+                TitleOverlay.send(player, 6, 60, 12,
+                        Text.literal("Signature Hole: H" + hole.index()).formatted(Formatting.GOLD, Formatting.BOLD),
+                        Text.literal(hole.signatureType().displayName()).formatted(Formatting.WHITE));
         }
 
         private static Course ensureSingleSignatureHole(Course generated) {

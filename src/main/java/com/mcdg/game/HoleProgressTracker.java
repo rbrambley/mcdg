@@ -1,6 +1,9 @@
 package com.mcdg.game;
 
 import com.mcdg.McdgMod;
+import com.mcdg.util.McdgGeometry;
+import com.mcdg.util.ServerSurfaceUtil;
+import com.mcdg.util.TitleOverlay;
 import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import com.mcdg.net.AceCinematicSync;
@@ -30,9 +33,6 @@ import net.minecraft.entity.projectile.thrown.EnderPearlEntity;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
-import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
-import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
-import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
@@ -43,8 +43,7 @@ import net.minecraft.world.Heightmap;
 public final class HoleProgressTracker {
     private static final int BASKET_RADIUS_BLOCKS = 1;
     private static final int BASKET_HEIGHT_TOLERANCE = 2;
-    private static final int BASKET_GREEN_RADIUS_BLOCKS = 7;
-    private static final int BASKET_GREEN_HEIGHT_BLOCKS = 8;
+
     private static final int MAX_THROW_RESOLUTION_WAIT_TICKS = 320;
     private static final int THROW_RELEASE_GRACE_TICKS = 8;
     private static final int TURN_TIMEOUT_TICKS = 20 * 120;
@@ -343,7 +342,7 @@ public final class HoleProgressTracker {
 
         ServerWorld world = player.getServerWorld();
         BlockPos safeLie = findNearestStandableFeet(world, state.lie());
-        if (!isStandableFeetBlock(world, safeLie)) {
+        if (!ServerSurfaceUtil.isStandableFeet(world, safeLie)) {
             return Optional.empty();
         }
 
@@ -1044,18 +1043,18 @@ public final class HoleProgressTracker {
     }
 
     private static void sendClankTitle(ServerPlayerEntity player) {
-        player.networkHandler.sendPacket(new TitleFadeS2CPacket(3, 25, 8));
-        player.networkHandler.sendPacket(new TitleS2CPacket(
-                Text.literal("CLANK!").formatted(net.minecraft.util.Formatting.GRAY, net.minecraft.util.Formatting.ITALIC)));
+        TitleOverlay.send(player, 3, 25, 8,
+                Text.literal("CLANK!").formatted(net.minecraft.util.Formatting.GRAY, net.minecraft.util.Formatting.ITALIC),
+                null);
     }
 
     private static void sendStrictPenaltyTitle(ServerPlayerEntity player, StrictPenaltyType landingPenalty, int penaltyStrokes) {
         String titleText = landingPenalty == StrictPenaltyType.OB ? "OB +" + penaltyStrokes : "Hazard +" + penaltyStrokes;
         String subtitleText = landingPenalty == StrictPenaltyType.OB ? "Returned to lie" : "Penalty applied";
 
-        player.networkHandler.sendPacket(new TitleFadeS2CPacket(5, 30, 10));
-        player.networkHandler.sendPacket(new TitleS2CPacket(Text.literal(titleText).formatted(net.minecraft.util.Formatting.RED, net.minecraft.util.Formatting.BOLD)));
-        player.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal(subtitleText).formatted(net.minecraft.util.Formatting.WHITE)));
+        TitleOverlay.send(player, 5, 30, 10,
+                Text.literal(titleText).formatted(net.minecraft.util.Formatting.RED, net.minecraft.util.Formatting.BOLD),
+                Text.literal(subtitleText).formatted(net.minecraft.util.Formatting.WHITE));
     }
 
     private static void sendHoleFinishTitle(ServerPlayerEntity player, int holeScore, int holePar) {
@@ -1066,9 +1065,9 @@ public final class HoleProgressTracker {
                 ? net.minecraft.util.Formatting.GREEN
                 : net.minecraft.util.Formatting.RED;
 
-        player.networkHandler.sendPacket(new TitleFadeS2CPacket(5, 30, 10));
-        player.networkHandler.sendPacket(new TitleS2CPacket(Text.literal(resultName).formatted(resultColor, net.minecraft.util.Formatting.BOLD)));
-        player.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal(deltaText).formatted(resultColor, net.minecraft.util.Formatting.BOLD)));
+        TitleOverlay.send(player, 5, 30, 10,
+                Text.literal(resultName).formatted(resultColor, net.minecraft.util.Formatting.BOLD),
+                Text.literal(deltaText).formatted(resultColor, net.minecraft.util.Formatting.BOLD));
     }
 
     private static String golfResultName(int holeScore, int holeDelta) {
@@ -1103,17 +1102,17 @@ public final class HoleProgressTracker {
     }
 
     private static BlockPos resolveSafeFeetNear(ServerWorld world, BlockPos preferredFeet) {
-        if (isStandableFeet(world, preferredFeet)) {
+        if (ServerSurfaceUtil.isStandableFeet(world, preferredFeet)) {
             return preferredFeet;
         }
 
         for (int dy = 1; dy <= 6; dy++) {
             BlockPos up = preferredFeet.up(dy);
-            if (isStandableFeet(world, up)) {
+            if (ServerSurfaceUtil.isStandableFeet(world, up)) {
                 return up;
             }
             BlockPos down = preferredFeet.down(dy);
-            if (isStandableFeet(world, down)) {
+            if (ServerSurfaceUtil.isStandableFeet(world, down)) {
                 return down;
             }
         }
@@ -1125,16 +1124,16 @@ public final class HoleProgressTracker {
                         continue;
                     }
                     BlockPos candidate = preferredFeet.add(dx, 0, dz);
-                    if (isStandableFeet(world, candidate)) {
+                    if (ServerSurfaceUtil.isStandableFeet(world, candidate)) {
                         return candidate;
                     }
                     for (int dy = 1; dy <= 3; dy++) {
                         BlockPos candidateUp = candidate.up(dy);
-                        if (isStandableFeet(world, candidateUp)) {
+                        if (ServerSurfaceUtil.isStandableFeet(world, candidateUp)) {
                             return candidateUp;
                         }
                         BlockPos candidateDown = candidate.down(dy);
-                        if (isStandableFeet(world, candidateDown)) {
+                        if (ServerSurfaceUtil.isStandableFeet(world, candidateDown)) {
                             return candidateDown;
                         }
                     }
@@ -1143,30 +1142,6 @@ public final class HoleProgressTracker {
         }
 
         return preferredFeet;
-    }
-
-    private static boolean isStandableFeet(ServerWorld world, BlockPos feet) {
-        if (!world.getFluidState(feet).isEmpty()) {
-            return false;
-        }
-        if (!world.getBlockState(feet).getCollisionShape(world, feet).isEmpty()) {
-            return false;
-        }
-
-        BlockPos head = feet.up();
-        if (!world.getFluidState(head).isEmpty()) {
-            return false;
-        }
-        if (!world.getBlockState(head).getCollisionShape(world, head).isEmpty()) {
-            return false;
-        }
-
-        BlockPos ground = feet.down();
-        if (!world.getFluidState(ground).isEmpty()) {
-            return false;
-        }
-
-        return !world.getBlockState(ground).getCollisionShape(world, ground).isEmpty();
     }
 
     private static void removeRoundThrowItems(ServerPlayerEntity player) {
@@ -1222,8 +1197,8 @@ public final class HoleProgressTracker {
                             player.getGameProfile().getName(),
                             state.currentHole(),
                             state.totalStrokes(),
-                            formatPos(throwLie),
-                            formatPos(currentFeet),
+                            McdgGeometry.formatPos(throwLie),
+                            McdgGeometry.formatPos(currentFeet),
                             pendingTicks,
                             trackedPearlInFlight,
                             withinReleaseGrace
@@ -1242,8 +1217,8 @@ public final class HoleProgressTracker {
                             player.getGameProfile().getName(),
                             state.currentHole(),
                             state.totalStrokes(),
-                            formatPos(throwLie),
-                            formatPos(currentFeet),
+                            McdgGeometry.formatPos(throwLie),
+                            McdgGeometry.formatPos(currentFeet),
                             pendingTicks
                     );
                 }
@@ -1279,9 +1254,9 @@ public final class HoleProgressTracker {
                             player.getGameProfile().getName(),
                             state.currentHole(),
                             state.totalStrokes(),
-                            formatPos(throwLie),
-                            formatPos(currentFeet),
-                            formatPos(landingFeet),
+                            McdgGeometry.formatPos(throwLie),
+                            McdgGeometry.formatPos(currentFeet),
+                            McdgGeometry.formatPos(landingFeet),
                             currentFeetPenalty.name(),
                             standableFeetPenalty.name(),
                             landingPenalty.name()
@@ -1332,8 +1307,8 @@ public final class HoleProgressTracker {
                 if (hudScoringDebug) {
                 player.sendMessage(Text.literal(
                         "Strict dbg | landing=" + landingPenalty.name()
-                                + " | firstOut=" + formatPos(firstOutCrossing)
-                                + " | safeLie=" + formatPos(resultingLie)
+                                + " | firstOut=" + McdgGeometry.formatPos(firstOutCrossing)
+                                + " | safeLie=" + McdgGeometry.formatPos(resultingLie)
                 ), false);
             }
         }
@@ -1351,7 +1326,7 @@ public final class HoleProgressTracker {
         }
 
         resultingLie = findNearestStandableFeet(world, resultingLie);
-        if (!isStandableFeetBlock(world, resultingLie)) {
+        if (!ServerSurfaceUtil.isStandableFeet(world, resultingLie)) {
             resultingLie = findNearestStandableFeet(world, throwLie);
         }
 
@@ -1365,8 +1340,8 @@ public final class HoleProgressTracker {
                     updated.currentHole(),
                     state.totalStrokes(),
                     updated.totalStrokes(),
-                    formatPos(throwLie),
-                    formatPos(resultingLie),
+                    McdgGeometry.formatPos(throwLie),
+                    McdgGeometry.formatPos(resultingLie),
                     landingPenalty.name(),
                     updated.lastThrowPenalty()
             );
@@ -1468,13 +1443,13 @@ public final class HoleProgressTracker {
             return StrictPenaltyType.OB;
         }
 
-        double lateral = distanceFromPlayableRouteXZ(feet, tee, basket, alternateAnchor);
+        double lateral = McdgGeometry.distanceFromPlayableRouteXZ(feet, tee, basket, alternateAnchor);
         if (lateral > corridorHalfWidth) {
             return StrictPenaltyType.OB;
         }
 
         // Basket green: hazard-safe within the placed green, but still not OB-safe.
-        if (isBasketGreenSafe(feet, basket.down())) {
+        if (McdgGeometry.isBasketGreenSafe(feet, basket.down())) {
             return StrictPenaltyType.NONE;
         }
 
@@ -1489,14 +1464,6 @@ public final class HoleProgressTracker {
         return StrictPenaltyType.NONE;
     }
 
-    private static boolean isBasketGreenSafe(BlockPos feet, BlockPos basketSurface) {
-        int dx = feet.getX() - basketSurface.getX();
-        int dz = feet.getZ() - basketSurface.getZ();
-        int dy = feet.getY() - basketSurface.getY();
-        return (dx * dx) + (dz * dz) <= (BASKET_GREEN_RADIUS_BLOCKS * BASKET_GREEN_RADIUS_BLOCKS + 1)
-                && dy >= 0
-                && dy <= BASKET_GREEN_HEIGHT_BLOCKS;
-    }
 
     private static boolean isFluidPenaltyZone(ServerWorld world, BlockPos feet) {
         return world.getFluidState(feet).isIn(FluidTags.WATER)
@@ -1611,7 +1578,7 @@ public final class HoleProgressTracker {
                 int z = center.getZ() + dz;
                 int y = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
                 BlockPos feet = new BlockPos(x, y + 1, z);
-                if (isStandableFeetBlock(world, feet)) {
+                if (ServerSurfaceUtil.isStandableFeet(world, feet)) {
                     return true;
                 }
             }
@@ -1620,41 +1587,6 @@ public final class HoleProgressTracker {
         return false;
     }
 
-    private static double distanceFromPointToSegmentXZ(BlockPos point, BlockPos start, BlockPos end) {
-        double px = point.getX() + 0.5;
-        double pz = point.getZ() + 0.5;
-        double sx = start.getX() + 0.5;
-        double sz = start.getZ() + 0.5;
-        double ex = end.getX() + 0.5;
-        double ez = end.getZ() + 0.5;
-
-        double dx = ex - sx;
-        double dz = ez - sz;
-        double lengthSquared = dx * dx + dz * dz;
-        if (lengthSquared < 1.0e-6) {
-            double mx = px - sx;
-            double mz = pz - sz;
-            return Math.sqrt(mx * mx + mz * mz);
-        }
-
-        double t = ((px - sx) * dx + (pz - sz) * dz) / lengthSquared;
-        t = Math.max(0.0, Math.min(1.0, t));
-        double nx = sx + (t * dx);
-        double nz = sz + (t * dz);
-        double mx = px - nx;
-        double mz = pz - nz;
-        return Math.sqrt(mx * mx + mz * mz);
-    }
-
-    private static double distanceFromPlayableRouteXZ(BlockPos point, BlockPos tee, BlockPos basket, BlockPos alternateAnchor) {
-        if (alternateAnchor == null) {
-            return distanceFromPointToSegmentXZ(point, tee, basket);
-        }
-
-        double firstLeg = distanceFromPointToSegmentXZ(point, tee, alternateAnchor);
-        double secondLeg = distanceFromPointToSegmentXZ(point, alternateAnchor, basket);
-        return Math.min(firstLeg, secondLeg);
-    }
 
     private static CrossingResolution findLastSolidBeforeOutCrossing(
             ServerWorld world,
@@ -1688,7 +1620,7 @@ public final class HoleProgressTracker {
             }
 
             BlockPos standableProbe = findNearestStandableFeet(world, probeRaw);
-            if (isStandableFeetBlock(world, standableProbe)
+            if (ServerSurfaceUtil.isStandableFeet(world, standableProbe)
                     && classifyOutType(world, standableProbe, currentHole, tee, basket, alternateAnchor, rulesetManager) == StrictPenaltyType.NONE) {
                 lastInBoundsSolid = standableProbe;
             }
@@ -1740,26 +1672,20 @@ public final class HoleProgressTracker {
                 || state.isOf(Blocks.CACTUS);
     }
 
-    private static String formatPos(BlockPos pos) {
-        if (pos == null) {
-            return "-";
-        }
-        return pos.getX() + "," + pos.getY() + "," + pos.getZ();
-    }
 
     private static BlockPos findNearestStandableFeet(ServerWorld world, BlockPos baseFeet) {
         BlockPos candidate = baseFeet;
-        if (isStandableFeetBlock(world, candidate)) {
+        if (ServerSurfaceUtil.isStandableFeet(world, candidate)) {
             return candidate;
         }
 
         for (int offset = 1; offset <= 4; offset++) {
             BlockPos up = baseFeet.up(offset);
-            if (isStandableFeetBlock(world, up)) {
+            if (ServerSurfaceUtil.isStandableFeet(world, up)) {
                 return up;
             }
             BlockPos down = baseFeet.down(offset);
-            if (isStandableFeetBlock(world, down)) {
+            if (ServerSurfaceUtil.isStandableFeet(world, down)) {
                 return down;
             }
         }
@@ -1772,17 +1698,17 @@ public final class HoleProgressTracker {
                     }
 
                     BlockPos candidateAtRadius = baseFeet.add(dx, 0, dz);
-                    if (isStandableFeetBlock(world, candidateAtRadius)) {
+                    if (ServerSurfaceUtil.isStandableFeet(world, candidateAtRadius)) {
                         return candidateAtRadius;
                     }
 
                     for (int dy = 1; dy <= 3; dy++) {
                         BlockPos candidateUp = candidateAtRadius.up(dy);
-                        if (isStandableFeetBlock(world, candidateUp)) {
+                        if (ServerSurfaceUtil.isStandableFeet(world, candidateUp)) {
                             return candidateUp;
                         }
                         BlockPos candidateDown = candidateAtRadius.down(dy);
-                        if (isStandableFeetBlock(world, candidateDown)) {
+                        if (ServerSurfaceUtil.isStandableFeet(world, candidateDown)) {
                             return candidateDown;
                         }
                     }
@@ -1792,35 +1718,13 @@ public final class HoleProgressTracker {
 
         int fallbackY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, baseFeet.getX(), baseFeet.getZ());
         BlockPos fallback = new BlockPos(baseFeet.getX(), fallbackY, baseFeet.getZ());
-        if (isStandableFeetBlock(world, fallback)) {
+        if (ServerSurfaceUtil.isStandableFeet(world, fallback)) {
             return fallback;
         }
 
         return baseFeet;
     }
 
-    private static boolean isStandableFeetBlock(ServerWorld world, BlockPos feet) {
-        if (!world.getFluidState(feet).isEmpty()) {
-            return false;
-        }
-        if (!world.getBlockState(feet).getCollisionShape(world, feet).isEmpty()) {
-            return false;
-        }
-        BlockPos head = feet.up();
-        if (!world.getFluidState(head).isEmpty()) {
-            return false;
-        }
-        if (!world.getBlockState(head).getCollisionShape(world, head).isEmpty()) {
-            return false;
-        }
-
-        BlockPos ground = feet.down();
-        if (!world.getFluidState(ground).isEmpty()) {
-            return false;
-        }
-
-        return !world.getBlockState(ground).getCollisionShape(world, ground).isEmpty();
-    }
 
     private static boolean hasPlayerMovedFromThrowLie(BlockPos playerFeet, BlockPos throwLie) {
         int dx = Math.abs(playerFeet.getX() - throwLie.getX());

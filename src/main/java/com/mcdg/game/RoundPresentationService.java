@@ -8,9 +8,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
-import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
-import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
-import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
+import com.mcdg.util.TitleOverlay;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundCategory;
@@ -66,9 +64,9 @@ public final class RoundPresentationService {
 
         String layoutLine = courseName + "  |  " + holeCount + " holes  |  Par " + totalPar;
         forEachParticipant(server, idSet, player -> {
-            player.networkHandler.sendPacket(new TitleFadeS2CPacket(10, 40, 10));
-            player.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("Round starts in " + COUNTDOWN_SECONDS + "...").formatted(Formatting.WHITE)));
-            player.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal(layoutLine).formatted(Formatting.GRAY)));
+            TitleOverlay.send(player, 10, 40, 10,
+                    Text.literal("Round starts in " + COUNTDOWN_SECONDS + "...").formatted(Formatting.WHITE),
+                    Text.literal(layoutLine).formatted(Formatting.GRAY));
         });
     }
 
@@ -94,9 +92,9 @@ public final class RoundPresentationService {
                     pending.finalStingPlayed = true;
                 }
                 forEachParticipant(server, pending.participantIds, player -> {
-                    player.networkHandler.sendPacket(new TitleFadeS2CPacket(5, 25, 5));
-                    player.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("Round starts in " + seconds + "...").formatted(Formatting.WHITE)));
-                    player.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal(pending.courseName).formatted(Formatting.GRAY)));
+                    TitleOverlay.send(player, 5, 25, 5,
+                            Text.literal("Round starts in " + seconds + "...").formatted(Formatting.WHITE),
+                            Text.literal(pending.courseName).formatted(Formatting.GRAY));
                 });
             }
 
@@ -106,9 +104,9 @@ public final class RoundPresentationService {
             }
 
             forEachParticipant(server, pending.participantIds, player -> {
-                player.networkHandler.sendPacket(new TitleFadeS2CPacket(10, 60, 20));
-                player.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("Round Live!").formatted(Formatting.GREEN, Formatting.BOLD)));
-                player.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal(pending.courseName + "  |  Good luck.").formatted(Formatting.WHITE)));
+                TitleOverlay.send(player, 10, 60, 20,
+                        Text.literal("Round Live!").formatted(Formatting.GREEN, Formatting.BOLD),
+                        Text.literal(pending.courseName + "  |  Good luck.").formatted(Formatting.WHITE));
             });
             pending.onRoundLive.run();
             iterator.remove();

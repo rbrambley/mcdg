@@ -1,6 +1,8 @@
 package com.mcdg.client;
 
 import com.mcdg.game.ChargedDiscItem;
+import com.mcdg.util.BiomeUtil;
+import com.mcdg.util.McdgGeometry;
 import com.mcdg.game.McdgItems;
 import com.mcdg.game.ScorecardManager;
 import com.mcdg.net.AceCinematicSync;
@@ -46,8 +48,6 @@ import net.minecraft.particle.ParticleTypes;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.MapColor;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.registry.tag.FluidTags;
 import net.minecraft.text.MutableText;
@@ -61,7 +61,6 @@ import net.minecraft.client.util.InputUtil;
 import net.minecraft.util.StringHelper;
 import net.minecraft.util.WorldSavePath;
 import net.minecraft.world.Heightmap;
-import net.minecraft.world.biome.Biome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.lwjgl.glfw.GLFW;
@@ -89,8 +88,7 @@ public final class McdgClientMod implements ClientModInitializer {
     private static final long ACE_CINEMATIC_DURATION_MS = 3600L;
     private static final long ACE_CINEMATIC_PARTICLE_STEP_MS = 80L;
     private static final long ROUND_COMPLETE_CINEMATIC_DURATION_MS = 20000L;
-    private static final int BASKET_GREEN_RADIUS_BLOCKS = 7;
-    private static final int BASKET_GREEN_HEIGHT_BLOCKS = 8;
+
     private static final Identifier TRAINING_DISC_CHARGED_PREDICATE = new Identifier("mcdg", "charged");
     private static final Identifier MINIMAP_TEE_MARKER_TEXTURE = new Identifier("mcdg", "textures/block/mcdg_tee_marker.png");
     private static final Identifier MINIMAP_BASKET_MARKER_TEXTURE = new Identifier("mcdg", "textures/block/mcdg_basket_marker.png");
@@ -944,11 +942,11 @@ public final class McdgClientMod implements ClientModInitializer {
             return false;
         }
 
-        if (distanceFromPointToSegmentXZ(feet, tee, basket) > corridorHalfWidth) {
+        if (McdgGeometry.distanceFromPointToSegmentXZ(feet, tee, basket) > corridorHalfWidth) {
             return false;
         }
 
-        if (isBasketGreenSafeClient(feet, basketSurface)) {
+        if (McdgGeometry.isBasketGreenSafe(feet, basketSurface)) {
             return false;
         }
 
@@ -970,14 +968,6 @@ public final class McdgClientMod implements ClientModInitializer {
         };
     }
 
-    private static boolean isBasketGreenSafeClient(BlockPos feet, BlockPos basketSurface) {
-        int dx = feet.getX() - basketSurface.getX();
-        int dz = feet.getZ() - basketSurface.getZ();
-        int dy = feet.getY() - basketSurface.getY();
-        return (dx * dx) + (dz * dz) <= (BASKET_GREEN_RADIUS_BLOCKS * BASKET_GREEN_RADIUS_BLOCKS + 1)
-                && dy >= 0
-                && dy <= BASKET_GREEN_HEIGHT_BLOCKS;
-    }
 
     private static boolean isFluidPenaltyZoneClient(ClientWorld world, BlockPos feet) {
         return world.getFluidState(feet).isIn(FluidTags.WATER)
@@ -1029,32 +1019,6 @@ public final class McdgClientMod implements ClientModInitializer {
                 || state.isOf(Blocks.CACTUS);
     }
 
-    private static double distanceFromPointToSegmentXZ(BlockPos point, BlockPos start, BlockPos end) {
-        double px = point.getX() + 0.5;
-        double pz = point.getZ() + 0.5;
-        double sx = start.getX() + 0.5;
-        double sz = start.getZ() + 0.5;
-        double ex = end.getX() + 0.5;
-        double ez = end.getZ() + 0.5;
-
-        double dx = ex - sx;
-        double dz = ez - sz;
-        double lengthSquared = dx * dx + dz * dz;
-        if (lengthSquared < 1.0e-6) {
-            double mx = px - sx;
-            double mz = pz - sz;
-            return Math.sqrt(mx * mx + mz * mz);
-        }
-
-        double t = ((px - sx) * dx + (pz - sz) * dz) / lengthSquared;
-        t = Math.max(0.0, Math.min(1.0, t));
-
-        double closestX = sx + (t * dx);
-        double closestZ = sz + (t * dz);
-        double mx = px - closestX;
-        double mz = pz - closestZ;
-        return Math.sqrt(mx * mx + mz * mz);
-    }
 
     private static void fillRectClipped(
             DrawContext drawContext,
@@ -2222,7 +2186,7 @@ public final class McdgClientMod implements ClientModInitializer {
     }
 
     private static int miniMapBiomeFallbackColor(ClientWorld world, int x, int z) {
-        String biomeId = biomeId(world.getBiome(new BlockPos(x, world.getSeaLevel(), z)));
+        String biomeId = BiomeUtil.biomeId(world.getBiome(new BlockPos(x, world.getSeaLevel(), z)));
         if (biomeId.contains("ocean") || biomeId.contains("river") || biomeId.contains("beach") || biomeId.contains("shore")) {
             return 0xFF3F76E4;
         }
@@ -2238,13 +2202,6 @@ public final class McdgClientMod implements ClientModInitializer {
         return 0xFF7FB238;
     }
 
-    private static String biomeId(RegistryEntry<Biome> biome) {
-        RegistryKey<Biome> key = biome.getKey().orElse(null);
-        if (key == null) {
-            return "unknown";
-        }
-        return key.getValue().getPath();
-    }
 
     private static boolean isVisualNoiseSurface(BlockState state) {
         return state.isOf(Blocks.SHORT_GRASS)

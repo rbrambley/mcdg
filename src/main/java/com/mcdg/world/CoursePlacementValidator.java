@@ -10,13 +10,11 @@ import java.util.Map;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.PlantBlock;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.entry.RegistryEntry;
+import com.mcdg.util.BiomeUtil;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.Heightmap;
-import net.minecraft.world.biome.Biome;
 
 public final class CoursePlacementValidator {
     private static final int LANDING_GAP_WARNING_BLOCKS = 80;
@@ -211,7 +209,7 @@ public final class CoursePlacementValidator {
 
         String biome = "unknown";
         for (BlockPos teePos : placedCourseState.holeTees().values()) {
-            biome = biomeId(world.getBiome(teePos));
+            biome = BiomeUtil.biomeId(world.getBiome(teePos));
             break;
         }
         return new ValidationReport(scenarioName, course.seed(), biome, issues, Map.copyOf(metrics));
@@ -540,13 +538,6 @@ public final class CoursePlacementValidator {
     private record FinishPlayability(int hazardColumns, int greenSafeColumns, int approachSafeSamples) {
     }
 
-    private static String biomeId(RegistryEntry<Biome> biome) {
-        RegistryKey<Biome> key = biome.getKey().orElse(null);
-        if (key == null) {
-            return "unknown";
-        }
-        return key.getValue().getPath();
-    }
 
     public record ValidationIssue(int holeIndex, String code, String message, BlockPos position) {
     }

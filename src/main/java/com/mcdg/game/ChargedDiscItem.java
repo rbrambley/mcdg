@@ -1,6 +1,7 @@
 package com.mcdg.game;
 
 import com.mcdg.McdgMod;
+import com.mcdg.util.McdgGeometry;
 import com.mcdg.rules.TournamentRulesetManager;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -116,8 +117,8 @@ public final class ChargedDiscItem extends Item {
                     serverPlayer.getGameProfile().getName(),
                     state.totalStrokes(),
                     state.currentHole(),
-                    formatPos(state.lie()),
-                    formatPos(serverPlayer.getBlockPos()),
+                    McdgGeometry.formatPos(state.lie()),
+                    McdgGeometry.formatPos(serverPlayer.getBlockPos()),
                     rulesetManager.getActiveRuleset().name(),
                     snapshot
                 );
@@ -136,15 +137,15 @@ public final class ChargedDiscItem extends Item {
                         serverPlayer.getGameProfile().getName(),
                         state.totalStrokes(),
                         state.currentHole(),
-                        formatPos(state.lie()),
-                        formatPos(serverPlayer.getBlockPos()),
+                        McdgGeometry.formatPos(state.lie()),
+                        McdgGeometry.formatPos(serverPlayer.getBlockPos()),
                         rulesetManager.allowedLieToleranceBlocks(),
                         rulesetManager.getActiveRuleset().name(),
                         snapshot
                 );
             }
 
-            int distanceFromLie = horizontalDistance(serverPlayer.getBlockPos(), state.lie());
+            int distanceFromLie = McdgGeometry.horizontalDistance(serverPlayer.getBlockPos(), state.lie());
             int allowedDistance = rulesetManager.allowedLieToleranceBlocks();
             if (distanceFromLie > allowedDistance) {
                 String snapshot = HoleProgressTracker.strictThrowGateDebugSnapshot(serverPlayer.getUuid(), state.totalStrokes());
@@ -156,8 +157,8 @@ public final class ChargedDiscItem extends Item {
                         state.holeStrokes(),
                         distanceFromLie,
                         allowedDistance,
-                        formatPos(state.lie()),
-                        formatPos(serverPlayer.getBlockPos()),
+                        McdgGeometry.formatPos(state.lie()),
+                        McdgGeometry.formatPos(serverPlayer.getBlockPos()),
                         rulesetManager.getActiveRuleset().name(),
                         snapshot
                 );
@@ -204,7 +205,7 @@ public final class ChargedDiscItem extends Item {
                 usedTicks,
                 String.format("%.3f", charge),
                 String.format("%.3f", velocity),
-                formatPos(serverPlayer.getBlockPos()),
+                McdgGeometry.formatPos(serverPlayer.getBlockPos()),
                 rulesetManager.isStrict()
             );
         }
@@ -241,13 +242,4 @@ public final class ChargedDiscItem extends Item {
         return Text.literal("Disc thrown at " + percent + "% power").formatted(Formatting.YELLOW);
     }
 
-    private static int horizontalDistance(net.minecraft.util.math.BlockPos from, net.minecraft.util.math.BlockPos to) {
-        int dx = Math.abs(from.getX() - to.getX());
-        int dz = Math.abs(from.getZ() - to.getZ());
-        return Math.max(dx, dz);
-    }
-
-    private static String formatPos(net.minecraft.util.math.BlockPos pos) {
-        return pos.getX() + "," + pos.getY() + "," + pos.getZ();
-    }
 }
