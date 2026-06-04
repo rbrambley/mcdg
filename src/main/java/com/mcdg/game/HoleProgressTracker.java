@@ -1057,9 +1057,7 @@ public final class HoleProgressTracker {
                 if (world == null) {
                     continue;
                 }
-                if (world.getBlockState(markerState.markerPos()).isOf(Blocks.LIME_WOOL)) {
-                    world.setBlockState(markerState.markerPos(), markerState.previousGroundState(), 3);
-                }
+                world.setBlockState(markerState.markerPos(), markerState.previousGroundState(), 0);
             }
         }
         LIE_MARKER_HISTORY.clear();
@@ -1113,9 +1111,7 @@ public final class HoleProgressTracker {
             if (world == null) {
                 continue;
             }
-            if (world.getBlockState(markerState.markerPos()).isOf(Blocks.LIME_WOOL)) {
-                world.setBlockState(markerState.markerPos(), markerState.previousGroundState(), 3);
-            }
+            world.setBlockState(markerState.markerPos(), markerState.previousGroundState(), 0);
         }
 
         markerStates.clear();
