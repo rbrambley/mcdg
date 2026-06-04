@@ -54,7 +54,9 @@ public final class RoundInventoryCleaner {
             }
 
             boolean removeRoundItems = includeRoundThrowItems
-                    && (stack.isOf(McdgItems.TRAINING_DISC) || stack.isOf(Items.ENDER_PEARL));
+                    && (stack.isOf(McdgItems.TRAINING_DISC)
+                        || stack.isOf(Items.ENDER_PEARL)
+                        || HoleTeeMapManager.isManagedHoleMap(stack));
 
             if (removeRoundItems || isJunkItem(stack)) {
                 player.getInventory().setStack(slot, ItemStack.EMPTY);

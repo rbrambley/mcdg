@@ -13,6 +13,7 @@ public final class ActiveCourseManager {
     private volatile boolean roundActive;
     private volatile boolean persistentPlacedCourse;
     private volatile boolean legacyPracticeSnapshot;
+    private volatile Integer activeCourseCatalogIndex;
     private final Set<UUID> activeParticipantIds = ConcurrentHashMap.newKeySet();
 
     public void setActiveCourse(Course course) {
@@ -24,6 +25,14 @@ public final class ActiveCourseManager {
 
     public Optional<Course> getActiveCourse() {
         return Optional.ofNullable(activeCourse);
+    }
+
+    public Optional<Integer> getActiveCourseCatalogIndex() {
+        return Optional.ofNullable(activeCourseCatalogIndex);
+    }
+
+    public void setActiveCourseCatalogIndex(Integer activeCourseCatalogIndex) {
+        this.activeCourseCatalogIndex = activeCourseCatalogIndex;
     }
 
     public void setPlacedCourseState(PlacedCourseState placedCourseState) {
@@ -124,6 +133,7 @@ public final class ActiveCourseManager {
         this.roundActive = false;
         this.persistentPlacedCourse = false;
         this.legacyPracticeSnapshot = false;
+        this.activeCourseCatalogIndex = null;
         this.activeParticipantIds.clear();
     }
 }

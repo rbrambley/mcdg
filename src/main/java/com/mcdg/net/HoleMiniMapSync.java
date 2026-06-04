@@ -1,6 +1,8 @@
 package com.mcdg.net;
 
 import com.mcdg.McdgMod;
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
@@ -34,7 +36,13 @@ public final class HoleMiniMapSync {
             boolean hasAlternateAnchor,
             int alternateAnchorX,
             int alternateAnchorZ,
-            int mapSpan
+            int mapSpan,
+            String courseWaypointName,
+            int courseWaypointX,
+            int courseWaypointZ,
+            int totalHoles,
+            List<Integer> holeTeeXs,
+            List<Integer> holeTeeZs
     ) implements CustomPayload {
         public static Payload read(RegistryByteBuf buf) {
             boolean active = buf.readBoolean();
@@ -42,25 +50,62 @@ public final class HoleMiniMapSync {
                 return inactive();
             }
 
+            int holeIndex = buf.readVarInt();
+            int teeX = buf.readVarInt();
+            int teeZ = buf.readVarInt();
+            int basketX = buf.readVarInt();
+            int basketZ = buf.readVarInt();
+            int lieX = buf.readVarInt();
+            int lieZ = buf.readVarInt();
+            int par = buf.readVarInt();
+            int throwNumber = buf.readVarInt();
+            int totalStrokes = buf.readVarInt();
+            int cumulativeParDelta = buf.readVarInt();
+            boolean strictMode = buf.readBoolean();
+            int strictSurfacePresetOrdinal = buf.readVarInt();
+            int corridorHalfWidth = buf.readVarInt();
+            boolean hasAlternateAnchor = buf.readBoolean();
+            int alternateAnchorX = buf.readVarInt();
+            int alternateAnchorZ = buf.readVarInt();
+            int mapSpan = buf.readVarInt();
+            String courseWaypointName = buf.readString();
+            int courseWaypointX = buf.readVarInt();
+            int courseWaypointZ = buf.readVarInt();
+            int totalHoles = buf.readVarInt();
+
+            int teeCount = Math.max(0, buf.readVarInt());
+            List<Integer> holeTeeXs = new ArrayList<>(teeCount);
+            List<Integer> holeTeeZs = new ArrayList<>(teeCount);
+            for (int i = 0; i < teeCount; i++) {
+                holeTeeXs.add(buf.readVarInt());
+                holeTeeZs.add(buf.readVarInt());
+            }
+
             return active(
-                    buf.readVarInt(),
-                    buf.readVarInt(),
-                    buf.readVarInt(),
-                    buf.readVarInt(),
-                    buf.readVarInt(),
-                    buf.readVarInt(),
-                    buf.readVarInt(),
-                    buf.readVarInt(),
-                    buf.readVarInt(),
-                    buf.readVarInt(),
-                    buf.readVarInt(),
-                    buf.readBoolean(),
-                        buf.readVarInt(),
-                        buf.readVarInt(),
-                    buf.readBoolean(),
-                    buf.readVarInt(),
-                    buf.readVarInt(),
-                    buf.readVarInt()
+                    holeIndex,
+                    teeX,
+                    teeZ,
+                    basketX,
+                    basketZ,
+                    lieX,
+                    lieZ,
+                    par,
+                    throwNumber,
+                    totalStrokes,
+                    cumulativeParDelta,
+                    strictMode,
+                    strictSurfacePresetOrdinal,
+                    corridorHalfWidth,
+                    hasAlternateAnchor,
+                    alternateAnchorX,
+                    alternateAnchorZ,
+                    mapSpan,
+                    courseWaypointName,
+                    courseWaypointX,
+                    courseWaypointZ,
+                    totalHoles,
+                    holeTeeXs,
+                    holeTeeZs
             );
         }
 
@@ -88,10 +133,20 @@ public final class HoleMiniMapSync {
             buf.writeVarInt(alternateAnchorX);
             buf.writeVarInt(alternateAnchorZ);
             buf.writeVarInt(mapSpan);
+            buf.writeString(courseWaypointName == null ? "" : courseWaypointName);
+            buf.writeVarInt(courseWaypointX);
+            buf.writeVarInt(courseWaypointZ);
+            buf.writeVarInt(totalHoles);
+            int teeCount = Math.min(holeTeeXs == null ? 0 : holeTeeXs.size(), holeTeeZs == null ? 0 : holeTeeZs.size());
+            buf.writeVarInt(teeCount);
+            for (int i = 0; i < teeCount; i++) {
+                buf.writeVarInt(holeTeeXs.get(i));
+                buf.writeVarInt(holeTeeZs.get(i));
+            }
         }
 
         public static Payload inactive() {
-            return new Payload(false, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, false, 0, 0, false, 0, 0, 0);
+            return new Payload(false, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, false, 0, 0, false, 0, 0, 0, "", 0, 0, 0, List.of(), List.of());
         }
 
         public static Payload active(
@@ -112,7 +167,13 @@ public final class HoleMiniMapSync {
                 boolean hasAlternateAnchor,
                 int alternateAnchorX,
                 int alternateAnchorZ,
-                int mapSpan
+                int mapSpan,
+                String courseWaypointName,
+                int courseWaypointX,
+                int courseWaypointZ,
+                int totalHoles,
+                List<Integer> holeTeeXs,
+                List<Integer> holeTeeZs
         ) {
             return new Payload(
                     true,
@@ -133,7 +194,13 @@ public final class HoleMiniMapSync {
                     hasAlternateAnchor,
                     alternateAnchorX,
                     alternateAnchorZ,
-                    mapSpan
+                    mapSpan,
+                    courseWaypointName == null ? "" : courseWaypointName,
+                    courseWaypointX,
+                    courseWaypointZ,
+                    totalHoles,
+                    holeTeeXs == null ? List.of() : List.copyOf(holeTeeXs),
+                    holeTeeZs == null ? List.of() : List.copyOf(holeTeeZs)
             );
         }
 
