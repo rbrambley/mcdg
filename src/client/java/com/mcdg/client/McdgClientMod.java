@@ -4,6 +4,7 @@ import com.mcdg.game.ChargedDiscItem;
 import com.mcdg.game.McdgItems;
 import com.mcdg.game.ScorecardManager;
 import com.mcdg.net.AceCinematicSync;
+import com.mcdg.net.WaypointSync;
 import com.mcdg.net.HoleMiniMapSync;
 import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
@@ -13,8 +14,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
@@ -25,7 +28,10 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.DisconnectedScreen;
@@ -36,6 +42,11 @@ import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.client.item.ModelPredicateProviderRegistry;
 import net.minecraft.item.ItemStack;
@@ -57,10 +68,13 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RotationAxis;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.hit.HitResult;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.util.StringHelper;
 import net.minecraft.util.WorldSavePath;
 import net.minecraft.world.Heightmap;
+import net.minecraft.world.RaycastContext;
 import net.minecraft.world.biome.Biome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,6 +91,15 @@ public final class McdgClientMod implements ClientModInitializer {
     private static final int MINIMAP_COLOR_UNSET = Integer.MIN_VALUE;
     private static final int PASSIVE_MINIMAP_SPAN_BLOCKS = 96;
     private static final int MINIMAP_JOIN_PRIME_TICKS = 100;
+    private static final int WAYPOINT_FLOAT_LABEL_ENTER_BLOCKS = 160;
+    private static final int WAYPOINT_EDGE_ARROW_ENTER_BLOCKS = 120;
+    private static final int WAYPOINT_FLOAT_LABEL_MAX_BLOCKS = 160;
+    private static final int WAYPOINT_EDGE_ARROW_MAX_BLOCKS = 320;
+    private static final int WAYPOINT_BEAM_HEIGHT_BLOCKS = 64;
+    private static final float WAYPOINT_BEAM_ALPHA = 0.60f;
+    private static final int UNKNOWN_WAYPOINT_Y = Integer.MIN_VALUE;
+    private static final int WAYPOINT_COURSE_COLOR = 0xFF66CC66;
+    private static final int WAYPOINT_HOLE_TEMP_COLOR = 0xFFFFFFFF;
     private static final int MINIMAP_TEXTURE_SIZE = 128; // Higher sample density while keeping a wider world span.
     private static final int[] MINIMAP_SIZES = { 84, 104, 126 };
     private static final int[] MINIMAP_SURFACE_ALPHA = { 0xD0, 0xB8, 0x9A };
@@ -130,17 +153,23 @@ public final class McdgClientMod implements ClientModInitializer {
     private static boolean waypointLabelsVisible = true;
     private static boolean miniMapJoinWarmupPending;
     private static int miniMapJoinPrimeTicksRemaining;
+    private static String activeRoundCourseWaypointName = "";
     private static String loadedWaypointContextKey = "";
+    private static String lastSentWaypointSyncSignature = "";
+    private static String loadedWaypointDimensionKey = "";
     private static WaypointPromptStage waypointPromptStage = WaypointPromptStage.NONE;
     private static String pendingWaypointName;
     private static String pendingWaypointContextKey;
     private static int pendingWaypointX;
+    private static int pendingWaypointY;
     private static int pendingWaypointZ;
     private static AceCinematicState aceCinematicState;
     private static long nextAceCinematicParticleAtMs;
     private static RoundCompleteCinematicState roundCompleteCinematicState;
     private static RunningRoundScoreState runningRoundScoreState;
     private static final List<ClientWaypoint> clientWaypoints = new ArrayList<>();
+    private static final List<ClientWaypoint> roundHoleWaypoints = new ArrayList<>();
+    private static final Map<String, WaypointRenderMode> waypointRenderModes = new HashMap<>();
 
 
     @Override
@@ -193,6 +222,7 @@ public final class McdgClientMod implements ClientModInitializer {
             client.options.write();
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            maybeSyncClientWaypoints(client);
             maybeAutoConnect(client);
             handleMiniMapHotkeys(client);
             tickMiniMapJoinPrime(client);
@@ -211,12 +241,19 @@ public final class McdgClientMod implements ClientModInitializer {
             miniMapJoinPrimeTicksRemaining = MINIMAP_JOIN_PRIME_TICKS;
             lastMiniMapRenderAtMs = 0L;
             clearMiniMapRenderCache(client);
+            ensureWaypointContextLoaded(client);
+            syncClientWaypointsToServer(client);
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             miniMapJoinWarmupPending = false;
             miniMapJoinPrimeTicksRemaining = 0;
             miniMapState = null;
             miniMapReceivedAtMs = 0L;
+            activeRoundCourseWaypointName = "";
+            lastSentWaypointSyncSignature = "";
+            roundHoleWaypoints.clear();
+            waypointRenderModes.clear();
+            loadedWaypointDimensionKey = "";
             clearMiniMapRenderCache(client);
         });
         ClientSendMessageEvents.ALLOW_CHAT.register(message -> handleWaypointPromptInput(message));
@@ -225,6 +262,8 @@ public final class McdgClientMod implements ClientModInitializer {
                 if (!payload.active()) {
                     miniMapState = null;
                     miniMapReceivedAtMs = 0L;
+                    activeRoundCourseWaypointName = "";
+                    roundHoleWaypoints.clear();
                     hudVisibleSinceMs = 0L;
                     displayedDistanceFeet = Float.NaN;
                     displayedTotalStrokes = Float.NaN;
@@ -260,6 +299,14 @@ public final class McdgClientMod implements ClientModInitializer {
                         payload.alternateAnchorZ(),
                         payload.mapSpan()
                 );
+                    activeRoundCourseWaypointName = payload.courseWaypointName();
+                    upsertPermanentCourseWaypoint(
+                        context.client(),
+                        payload.courseWaypointName(),
+                        payload.courseWaypointX(),
+                        payload.courseWaypointZ()
+                    );
+                    syncRoundHoleWaypointsFromPayload(payload);
                 miniMapReceivedAtMs = System.currentTimeMillis();
                 refreshMiniMapRenderCache(context.client(), PASSIVE_MINIMAP_SPAN_BLOCKS);
             });
@@ -304,6 +351,8 @@ public final class McdgClientMod implements ClientModInitializer {
             context.client().execute(() -> {
                 if (!payload.active()) {
                     runningRoundScoreState = null;
+                    activeRoundCourseWaypointName = "";
+                    roundHoleWaypoints.clear();
                     return;
                 }
 
@@ -325,6 +374,7 @@ public final class McdgClientMod implements ClientModInitializer {
             renderAceCinematicOverlay(drawContext);
             renderRoundCompleteCinematicOverlay(drawContext);
         });
+        WorldRenderEvents.AFTER_TRANSLUCENT.register(McdgClientMod::renderWaypointWorldLabels);
     }
 
     private static void maybeAutoConnect(MinecraftClient client) {
@@ -699,10 +749,43 @@ public final class McdgClientMod implements ClientModInitializer {
             float clipCenterY,
             float clipRadius
     ) {
-        for (ClientWaypoint waypoint : clientWaypoints) {
+        for (ClientWaypoint waypoint : resolveVisibleWaypoints()) {
+            double distanceBlocks = Math.hypot(waypoint.x() - centerWorldX, waypoint.z() - centerWorldZ);
+            if (distanceBlocks > WAYPOINT_EDGE_ARROW_MAX_BLOCKS) {
+                continue;
+            }
+            WaypointRenderMode mode = resolveWaypointRenderMode(waypoint, distanceBlocks);
             float waypointDx = (float) ((waypoint.x() - centerWorldX) * mapScale);
             float waypointDz = (float) ((waypoint.z() - centerWorldZ) * mapScale);
             float[] rotated = rotateMiniMapVector(waypointDx, waypointDz, mapRotationDegrees);
+
+            if (mode == WaypointRenderMode.MINIMAP_EDGE_ARROW) {
+                float len = (float) Math.sqrt((rotated[0] * rotated[0]) + (rotated[1] * rotated[1]));
+                if (len < 0.001f) {
+                    continue;
+                }
+
+                float arrowDistance = Math.max(8.0f, clipRadius - 6.0f);
+                float arrowX = mapCenterX + ((rotated[0] / len) * arrowDistance);
+                float arrowY = mapCenterY + ((rotated[1] / len) * arrowDistance);
+                float angle = (float) Math.toDegrees(Math.atan2(rotated[1], rotated[0]));
+
+                drawHeadingTriangleClipped(
+                        drawContext,
+                        arrowX,
+                        arrowY,
+                        angle,
+                        7.0f,
+                        4.5f,
+                        withAlpha(waypoint.color(), hudAlpha),
+                        withAlpha(0xFF0D1117, hudAlpha),
+                        clipCenterX,
+                        clipCenterY,
+                        clipRadius
+                );
+                continue;
+            }
+
             int waypointPx = mapCenterX + Math.round(rotated[0]);
             int waypointPz = mapCenterY + Math.round(rotated[1]);
             drawMiniMapIconClipped(drawContext, MINIMAP_BREADCRUMB_TEXTURE, waypointPx, waypointPz, 7, clipCenterX, clipCenterY, clipRadius);
@@ -710,6 +793,56 @@ public final class McdgClientMod implements ClientModInitializer {
                 drawContext.drawTextWithShadow(client.textRenderer, Text.literal(waypoint.name()), waypointPx + 3, waypointPz - 8, withAlpha(0xE8EEF7, hudAlpha));
             }
         }
+    }
+
+    private static WaypointRenderMode resolveWaypointRenderMode(ClientWaypoint waypoint, double distanceBlocks) {
+        String key = waypointRenderModeKey(waypoint);
+        WaypointRenderMode previous = waypointRenderModes.getOrDefault(key, WaypointRenderMode.FLOATING_LABEL);
+        WaypointRenderMode resolved;
+        if (distanceBlocks <= WAYPOINT_FLOAT_LABEL_ENTER_BLOCKS) {
+            resolved = WaypointRenderMode.FLOATING_LABEL;
+        } else if (distanceBlocks >= WAYPOINT_EDGE_ARROW_ENTER_BLOCKS && distanceBlocks <= WAYPOINT_EDGE_ARROW_MAX_BLOCKS) {
+            resolved = WaypointRenderMode.MINIMAP_EDGE_ARROW;
+        } else {
+            resolved = previous;
+        }
+
+        waypointRenderModes.put(key, resolved);
+        return resolved;
+    }
+
+    private static String waypointRenderModeKey(ClientWaypoint waypoint) {
+        return waypoint.dimensionId() + ":" + waypoint.name() + "@" + waypoint.x() + ":" + waypoint.z() + ":" + Integer.toHexString(waypoint.color());
+    }
+
+    private static List<ClientWaypoint> resolveVisibleWaypoints() {
+        List<ClientWaypoint> currentDimensionWaypoints = resolveSavedWaypointsForCurrentDimension(MinecraftClient.getInstance());
+        List<ClientWaypoint> visible = new ArrayList<>();
+        if (isRoundWaypointModeActive()) {
+            if (!activeRoundCourseWaypointName.isBlank()) {
+                for (ClientWaypoint waypoint : currentDimensionWaypoints) {
+                    if (waypoint.name().equals(activeRoundCourseWaypointName)) {
+                        visible.add(waypoint);
+                        break;
+                    }
+                }
+            }
+            visible.addAll(roundHoleWaypoints);
+            return visible;
+        }
+
+        visible.addAll(currentDimensionWaypoints);
+        return visible;
+    }
+
+    private static boolean isRoundWaypointModeActive() {
+        if (runningRoundScoreState != null) {
+            return true;
+        }
+        if (miniMapState == null) {
+            return false;
+        }
+        return (System.currentTimeMillis() - miniMapReceivedAtMs) <= MINIMAP_STALE_TIMEOUT_MS;
     }
 
     private static float[] rotateMiniMapVector(float x, float y, float rotationDegrees) {
@@ -1465,7 +1598,8 @@ public final class McdgClientMod implements ClientModInitializer {
             if (client.player == null) {
                 continue;
             }
-            if (clientWaypoints.isEmpty()) {
+            List<ClientWaypoint> currentDimensionWaypoints = resolveSavedWaypointsForCurrentDimension(client);
+            if (currentDimensionWaypoints.isEmpty()) {
                 client.player.sendMessage(Text.literal("No waypoints to remove.").formatted(Formatting.GRAY), true);
                 continue;
             }
@@ -1473,7 +1607,7 @@ public final class McdgClientMod implements ClientModInitializer {
             int z = net.minecraft.util.math.MathHelper.floor(client.player.getZ());
             ClientWaypoint nearest = null;
             int nearestDistSq = Integer.MAX_VALUE;
-            for (ClientWaypoint waypoint : clientWaypoints) {
+            for (ClientWaypoint waypoint : currentDimensionWaypoints) {
                 int dx = waypoint.x() - x;
                 int dz = waypoint.z() - z;
                 int distSq = (dx * dx) + (dz * dz);
@@ -1485,6 +1619,7 @@ public final class McdgClientMod implements ClientModInitializer {
             if (nearest != null) {
                 clientWaypoints.remove(nearest);
                 saveWaypointStore(client);
+                syncClientWaypointsToServer(client);
                 client.player.sendMessage(Text.literal("Waypoint removed: " + nearest.name()).formatted(Formatting.GRAY), true);
             }
         }
@@ -1505,6 +1640,7 @@ public final class McdgClientMod implements ClientModInitializer {
 
         ensureWaypointContextLoaded(client);
         pendingWaypointX = net.minecraft.util.math.MathHelper.floor(client.player.getX());
+        pendingWaypointY = net.minecraft.util.math.MathHelper.floor(client.player.getY());
         pendingWaypointZ = net.minecraft.util.math.MathHelper.floor(client.player.getZ());
         pendingWaypointContextKey = loadedWaypointContextKey;
         pendingWaypointName = null;
@@ -1561,9 +1697,9 @@ public final class McdgClientMod implements ClientModInitializer {
         String name = pendingWaypointName == null || pendingWaypointName.isBlank() ? ("WP" + nextWaypointIndex) : pendingWaypointName;
         nextWaypointIndex++;
         int color = WAYPOINT_COLORS[colorIndex];
-        clientWaypoints.add(new ClientWaypoint(name, pendingWaypointX, pendingWaypointZ, color));
+        clientWaypoints.add(new ClientWaypoint(name, pendingWaypointX, pendingWaypointY, pendingWaypointZ, color, currentWaypointDimensionKey(client)));
         saveWaypointStore(client);
-        client.player.sendMessage(Text.literal("Waypoint added: " + name + " (" + pendingWaypointX + ", " + pendingWaypointZ + ") " + WAYPOINT_COLOR_NAMES[colorIndex]).formatted(Formatting.LIGHT_PURPLE), false);
+        client.player.sendMessage(Text.literal("Waypoint added: " + name + " (" + pendingWaypointX + ", " + pendingWaypointY + ", " + pendingWaypointZ + ") " + WAYPOINT_COLOR_NAMES[colorIndex]).formatted(Formatting.LIGHT_PURPLE), false);
 
         waypointPromptStage = WaypointPromptStage.NONE;
         pendingWaypointName = null;
@@ -1640,6 +1776,76 @@ public final class McdgClientMod implements ClientModInitializer {
         return value.replaceAll("[^a-zA-Z0-9._-]", "_");
     }
 
+    private static String currentWaypointDimensionKey(MinecraftClient client) {
+        if (client == null || client.world == null) {
+            return "";
+        }
+
+        return client.world.getRegistryKey().getValue().toString();
+    }
+
+    private static List<ClientWaypoint> resolveSavedWaypointsForCurrentDimension(MinecraftClient client) {
+        String dimensionKey = currentWaypointDimensionKey(client);
+        if (dimensionKey.isBlank()) {
+            return List.of();
+        }
+
+        List<ClientWaypoint> visible = new ArrayList<>();
+        for (ClientWaypoint waypoint : clientWaypoints) {
+            if (dimensionKey.equals(waypoint.dimensionId())) {
+                visible.add(waypoint);
+            }
+        }
+        return visible;
+    }
+
+    private static void maybeSyncClientWaypoints(MinecraftClient client) {
+        if (client == null || client.player == null || client.world == null) {
+            return;
+        }
+
+        ensureWaypointContextLoaded(client);
+        syncClientWaypointsToServer(client);
+    }
+
+    private static void syncClientWaypointsToServer(MinecraftClient client) {
+        if (client == null || client.player == null || client.world == null || client.getNetworkHandler() == null) {
+            return;
+        }
+
+        String signature = buildWaypointSyncSignature();
+        if (signature.equals(lastSentWaypointSyncSignature)) {
+            return;
+        }
+
+        List<WaypointSync.WaypointEntry> entries = new ArrayList<>(clientWaypoints.size());
+        for (ClientWaypoint waypoint : clientWaypoints) {
+            entries.add(new WaypointSync.WaypointEntry(waypoint.name(), waypoint.x(), waypoint.y(), waypoint.z(), waypoint.color(), waypoint.dimensionId()));
+        }
+
+        ClientPlayNetworking.send(new WaypointSync.Payload(entries));
+        lastSentWaypointSyncSignature = signature;
+    }
+
+    private static String buildWaypointSyncSignature() {
+        StringBuilder builder = new StringBuilder();
+        for (ClientWaypoint waypoint : clientWaypoints) {
+            builder.append(waypoint.name())
+                    .append('|')
+                    .append(waypoint.x())
+                    .append('|')
+                    .append(waypoint.y())
+                    .append('|')
+                    .append(waypoint.z())
+                    .append('|')
+                    .append(waypoint.color())
+                    .append('|')
+                    .append(waypoint.dimensionId())
+                    .append(';');
+        }
+        return builder.toString();
+    }
+
     private static Path waypointStorePath(MinecraftClient client) {
         return client.runDirectory.toPath()
                 .resolve("config")
@@ -1649,6 +1855,7 @@ public final class McdgClientMod implements ClientModInitializer {
 
     private static void loadWaypointStore(MinecraftClient client) {
         clientWaypoints.clear();
+        waypointRenderModes.clear();
         nextWaypointIndex = 1;
         waypointLabelsVisible = true;
 
@@ -1685,16 +1892,30 @@ public final class McdgClientMod implements ClientModInitializer {
 
                 String body = line.substring(3);
                 String[] parts = body.split("\\t");
-                if (parts.length != 4) {
+                if (parts.length != 4 && parts.length != 5 && parts.length != 6) {
                     continue;
                 }
 
                 String name = parts[0].replace("\\n", " ").replace("\\t", " ").trim();
                 int x = Integer.parseInt(parts[1]);
-                int z = Integer.parseInt(parts[2]);
-                int color = (int) Long.parseLong(parts[3], 16);
+                int y;
+                int z;
+                int color;
+                String dimensionId;
+
+                if (parts.length >= 6) {
+                    y = Integer.parseInt(parts[2]);
+                    z = Integer.parseInt(parts[3]);
+                    color = (int) Long.parseLong(parts[4], 16);
+                    dimensionId = parts[5].trim();
+                } else {
+                    y = UNKNOWN_WAYPOINT_Y;
+                    z = Integer.parseInt(parts[2]);
+                    color = (int) Long.parseLong(parts[3], 16);
+                    dimensionId = parts.length >= 5 ? parts[4].trim() : currentWaypointDimensionKey(client);
+                }
                 if (!name.isEmpty()) {
-                    clientWaypoints.add(new ClientWaypoint(StringHelper.truncate(name, 24, false), x, z, color));
+                    clientWaypoints.add(new ClientWaypoint(StringHelper.truncate(name, 24, false), x, y, z, color, dimensionId));
                 }
             }
         } catch (IOException | NumberFormatException ex) {
@@ -1703,6 +1924,8 @@ public final class McdgClientMod implements ClientModInitializer {
             nextWaypointIndex = 1;
             waypointLabelsVisible = true;
         }
+
+        syncClientWaypointsToServer(client);
     }
 
     private static void saveWaypointStore(MinecraftClient client) {
@@ -1719,12 +1942,161 @@ public final class McdgClientMod implements ClientModInitializer {
             lines.add("labelsVisible=" + waypointLabelsVisible);
             for (ClientWaypoint waypoint : clientWaypoints) {
                 String safeName = waypoint.name().replace("\t", " ").replace("\n", " ").trim();
-                lines.add("wp=" + safeName + "\t" + waypoint.x() + "\t" + waypoint.z() + "\t" + String.format("%08X", waypoint.color()));
+                lines.add("wp=" + safeName + "\t" + waypoint.x() + "\t" + waypoint.y() + "\t" + waypoint.z() + "\t" + String.format("%08X", waypoint.color()) + "\t" + waypoint.dimensionId());
             }
             Files.write(storePath, lines, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
         } catch (IOException ex) {
             LOGGER.warn("Unable to save waypoint store for context {}", loadedWaypointContextKey, ex);
         }
+
+        syncClientWaypointsToServer(client);
+    }
+
+    private static void upsertPermanentCourseWaypoint(MinecraftClient client, String name, int x, int z) {
+        if (client == null || name == null || name.isBlank()) {
+            return;
+        }
+
+        ensureWaypointContextLoaded(client);
+        String dimensionKey = currentWaypointDimensionKey(client);
+
+        for (int i = 0; i < clientWaypoints.size(); i++) {
+            ClientWaypoint existing = clientWaypoints.get(i);
+            if (!existing.name().equals(name) || !dimensionKey.equals(existing.dimensionId())) {
+                continue;
+            }
+
+            if (existing.x() == x && existing.z() == z && existing.color() == WAYPOINT_COURSE_COLOR) {
+                return;
+            }
+
+            clientWaypoints.set(i, new ClientWaypoint(name, x, existing.y(), z, WAYPOINT_COURSE_COLOR, dimensionKey));
+            saveWaypointStore(client);
+            return;
+        }
+
+        clientWaypoints.add(new ClientWaypoint(StringHelper.truncate(name, 24, false), x, UNKNOWN_WAYPOINT_Y, z, WAYPOINT_COURSE_COLOR, dimensionKey));
+        saveWaypointStore(client);
+    }
+
+    private static void syncRoundHoleWaypointsFromPayload(HoleMiniMapSync.Payload payload) {
+        roundHoleWaypoints.clear();
+        if (payload == null || payload.totalHoles() <= 0) {
+            return;
+        }
+
+        int count = Math.min(payload.totalHoles(), Math.min(payload.holeTeeXs().size(), payload.holeTeeZs().size()));
+        for (int hole = 1; hole <= count; hole++) {
+            int idx = hole - 1;
+            roundHoleWaypoints.add(new ClientWaypoint("Hole " + hole, payload.holeTeeXs().get(idx), UNKNOWN_WAYPOINT_Y, payload.holeTeeZs().get(idx), WAYPOINT_HOLE_TEMP_COLOR, currentWaypointDimensionKey(MinecraftClient.getInstance())));
+        }
+    }
+
+    private static void renderWaypointWorldLabels(WorldRenderContext context) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.player == null || client.world == null || client.options.hudHidden || client.textRenderer == null) {
+            return;
+        }
+
+        List<ClientWaypoint> visibleWaypoints = resolveVisibleWaypoints();
+        if (visibleWaypoints.isEmpty()) {
+            return;
+        }
+
+        Vec3d cameraPos = context.camera().getPos();
+        VertexConsumerProvider.Immediate consumers = client.getBufferBuilders().getEntityVertexConsumers();
+        VertexConsumer beamConsumer = consumers.getBuffer(RenderLayer.getLines());
+
+        for (ClientWaypoint waypoint : visibleWaypoints) {
+            double distanceBlocks = Math.hypot(waypoint.x() - client.player.getX(), waypoint.z() - client.player.getZ());
+            WaypointRenderMode mode = resolveWaypointRenderMode(waypoint, distanceBlocks);
+            if (mode != WaypointRenderMode.FLOATING_LABEL || distanceBlocks > WAYPOINT_FLOAT_LABEL_MAX_BLOCKS) {
+                continue;
+            }
+
+            int surfaceY = client.world.getTopY(Heightmap.Type.WORLD_SURFACE, waypoint.x(), waypoint.z());
+            if (isWaypointBeamVisible(client, cameraPos, waypoint, surfaceY)) {
+                drawWaypointBeamColumn(context, beamConsumer, cameraPos, waypoint, surfaceY);
+            }
+
+            double wx = waypoint.x() + 0.5d;
+            double wy = surfaceY + 2.3d;
+            double wz = waypoint.z() + 0.5d;
+
+            context.matrixStack().push();
+            context.matrixStack().translate(wx - cameraPos.x, wy - cameraPos.y, wz - cameraPos.z);
+            context.matrixStack().multiply(client.getEntityRenderDispatcher().getRotation());
+            context.matrixStack().scale(-0.025f, -0.025f, 0.025f);
+
+            String label = waypoint.name() + " \u2022 " + Math.round(distanceBlocks) + "b";
+            float textX = (-client.textRenderer.getWidth(label)) / 2.0f;
+
+            client.textRenderer.draw(
+                    label,
+                    textX,
+                    0.0f,
+                    waypoint.color() | 0xFF000000,
+                    false,
+                    context.matrixStack().peek().getPositionMatrix(),
+                    consumers,
+                    TextRenderer.TextLayerType.SEE_THROUGH,
+                    0,
+                    LightmapTextureManager.MAX_LIGHT_COORDINATE
+            );
+            context.matrixStack().pop();
+        }
+
+        consumers.draw();
+    }
+
+    private static boolean isWaypointBeamVisible(MinecraftClient client, Vec3d cameraPos, ClientWaypoint waypoint, int surfaceY) {
+        if (client == null || client.world == null || client.player == null) {
+            return false;
+        }
+
+        Vec3d target = new Vec3d(waypoint.x() + 0.5d, surfaceY + 1.0d, waypoint.z() + 0.5d);
+        HitResult hit = client.world.raycast(new RaycastContext(
+                cameraPos,
+                target,
+                RaycastContext.ShapeType.COLLIDER,
+                RaycastContext.FluidHandling.NONE,
+                client.player
+        ));
+        return hit.getType() == HitResult.Type.MISS || hit.getPos().squaredDistanceTo(target) <= 1.25d;
+    }
+
+    private static void drawWaypointBeamColumn(
+            WorldRenderContext context,
+            VertexConsumer beamConsumer,
+            Vec3d cameraPos,
+            ClientWaypoint waypoint,
+            int surfaceY
+    ) {
+        float r = ((waypoint.color() >> 16) & 0xFF) / 255.0f;
+        float g = ((waypoint.color() >> 8) & 0xFF) / 255.0f;
+        float b = (waypoint.color() & 0xFF) / 255.0f;
+
+        double minX = (waypoint.x() + 0.30d) - cameraPos.x;
+        double maxX = (waypoint.x() + 0.70d) - cameraPos.x;
+        double minY = (surfaceY + 0.05d) - cameraPos.y;
+        double maxY = (surfaceY + WAYPOINT_BEAM_HEIGHT_BLOCKS) - cameraPos.y;
+        double minZ = (waypoint.z() + 0.30d) - cameraPos.z;
+        double maxZ = (waypoint.z() + 0.70d) - cameraPos.z;
+
+        WorldRenderer.drawBox(
+                context.matrixStack(),
+                beamConsumer,
+                minX,
+                minY,
+                minZ,
+                maxX,
+                maxY,
+                maxZ,
+                r,
+                g,
+                b,
+                WAYPOINT_BEAM_ALPHA
+        );
     }
 
     private static void drawHeadingTriangleClipped(
@@ -2561,6 +2933,11 @@ public final class McdgClientMod implements ClientModInitializer {
         WAITING_COLOR
     }
 
+    private enum WaypointRenderMode {
+        FLOATING_LABEL,
+        MINIMAP_EDGE_ARROW
+    }
+
     private record MiniMapState(
             int holeIndex,
             int teeX,
@@ -2636,6 +3013,6 @@ public final class McdgClientMod implements ClientModInitializer {
     ) {
     }
 
-    private record ClientWaypoint(String name, int x, int z, int color) {
+    private record ClientWaypoint(String name, int x, int y, int z, int color, String dimensionId) {
     }
 }

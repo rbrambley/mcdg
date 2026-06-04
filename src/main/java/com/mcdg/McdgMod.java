@@ -17,6 +17,7 @@ import com.mcdg.game.ScorecardManager;
 import com.mcdg.game.ThrowAutoTestService;
 import com.mcdg.net.AceCinematicSync;
 import com.mcdg.net.HoleMiniMapSync;
+import com.mcdg.net.WaypointSync;
 import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
 import com.mcdg.rules.TournamentRulesetManager;
@@ -28,6 +29,7 @@ import com.mcdg.world.SeededCourseGenerator;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -82,10 +84,14 @@ public final class McdgMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        PayloadTypeRegistry.playC2S().register(WaypointSync.ID, WaypointSync.CODEC);
         PayloadTypeRegistry.playS2C().register(AceCinematicSync.ID, AceCinematicSync.CODEC);
         PayloadTypeRegistry.playS2C().register(HoleMiniMapSync.ID, HoleMiniMapSync.CODEC);
         PayloadTypeRegistry.playS2C().register(RoundRunningScoresSync.ID, RoundRunningScoresSync.CODEC);
         PayloadTypeRegistry.playS2C().register(RoundCompleteCinematicSync.ID, RoundCompleteCinematicSync.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(WaypointSync.ID, (payload, context) ->
+            context.server().execute(() -> WaypointSync.update(context.player(), payload.waypoints()))
+        );
         McdgConfig config = McdgConfig.loadDefault();
         McdgItems.register(ACTIVE_COURSE_MANAGER, ROUND_STATE_MANAGER, TOURNAMENT_RULESET_MANAGER, config.enableStrictFlowDebug());
         McdgAdminCommands.register(
@@ -115,6 +121,9 @@ public final class McdgMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPING.register(McdgMod::flushRoundSessionOnShutdown);
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
             server.execute(() -> restoreRoundParticipantOnJoin(handler.player, server))
+        );
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
+            server.execute(() -> WaypointSync.clear(handler.player))
         );
         HoleProgressTracker.register(
             ACTIVE_COURSE_MANAGER,
@@ -267,6 +276,7 @@ public final class McdgMod implements ModInitializer {
     private static void loadPersistedPracticeCourse(net.minecraft.server.MinecraftServer server) {
         PRACTICE_COURSE_STORAGE.load(server).ifPresent(snapshot -> {
             ACTIVE_COURSE_MANAGER.setActiveCourse(snapshot.course());
+            ACTIVE_COURSE_MANAGER.setActiveCourseCatalogIndex(null);
             ACTIVE_COURSE_MANAGER.setPlacedCourseState(snapshot.placedCourseState());
             ACTIVE_COURSE_MANAGER.setPersistentPlacedCourse(true);
             ACTIVE_COURSE_MANAGER.setLegacyPracticeSnapshot(snapshot.legacyFormat());
