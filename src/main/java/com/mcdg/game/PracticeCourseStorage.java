@@ -40,15 +40,17 @@ public final class PracticeCourseStorage {
     private static final int MAX_CATALOG_ENTRIES = 12;
     private static final int CURRENT_SNAPSHOT_VERSION = 4;
 
-    public void save(MinecraftServer server, Course course, PlacedCourseState placedCourseState) {
+    public boolean save(MinecraftServer server, Course course, PlacedCourseState placedCourseState) {
         PracticeCourseSnapshot snapshot = PracticeCourseSnapshot.from(course, placedCourseState);
         Path path = resolvePath(server);
 
         try {
             Files.createDirectories(path.getParent());
             Files.writeString(path, GSON.toJson(snapshot));
+            return true;
         } catch (IOException ex) {
             McdgMod.LOGGER.error("Failed to save practice course snapshot to {}", path, ex);
+            return false;
         }
     }
 
@@ -89,7 +91,7 @@ public final class PracticeCourseStorage {
         }
     }
 
-    public void saveReusable(MinecraftServer server, Course course, PlacedCourseState placedCourseState, String sourceTag, boolean compactPreferred) {
+    public boolean saveReusable(MinecraftServer server, Course course, PlacedCourseState placedCourseState, String sourceTag, boolean compactPreferred) {
         PracticeCourseSnapshot snapshot = PracticeCourseSnapshot.from(course, placedCourseState);
         Path path = resolveCatalogPath(server);
 
@@ -112,8 +114,10 @@ public final class PracticeCourseStorage {
                 catalog.entries = new ArrayList<>(catalog.entries.subList(0, MAX_CATALOG_ENTRIES));
             }
             Files.writeString(path, GSON.toJson(catalog));
+            return true;
         } catch (IOException | RuntimeException ex) {
             McdgMod.LOGGER.error("Failed to save reusable course catalog to {}", path, ex);
+            return false;
         }
     }
 
@@ -613,7 +617,8 @@ public final class PracticeCourseStorage {
             if (signatureType != null && !signatureType.isBlank()) {
                 try {
                     parsedSignatureType = SignatureHoleType.valueOf(signatureType);
-                } catch (IllegalArgumentException ignored) {
+                } catch (IllegalArgumentException ex) {
+                    McdgMod.LOGGER.warn("Unknown signature hole type '{}' in snapshot, defaulting to NONE", signatureType);
                     parsedSignatureType = SignatureHoleType.NONE;
                 }
             }
@@ -676,6 +681,7 @@ public final class PracticeCourseStorage {
                 JsonElement parsed = JsonParser.parseString(blockStateJson);
                 return BlockState.CODEC.parse(JsonOps.INSTANCE, parsed).result().orElse(null);
             } catch (RuntimeException ex) {
+                McdgMod.LOGGER.warn("Failed to decode block state from snapshot JSON '{}': {}", blockStateJson, ex.getMessage());
                 return null;
             }
         }

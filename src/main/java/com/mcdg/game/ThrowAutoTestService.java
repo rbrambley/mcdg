@@ -60,10 +60,8 @@ public final class ThrowAutoTestService {
             return 0;
         }
 
-        ServerPlayerEntity player;
-        try {
-            player = source.getPlayerOrThrow();
-        } catch (Exception ex) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
             source.sendError(Text.literal("Run this command as a player."));
             return 0;
         }

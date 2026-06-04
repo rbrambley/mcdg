@@ -1,5 +1,8 @@
 package com.mcdg.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public record McdgConfig(
         boolean enableDebugLogging,
         boolean enableHudScoringDebug,
@@ -9,6 +12,7 @@ public record McdgConfig(
         int defaultHoleCount,
         boolean enforceCourseProtection
 ) {
+    private static final Logger LOGGER = LoggerFactory.getLogger("mcdg");
     public static McdgConfig loadDefault() {
         boolean hudScoringDebug = readBoolEnv("MCDG_DEBUG_HUD_SCORING");
     boolean strictFlowDebug = readBoolEnv("MCDG_DEBUG_STRICT_FLOW");
@@ -37,6 +41,7 @@ public record McdgConfig(
             int parsed = Integer.parseInt(raw.trim());
             return Math.max(min, Math.min(max, parsed));
         } catch (NumberFormatException ex) {
+            LOGGER.warn("Invalid {} value '{}'. Expected an integer between {} and {}. Using fallback {}.", name, raw, min, max, fallback);
             return fallback;
         }
     }

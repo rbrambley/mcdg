@@ -1,5 +1,6 @@
 package com.mcdg.world;
 
+import com.mcdg.McdgMod;
 import com.mcdg.data.Course;
 import com.mcdg.game.ActiveCourseManager;
 import com.mcdg.game.HoleProgressTracker;
@@ -226,6 +227,7 @@ public final class PlacementAutoTestService {
             );
             return ScenarioOutcome.success(runNumber, seed, report);
         } catch (RuntimeException ex) {
+            McdgMod.LOGGER.debug("Autotest scenario run={} seed={} failed: {}", runNumber, seed, ex.getMessage(), ex);
             return ScenarioOutcome.failure(runNumber, seed, ex.getMessage());
         } finally {
             if (placed != null) {

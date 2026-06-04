@@ -695,7 +695,9 @@ public final class McdgAdminCommands {
                         courseManager.setPersistentPlacedCourse(persistentCourse);
                         courseManager.setLegacyPracticeSnapshot(false);
                         if (persistentCourse) {
-                                practiceCourseStorage.save(source.getServer(), course, placed);
+                                if (!practiceCourseStorage.save(source.getServer(), course, placed)) {
+                                        source.sendFeedback(() -> Text.literal("Warning: course placed but snapshot could not be saved to disk."), false);
+                                }
                         }
                         if (!startedFromFallback) {
                                 // Compact is the default placement target; persist successful placements for reuse/recovery.
@@ -1426,39 +1428,39 @@ public final class McdgAdminCommands {
                         return 0;
                 }
 
-                try {
-                        var player = source.getPlayerOrThrow();
-                        ServerWorld world = source.getServer().getWorld(placed.worldKey());
-                        BlockPos safeTee = world == null ? firstTee : resolveSafeFeetNear(world, firstTee);
-                        player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
-                        source.sendFeedback(() -> Text.literal("Teleported to Hole 1 tee."), false);
-                        return 1;
-                } catch (Exception ex) {
+                ServerPlayerEntity player = source.getPlayer();
+                if (player == null) {
                         source.sendError(Text.literal("This command must be run by a player."));
                         return 0;
                 }
+
+                ServerWorld world = source.getServer().getWorld(placed.worldKey());
+                BlockPos safeTee = world == null ? firstTee : resolveSafeFeetNear(world, firstTee);
+                player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
+                source.sendFeedback(() -> Text.literal("Teleported to Hole 1 tee."), false);
+                return 1;
         }
 
         private static int executeGotoLie(ServerCommandSource source, RoundStateManager roundStateManager) {
-                try {
-                        ServerPlayerEntity player = source.getPlayerOrThrow();
-                        Optional<BlockPos> relocated = HoleProgressTracker.relocatePlayerToSafeLie(player, roundStateManager);
-                        if (relocated.isEmpty()) {
-                                player.sendMessage(Text.literal("No active lie found to teleport to."), true);
-                                return 0;
-                        }
-
-                        BlockPos lie = relocated.get();
-                        player.sendMessage(
-                                Text.literal("Teleported to lie: " + lie.getX() + ", " + lie.getY() + ", " + lie.getZ())
-                                        .formatted(Formatting.GREEN),
-                                true
-                        );
-                        return 1;
-                } catch (Exception ex) {
+                ServerPlayerEntity player = source.getPlayer();
+                if (player == null) {
                         source.sendError(Text.literal("This command must be run by a player."));
                         return 0;
                 }
+
+                Optional<BlockPos> relocated = HoleProgressTracker.relocatePlayerToSafeLie(player, roundStateManager);
+                if (relocated.isEmpty()) {
+                        player.sendMessage(Text.literal("No active lie found to teleport to."), true);
+                        return 0;
+                }
+
+                BlockPos lie = relocated.get();
+                player.sendMessage(
+                        Text.literal("Teleported to lie: " + lie.getX() + ", " + lie.getY() + ", " + lie.getZ())
+                                .formatted(Formatting.GREEN),
+                        true
+                );
+                return 1;
         }
 
         private static int executeEndRound(
