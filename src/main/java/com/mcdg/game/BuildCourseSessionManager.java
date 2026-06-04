@@ -65,7 +65,8 @@ public final class BuildCourseSessionManager {
     private static final long CLAIM_TIMEOUT_MS = 24L * 60L * 60L * 1000L;
     private static final long CONFIRM_TIMEOUT_MS = 15_000L;
     private static final int MIN_DISTANCE_FEET = 180;
-    private static final int MAX_DISTANCE_FEET = 1200;
+    private static final int MAX_DISTANCE_FEET = 780;
+    private static final int MAX_DISTANCE_DRIFT_FEET = 180;
     private static final int PAR3_MAX_FEET = 400;
     private static final int PAR4_MAX_FEET = 700;
     private static final int MIN_FAIRWAY_WIDTH = 4;
@@ -370,6 +371,16 @@ public final class BuildCourseSessionManager {
                     actualBasket.getX(),
                     actualBasket.getZ()
             );
+                if (actualDistanceFeet > (preview.distanceFeet + MAX_DISTANCE_DRIFT_FEET)) {
+                rollbackPlaced(world, placed);
+                source.sendError(Text.literal(
+                    "Hole stretched too far from preview (preview=" + preview.distanceFeet
+                        + "ft, actual=" + actualDistanceFeet
+                        + "ft). Move to a clearer area and try again."
+                ));
+                sendBuildStepPrompt(source);
+                return 0;
+                }
             int effectivePar = placed.effectiveHolePars().getOrDefault(targetIndex, computePar(actualDistanceFeet));
             Hole actualHole = new Hole(
                     targetIndex,
