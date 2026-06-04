@@ -8,8 +8,6 @@ import com.mcdg.data.Hole;
 import com.mcdg.data.SignatureHoleType;
 import com.mcdg.game.ActiveCourseManager;
 import com.mcdg.game.HoleProgressTracker;
-import com.mcdg.game.McdgItems;
-import com.mcdg.game.PlayerRoundState;
 import com.mcdg.game.PlayerRoundSessionStorage;
 import com.mcdg.game.PlacedCourseState;
 import com.mcdg.game.PracticeCourseStorage;
@@ -20,7 +18,6 @@ import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.ScorecardManager;
 import com.mcdg.game.ThrowAutoTestService;
 import com.mcdg.game.BuildCourseSessionManager;
-import com.mcdg.net.WaypointSync;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.PlacementAutoTestService;
 import com.mcdg.world.CoursePlacementService;
@@ -29,23 +26,17 @@ import com.mcdg.world.CourseGenerator;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.context.CommandContext;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ThreadLocalRandom;
 import net.minecraft.block.Blocks;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.ItemEntity;
-import net.minecraft.item.ItemStack;
 import net.minecraft.network.packet.s2c.play.ClearTitleS2CPacket;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
@@ -59,21 +50,11 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
-import net.minecraft.world.Heightmap;
 
 public final class McdgAdminCommands {
         private static final String ADVANCED_COMMANDS_ENV = "MCDG_SHOW_ADVANCED_COMMANDS";
         private static final String ADVANCED_COMMANDS_PROPERTY = "mcdg.showAdvancedCommands";
         private static final boolean SHOW_ADVANCED_COMMANDS = readAdvancedCommandVisibility();
-        private static final long MENU_CONFIRM_TIMEOUT_MS = 15_000L;
-        private static final Map<UUID, PendingMenuConfirm> PENDING_MENU_CONFIRMS = new ConcurrentHashMap<>();
-
-        private enum ResumeSourceSelection {
-                PREFER_MANUAL,
-                MANUAL_ONLY,
-                AUTO_ONLY
-        }
-
     private McdgAdminCommands() {
     }
 
@@ -103,37 +84,37 @@ public final class McdgAdminCommands {
     ) {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
                 dispatcher.register(literal("mcdg")
-                        .executes(context -> executeMenuDashboard(context.getSource(), rulesetManager))
+                        .executes(context -> MenuCommands.executeMenuDashboard(context.getSource(), rulesetManager))
                         .then(literal("menu")
-                                .executes(context -> executeMenuDashboard(context.getSource(), rulesetManager))
+                                .executes(context -> MenuCommands.executeMenuDashboard(context.getSource(), rulesetManager))
                                 .then(literal("player")
-                                        .executes(context -> executeMenuPlayer(context.getSource(), rulesetManager)))
+                                        .executes(context -> MenuCommands.executeMenuPlayer(context.getSource(), rulesetManager)))
                                 .then(literal("admin").requires(McdgAdminCommands::canUseAdminCommands)
-                                        .executes(context -> executeMenuAdmin(context.getSource(), rulesetManager)))
+                                        .executes(context -> MenuCommands.executeMenuAdmin(context.getSource(), rulesetManager)))
                                 .then(literal("round")
-                                        .executes(context -> executeMenuRound(context.getSource(), rulesetManager)))
+                                        .executes(context -> MenuCommands.executeMenuRound(context.getSource(), rulesetManager)))
                                 .then(literal("courses")
-                                        .executes(context -> executeMenuCourses(context.getSource(), rulesetManager)))
+                                        .executes(context -> MenuCommands.executeMenuCourses(context.getSource(), rulesetManager)))
                                 .then(literal("waypoints")
-                                        .executes(context -> executeMenuWaypoints(context.getSource(), rulesetManager)))
+                                        .executes(context -> MenuCommands.executeMenuWaypoints(context.getSource(), rulesetManager)))
                                 .then(literal("rules")
-                                        .executes(context -> executeMenuRules(context.getSource(), rulesetManager)))
+                                        .executes(context -> MenuCommands.executeMenuRules(context.getSource(), rulesetManager)))
                                 .then(literal("session")
-                                        .executes(context -> executeMenuSession(context.getSource(), rulesetManager)))
+                                        .executes(context -> MenuCommands.executeMenuSession(context.getSource(), rulesetManager)))
                                 .then(literal("confirm-request").requires(McdgAdminCommands::canUseAdminCommands)
                                         .then(argument("action", StringArgumentType.word())
-                                                .executes(context -> executeMenuConfirmRequest(
+                                                .executes(context -> MenuCommands.executeMenuConfirmRequest(
                                                         context.getSource(),
                                                         StringArgumentType.getString(context, "action")
                                                 ))))
                                 .then(literal("confirm-run").requires(McdgAdminCommands::canUseAdminCommands)
                                         .then(argument("token", LongArgumentType.longArg())
-                                                .executes(context -> executeMenuConfirmRun(
+                                                .executes(context -> MenuCommands.executeMenuConfirmRun(
                                                         context.getSource(),
                                                         LongArgumentType.getLong(context, "token")
                                                 ))))
                                 .then(literal("confirm-cancel").requires(McdgAdminCommands::canUseAdminCommands)
-                                        .executes(context -> executeMenuConfirmCancel(context.getSource()))))
+                                        .executes(context -> MenuCommands.executeMenuConfirmCancel(context.getSource()))))
                         .then(buildCourseSessionManager.registerNode().requires(McdgAdminCommands::canUseAdminCommands))
                         .then(literal("help").requires(McdgAdminCommands::canUseAdminCommands)
                                 .executes(context -> executeHelp(context.getSource())))
@@ -398,11 +379,11 @@ public final class McdgAdminCommands {
                                 .executes(context -> executeGotoCourse(context.getSource(), courseManager)))
                         .then(literal("waypoint").requires(McdgAdminCommands::canUseAdminCommands)
                                 .then(literal("list")
-                                        .executes(context -> executeWaypointList(context.getSource(), courseManager)))
+                                        .executes(context -> WaypointCommands.executeWaypointList(context.getSource(), courseManager)))
                                 .then(literal("tp")
-                                        .executes(context -> executeWaypointTeleportPrompt(context.getSource(), courseManager))
+                                        .executes(context -> WaypointCommands.executeWaypointTeleportPrompt(context.getSource(), courseManager))
                                         .then(argument("target", StringArgumentType.greedyString())
-                                                .executes(context -> executeWaypointTeleport(
+                                                .executes(context -> WaypointCommands.executeWaypointTeleport(
                                                         context.getSource(),
                                                         courseManager,
                                                         StringArgumentType.getString(context, "target")
@@ -431,7 +412,7 @@ public final class McdgAdminCommands {
                                         roundStateManager
                                 )))
                         .then(literal("savesession").requires(McdgAdminCommands::canUseAdminCommands)
-                                .executes(context -> executeSaveSession(
+                                .executes(context -> SessionCommands.executeSaveSession(
                                         context.getSource(),
                                         courseManager,
                                         roundStateManager,
@@ -439,7 +420,7 @@ public final class McdgAdminCommands {
                                         null
                                 ))
                                 .then(argument("players", EntityArgumentType.players())
-                                        .executes(context -> executeSaveSession(
+                                        .executes(context -> SessionCommands.executeSaveSession(
                                                 context.getSource(),
                                                 courseManager,
                                                 roundStateManager,
@@ -447,89 +428,89 @@ public final class McdgAdminCommands {
                                                 EntityArgumentType.getPlayers(context, "players")
                                         ))))
                         .then(literal("resumesession").requires(McdgAdminCommands::canUseAdminCommands)
-                                .executes(context -> executeResumeSession(
+                                .executes(context -> SessionCommands.executeResumeSession(
                                         context.getSource(),
                                         courseManager,
                                         roundStateManager,
                                         practiceCourseStorage,
                                         playerRoundSessionStorage,
-                                        ResumeSourceSelection.PREFER_MANUAL,
+                                        SessionCommands.ResumeSourceSelection.PREFER_MANUAL,
                                         null
                                 ))
                                 .then(argument("players", EntityArgumentType.players())
-                                        .executes(context -> executeResumeSession(
+                                        .executes(context -> SessionCommands.executeResumeSession(
                                                 context.getSource(),
                                                 courseManager,
                                                 roundStateManager,
                                                 practiceCourseStorage,
                                                 playerRoundSessionStorage,
-                                                ResumeSourceSelection.PREFER_MANUAL,
+                                                SessionCommands.ResumeSourceSelection.PREFER_MANUAL,
                                                 EntityArgumentType.getPlayers(context, "players")
                                         )))
                                 .then(literal("manual")
-                                        .executes(context -> executeResumeSession(
+                                        .executes(context -> SessionCommands.executeResumeSession(
                                                 context.getSource(),
                                                 courseManager,
                                                 roundStateManager,
                                                 practiceCourseStorage,
                                                 playerRoundSessionStorage,
-                                                ResumeSourceSelection.MANUAL_ONLY,
+                                                SessionCommands.ResumeSourceSelection.MANUAL_ONLY,
                                                 null
                                         ))
                                         .then(argument("players", EntityArgumentType.players())
-                                                .executes(context -> executeResumeSession(
+                                                .executes(context -> SessionCommands.executeResumeSession(
                                                         context.getSource(),
                                                         courseManager,
                                                         roundStateManager,
                                                         practiceCourseStorage,
                                                         playerRoundSessionStorage,
-                                                        ResumeSourceSelection.MANUAL_ONLY,
+                                                        SessionCommands.ResumeSourceSelection.MANUAL_ONLY,
                                                         EntityArgumentType.getPlayers(context, "players")
                                                 ))))
                                 .then(literal("auto")
-                                        .executes(context -> executeResumeSession(
+                                        .executes(context -> SessionCommands.executeResumeSession(
                                                 context.getSource(),
                                                 courseManager,
                                                 roundStateManager,
                                                 practiceCourseStorage,
                                                 playerRoundSessionStorage,
-                                                ResumeSourceSelection.AUTO_ONLY,
+                                                SessionCommands.ResumeSourceSelection.AUTO_ONLY,
                                                 null
                                         ))
                                         .then(argument("players", EntityArgumentType.players())
-                                                .executes(context -> executeResumeSession(
+                                                .executes(context -> SessionCommands.executeResumeSession(
                                                         context.getSource(),
                                                         courseManager,
                                                         roundStateManager,
                                                         practiceCourseStorage,
                                                         playerRoundSessionStorage,
-                                                        ResumeSourceSelection.AUTO_ONLY,
+                                                        SessionCommands.ResumeSourceSelection.AUTO_ONLY,
                                                         EntityArgumentType.getPlayers(context, "players")
                                                 )))))
                         .then(literal("roundsession").requires(McdgAdminCommands::canUseAdminCommands)
-                                .executes(context -> executeRoundSessionStatus(
+                                .executes(context -> SessionCommands.executeRoundSessionStatus(
                                         context.getSource(),
                                         roundSessionStorage
                                 ))
                                 .then(literal("status")
-                                        .executes(context -> executeRoundSessionStatus(
+                                        .executes(context -> SessionCommands.executeRoundSessionStatus(
                                                 context.getSource(),
                                                 roundSessionStorage
                                         )))
                                 .then(literal("clear")
-                                        .executes(context -> executeRoundSessionClear(
+                                        .executes(context -> SessionCommands.executeRoundSessionClear(
                                                 context.getSource(),
                                                 roundSessionStorage
                                         ))))
                         .then(literal("ruleset").requires(McdgAdminCommands::canUseAdminCommands)
-                                .executes(context -> executeShowRuleset(context, rulesetManager))
+                                .executes(context -> RulesetCommands.executeShowRuleset(context.getSource(), rulesetManager))
                                 .then(literal("casual")
-                                        .executes(context -> executeSetRuleset(context, rulesetManager, TournamentRulesetManager.Ruleset.CASUAL)))
+                                        .executes(context -> RulesetCommands.executeSetRuleset(context.getSource(), rulesetManager, TournamentRulesetManager.Ruleset.CASUAL)))
                                 .then(literal("strict")
-                                        .executes(context -> executeSetRuleset(context, rulesetManager, TournamentRulesetManager.Ruleset.STRICT)))
+                                        .executes(context -> RulesetCommands.executeSetRuleset(context.getSource(), rulesetManager, TournamentRulesetManager.Ruleset.STRICT)))
                                 .then(literal("surface")
                                         .requires(McdgAdminCommands::canUseAdvancedCommands)
-                                        .executes(context -> executeShowStrictSurfacePreset(context, rulesetManager))
+                                        .executes(context -> RulesetCommands.executeShowStrictSurfacePreset(context.getSource(), rulesetManager))
                                         .then(argument("preset", StringArgumentType.word())
                                                 .suggests((context, builder) -> {
                                                         builder.suggest("fast");
@@ -537,7 +518,7 @@ public final class McdgAdminCommands {
                                                         builder.suggest("tournament");
                                                         return builder.buildFuture();
                                                 })
-                                                .executes(context -> executeSetStrictSurfacePreset(context, rulesetManager, StringArgumentType.getString(context, "preset"))))))
+                                                .executes(context -> RulesetCommands.executeSetStrictSurfacePreset(context.getSource(), rulesetManager, StringArgumentType.getString(context, "preset"))))))
                         .then(literal("debugperms").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeDebugPermissions(context.getSource())))
@@ -658,174 +639,6 @@ public final class McdgAdminCommands {
                                 + ", source=" + finalSourceIdentity
                 ), false);
                 return 1;
-        }
-
-        private static int executeMenuDashboard(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
-                source.sendFeedback(() -> Text.literal("MCDG Menu").formatted(Formatting.AQUA, Formatting.BOLD), false);
-                source.sendFeedback(() -> menuButton("Round", "/mcdg menu round", Formatting.GREEN, true), false);
-                source.sendFeedback(() -> menuButton("Courses", "/mcdg menu courses", Formatting.GOLD, true), false);
-                source.sendFeedback(() -> menuButton("Waypoints", "/mcdg menu waypoints", Formatting.LIGHT_PURPLE, true), false);
-                source.sendFeedback(() -> menuButton("Rules", "/mcdg menu rules", Formatting.BLUE, true), false);
-                source.sendFeedback(() -> menuButton("Session", "/mcdg menu session", Formatting.GRAY, true), false);
-                if (canUseAdminCommands(source)) {
-                        source.sendFeedback(() -> menuButton("Admin", "/mcdg menu admin", Formatting.RED, true), false);
-                }
-
-                TournamentRulesetManager.Ruleset active = rulesetManager.getActiveRuleset();
-                TournamentRulesetManager.StrictSurfacePreset preset = rulesetManager.getStrictSurfacePreset();
-                source.sendFeedback(() -> Text.literal("Ruleset: " + active.name().toLowerCase() + " | strict preset: " + preset.name().toLowerCase()), false);
-                source.sendFeedback(() -> Text.literal("Direct commands still work exactly as before."), false);
-                return 1;
-        }
-
-        private static int executeMenuPlayer(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
-                source.sendFeedback(() -> Text.literal("Player Menu").formatted(Formatting.GREEN, Formatting.BOLD), false);
-                source.sendFeedback(() -> menuButton("Round", "/mcdg menu round", Formatting.GREEN, true), false);
-                source.sendFeedback(() -> menuButton("Waypoints", "/mcdg menu waypoints", Formatting.LIGHT_PURPLE, true), false);
-                source.sendFeedback(() -> menuButton("Rules", "/mcdg menu rules", Formatting.BLUE, true), false);
-                source.sendFeedback(() -> Text.literal("Use BACK to return to dashboard.").formatted(Formatting.DARK_GRAY), false);
-                source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
-                return 1;
-        }
-
-        private static int executeMenuAdmin(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
-                source.sendFeedback(() -> Text.literal("Admin Menu").formatted(Formatting.RED, Formatting.BOLD), false);
-                source.sendFeedback(() -> menuButton("Round", "/mcdg menu round", Formatting.GREEN, true), false);
-                source.sendFeedback(() -> menuButton("Courses", "/mcdg menu courses", Formatting.GOLD, true), false);
-                source.sendFeedback(() -> menuButton("Session", "/mcdg menu session", Formatting.GRAY, true), false);
-                source.sendFeedback(() -> menuButton("Dangerous: Cleanup Course", "/mcdg menu confirm-request cleanupcourse", Formatting.DARK_RED, true), false);
-                source.sendFeedback(() -> menuButton("Dangerous: Prune Catalog to 6", "/mcdg menu confirm-request prunecourses", Formatting.DARK_RED, true), false);
-                source.sendFeedback(() -> Text.literal("Use BACK to return to dashboard.").formatted(Formatting.DARK_GRAY), false);
-                source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
-                return 1;
-        }
-
-        private static int executeMenuRound(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
-                source.sendFeedback(() -> Text.literal("Round").formatted(Formatting.GREEN, Formatting.BOLD), false);
-                source.sendFeedback(() -> menuButton("Create Course", "/mcdg createcourse ", Formatting.YELLOW, false), false);
-                source.sendFeedback(() -> menuButton("Start Round", "/mcdg startround", Formatting.GREEN, true), false);
-                source.sendFeedback(() -> menuButton("Join Round", "/mcdg joinround", Formatting.GREEN, true), false);
-                source.sendFeedback(() -> menuButton("End Round", "/mcdg endround", Formatting.GOLD, true), false);
-                source.sendFeedback(() -> Text.literal("Use BACK to return to dashboard.").formatted(Formatting.DARK_GRAY), false);
-                source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
-                return 1;
-        }
-
-        private static int executeMenuCourses(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
-                source.sendFeedback(() -> Text.literal("Courses").formatted(Formatting.GOLD, Formatting.BOLD), false);
-                source.sendFeedback(() -> menuButton("Build Course", "/mcdg buildcourse", Formatting.GREEN, true), false);
-                source.sendFeedback(() -> menuButton("List Courses", "/mcdg listcourses", Formatting.AQUA, true), false);
-                source.sendFeedback(() -> menuButton("Play Course", "/mcdg playcourse ", Formatting.GOLD, false), false);
-                source.sendFeedback(() -> menuButton("Remove Course", "/mcdg removecourse ", Formatting.RED, false), false);
-                source.sendFeedback(() -> menuButton("Cleanup Active Course (confirm)", "/mcdg menu confirm-request cleanupcourse", Formatting.DARK_RED, true), false);
-                source.sendFeedback(() -> Text.literal("Use BACK to return to dashboard.").formatted(Formatting.DARK_GRAY), false);
-                source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
-                return 1;
-        }
-
-        private static int executeMenuWaypoints(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
-                source.sendFeedback(() -> Text.literal("Waypoints").formatted(Formatting.LIGHT_PURPLE, Formatting.BOLD), false);
-                source.sendFeedback(() -> menuButton("List Waypoints", "/mcdg waypoint list", Formatting.LIGHT_PURPLE, true), false);
-                source.sendFeedback(() -> menuButton("Waypoint Teleport Prompt", "/mcdg waypoint tp", Formatting.LIGHT_PURPLE, true), false);
-                source.sendFeedback(() -> Text.literal("Use BACK to return to dashboard.").formatted(Formatting.DARK_GRAY), false);
-                source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
-                return 1;
-        }
-
-        private static int executeMenuRules(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
-                source.sendFeedback(() -> Text.literal("Rules").formatted(Formatting.BLUE, Formatting.BOLD), false);
-                source.sendFeedback(() -> menuButton("Show Ruleset", "/mcdg ruleset show", Formatting.BLUE, true), false);
-                source.sendFeedback(() -> menuButton("Set Casual", "/mcdg ruleset casual", Formatting.GREEN, true), false);
-                source.sendFeedback(() -> menuButton("Set Strict", "/mcdg ruleset strict", Formatting.GOLD, true), false);
-                source.sendFeedback(() -> menuButton("Strict Surface Preset", "/mcdg ruleset strictsurface show", Formatting.AQUA, true), false);
-                source.sendFeedback(() -> Text.literal("Use BACK to return to dashboard.").formatted(Formatting.DARK_GRAY), false);
-                source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
-                return 1;
-        }
-
-        private static int executeMenuSession(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
-                source.sendFeedback(() -> Text.literal("Session").formatted(Formatting.GRAY, Formatting.BOLD), false);
-                source.sendFeedback(() -> menuButton("Save Session", "/mcdg savesession", Formatting.GRAY, true), false);
-                source.sendFeedback(() -> menuButton("Resume Session", "/mcdg resumesession", Formatting.GRAY, true), false);
-                source.sendFeedback(() -> menuButton("Round Session Status", "/mcdg roundsession status", Formatting.GRAY, true), false);
-                source.sendFeedback(() -> menuButton("Round Session Clear", "/mcdg roundsession clear", Formatting.DARK_RED, true), false);
-                source.sendFeedback(() -> Text.literal("Use BACK to return to dashboard.").formatted(Formatting.DARK_GRAY), false);
-                source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
-                return 1;
-        }
-
-        private static int executeMenuConfirmRequest(ServerCommandSource source, String action) {
-                if (!(source.getEntity() instanceof ServerPlayerEntity player)) {
-                        source.sendError(Text.literal("Menu confirmations require a player source."));
-                        return 0;
-                }
-
-                String command;
-                String label;
-                if ("cleanupcourse".equalsIgnoreCase(action)) {
-                        command = "/mcdg cleanupcourse";
-                        label = "Cleanup active course";
-                } else if ("prunecourses".equalsIgnoreCase(action)) {
-                        command = "/mcdg prunecourses";
-                        label = "Prune reusable catalog to keep 6";
-                } else {
-                        source.sendError(Text.literal("Unknown confirm action: " + action));
-                        return 0;
-                }
-
-                long token = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
-                long expiresAtMs = System.currentTimeMillis() + MENU_CONFIRM_TIMEOUT_MS;
-                PENDING_MENU_CONFIRMS.put(player.getUuid(), new PendingMenuConfirm(token, expiresAtMs, command, label));
-
-                String run = "/mcdg menu confirm-run " + token;
-                source.sendFeedback(() -> Text.literal("Confirm action (expires in 15s): " + label).formatted(Formatting.RED), false);
-                source.sendFeedback(() -> menuButton("CONFIRM", run, Formatting.DARK_RED, true), false);
-                source.sendFeedback(() -> menuButton("CANCEL", "/mcdg menu confirm-cancel", Formatting.GRAY, true), false);
-                source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
-                return 1;
-        }
-
-        private static int executeMenuConfirmRun(ServerCommandSource source, long token) {
-                if (!(source.getEntity() instanceof ServerPlayerEntity player)) {
-                        source.sendError(Text.literal("Menu confirmations require a player source."));
-                        source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
-                        return 0;
-                }
-
-                PendingMenuConfirm pending = PENDING_MENU_CONFIRMS.get(player.getUuid());
-                if (pending == null || pending.token() != token) {
-                        source.sendError(Text.literal("No matching confirmation found."));
-                        source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
-                        return 0;
-                }
-                if (System.currentTimeMillis() > pending.expiresAtMs()) {
-                        PENDING_MENU_CONFIRMS.remove(player.getUuid());
-                        source.sendError(Text.literal("Confirmation expired. Run the action again."));
-                        source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
-                        return 0;
-                }
-
-                PENDING_MENU_CONFIRMS.remove(player.getUuid());
-                source.getServer().getCommandManager().executeWithPrefix(source, pending.command());
-                return 1;
-        }
-
-        private static int executeMenuConfirmCancel(ServerCommandSource source) {
-                if (source.getEntity() instanceof ServerPlayerEntity player) {
-                        PENDING_MENU_CONFIRMS.remove(player.getUuid());
-                }
-                source.sendFeedback(() -> Text.literal("Pending menu confirmation canceled."), false);
-                source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
-                return 1;
-        }
-
-        private static Text menuButton(String label, String command, Formatting color, boolean runNow) {
-                ClickEvent.Action action = runNow ? ClickEvent.Action.RUN_COMMAND : ClickEvent.Action.SUGGEST_COMMAND;
-                return Text.literal("[" + label + "]").styled(style -> style
-                        .withColor(color)
-                        .withClickEvent(new ClickEvent(action, command))
-                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal((runNow ? "Run: " : "Fill chat: ") + command)))
-                );
         }
 
         private static int completePlayerFacingLegacyCommand(ServerCommandSource source, String submenu) {
@@ -1900,269 +1713,6 @@ public final class McdgAdminCommands {
                 }
         }
 
-        private static int executeWaypointList(ServerCommandSource source, ActiveCourseManager courseManager) {
-                PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
-
-                if (placed != null && !source.getWorld().getRegistryKey().equals(placed.worldKey())) {
-                        placed = null; // Don't include course targets from a different dimension.
-                }
-
-                List<WaypointTarget> targets = collectWaypointTargets(source, placed, placed != null && courseManager.isRoundActive());
-                if (targets.isEmpty()) {
-                        source.sendError(Text.literal("No waypoints found. Add personal waypoints in-game first, or run /mcdg startround to see course waypoints."));
-                        return 0;
-                }
-
-                source.sendFeedback(() -> Text.literal("Waypoint targets:"), false);
-                for (int i = 0; i < targets.size(); i++) {
-                        WaypointTarget target = targets.get(i);
-                        BlockPos anchor = target.anchor();
-                        int displayIndex = i + 1;
-                        source.sendFeedback(
-                                () -> Text.literal(displayIndex + ". " + target.name() + " -> (" + anchor.getX() + ", " + anchor.getY() + ", " + anchor.getZ() + ")"),
-                                false
-                        );
-                }
-                source.sendFeedback(() -> Text.literal("Use /mcdg waypoint tp <target or number>. Examples: /mcdg waypoint tp 2, /mcdg waypoint tp central, /mcdg waypoint tp hole 3"), false);
-                return completePlayerFacingLegacyCommand(source, "waypoints");
-        }
-
-        private static int executeWaypointTeleport(ServerCommandSource source, ActiveCourseManager courseManager, String targetInput) {
-                PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
-
-                if (placed != null && !source.getWorld().getRegistryKey().equals(placed.worldKey())) {
-                        placed = null; // Don't include course targets from a different dimension.
-                }
-
-                List<WaypointTarget> targets = collectWaypointTargets(source, placed, placed != null && courseManager.isRoundActive());
-                if (targets.isEmpty()) {
-                        source.sendError(Text.literal("No waypoints found. Add personal waypoints in-game first, or run /mcdg startround to see course waypoints."));
-                        return 0;
-                }
-
-                WaypointTarget selected = resolveWaypointTarget(targets, targetInput);
-                if (selected == null) {
-                        source.sendError(Text.literal("Unknown waypoint target '" + targetInput + "'. Try /mcdg waypoint list."));
-                        return 0;
-                }
-
-                try {
-                        ServerPlayerEntity player = source.getPlayerOrThrow();
-                        ServerWorld world = source.getWorld();
-                        BlockPos anchor = selected.anchor();
-                        BlockPos safe = resolveSafeFeetNear(world, anchor);
-                        player.teleport(safe.getX() + 0.5, safe.getY() + 1.0, safe.getZ() + 0.5);
-                        source.sendFeedback(() -> Text.literal("Teleported to " + selected.name() + "."), false);
-                        return completePlayerFacingLegacyCommand(source, "waypoints");
-                } catch (Exception ex) {
-                        source.sendError(Text.literal("This command must be run by a player."));
-                        return 0;
-                }
-        }
-
-        private static int executeWaypointTeleportPrompt(ServerCommandSource source, ActiveCourseManager courseManager) {
-                PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
-
-                if (placed != null && !source.getWorld().getRegistryKey().equals(placed.worldKey())) {
-                        placed = null; // Don't include course targets from a different dimension.
-                }
-
-                List<WaypointTarget> targets = collectWaypointTargets(source, placed, placed != null && courseManager.isRoundActive());
-                if (targets.isEmpty()) {
-                        source.sendError(Text.literal("No waypoints found. Add personal waypoints in-game first, or run /mcdg startround to see course waypoints."));
-                        return 0;
-                }
-
-                source.sendFeedback(() -> Text.literal("Waypoint teleport prompt:"), false);
-                for (int i = 0; i < targets.size(); i++) {
-                        WaypointTarget target = targets.get(i);
-                        BlockPos anchor = target.anchor();
-                        int displayIndex = i + 1;
-                        String command = "/mcdg waypoint tp " + displayIndex;
-                        source.sendFeedback(
-                                () -> Text.literal(displayIndex + ". " + target.name() + " -> (" + anchor.getX() + ", " + anchor.getY() + ", " + anchor.getZ() + ")")
-                                        .styled(style -> style
-                                                .withColor(Formatting.AQUA)
-                                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command))
-                                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Click to run: " + command)))
-                                        ),
-                                false
-                        );
-                }
-                source.sendFeedback(() -> Text.literal("Pick one: /mcdg waypoint tp <number> (example: /mcdg waypoint tp 2)"), false);
-                return completePlayerFacingLegacyCommand(source, "waypoints");
-        }
-
-        private static List<WaypointTarget> collectWaypointTargets(ServerCommandSource source, PlacedCourseState placed, boolean includeHoleWaypoints) {
-                List<WaypointTarget> targets = new ArrayList<>();
-                Set<String> seenNames = new HashSet<>();
-
-                if (placed != null) {
-                        BlockPos holeOneTee = placed.holeTees().get(1);
-                        BlockPos holeOneBasket = placed.holeBaskets().get(1);
-                        if (holeOneTee != null) {
-                                addWaypointTarget(targets, seenNames, "Tournament Central", resolveTournamentCentralAnchor(holeOneTee, holeOneBasket));
-                        }
-                }
-
-                if (includeHoleWaypoints && placed != null) {
-                        int maxHole = 0;
-                        for (Integer holeIndex : placed.holeTees().keySet()) {
-                                if (holeIndex != null) {
-                                        maxHole = Math.max(maxHole, holeIndex);
-                                }
-                        }
-                        for (Integer holeIndex : placed.holeBaskets().keySet()) {
-                                if (holeIndex != null) {
-                                        maxHole = Math.max(maxHole, holeIndex);
-                                }
-                        }
-
-                        for (int hole = 1; hole <= maxHole; hole++) {
-                                BlockPos tee = placed.holeTees().get(hole);
-                                if (tee == null) {
-                                        continue;
-                                }
-                                BlockPos basket = placed.holeBaskets().get(hole);
-                                addWaypointTarget(targets, seenNames, "Hole " + hole, resolveHoleWaypointAnchor(tee, basket));
-                        }
-                }
-
-                if (source != null && source.getEntity() instanceof ServerPlayerEntity player) {
-                        String dimensionId = source.getWorld().getRegistryKey().getValue().toString();
-                        for (WaypointSync.WaypointEntry waypoint : WaypointSync.getWaypoints(player)) {
-                                if (!dimensionId.equals(waypoint.dimensionId())) {
-                                        continue;
-                                }
-                                String name = waypoint.name() == null ? "" : waypoint.name().trim();
-                                if (name.isBlank()) {
-                                        continue;
-                                }
-                                addWaypointTarget(targets, seenNames, name, resolveClientWaypointAnchor(source.getWorld(), waypoint.x(), waypoint.y(), waypoint.z()));
-                        }
-                }
-
-                return targets;
-        }
-
-        private static void addWaypointTarget(List<WaypointTarget> targets, Set<String> seenNames, String name, BlockPos anchor) {
-                if (name == null || name.isBlank() || anchor == null) {
-                        return;
-                }
-
-                String normalized = name.trim().toLowerCase(java.util.Locale.ROOT);
-                if (!seenNames.add(normalized)) {
-                        return;
-                }
-
-                targets.add(new WaypointTarget(name, anchor));
-        }
-
-        private static BlockPos resolveClientWaypointAnchor(ServerWorld world, int x, int y, int z) {
-                world.getChunk(x >> 4, z >> 4);
-
-                int resolvedY = y;
-                int floor = world.getBottomY() + 2;
-                if (resolvedY <= floor || resolvedY == WaypointSync.UNKNOWN_Y) {
-                        resolvedY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
-                }
-                if (resolvedY <= floor) {
-                        resolvedY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z);
-                }
-                if (resolvedY <= floor) {
-                        resolvedY = world.getSeaLevel();
-                }
-
-                return resolveSafeFeetNear(world, new BlockPos(x, resolvedY, z));
-        }
-
-        private static WaypointTarget resolveWaypointTarget(List<WaypointTarget> targets, String targetInput) {
-                if (targets == null || targets.isEmpty()) {
-                        return null;
-                }
-                String normalized = targetInput == null ? "" : targetInput.trim().toLowerCase();
-                if (normalized.isBlank()) {
-                        return null;
-                }
-
-                if (normalized.equals("central")
-                                || normalized.equals("tournament")
-                                || normalized.equals("tournament central")
-                                || normalized.equals("course")
-                                || normalized.equals("tc")) {
-                        for (WaypointTarget target : targets) {
-                                if (target.name().equals("Tournament Central")) {
-                                        return target;
-                                }
-                        }
-                }
-
-                try {
-                        int numeric = Integer.parseInt(normalized);
-                        if (numeric >= 1 && numeric <= targets.size()) {
-                                return targets.get(numeric - 1);
-                        }
-
-                        String holeName = "Hole " + numeric;
-                        for (WaypointTarget target : targets) {
-                                if (target.name().equalsIgnoreCase(holeName)) {
-                                        return target;
-                                }
-                        }
-                } catch (NumberFormatException ignored) {
-                        // Fall back to text matching.
-                }
-
-                if (normalized.startsWith("hole ")) {
-                        for (WaypointTarget target : targets) {
-                                if (target.name().toLowerCase().equals(normalized)) {
-                                        return target;
-                                }
-                        }
-                }
-
-                for (WaypointTarget target : targets) {
-                        if (target.name().equalsIgnoreCase(targetInput.trim())) {
-                                return target;
-                        }
-                }
-                return null;
-        }
-
-        private static BlockPos resolveTournamentCentralAnchor(BlockPos teeAnchor, BlockPos basketAnchor) {
-                if (teeAnchor == null) {
-                        return BlockPos.ORIGIN;
-                }
-                int[] back = resolveBackCardinal(teeAnchor, basketAnchor);
-                // Match HoleProgressTracker central-hub geometric-center approximation.
-                return teeAnchor.add(back[0] * 12, 0, back[1] * 12);
-        }
-
-        private static BlockPos resolveHoleWaypointAnchor(BlockPos teeAnchor, BlockPos basketAnchor) {
-                if (teeAnchor == null) {
-                        return BlockPos.ORIGIN;
-                }
-                int[] back = resolveBackCardinal(teeAnchor, basketAnchor);
-                return teeAnchor.add(back[0], 0, back[1]);
-        }
-
-        private static int[] resolveBackCardinal(BlockPos teeAnchor, BlockPos basketAnchor) {
-                if (teeAnchor == null || basketAnchor == null) {
-                        return new int[] { 0, -1 };
-                }
-
-                int dx = basketAnchor.getX() - teeAnchor.getX();
-                int dz = basketAnchor.getZ() - teeAnchor.getZ();
-                if (dx == 0 && dz == 0) {
-                        return new int[] { 0, -1 };
-                }
-
-                if (Math.abs(dx) >= Math.abs(dz)) {
-                        return new int[] { -Integer.compare(dx, 0), 0 };
-                }
-                return new int[] { 0, -Integer.compare(dz, 0) };
-        }
-
         private static int executeGotoLie(ServerCommandSource source, RoundStateManager roundStateManager) {
                 try {
                         ServerPlayerEntity player = source.getPlayerOrThrow();
@@ -2340,352 +1890,6 @@ public final class McdgAdminCommands {
                         source.sendFeedback(() -> Text.literal(" - ... and " + remaining + " more participant(s)."), false);
                 }
                 return completePlayerFacingLegacyCommand(source, "round");
-        }
-
-        private static int executeSaveSession(
-                        ServerCommandSource source,
-                        ActiveCourseManager courseManager,
-                        RoundStateManager roundStateManager,
-                        PlayerRoundSessionStorage playerRoundSessionStorage,
-                        Collection<ServerPlayerEntity> selectedPlayers
-        ) {
-                if (!courseManager.isRoundActive()) {
-                        source.sendError(Text.literal("No active round. Start or resume a round first."));
-                        return 0;
-                }
-
-                Course course = courseManager.getActiveCourse().orElse(null);
-                PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
-                if (course == null || placed == null) {
-                        source.sendError(Text.literal("No active course placement found. Cannot save player session."));
-                        return 0;
-                }
-
-                ServerWorld world = source.getServer().getWorld(placed.worldKey());
-                if (world == null) {
-                        source.sendError(Text.literal("Course world is unavailable."));
-                        return 0;
-                }
-
-                List<ServerPlayerEntity> players = resolveRoundParticipants(source, world, selectedPlayers, "savesession");
-                if (players.isEmpty()) {
-                        source.sendError(Text.literal("No eligible players selected for this world."));
-                        return 0;
-                }
-
-                Set<UUID> activeParticipants = courseManager.getActiveParticipantIds();
-                List<UUID> removedIds = new ArrayList<>();
-                int saved = 0;
-                int skipped = 0;
-                for (ServerPlayerEntity player : players) {
-                        UUID playerId = player.getUuid();
-                        if (!activeParticipants.contains(playerId)) {
-                                skipped++;
-                                continue;
-                        }
-
-                        PlayerRoundState state = roundStateManager.getState(playerId).orElse(null);
-                        if (state == null) {
-                                skipped++;
-                                continue;
-                        }
-
-                        boolean persisted = playerRoundSessionStorage.savePlayer(
-                                source.getServer(),
-                                playerId,
-                                course,
-                                placed,
-                                state,
-                                null
-                        );
-                        if (!persisted) {
-                                skipped++;
-                                continue;
-                        }
-
-                        roundStateManager.clearPlayer(playerId);
-                        removedIds.add(playerId);
-                        removeRoundThrowItems(player);
-                        player.sendMessage(Text.literal(
-                                "Session saved at hole " + state.currentHole() + " (strokes " + state.totalStrokes() + ")."
-                        ), true);
-                        saved++;
-                }
-
-                if (!removedIds.isEmpty()) {
-                        courseManager.removeActiveParticipantIds(removedIds);
-                        if (courseManager.getActiveParticipantIds().isEmpty()) {
-                                courseManager.setRoundActive(false);
-                        }
-                }
-
-                final int savedCount = saved;
-                final int skippedCount = skipped;
-                final boolean roundStillActive = courseManager.isRoundActive();
-                source.sendFeedback(() -> Text.literal(
-                        "Save session complete. Saved=" + savedCount
-                                + ", skipped=" + skippedCount
-                                + ", roundActive=" + roundStillActive + "."
-                ), true);
-
-                return savedCount > 0 ? 1 : 0;
-        }
-
-        private static int executeResumeSession(
-                        ServerCommandSource source,
-                        ActiveCourseManager courseManager,
-                        RoundStateManager roundStateManager,
-                        PracticeCourseStorage practiceCourseStorage,
-                        PlayerRoundSessionStorage playerRoundSessionStorage,
-                        ResumeSourceSelection sourceSelection,
-                        Collection<ServerPlayerEntity> selectedPlayers
-        ) {
-                Course course = courseManager.getActiveCourse().orElse(null);
-                PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
-                if (course == null || placed == null) {
-                        var loaded = practiceCourseStorage.load(source.getServer()).orElse(null);
-                        if (loaded != null) {
-                                course = loaded.course();
-                                placed = loaded.placedCourseState();
-                                courseManager.setActiveCourse(course);
-                                courseManager.setActiveCourseCatalogIndex(null);
-                                courseManager.setPlacedCourseState(placed);
-                                courseManager.setPersistentPlacedCourse(true);
-                                courseManager.setLegacyPracticeSnapshot(loaded.legacyFormat());
-                        }
-                }
-
-                if (course == null || placed == null) {
-                        source.sendError(Text.literal("No saved course context found. Start a round or load a course first."));
-                        return 0;
-                }
-
-                ServerWorld world = source.getServer().getWorld(placed.worldKey());
-                if (world == null) {
-                        source.sendError(Text.literal("Course world is unavailable."));
-                        return 0;
-                }
-
-                List<ServerPlayerEntity> players = resolveRoundParticipants(source, world, selectedPlayers, "resumesession");
-                if (players.isEmpty()) {
-                        source.sendError(Text.literal("No eligible players selected for this world."));
-                        return 0;
-                }
-
-                int resumed = 0;
-                int skipped = 0;
-                int manualUsed = 0;
-                int autoUsed = 0;
-                for (ServerPlayerEntity player : players) {
-                        UUID playerId = player.getUuid();
-                        var manual = playerRoundSessionStorage.loadPlayer(source.getServer(), playerId, null).orElse(null);
-                        PlayerRoundState autoState = roundStateManager.getState(playerId).orElse(null);
-
-                        PlayerRoundState chosenState = null;
-                        boolean usedManual = false;
-                        if (sourceSelection != ResumeSourceSelection.AUTO_ONLY && manual != null) {
-                                if (isManualSessionCompatible(manual, course, placed)) {
-                                        chosenState = manual.state();
-                                        usedManual = true;
-                                }
-                        }
-
-                        if (chosenState == null && sourceSelection != ResumeSourceSelection.MANUAL_ONLY && autoState != null) {
-                                chosenState = autoState;
-                                usedManual = false;
-                        }
-
-                        if (chosenState == null) {
-                                skipped++;
-                                continue;
-                        }
-
-                        BlockPos restoredFeet = resolveSafeFeetNearWithin(world, chosenState.lie(), 2);
-                        PlayerRoundState restoredState = chosenState.withLie(restoredFeet);
-
-                        roundStateManager.setState(playerId, restoredState);
-                        courseManager.addActiveParticipantId(playerId);
-                        courseManager.setRoundActive(true);
-
-                        RoundInventoryCleaner.restoreRoundInventory(player);
-                        ScorecardManager.ensureScorecardInInventory(player);
-                        player.teleport(restoredFeet.getX() + 0.5, restoredFeet.getY() + 1.0, restoredFeet.getZ() + 0.5);
-
-                        if (usedManual) {
-                                playerRoundSessionStorage.clearPlayer(source.getServer(), playerId, null);
-                                manualUsed++;
-                        } else {
-                                autoUsed++;
-                        }
-
-                        player.sendMessage(Text.literal(
-                                "Session resumed at hole " + restoredState.currentHole()
-                                        + " (strokes " + restoredState.totalStrokes() + ")"
-                                        + (usedManual ? " from manual save." : " from auto state.")
-                        ), true);
-                        resumed++;
-                }
-
-                final int resumedCount = resumed;
-                final int skippedCount = skipped;
-                final int manualCount = manualUsed;
-                final int autoCount = autoUsed;
-                source.sendFeedback(() -> Text.literal(
-                        "Resume session complete. Resumed=" + resumedCount
-                                + " (manual=" + manualCount + ", auto=" + autoCount + ")"
-                                + ", skipped=" + skippedCount + "."
-                ), true);
-                return resumedCount > 0 ? 1 : 0;
-        }
-
-        private static boolean isManualSessionCompatible(
-                        PlayerRoundSessionStorage.LoadedPlayerRoundSession session,
-                        Course course,
-                        PlacedCourseState placed
-        ) {
-                if (session == null || course == null || placed == null) {
-                        return false;
-                }
-                if (!placed.worldKey().getValue().toString().equals(session.worldKey())) {
-                        return false;
-                }
-                if (course.seed() != session.courseSeed()) {
-                        return false;
-                }
-                return course.holes().size() == session.holeCount();
-        }
-
-        private static int executeRoundSessionStatus(
-                        ServerCommandSource source,
-                        RoundSessionStorage roundSessionStorage
-        ) {
-                Optional<RoundSessionStorage.LoadedRoundSession> snapshot = roundSessionStorage.load(source.getServer(), null);
-                if (snapshot.isEmpty()) {
-                        source.sendFeedback(() -> Text.literal("Round session snapshot: none."), false);
-                        return 1;
-                }
-
-                RoundSessionStorage.LoadedRoundSession loaded = snapshot.get();
-                int participantCount = loaded.participantIds().size();
-                int stateCount = loaded.playerStates().size();
-                int completedCount = loaded.completedTotals().size();
-                String worldKey = loaded.worldKey();
-                long seed = loaded.courseSeed();
-                int holes = loaded.holeCount();
-
-                source.sendFeedback(() -> Text.literal(
-                        "Round session snapshot: active=" + loaded.roundActive()
-                                + ", participants=" + participantCount
-                                + ", states=" + stateCount
-                                + ", completed=" + completedCount
-                                + ", world=" + worldKey
-                                + ", seed=" + seed
-                                + ", holes=" + holes
-                ), false);
-
-                int listed = 0;
-                for (UUID participantId : loaded.participantIds()) {
-                        if (listed >= 10) {
-                                break;
-                        }
-
-                        ServerPlayerEntity onlinePlayer = source.getServer().getPlayerManager().getPlayer(participantId);
-                        String label = onlinePlayer == null
-                                ? participantId.toString().substring(0, 8)
-                                : onlinePlayer.getName().getString();
-                        var state = loaded.playerStates().get(participantId);
-                        String stateLabel = state == null
-                                ? "no-state"
-                                : ("H" + state.currentHole() + " strokes=" + state.totalStrokes());
-                        source.sendFeedback(() -> Text.literal(" - " + label + " | " + stateLabel), false);
-                        listed++;
-                }
-
-                if (participantCount > listed) {
-                        int remaining = participantCount - listed;
-                        source.sendFeedback(() -> Text.literal(" - ... and " + remaining + " more participant(s)."), false);
-                }
-                return 1;
-        }
-
-        private static int executeRoundSessionClear(
-                        ServerCommandSource source,
-                        RoundSessionStorage roundSessionStorage
-        ) {
-                roundSessionStorage.clear(source.getServer(), null);
-                source.sendFeedback(() -> Text.literal(
-                        "Cleared persisted round session snapshot."
-                                + " If a round is currently active, autosave may recreate it shortly."
-                ), true);
-                return 1;
-        }
-
-        private static int executeShowRuleset(
-                        CommandContext<ServerCommandSource> context,
-                        TournamentRulesetManager rulesetManager
-        ) {
-                TournamentRulesetManager.Ruleset active = rulesetManager.getActiveRuleset();
-                TournamentRulesetManager.StrictSurfacePreset preset = rulesetManager.getStrictSurfacePreset();
-                context.getSource().sendFeedback(
-                        () -> Text.literal("Current ruleset: " + active.name().toLowerCase()
-                                + " | strict surface preset: " + preset.name().toLowerCase()),
-                        false
-                );
-                return completePlayerFacingLegacyCommand(context.getSource(), "rules");
-        }
-
-        private static int executeSetRuleset(
-                        CommandContext<ServerCommandSource> context,
-                        TournamentRulesetManager rulesetManager,
-                        TournamentRulesetManager.Ruleset ruleset
-        ) {
-                rulesetManager.setActiveRuleset(ruleset);
-                context.getSource().sendFeedback(() -> Text.literal("Ruleset set to " + ruleset.name().toLowerCase() + "."), true);
-                return 1;
-        }
-
-        private static int executeShowStrictSurfacePreset(
-                        CommandContext<ServerCommandSource> context,
-                        TournamentRulesetManager rulesetManager
-        ) {
-                TournamentRulesetManager.StrictSurfacePreset preset = rulesetManager.getStrictSurfacePreset();
-                context.getSource().sendFeedback(
-                        () -> Text.literal("Strict surface preset: " + preset.name().toLowerCase()
-                                + " (" + describeStrictSurfacePreset(preset) + ")"),
-                        false
-                );
-                context.getSource().sendFeedback(() -> Text.literal("Options: fast (forgiving), balanced (default), tournament (hardest)."), false);
-                return completePlayerFacingLegacyCommand(context.getSource(), "rules");
-        }
-
-        private static String describeStrictSurfacePreset(TournamentRulesetManager.StrictSurfacePreset preset) {
-                if (preset == null) {
-                        return "unknown";
-                }
-
-                return switch (preset) {
-                        case FAST -> "forgiving strict profile";
-                        case BALANCED -> "default strict profile";
-                        case TOURNAMENT -> "hardest strict profile";
-                };
-        }
-
-        private static int executeSetStrictSurfacePreset(
-                        CommandContext<ServerCommandSource> context,
-                        TournamentRulesetManager rulesetManager,
-                        String presetName
-        ) {
-                TournamentRulesetManager.StrictSurfacePreset preset;
-                try {
-                        preset = TournamentRulesetManager.StrictSurfacePreset.valueOf(presetName.toUpperCase());
-                } catch (IllegalArgumentException ex) {
-                        context.getSource().sendError(Text.literal("Unknown strict surface preset: " + presetName + ". Use fast, balanced, or tournament."));
-                        return 0;
-                }
-
-                rulesetManager.setStrictSurfacePreset(preset);
-                context.getSource().sendFeedback(() -> Text.literal("Strict surface preset set to " + preset.name().toLowerCase() + "."), true);
-                return 1;
         }
 
         private static void removeRoundThrowItemsFromCourseWorldPlayers(ServerCommandSource source, ActiveCourseManager courseManager) {
@@ -2968,9 +2172,6 @@ public final class McdgAdminCommands {
                 return 1;
         }
 
-        private record WaypointTarget(String name, BlockPos anchor) {
-        }
-
         private static BlockPos resolveSafeFeetNear(ServerWorld world, BlockPos preferredFeet) {
                 if (isStandableFeet(world, preferredFeet)) {
                         return preferredFeet;
@@ -3014,31 +2215,6 @@ public final class McdgAdminCommands {
                 return preferredFeet;
         }
 
-        private static BlockPos resolveSafeFeetNearWithin(ServerWorld world, BlockPos preferredFeet, int maxRadius) {
-                int safeRadius = Math.max(0, maxRadius);
-                if (isStandableFeet(world, preferredFeet)) {
-                        return preferredFeet;
-                }
-
-                for (int radius = 1; radius <= safeRadius; radius++) {
-                        for (int dx = -radius; dx <= radius; dx++) {
-                                for (int dz = -radius; dz <= radius; dz++) {
-                                        if ((dx * dx) + (dz * dz) > (safeRadius * safeRadius)) {
-                                                continue;
-                                        }
-                                        for (int dy = -2; dy <= 2; dy++) {
-                                                BlockPos candidate = preferredFeet.add(dx, dy, dz);
-                                                if (isStandableFeet(world, candidate)) {
-                                                        return candidate;
-                                                }
-                                        }
-                                }
-                        }
-                }
-
-                return preferredFeet;
-        }
-
         private static boolean isStandableFeet(ServerWorld world, BlockPos feet) {
                 if (!world.getFluidState(feet).isEmpty()) {
                         return false;
@@ -3063,6 +2239,4 @@ public final class McdgAdminCommands {
                 return !world.getBlockState(ground).getCollisionShape(world, ground).isEmpty();
         }
 
-        private record PendingMenuConfirm(long token, long expiresAtMs, String command, String label) {
-        }
 }
