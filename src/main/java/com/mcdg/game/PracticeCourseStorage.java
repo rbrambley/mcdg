@@ -89,14 +89,15 @@ public final class PracticeCourseStorage {
         }
     }
 
-    public void saveReusable(MinecraftServer server, Course course, PlacedCourseState placedCourseState, String sourceTag, boolean compactPreferred) {
+    public int saveReusable(MinecraftServer server, Course course, PlacedCourseState placedCourseState, String sourceTag, boolean compactPreferred) {
         PracticeCourseSnapshot snapshot = PracticeCourseSnapshot.from(course, placedCourseState);
         Path path = resolveCatalogPath(server);
 
         try {
             Files.createDirectories(path.getParent());
             CourseCatalogSnapshot catalog = readCatalogSnapshot(path);
-            CourseCatalogEntrySnapshot entry = CourseCatalogEntrySnapshot.from(snapshot, sourceTag, compactPreferred);
+            long now = System.currentTimeMillis();
+            CourseCatalogEntrySnapshot entry = CourseCatalogEntrySnapshot.from(snapshot, sourceTag, compactPreferred, now);
 
             // Keep only the newest entry for identical world+seed+layout snapshots.
             String targetWorldKey = snapshot.worldKey;
@@ -104,16 +105,73 @@ public final class PracticeCourseStorage {
             String targetLayoutSignature = entry.layoutSignature == null
                     ? buildLayoutSignature(snapshot.course)
                     : entry.layoutSignature;
-            catalog.entries.removeIf(existing -> isDuplicateReusableEntry(existing, targetWorldKey, targetSeed, targetLayoutSignature));
+            CourseCatalogEntrySnapshot existingMatch = null;
+            for (CourseCatalogEntrySnapshot existing : catalog.entries) {
+                if (isDuplicateReusableEntry(existing, targetWorldKey, targetSeed, targetLayoutSignature)) {
+                    existingMatch = existing;
+                    break;
+                }
+            }
+
+            if (existingMatch != null) {
+                entry.stableIndex = existingMatch.stableIndex;
+                entry.createdAtMs = existingMatch.createdAtMs;
+                entry.lastUsedAtMs = now;
+                catalog.entries.remove(existingMatch);
+            } else {
+                entry.stableIndex = catalog.nextIndex;
+                catalog.nextIndex++;
+            }
 
             catalog.entries.add(entry);
-            catalog.entries.sort(Comparator.comparingLong((CourseCatalogEntrySnapshot value) -> value.createdAtMs).reversed());
+            catalog.entries.sort(Comparator.comparingLong(this::entryActivityAt).reversed());
             if (catalog.entries.size() > MAX_CATALOG_ENTRIES) {
                 catalog.entries = new ArrayList<>(catalog.entries.subList(0, MAX_CATALOG_ENTRIES));
             }
             Files.writeString(path, GSON.toJson(catalog));
+            return entry.stableIndex;
         } catch (IOException | RuntimeException ex) {
             McdgMod.LOGGER.error("Failed to save reusable course catalog to {}", path, ex);
+            return -1;
+        }
+    }
+
+    public boolean touchReusableByIndex(MinecraftServer server, int stableIndex) {
+        if (stableIndex < 1) {
+            return false;
+        }
+
+        Path path = resolveCatalogPath(server);
+        if (!Files.exists(path)) {
+            return false;
+        }
+
+        try {
+            CourseCatalogSnapshot catalog = readCatalogSnapshot(path);
+            if (catalog.entries == null || catalog.entries.isEmpty()) {
+                return false;
+            }
+
+            boolean updated = false;
+            long now = System.currentTimeMillis();
+            for (CourseCatalogEntrySnapshot entry : catalog.entries) {
+                if (entry != null && entry.stableIndex == stableIndex) {
+                    entry.lastUsedAtMs = now;
+                    updated = true;
+                    break;
+                }
+            }
+
+            if (!updated) {
+                return false;
+            }
+
+            catalog.entries.sort(Comparator.comparingLong(this::entryActivityAt).reversed());
+            Files.writeString(path, GSON.toJson(catalog));
+            return true;
+        } catch (IOException | RuntimeException ex) {
+            McdgMod.LOGGER.error("Failed to touch reusable course #{} in {}", stableIndex, path, ex);
+            return false;
         }
     }
 
@@ -129,7 +187,7 @@ public final class PracticeCourseStorage {
                 return Optional.empty();
             }
 
-            catalog.entries.sort(Comparator.comparingLong((CourseCatalogEntrySnapshot value) -> value.createdAtMs).reversed());
+            catalog.entries.sort(Comparator.comparingLong(this::entryActivityAt).reversed());
             for (CourseCatalogEntrySnapshot entry : catalog.entries) {
                 if (entry == null || entry.snapshot == null) {
                     continue;
@@ -171,12 +229,13 @@ public final class PracticeCourseStorage {
             }
 
             List<CourseCatalogEntrySnapshot> sortedEntries = sortedEntries(catalog.entries);
-            int zeroBasedIndex = oneBasedIndex - 1;
-            if (zeroBasedIndex >= sortedEntries.size()) {
-                return Optional.empty();
+            CourseCatalogEntrySnapshot entry = null;
+            for (CourseCatalogEntrySnapshot candidate : sortedEntries) {
+                if (candidate != null && candidate.stableIndex == oneBasedIndex) {
+                    entry = candidate;
+                    break;
+                }
             }
-
-            CourseCatalogEntrySnapshot entry = sortedEntries.get(zeroBasedIndex);
             if (entry == null || entry.snapshot == null) {
                 return Optional.empty();
             }
@@ -209,7 +268,6 @@ public final class PracticeCourseStorage {
 
             List<CourseCatalogEntrySnapshot> sortedEntries = sortedEntries(catalog.entries);
             List<ReusableCourseEntry> result = new ArrayList<>();
-            int index = 1;
             for (CourseCatalogEntrySnapshot entry : sortedEntries) {
                 if (entry == null || entry.snapshot == null || entry.snapshot.course == null) {
                     continue;
@@ -219,7 +277,7 @@ public final class PracticeCourseStorage {
                 CourseSnapshot courseSnapshot = entry.snapshot.course;
                 int holes = courseSnapshot.holes == null ? 0 : courseSnapshot.holes.size();
                 result.add(new ReusableCourseEntry(
-                        index,
+                    entry.stableIndex,
                         entry.createdAtMs,
                         entry.sourceTag == null ? "unknown" : entry.sourceTag,
                         entry.compactPreferred,
@@ -228,7 +286,6 @@ public final class PracticeCourseStorage {
                         courseSnapshot.name == null ? "unnamed" : courseSnapshot.name,
                         holes
                 ));
-                index++;
             }
             return result;
         } catch (IOException | RuntimeException ex) {
@@ -299,12 +356,11 @@ public final class PracticeCourseStorage {
             List<CourseCatalogEntrySnapshot> sortedEntries = sortedEntries(catalog.entries);
             List<CourseCatalogEntrySnapshot> keptEntries = new ArrayList<>();
             int removed = 0;
-            for (int i = 0; i < sortedEntries.size(); i++) {
-                int index = i + 1;
-                if (oneBasedIndices.contains(index)) {
+            for (CourseCatalogEntrySnapshot entry : sortedEntries) {
+                if (entry != null && oneBasedIndices.contains(entry.stableIndex)) {
                     removed++;
                 } else {
-                    keptEntries.add(sortedEntries.get(i));
+                    keptEntries.add(entry);
                 }
             }
 
@@ -342,6 +398,30 @@ public final class PracticeCourseStorage {
         if (parsed.entries == null) {
             parsed.entries = new ArrayList<>();
         }
+        if (parsed.nextIndex < 1) {
+            parsed.nextIndex = 1;
+        }
+
+        int maxIndex = 0;
+        for (CourseCatalogEntrySnapshot entry : parsed.entries) {
+            if (entry == null) {
+                continue;
+            }
+
+            if (entry.stableIndex < 1) {
+                entry.stableIndex = parsed.nextIndex;
+                parsed.nextIndex++;
+            }
+            maxIndex = Math.max(maxIndex, entry.stableIndex);
+
+            if (entry.lastUsedAtMs <= 0) {
+                entry.lastUsedAtMs = entry.createdAtMs > 0 ? entry.createdAtMs : System.currentTimeMillis();
+            }
+        }
+
+        if (parsed.nextIndex <= maxIndex) {
+            parsed.nextIndex = maxIndex + 1;
+        }
         return parsed;
     }
 
@@ -352,8 +432,18 @@ public final class PracticeCourseStorage {
                 sorted.add(entry);
             }
         }
-        sorted.sort(Comparator.comparingLong((CourseCatalogEntrySnapshot value) -> value.createdAtMs).reversed());
+        sorted.sort(Comparator.comparingLong(this::entryActivityAt).reversed());
         return sorted;
+    }
+
+    private long entryActivityAt(CourseCatalogEntrySnapshot value) {
+        if (value == null) {
+            return 0L;
+        }
+        if (value.lastUsedAtMs > 0) {
+            return value.lastUsedAtMs;
+        }
+        return value.createdAtMs;
     }
 
     private boolean isDuplicateReusableEntry(CourseCatalogEntrySnapshot existing, String targetWorldKey, long targetSeed, String targetLayoutSignature) {
@@ -684,26 +774,31 @@ public final class PracticeCourseStorage {
     private static final class CourseCatalogSnapshot {
         @SuppressWarnings("unused")
         private int version;
+        private int nextIndex;
         private List<CourseCatalogEntrySnapshot> entries;
 
         private static CourseCatalogSnapshot empty() {
             CourseCatalogSnapshot snapshot = new CourseCatalogSnapshot();
             snapshot.version = 1;
+            snapshot.nextIndex = 1;
             snapshot.entries = new ArrayList<>();
             return snapshot;
         }
     }
 
     private static final class CourseCatalogEntrySnapshot {
+        private int stableIndex;
         private long createdAtMs;
+        private long lastUsedAtMs;
         private String sourceTag;
         private boolean compactPreferred;
         private String layoutSignature;
         private PracticeCourseSnapshot snapshot;
 
-        private static CourseCatalogEntrySnapshot from(PracticeCourseSnapshot snapshot, String sourceTag, boolean compactPreferred) {
+        private static CourseCatalogEntrySnapshot from(PracticeCourseSnapshot snapshot, String sourceTag, boolean compactPreferred, long now) {
             CourseCatalogEntrySnapshot entry = new CourseCatalogEntrySnapshot();
-            entry.createdAtMs = System.currentTimeMillis();
+            entry.createdAtMs = now;
+            entry.lastUsedAtMs = now;
             entry.sourceTag = sourceTag == null ? "unknown" : sourceTag;
             entry.compactPreferred = compactPreferred;
             entry.layoutSignature = buildLayoutSignature(snapshot.course);

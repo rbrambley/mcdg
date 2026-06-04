@@ -34,9 +34,12 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import net.minecraft.block.Blocks;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.argument.EntityArgumentType;
@@ -61,6 +64,8 @@ public final class McdgAdminCommands {
         private static final String ADVANCED_COMMANDS_ENV = "MCDG_SHOW_ADVANCED_COMMANDS";
         private static final String ADVANCED_COMMANDS_PROPERTY = "mcdg.showAdvancedCommands";
         private static final boolean SHOW_ADVANCED_COMMANDS = readAdvancedCommandVisibility();
+        private static final long MENU_CONFIRM_TIMEOUT_MS = 15_000L;
+        private static final Map<UUID, PendingMenuConfirm> PENDING_MENU_CONFIRMS = new ConcurrentHashMap<>();
 
         private enum ResumeSourceSelection {
                 PREFER_MANUAL,
@@ -96,6 +101,37 @@ public final class McdgAdminCommands {
     ) {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
                 dispatcher.register(literal("mcdg")
+                        .executes(context -> executeMenuDashboard(context.getSource(), rulesetManager))
+                        .then(literal("menu")
+                                .executes(context -> executeMenuDashboard(context.getSource(), rulesetManager))
+                                .then(literal("player")
+                                        .executes(context -> executeMenuPlayer(context.getSource(), rulesetManager)))
+                                .then(literal("admin").requires(McdgAdminCommands::canUseAdminCommands)
+                                        .executes(context -> executeMenuAdmin(context.getSource(), rulesetManager)))
+                                .then(literal("round")
+                                        .executes(context -> executeMenuRound(context.getSource(), rulesetManager)))
+                                .then(literal("courses")
+                                        .executes(context -> executeMenuCourses(context.getSource(), rulesetManager)))
+                                .then(literal("waypoints")
+                                        .executes(context -> executeMenuWaypoints(context.getSource(), rulesetManager)))
+                                .then(literal("rules")
+                                        .executes(context -> executeMenuRules(context.getSource(), rulesetManager)))
+                                .then(literal("session")
+                                        .executes(context -> executeMenuSession(context.getSource(), rulesetManager)))
+                                .then(literal("confirm-request").requires(McdgAdminCommands::canUseAdminCommands)
+                                        .then(argument("action", StringArgumentType.word())
+                                                .executes(context -> executeMenuConfirmRequest(
+                                                        context.getSource(),
+                                                        StringArgumentType.getString(context, "action")
+                                                ))))
+                                .then(literal("confirm-run").requires(McdgAdminCommands::canUseAdminCommands)
+                                        .then(argument("token", LongArgumentType.longArg())
+                                                .executes(context -> executeMenuConfirmRun(
+                                                        context.getSource(),
+                                                        LongArgumentType.getLong(context, "token")
+                                                ))))
+                                .then(literal("confirm-cancel").requires(McdgAdminCommands::canUseAdminCommands)
+                                        .executes(context -> executeMenuConfirmCancel(context.getSource()))))
                         .then(literal("help").requires(McdgAdminCommands::canUseAdminCommands)
                                 .executes(context -> executeHelp(context.getSource())))
                         .then(literal("gotolie")
@@ -340,6 +376,14 @@ public final class McdgAdminCommands {
                                                 context.getSource(),
                                                 practiceCourseStorage,
                                                 IntegerArgumentType.getInteger(context, "keep")
+                                        ))))
+                        .then(literal("removecourse").requires(McdgAdminCommands::canUseAdminCommands)
+                                .then(argument("index", IntegerArgumentType.integer(1))
+                                        .executes(context -> executeRemoveCourse(
+                                                context.getSource(),
+                                                courseManager,
+                                                practiceCourseStorage,
+                                                IntegerArgumentType.getInteger(context, "index")
                                         ))))
                         .then(literal("resetcourse").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
@@ -613,6 +657,180 @@ public final class McdgAdminCommands {
                 return 1;
         }
 
+        private static int executeMenuDashboard(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
+                source.sendFeedback(() -> Text.literal("MCDG Menu").formatted(Formatting.AQUA, Formatting.BOLD), false);
+                source.sendFeedback(() -> menuButton("Round", "/mcdg menu round", Formatting.GREEN, true), false);
+                source.sendFeedback(() -> menuButton("Courses", "/mcdg menu courses", Formatting.GOLD, true), false);
+                source.sendFeedback(() -> menuButton("Waypoints", "/mcdg menu waypoints", Formatting.LIGHT_PURPLE, true), false);
+                source.sendFeedback(() -> menuButton("Rules", "/mcdg menu rules", Formatting.BLUE, true), false);
+                source.sendFeedback(() -> menuButton("Session", "/mcdg menu session", Formatting.GRAY, true), false);
+                if (canUseAdminCommands(source)) {
+                        source.sendFeedback(() -> menuButton("Admin", "/mcdg menu admin", Formatting.RED, true), false);
+                }
+
+                TournamentRulesetManager.Ruleset active = rulesetManager.getActiveRuleset();
+                TournamentRulesetManager.StrictSurfacePreset preset = rulesetManager.getStrictSurfacePreset();
+                source.sendFeedback(() -> Text.literal("Ruleset: " + active.name().toLowerCase() + " | strict preset: " + preset.name().toLowerCase()), false);
+                source.sendFeedback(() -> Text.literal("Direct commands still work exactly as before."), false);
+                return 1;
+        }
+
+        private static int executeMenuPlayer(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
+                source.sendFeedback(() -> Text.literal("Player Menu").formatted(Formatting.GREEN, Formatting.BOLD), false);
+                source.sendFeedback(() -> menuButton("Round", "/mcdg menu round", Formatting.GREEN, true), false);
+                source.sendFeedback(() -> menuButton("Waypoints", "/mcdg menu waypoints", Formatting.LIGHT_PURPLE, true), false);
+                source.sendFeedback(() -> menuButton("Rules", "/mcdg menu rules", Formatting.BLUE, true), false);
+                source.sendFeedback(() -> Text.literal("Use BACK to return to dashboard.").formatted(Formatting.DARK_GRAY), false);
+                source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
+                return 1;
+        }
+
+        private static int executeMenuAdmin(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
+                source.sendFeedback(() -> Text.literal("Admin Menu").formatted(Formatting.RED, Formatting.BOLD), false);
+                source.sendFeedback(() -> menuButton("Round", "/mcdg menu round", Formatting.GREEN, true), false);
+                source.sendFeedback(() -> menuButton("Courses", "/mcdg menu courses", Formatting.GOLD, true), false);
+                source.sendFeedback(() -> menuButton("Session", "/mcdg menu session", Formatting.GRAY, true), false);
+                source.sendFeedback(() -> menuButton("Dangerous: Cleanup Course", "/mcdg menu confirm-request cleanupcourse", Formatting.DARK_RED, true), false);
+                source.sendFeedback(() -> menuButton("Dangerous: Prune Catalog to 6", "/mcdg menu confirm-request prunecourses", Formatting.DARK_RED, true), false);
+                source.sendFeedback(() -> Text.literal("Use BACK to return to dashboard.").formatted(Formatting.DARK_GRAY), false);
+                source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
+                return 1;
+        }
+
+        private static int executeMenuRound(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
+                source.sendFeedback(() -> Text.literal("Round").formatted(Formatting.GREEN, Formatting.BOLD), false);
+                source.sendFeedback(() -> menuButton("Create Course", "/mcdg createcourse ", Formatting.YELLOW, false), false);
+                source.sendFeedback(() -> menuButton("Start Round", "/mcdg startround", Formatting.GREEN, true), false);
+                source.sendFeedback(() -> menuButton("Join Round", "/mcdg joinround", Formatting.GREEN, true), false);
+                source.sendFeedback(() -> menuButton("End Round", "/mcdg endround", Formatting.GOLD, true), false);
+                source.sendFeedback(() -> Text.literal("Use BACK to return to dashboard.").formatted(Formatting.DARK_GRAY), false);
+                source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
+                return 1;
+        }
+
+        private static int executeMenuCourses(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
+                source.sendFeedback(() -> Text.literal("Courses").formatted(Formatting.GOLD, Formatting.BOLD), false);
+                source.sendFeedback(() -> menuButton("List Courses", "/mcdg listcourses", Formatting.AQUA, true), false);
+                source.sendFeedback(() -> menuButton("Play Course", "/mcdg playcourse ", Formatting.GOLD, false), false);
+                source.sendFeedback(() -> menuButton("Remove Course", "/mcdg removecourse ", Formatting.RED, false), false);
+                source.sendFeedback(() -> menuButton("Cleanup Active Course (confirm)", "/mcdg menu confirm-request cleanupcourse", Formatting.DARK_RED, true), false);
+                source.sendFeedback(() -> Text.literal("Use BACK to return to dashboard.").formatted(Formatting.DARK_GRAY), false);
+                source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
+                return 1;
+        }
+
+        private static int executeMenuWaypoints(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
+                source.sendFeedback(() -> Text.literal("Waypoints").formatted(Formatting.LIGHT_PURPLE, Formatting.BOLD), false);
+                source.sendFeedback(() -> menuButton("List Waypoints", "/mcdg waypoint list", Formatting.LIGHT_PURPLE, true), false);
+                source.sendFeedback(() -> menuButton("Waypoint Teleport Prompt", "/mcdg waypoint tp", Formatting.LIGHT_PURPLE, true), false);
+                source.sendFeedback(() -> Text.literal("Use BACK to return to dashboard.").formatted(Formatting.DARK_GRAY), false);
+                source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
+                return 1;
+        }
+
+        private static int executeMenuRules(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
+                source.sendFeedback(() -> Text.literal("Rules").formatted(Formatting.BLUE, Formatting.BOLD), false);
+                source.sendFeedback(() -> menuButton("Show Ruleset", "/mcdg ruleset show", Formatting.BLUE, true), false);
+                source.sendFeedback(() -> menuButton("Set Casual", "/mcdg ruleset casual", Formatting.GREEN, true), false);
+                source.sendFeedback(() -> menuButton("Set Strict", "/mcdg ruleset strict", Formatting.GOLD, true), false);
+                source.sendFeedback(() -> menuButton("Strict Surface Preset", "/mcdg ruleset strictsurface show", Formatting.AQUA, true), false);
+                source.sendFeedback(() -> Text.literal("Use BACK to return to dashboard.").formatted(Formatting.DARK_GRAY), false);
+                source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
+                return 1;
+        }
+
+        private static int executeMenuSession(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
+                source.sendFeedback(() -> Text.literal("Session").formatted(Formatting.GRAY, Formatting.BOLD), false);
+                source.sendFeedback(() -> menuButton("Save Session", "/mcdg savesession", Formatting.GRAY, true), false);
+                source.sendFeedback(() -> menuButton("Resume Session", "/mcdg resumesession", Formatting.GRAY, true), false);
+                source.sendFeedback(() -> menuButton("Round Session Status", "/mcdg roundsession status", Formatting.GRAY, true), false);
+                source.sendFeedback(() -> menuButton("Round Session Clear", "/mcdg roundsession clear", Formatting.DARK_RED, true), false);
+                source.sendFeedback(() -> Text.literal("Use BACK to return to dashboard.").formatted(Formatting.DARK_GRAY), false);
+                source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
+                return 1;
+        }
+
+        private static int executeMenuConfirmRequest(ServerCommandSource source, String action) {
+                if (!(source.getEntity() instanceof ServerPlayerEntity player)) {
+                        source.sendError(Text.literal("Menu confirmations require a player source."));
+                        return 0;
+                }
+
+                String command;
+                String label;
+                if ("cleanupcourse".equalsIgnoreCase(action)) {
+                        command = "/mcdg cleanupcourse";
+                        label = "Cleanup active course";
+                } else if ("prunecourses".equalsIgnoreCase(action)) {
+                        command = "/mcdg prunecourses";
+                        label = "Prune reusable catalog to keep 6";
+                } else {
+                        source.sendError(Text.literal("Unknown confirm action: " + action));
+                        return 0;
+                }
+
+                long token = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
+                long expiresAtMs = System.currentTimeMillis() + MENU_CONFIRM_TIMEOUT_MS;
+                PENDING_MENU_CONFIRMS.put(player.getUuid(), new PendingMenuConfirm(token, expiresAtMs, command, label));
+
+                String run = "/mcdg menu confirm-run " + token;
+                source.sendFeedback(() -> Text.literal("Confirm action (expires in 15s): " + label).formatted(Formatting.RED), false);
+                source.sendFeedback(() -> menuButton("CONFIRM", run, Formatting.DARK_RED, true), false);
+                source.sendFeedback(() -> menuButton("CANCEL", "/mcdg menu confirm-cancel", Formatting.GRAY, true), false);
+                source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
+                return 1;
+        }
+
+        private static int executeMenuConfirmRun(ServerCommandSource source, long token) {
+                if (!(source.getEntity() instanceof ServerPlayerEntity player)) {
+                        source.sendError(Text.literal("Menu confirmations require a player source."));
+                        source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
+                        return 0;
+                }
+
+                PendingMenuConfirm pending = PENDING_MENU_CONFIRMS.get(player.getUuid());
+                if (pending == null || pending.token() != token) {
+                        source.sendError(Text.literal("No matching confirmation found."));
+                        source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
+                        return 0;
+                }
+                if (System.currentTimeMillis() > pending.expiresAtMs()) {
+                        PENDING_MENU_CONFIRMS.remove(player.getUuid());
+                        source.sendError(Text.literal("Confirmation expired. Run the action again."));
+                        source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
+                        return 0;
+                }
+
+                PENDING_MENU_CONFIRMS.remove(player.getUuid());
+                source.getServer().getCommandManager().executeWithPrefix(source, pending.command());
+                return 1;
+        }
+
+        private static int executeMenuConfirmCancel(ServerCommandSource source) {
+                if (source.getEntity() instanceof ServerPlayerEntity player) {
+                        PENDING_MENU_CONFIRMS.remove(player.getUuid());
+                }
+                source.sendFeedback(() -> Text.literal("Pending menu confirmation canceled."), false);
+                source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
+                return 1;
+        }
+
+        private static Text menuButton(String label, String command, Formatting color, boolean runNow) {
+                ClickEvent.Action action = runNow ? ClickEvent.Action.RUN_COMMAND : ClickEvent.Action.SUGGEST_COMMAND;
+                return Text.literal("[" + label + "]").styled(style -> style
+                        .withColor(color)
+                        .withClickEvent(new ClickEvent(action, command))
+                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal((runNow ? "Run: " : "Fill chat: ") + command)))
+                );
+        }
+
+        private static int completePlayerFacingLegacyCommand(ServerCommandSource source, String submenu) {
+                source.sendFeedback(() -> Text.literal("Tip: use /mcdg menu for clickable controls. Opening " + submenu + " menu...")
+                        .formatted(Formatting.DARK_GRAY), false);
+                source.getServer().getCommandManager().executeWithPrefix(source, "/mcdg menu " + submenu);
+                return 1;
+        }
+
         private static int executeHelp(ServerCommandSource source) {
                 source.sendFeedback(() -> Text.literal("MCDG quick help:"), false);
                 source.sendFeedback(() -> Text.literal("- New course: /mcdg createcourse <seed> -> /mcdg startround (or /mcdg startround strict)."), false);
@@ -869,18 +1087,22 @@ public final class McdgAdminCommands {
                         courseManager.setPlacedCourseState(placed);
                         courseManager.setPersistentPlacedCourse(persistentCourse);
                         courseManager.setLegacyPracticeSnapshot(false);
+                        courseManager.setActiveCourseCatalogIndex(null);
                         if (persistentCourse) {
                                 practiceCourseStorage.save(source.getServer(), course, placed);
                         }
                         if (!startedFromFallback) {
                                 // Compact is the default placement target; persist successful placements for reuse/recovery.
-                                practiceCourseStorage.saveReusable(
+                                int catalogIndex = practiceCourseStorage.saveReusable(
                                         source.getServer(),
                                         course,
                                         placed,
                                         persistentCourse ? "practicecourse" : "startround",
                                         true
                                 );
+                                if (catalogIndex > 0) {
+                                        courseManager.setActiveCourseCatalogIndex(catalogIndex);
+                                }
                         }
 
                         if (startedFromFallback) {
@@ -1046,39 +1268,6 @@ public final class McdgAdminCommands {
                         ServerCommandSource source,
                         PracticeCourseStorage practiceCourseStorage
         ) {
-                Set<Integer> staleIndices = new HashSet<>();
-                List<PracticeCourseStorage.ReusableCourseEntry> initialEntries = practiceCourseStorage.listReusable(source.getServer());
-                for (PracticeCourseStorage.ReusableCourseEntry entry : initialEntries) {
-                        Optional<PracticeCourseStorage.LoadedPracticeCourse> loaded =
-                                practiceCourseStorage.loadReusableByIndex(source.getServer(), entry.index());
-                        if (loaded.isEmpty()) {
-                                staleIndices.add(entry.index());
-                                continue;
-                        }
-
-                        PracticeCourseStorage.LoadedPracticeCourse reusable = loaded.get();
-                        ServerWorld world = source.getServer().getWorld(reusable.placedCourseState().worldKey());
-                        if (world == null) {
-                                staleIndices.add(entry.index());
-                                continue;
-                        }
-
-                        SavedCourseIntegrity integrity = validateSavedCourseIntegrity(world, reusable.course(), reusable.placedCourseState());
-                        if (!integrity.valid()) {
-                                staleIndices.add(entry.index());
-                        }
-                }
-
-                if (!staleIndices.isEmpty()) {
-                        int removed = practiceCourseStorage.pruneReusableByIndices(source.getServer(), staleIndices);
-                        if (removed > 0) {
-                                final int pruned = removed;
-                                source.sendFeedback(() -> Text.literal(
-                                        "Pruned " + pruned + " stale/unplayable reusable entries from catalog."
-                                ), false);
-                        }
-                }
-
                 List<PracticeCourseStorage.ReusableCourseEntry> entries = practiceCourseStorage.listReusable(source.getServer());
                 if (entries.isEmpty()) {
                         source.sendFeedback(() -> Text.literal("No reusable courses are saved yet."), false);
@@ -1090,6 +1279,7 @@ public final class McdgAdminCommands {
                 for (PracticeCourseStorage.ReusableCourseEntry entry : entries) {
                         String command = "/mcdg playcourse " + entry.index();
                         String strictCommand = "/mcdg playcourse " + entry.index() + " strict";
+                        String removeCommand = "/mcdg removecourse " + entry.index();
                         source.sendFeedback(() -> Text.literal(
                                 "#" + entry.index()
                                         + " " + entry.name()
@@ -1107,6 +1297,11 @@ public final class McdgAdminCommands {
                                         .withColor(Formatting.GOLD)
                                         .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, strictCommand))
                                         .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Click to run: " + strictCommand)))
+                                )).append(Text.literal("  [REMOVE]")
+                                .styled(style -> style
+                                        .withColor(Formatting.RED)
+                                        .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, removeCommand))
+                                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Delete from catalog: " + removeCommand + "\nThis does not cleanup world blocks.")))
                                 )), false);
                 }
                 return 1;
@@ -1136,6 +1331,8 @@ public final class McdgAdminCommands {
                         source.sendError(Text.literal("Reusable course #" + oneBasedIndex + " points to an unavailable world."));
                         return 0;
                 }
+
+                practiceCourseStorage.touchReusableByIndex(source.getServer(), oneBasedIndex);
 
                 clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
                 courseManager.setActiveCourse(ensureSingleSignatureHole(loaded.course()));
@@ -1312,6 +1509,27 @@ public final class McdgAdminCommands {
                 source.sendFeedback(() -> Text.literal(
                         "Pruned " + finalRemoved + " reusable courses. Keep count=" + keepCount + "."
                 ), true);
+                return 1;
+        }
+
+        private static int executeRemoveCourse(
+                        ServerCommandSource source,
+                        ActiveCourseManager courseManager,
+                        PracticeCourseStorage practiceCourseStorage,
+                        int oneBasedIndex
+        ) {
+                int removed = practiceCourseStorage.pruneReusableByIndices(source.getServer(), Set.of(oneBasedIndex));
+                if (removed <= 0) {
+                        source.sendError(Text.literal("Reusable course #" + oneBasedIndex + " was not found."));
+                        return 0;
+                }
+
+                Integer activeCatalogIndex = courseManager.getActiveCourseCatalogIndex().orElse(null);
+                if (activeCatalogIndex != null && activeCatalogIndex == oneBasedIndex) {
+                        courseManager.setActiveCourseCatalogIndex(null);
+                }
+
+                source.sendFeedback(() -> Text.literal("Removed reusable course #" + oneBasedIndex + "."), true);
                 return 1;
         }
 
@@ -1501,7 +1719,14 @@ public final class McdgAdminCommands {
                 placementService.resetPlacedCourse(world, placed);
                 removeJunkDropsNearCourse(world, placed);
                 removeRoundThrowItemsFromCourseWorldPlayers(source, courseManager);
+
+                Integer activeCatalogIndex = courseManager.getActiveCourseCatalogIndex().orElse(null);
+                if (activeCatalogIndex != null) {
+                        practiceCourseStorage.pruneReusableByIndices(source.getServer(), Set.of(activeCatalogIndex));
+                }
+
                 courseManager.clearPlacedCourseState();
+                courseManager.setActiveCourseCatalogIndex(null);
                 courseManager.setRoundActive(false);
                 clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
                 practiceCourseStorage.clear(source.getServer());
@@ -1695,7 +1920,7 @@ public final class McdgAdminCommands {
                         );
                 }
                 source.sendFeedback(() -> Text.literal("Use /mcdg waypoint tp <target or number>. Examples: /mcdg waypoint tp 2, /mcdg waypoint tp central, /mcdg waypoint tp hole 3"), false);
-                return 1;
+                return completePlayerFacingLegacyCommand(source, "waypoints");
         }
 
         private static int executeWaypointTeleport(ServerCommandSource source, ActiveCourseManager courseManager, String targetInput) {
@@ -1724,7 +1949,7 @@ public final class McdgAdminCommands {
                         BlockPos safe = resolveSafeFeetNear(world, anchor);
                         player.teleport(safe.getX() + 0.5, safe.getY() + 1.0, safe.getZ() + 0.5);
                         source.sendFeedback(() -> Text.literal("Teleported to " + selected.name() + "."), false);
-                        return 1;
+                        return completePlayerFacingLegacyCommand(source, "waypoints");
                 } catch (Exception ex) {
                         source.sendError(Text.literal("This command must be run by a player."));
                         return 0;
@@ -1761,7 +1986,7 @@ public final class McdgAdminCommands {
                         );
                 }
                 source.sendFeedback(() -> Text.literal("Pick one: /mcdg waypoint tp <number> (example: /mcdg waypoint tp 2)"), false);
-                return 1;
+                return completePlayerFacingLegacyCommand(source, "waypoints");
         }
 
         private static List<WaypointTarget> collectWaypointTargets(ServerCommandSource source, PlacedCourseState placed, boolean includeHoleWaypoints) {
@@ -1949,7 +2174,7 @@ public final class McdgAdminCommands {
                                         .formatted(Formatting.GREEN),
                                 true
                         );
-                        return 1;
+                        return completePlayerFacingLegacyCommand(source, "round");
                 } catch (Exception ex) {
                         source.sendError(Text.literal("This command must be run by a player."));
                         return 0;
@@ -1970,7 +2195,7 @@ public final class McdgAdminCommands {
                 courseManager.setRoundActive(false);
                 clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
                 source.sendFeedback(() -> Text.literal("Round ended. Use /mcdg resetcourse to restore terrain edits."), true);
-                return 1;
+                return completePlayerFacingLegacyCommand(source, "round");
         }
 
         private static int executeJoinRound(
@@ -2040,7 +2265,10 @@ public final class McdgAdminCommands {
                 source.sendFeedback(() -> Text.literal(
                         "Join round complete. Added=" + finalJoinedCount + ", already active=" + finalAlreadyJoinedCount + "."
                 ), true);
-                return finalJoinedCount > 0 ? 1 : 0;
+                if (finalJoinedCount > 0) {
+                        return completePlayerFacingLegacyCommand(source, "round");
+                }
+                return 0;
         }
 
         private static int executeRoundStatus(
@@ -2107,7 +2335,7 @@ public final class McdgAdminCommands {
                         final int remaining = participantIds.size() - listed;
                         source.sendFeedback(() -> Text.literal(" - ... and " + remaining + " more participant(s)."), false);
                 }
-                return 1;
+                return completePlayerFacingLegacyCommand(source, "round");
         }
 
         private static int executeSaveSession(
@@ -2399,7 +2627,7 @@ public final class McdgAdminCommands {
                                 + " | strict surface preset: " + preset.name().toLowerCase()),
                         false
                 );
-                return 1;
+                return completePlayerFacingLegacyCommand(context.getSource(), "rules");
         }
 
         private static int executeSetRuleset(
@@ -2423,7 +2651,7 @@ public final class McdgAdminCommands {
                         false
                 );
                 context.getSource().sendFeedback(() -> Text.literal("Options: fast (forgiving), balanced (default), tournament (hardest)."), false);
-                return 1;
+                return completePlayerFacingLegacyCommand(context.getSource(), "rules");
         }
 
         private static String describeStrictSurfacePreset(TournamentRulesetManager.StrictSurfacePreset preset) {
@@ -2829,5 +3057,8 @@ public final class McdgAdminCommands {
                 }
 
                 return !world.getBlockState(ground).getCollisionShape(world, ground).isEmpty();
+        }
+
+        private record PendingMenuConfirm(long token, long expiresAtMs, String command, String label) {
         }
 }
