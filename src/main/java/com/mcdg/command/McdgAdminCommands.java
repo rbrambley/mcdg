@@ -21,6 +21,7 @@ import com.mcdg.world.PlacementAutoTestService;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.CourseGenerator;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -1455,7 +1456,7 @@ public final class McdgAdminCommands {
                                 true
                         );
                         return 1;
-                } catch (Exception ex) {
+                } catch (CommandSyntaxException ex) {
                         source.sendError(Text.literal("This command must be run by a player."));
                         return 0;
                 }

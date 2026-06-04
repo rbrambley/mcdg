@@ -349,7 +349,7 @@ public final class HoleProgressTracker {
 
         roundStateManager.updateLie(player.getUuid(), safeLie);
         updateLieMarker(player, safeLie);
-        player.teleport(safeLie.getX() + 0.5, safeLie.getY() + 1.0, safeLie.getZ() + 0.5);
+        player.teleport(safeLie.getX() + 0.5, safeLie.getY(), safeLie.getZ() + 0.5);
         LAST_RESOLUTION_REASON.put(player.getUuid(), "GOTOLIE");
         return Optional.of(safeLie);
     }
@@ -1346,7 +1346,7 @@ public final class HoleProgressTracker {
         if (shouldBounceOffBasketStructure(resultingLie, basket)) {
             BlockPos bounced = basketBouncePosition(world, basket);
             resultingLie = bounced;
-            player.teleport(resultingLie.getX() + 0.5, resultingLie.getY() + 1.0, resultingLie.getZ() + 0.5);
+            player.teleport(resultingLie.getX() + 0.5, resultingLie.getY(), resultingLie.getZ() + 0.5);
             sendClankTitle(player);
         }
 
@@ -1822,16 +1822,7 @@ public final class HoleProgressTracker {
         return !world.getBlockState(ground).getCollisionShape(world, ground).isEmpty();
     }
 
-    private static boolean hasPlayerMovedFromThrowLie(BlockPos playerFeet, BlockPos throwLie) {
-        int dx = Math.abs(playerFeet.getX() - throwLie.getX());
-        int dz = Math.abs(playerFeet.getZ() - throwLie.getZ());
-        if (dx > 0 || dz > 0) {
-            return true;
-        }
 
-        int dy = Math.abs(playerFeet.getY() - throwLie.getY());
-        return dy > 1;
-    }
 
     private enum StrictPenaltyType {
         NONE,
