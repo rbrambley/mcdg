@@ -83,7 +83,7 @@ public final class McdgAdminCommands {
                 dispatcher.register(literal("mcdg")
                         .then(literal("help").requires(McdgAdminCommands::canUseAdminCommands)
                                 .executes(context -> executeHelp(context.getSource())))
-                        .then(literal("gotolie")
+                        .then(literal("gotolie").requires(McdgAdminCommands::canUseAdminCommands)
                                 .executes(context -> executeGotoLie(context.getSource(), roundStateManager)))
                         .then(literal("createcourse").requires(McdgAdminCommands::canUseAdminCommands)
                                 .then(argument("seed", LongArgumentType.longArg())
