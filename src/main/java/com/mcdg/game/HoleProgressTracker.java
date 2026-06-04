@@ -278,6 +278,7 @@ public final class HoleProgressTracker {
                     if (roundEnded) {
                         sendRoundCompleteCinematic(server, placed.worldKey(), roundStateManager, totalPar);
                         courseManager.setRoundActive(false);
+                        courseManager.clearPlacedCourseState();
                     }
                     continue;
                 }
