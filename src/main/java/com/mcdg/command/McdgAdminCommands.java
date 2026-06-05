@@ -87,9 +87,9 @@ public final class McdgAdminCommands {
     ) {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
                 dispatcher.register(literal("mcdg")
-                        .executes(context -> MenuCommands.executeMenuDashboard(context.getSource(), rulesetManager))
+                        .executes(context -> MenuCommands.executeMenuDashboard(context.getSource(), courseManager, rulesetManager))
                         .then(literal("menu")
-                                .executes(context -> MenuCommands.executeMenuDashboard(context.getSource(), rulesetManager))
+                                .executes(context -> MenuCommands.executeMenuDashboard(context.getSource(), courseManager, rulesetManager))
                                 .then(literal("player")
                                         .executes(context -> MenuCommands.executeMenuPlayer(context.getSource(), rulesetManager)))
                                 .then(literal("admin").requires(McdgAdminCommands::canUseAdminCommands)
@@ -394,6 +394,8 @@ public final class McdgAdminCommands {
                         .then(literal("waypoint").requires(McdgAdminCommands::canUseAdminCommands)
                                 .then(literal("list")
                                         .executes(context -> WaypointCommands.executeWaypointList(context.getSource(), courseManager)))
+                                .then(literal("clear")
+                                        .executes(context -> WaypointCommands.executeWaypointClear(context.getSource())))
                                 .then(literal("tp")
                                         .executes(context -> WaypointCommands.executeWaypointTeleportPrompt(context.getSource(), courseManager))
                                         .then(argument("target", StringArgumentType.greedyString())

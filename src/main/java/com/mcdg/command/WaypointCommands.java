@@ -21,6 +21,16 @@ public final class WaypointCommands {
     private WaypointCommands() {
     }
 
+    public static int executeWaypointClear(ServerCommandSource source) {
+        if (!(source.getEntity() instanceof ServerPlayerEntity player)) {
+            source.sendError(Text.literal("waypoint clear must be run by a player."));
+            return 0;
+        }
+        WaypointSync.clear(player);
+        source.sendFeedback(() -> Text.literal("All personal waypoints cleared from server. Use your minimap key to re-add them.").formatted(Formatting.GRAY), false);
+        return 1;
+    }
+
     public static int executeWaypointList(
             ServerCommandSource source,
             ActiveCourseManager courseManager
