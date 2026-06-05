@@ -2288,6 +2288,24 @@ public final class McdgAdminCommands {
             courses.add(new MenuScreenSync.CourseEntry(entry.index(), entry.name(), entry.holeCount()));
         }
 
+        // Auto-save current course if placed but not in catalog
+        if (courseLoaded && activeCatalogIndex < 0 && activeCourse != null) {
+            PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
+            if (placed != null) {
+                int savedIndex = practiceCourseStorage.saveReusable(source.getServer(), activeCourse, placed, "autosave/menu", false);
+                if (savedIndex > 0) {
+                    courseManager.setActiveCourseCatalogIndex(savedIndex);
+                    activeCatalogIndex = savedIndex;
+                    // Refresh courses list
+                    courses.clear();
+                    entries = practiceCourseStorage.listReusable(source.getServer());
+                    for (PracticeCourseStorage.ReusableCourseEntry entry : entries) {
+                        courses.add(new MenuScreenSync.CourseEntry(entry.index(), entry.name(), entry.holeCount()));
+                    }
+                }
+            }
+        }
+
         MenuScreenSync.Payload payload = new MenuScreenSync.Payload(
                 roundActive, courseLoaded, courseName,
                 activeCatalogIndex, activeHoleCount,
