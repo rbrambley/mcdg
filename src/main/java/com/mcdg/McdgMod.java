@@ -20,6 +20,7 @@ import com.mcdg.net.AceCinematicSync;
 import com.mcdg.net.HoleMiniMapSync;
 import com.mcdg.net.WaypointSync;
 import com.mcdg.net.RoundRunningScoresSync;
+import com.mcdg.net.MenuScreenSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.CoursePlacementService;
@@ -100,6 +101,7 @@ public final class McdgMod implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(HoleMiniMapSync.ID, HoleMiniMapSync.CODEC);
         PayloadTypeRegistry.playS2C().register(RoundRunningScoresSync.ID, RoundRunningScoresSync.CODEC);
         PayloadTypeRegistry.playS2C().register(RoundCompleteCinematicSync.ID, RoundCompleteCinematicSync.CODEC);
+        PayloadTypeRegistry.playS2C().register(MenuScreenSync.ID, MenuScreenSync.CODEC);
         ServerPlayNetworking.registerGlobalReceiver(WaypointSync.ID, (payload, context) ->
             context.server().execute(() -> WaypointSync.update(context.player(), payload.waypoints()))
         );

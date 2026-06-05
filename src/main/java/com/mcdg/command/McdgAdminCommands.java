@@ -19,6 +19,7 @@ import com.mcdg.game.ScorecardManager;
 import com.mcdg.game.ThrowAutoTestService;
 import com.mcdg.game.AutoCourseService;
 import com.mcdg.game.BuildCourseSessionManager;
+import com.mcdg.net.MenuScreenSync;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.PlacementAutoTestService;
 import com.mcdg.world.CoursePlacementService;
@@ -49,6 +50,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.ClickEvent;
 import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Text;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
@@ -87,9 +89,9 @@ public final class McdgAdminCommands {
     ) {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
                 dispatcher.register(literal("mcdg")
-                        .executes(context -> MenuCommands.executeMenuDashboard(context.getSource(), courseManager, playerRoundSessionStorage, rulesetManager))
+                        .executes(context -> sendMenuScreen(context.getSource(), courseManager, playerRoundSessionStorage, rulesetManager, practiceCourseStorage))
                         .then(literal("menu")
-                                .executes(context -> MenuCommands.executeMenuDashboard(context.getSource(), courseManager, playerRoundSessionStorage, rulesetManager))
+                                .executes(context -> sendMenuScreen(context.getSource(), courseManager, playerRoundSessionStorage, rulesetManager, practiceCourseStorage))
                                 .then(literal("player")
                                         .executes(context -> MenuCommands.executeMenuPlayer(context.getSource(), rulesetManager)))
                                 .then(literal("admin").requires(McdgAdminCommands::canUseAdminCommands)
@@ -2254,5 +2256,61 @@ public final class McdgAdminCommands {
 
                 return !world.getBlockState(ground).getCollisionShape(world, ground).isEmpty();
         }
+
+    private static int sendMenuScreen(
+            ServerCommandSource source,
+            ActiveCourseManager courseManager,
+            PlayerRoundSessionStorage playerRoundSessionStorage,
+            TournamentRulesetManager rulesetManager,
+            PracticeCourseStorage practiceCourseStorage
+    ) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            return MenuCommands.executeMenuDashboard(source, courseManager, playerRoundSessionStorage, rulesetManager);
+        }
+
+        boolean roundActive = courseManager.isRoundActive();
+        boolean courseLoaded = courseManager.getPlacedCourseState().isPresent();
+        String courseName = courseManager.getActiveCourse()
+                .map(c -> c.name() != null ? c.name() : "")
+                .orElse("");
+        boolean isAdmin = canUseAdminCommands(source);
+
+        boolean hasSavedSession = false;
+        String savedCourseName = "";
+        int savedHole = 0;
+        int savedStrokes = 0;
+        if (!roundActive && playerRoundSessionStorage != null) {
+            var saved = playerRoundSessionStorage.loadPlayer(source.getServer(), player.getUuid(), null).orElse(null);
+            if (saved != null) {
+                hasSavedSession = true;
+                savedCourseName = saved.courseName() != null ? saved.courseName() : "";
+                savedHole = saved.state().currentHole();
+                savedStrokes = saved.state().totalStrokes();
+            }
+        }
+
+        TournamentRulesetManager.Ruleset ruleset = rulesetManager.getActiveRuleset();
+        TournamentRulesetManager.StrictSurfacePreset preset = rulesetManager.getStrictSurfacePreset();
+
+        List<MenuScreenSync.CourseEntry> courses = new ArrayList<>();
+        if (!roundActive) {
+            List<PracticeCourseStorage.ReusableCourseEntry> entries = practiceCourseStorage.listReusable(source.getServer());
+            for (PracticeCourseStorage.ReusableCourseEntry entry : entries) {
+                courses.add(new MenuScreenSync.CourseEntry(entry.index(), entry.name(), entry.holeCount()));
+            }
+        }
+
+        MenuScreenSync.Payload payload = new MenuScreenSync.Payload(
+                roundActive, courseLoaded, courseName,
+                hasSavedSession, savedCourseName, savedHole, savedStrokes,
+                isAdmin,
+                ruleset.name().toLowerCase(),
+                preset.name().toLowerCase(),
+                courses
+        );
+        ServerPlayNetworking.send(player, payload);
+        return 1;
+    }
 
 }

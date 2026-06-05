@@ -7,6 +7,7 @@ import com.mcdg.net.AceCinematicSync;
 import com.mcdg.net.WaypointSync;
 import com.mcdg.net.HoleMiniMapSync;
 import com.mcdg.net.RoundRunningScoresSync;
+import com.mcdg.net.MenuScreenSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -354,6 +355,9 @@ public final class McdgClientMod implements ClientModInitializer {
                 );
             });
         });
+        ClientPlayNetworking.registerGlobalReceiver(MenuScreenSync.ID, (payload, context) ->
+            context.client().execute(() -> context.client().setScreen(new McdgMenuScreen(payload)))
+        );
         ClientPlayNetworking.registerGlobalReceiver(RoundRunningScoresSync.ID, (payload, context) -> {
             context.client().execute(() -> {
                 if (!payload.active()) {
