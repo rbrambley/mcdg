@@ -63,6 +63,8 @@ public final class HoleProgressTracker {
     private static final Map<Integer, Long> ACTIVE_TURN_STARTED_AT_BY_HOLE = new HashMap<>();
     private static final Map<Integer, Integer> ACTIVE_TURN_TOTAL_STROKES_BY_HOLE = new HashMap<>();
     private static final Map<Integer, UUID> TURN_SKIP_ONCE_BY_HOLE = new HashMap<>();
+    private static final Map<UUID, BlockPos> LAST_LIE_POSITION = new HashMap<>();
+    private static final Map<UUID, BlockPos> LAST_BREADCRUMB_POSITION = new HashMap<>();
     private static int LAST_RUNNING_SCOREBOARD_HASH = Integer.MIN_VALUE;
     private static boolean MINIMAP_ACTIVE_SENT = false;
     private static int AUTOTEST_MARKER_TRAIL_REFCOUNT = 0;
@@ -90,6 +92,8 @@ public final class HoleProgressTracker {
                 ACTIVE_TURN_STARTED_AT_BY_HOLE.clear();
                 ACTIVE_TURN_TOTAL_STROKES_BY_HOLE.clear();
                 TURN_SKIP_ONCE_BY_HOLE.clear();
+                LAST_LIE_POSITION.clear();
+                LAST_BREADCRUMB_POSITION.clear();
                 if (LAST_RUNNING_SCOREBOARD_HASH != Integer.MIN_VALUE) {
                     sendRunningScoreboardInactive(server);
                 }
@@ -120,7 +124,9 @@ public final class HoleProgressTracker {
                 }
 
                 // Keep random course-construction pickups out of player inventories during active play.
-                RoundInventoryCleaner.purgeJunkItems(player);
+                if ((server.getTicks() % 20) == 0) {
+                    RoundInventoryCleaner.purgeJunkItems(player);
+                }
 
                 boolean suppressHud = player.isUsingItem() && player.getActiveItem().isOf(McdgItems.TRAINING_DISC);
 
@@ -137,7 +143,12 @@ public final class HoleProgressTracker {
                     HoleTeeMapManager.ensureHoleMapForPlayer(player, state.currentHole(), tee, basket);
                 }
 
-                updateLieMarker(player, state.lie());
+                BlockPos currentLie = state.lie();
+                BlockPos lastLie = LAST_LIE_POSITION.get(player.getUuid());
+                if (lastLie == null || !currentLie.equals(lastLie)) {
+                    updateLieMarker(player, currentLie);
+                    LAST_LIE_POSITION.put(player.getUuid(), currentLie);
+                }
 
                 if (tee != null) {
                     state = resolveThrowLanding(
@@ -237,7 +248,14 @@ public final class HoleProgressTracker {
                 }
                 if (!suppressHud && (server.getTicks() % 20) == 0) {
                     if (player.getWorld() instanceof ServerWorld serverWorld) {
-                        spawnBreadcrumbLine(serverWorld, player, basket);
+                        // Only spawn breadcrumb if player has moved significantly or is far from basket
+                        BlockPos playerPos = player.getBlockPos();
+                        double distToBasket = playerPos.getSquaredDistance(basket);
+                        BlockPos lastBreadcrumbPos = LAST_BREADCRUMB_POSITION.get(player.getUuid());
+                        if (lastBreadcrumbPos == null || playerPos.getSquaredDistance(lastBreadcrumbPos) > 16.0 || distToBasket > 100.0) {
+                            spawnBreadcrumbLine(serverWorld, player, basket);
+                            LAST_BREADCRUMB_POSITION.put(player.getUuid(), playerPos);
+                        }
                     }
                 }
 
