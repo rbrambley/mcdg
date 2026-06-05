@@ -1,6 +1,7 @@
 package com.mcdg.command;
 
 import com.mcdg.game.ActiveCourseManager;
+import com.mcdg.game.PlayerRoundSessionStorage;
 import com.mcdg.rules.TournamentRulesetManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -28,22 +29,33 @@ public final class MenuCommands {
         return !source.getServer().isDedicated();
     }
 
-    public static int executeMenuDashboard(ServerCommandSource source, ActiveCourseManager courseManager, TournamentRulesetManager rulesetManager) {
+    public static int executeMenuDashboard(ServerCommandSource source, ActiveCourseManager courseManager, PlayerRoundSessionStorage playerRoundSessionStorage, TournamentRulesetManager rulesetManager) {
         boolean roundActive = courseManager.isRoundActive();
         boolean courseLoaded = courseManager.getPlacedCourseState().isPresent();
         boolean isAdmin = canUseAdminCommands(source);
 
         TournamentRulesetManager.Ruleset activeRuleset = rulesetManager.getActiveRuleset();
         TournamentRulesetManager.StrictSurfacePreset preset = rulesetManager.getStrictSurfacePreset();
-        String courseStatus = roundActive ? "Round active" : courseLoaded ? "Course loaded, no round" : "No course";
+        String courseStatus = roundActive ? "Round active" : courseLoaded ? "Course loaded" : "No course";
 
-        source.sendFeedback(() -> Text.literal("— MCDG —").formatted(Formatting.AQUA, Formatting.BOLD), false);
-        source.sendFeedback(() -> Text.literal(courseStatus + " | " + activeRuleset.name().toLowerCase() + " | " + preset.name().toLowerCase()).formatted(Formatting.DARK_GRAY), false);
+        source.sendFeedback(() -> Text.literal("═══ MCDG ═══").formatted(Formatting.AQUA, Formatting.BOLD), false);
+        source.sendFeedback(() -> Text.literal(courseStatus + "  " + activeRuleset.name().toLowerCase() + " / " + preset.name().toLowerCase()).formatted(Formatting.DARK_GRAY), false);
+
+        ServerPlayerEntity player = source.getPlayer();
+        if (!roundActive && player != null && playerRoundSessionStorage != null) {
+            var saved = playerRoundSessionStorage.loadPlayer(source.getServer(), player.getUuid(), null).orElse(null);
+            if (saved != null) {
+                String holeInfo = "hole " + saved.state().currentHole() + ", " + saved.state().totalStrokes() + " strokes";
+                source.sendFeedback(() -> Text.literal("► Saved session: " + holeInfo).formatted(Formatting.GREEN, Formatting.BOLD), false);
+                source.sendFeedback(() -> menuButton("RESUME SESSION", "/mcdg resumesession", Formatting.GREEN, true), false);
+            }
+        }
 
         if (roundActive) {
             source.sendFeedback(() -> Text.literal("─ Round ─").formatted(Formatting.GREEN), false);
             source.sendFeedback(() -> menuButton("End Round", "/mcdg endround", Formatting.GOLD, true), false);
             source.sendFeedback(() -> menuButton("Go to Lie", "/mcdg gotolie", Formatting.AQUA, true), false);
+            source.sendFeedback(() -> menuButton("Save Session", "/mcdg savesession", Formatting.GRAY, true), false);
             source.sendFeedback(() -> menuButton("Waypoints", "/mcdg waypoint tp", Formatting.LIGHT_PURPLE, true), false);
         } else {
             source.sendFeedback(() -> Text.literal("─ Play ─").formatted(Formatting.GREEN), false);
@@ -58,14 +70,18 @@ public final class MenuCommands {
             source.sendFeedback(() -> menuButton("Manual Build Course", "/mcdg buildcourse", Formatting.YELLOW, true), false);
         }
 
-        source.sendFeedback(() -> Text.literal("─ More ─").formatted(Formatting.GRAY), false);
-        source.sendFeedback(() -> menuButton("Rules", "/mcdg menu rules", Formatting.BLUE, true), false);
-        source.sendFeedback(() -> menuButton("Waypoint List", "/mcdg waypoint list", Formatting.LIGHT_PURPLE, true), false);
         if (isAdmin) {
+            source.sendFeedback(() -> menuButton("Rules", "/mcdg menu rules", Formatting.BLUE, true), false);
             source.sendFeedback(() -> menuButton("Admin", "/mcdg menu admin", Formatting.RED, true), false);
+        } else {
+            source.sendFeedback(() -> menuButton("Rules", "/mcdg menu rules", Formatting.BLUE, true), false);
         }
 
         return 1;
+    }
+
+    public static void sendBackToMenu(ServerCommandSource source) {
+        source.sendFeedback(() -> menuButton("[ ← MENU ]", "/mcdg", Formatting.AQUA, true), false);
     }
 
     public static int executeMenuPlayer(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
@@ -73,7 +89,7 @@ public final class MenuCommands {
         source.sendFeedback(() -> menuButton("Round", "/mcdg menu round", Formatting.GREEN, true), false);
         source.sendFeedback(() -> menuButton("Waypoints", "/mcdg waypoint tp", Formatting.LIGHT_PURPLE, true), false);
         source.sendFeedback(() -> menuButton("Rules", "/mcdg menu rules", Formatting.BLUE, true), false);
-        source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
+        sendBackToMenu(source);
         return 1;
     }
 
@@ -86,7 +102,7 @@ public final class MenuCommands {
         source.sendFeedback(() -> menuButton("Cleanup Course", "/mcdg menu confirm-request cleanupcourse", Formatting.DARK_RED, true), false);
         source.sendFeedback(() -> menuButton("Prune Catalog to 6", "/mcdg menu confirm-request prunecourses", Formatting.DARK_RED, true), false);
         source.sendFeedback(() -> menuButton("Remove Course", "/mcdg removecourse ", Formatting.RED, false), false);
-        source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
+        sendBackToMenu(source);
         return 1;
     }
 
@@ -97,7 +113,7 @@ public final class MenuCommands {
         source.sendFeedback(() -> menuButton("Play Course", "/mcdg playcourse ", Formatting.GREEN, false), false);
         source.sendFeedback(() -> menuButton("Join Round", "/mcdg joinround", Formatting.GREEN, true), false);
         source.sendFeedback(() -> menuButton("End Round", "/mcdg endround", Formatting.GOLD, true), false);
-        source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
+        sendBackToMenu(source);
         return 1;
     }
 
@@ -107,7 +123,7 @@ public final class MenuCommands {
         source.sendFeedback(() -> menuButton("Manual Build Course", "/mcdg buildcourse", Formatting.GREEN, true), false);
         source.sendFeedback(() -> menuButton("List Courses", "/mcdg listcourses", Formatting.AQUA, true), false);
         source.sendFeedback(() -> menuButton("Play Course", "/mcdg playcourse ", Formatting.GOLD, false), false);
-        source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
+        sendBackToMenu(source);
         return 1;
     }
 
@@ -115,7 +131,7 @@ public final class MenuCommands {
         source.sendFeedback(() -> Text.literal("Waypoints").formatted(Formatting.LIGHT_PURPLE, Formatting.BOLD), false);
         source.sendFeedback(() -> menuButton("List & Teleport", "/mcdg waypoint tp", Formatting.LIGHT_PURPLE, true), false);
         source.sendFeedback(() -> menuButton("Clear Stale Waypoints", "/mcdg waypoint clear", Formatting.DARK_GRAY, true), false);
-        source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
+        sendBackToMenu(source);
         return 1;
     }
 
@@ -125,7 +141,7 @@ public final class MenuCommands {
         source.sendFeedback(() -> menuButton("Set Casual", "/mcdg ruleset casual", Formatting.GREEN, true), false);
         source.sendFeedback(() -> menuButton("Set Strict", "/mcdg ruleset strict", Formatting.GOLD, true), false);
         source.sendFeedback(() -> menuButton("Strict Surface Preset", "/mcdg ruleset strictsurface show", Formatting.AQUA, true), false);
-        source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
+        sendBackToMenu(source);
         return 1;
     }
 
@@ -135,7 +151,7 @@ public final class MenuCommands {
         source.sendFeedback(() -> menuButton("Resume Session", "/mcdg resumesession", Formatting.GRAY, true), false);
         source.sendFeedback(() -> menuButton("Round Session Status", "/mcdg roundsession status", Formatting.GRAY, true), false);
         source.sendFeedback(() -> menuButton("Round Session Clear", "/mcdg roundsession clear", Formatting.DARK_RED, true), false);
-        source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
+        sendBackToMenu(source);
         return 1;
     }
 

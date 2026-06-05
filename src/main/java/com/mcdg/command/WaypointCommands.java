@@ -135,9 +135,7 @@ public final class WaypointCommands {
     }
 
     private static int completePlayerFacingLegacyCommand(ServerCommandSource source, String submenu) {
-        source.sendFeedback(() -> Text.literal("Tip: use /mcdg menu for clickable controls. Opening " + submenu + " menu...")
-                .formatted(Formatting.DARK_GRAY), false);
-        source.getServer().getCommandManager().executeWithPrefix(source, "/mcdg menu " + submenu);
+        MenuCommands.sendBackToMenu(source);
         return 1;
     }
 

@@ -87,9 +87,9 @@ public final class McdgAdminCommands {
     ) {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
                 dispatcher.register(literal("mcdg")
-                        .executes(context -> MenuCommands.executeMenuDashboard(context.getSource(), courseManager, rulesetManager))
+                        .executes(context -> MenuCommands.executeMenuDashboard(context.getSource(), courseManager, playerRoundSessionStorage, rulesetManager))
                         .then(literal("menu")
-                                .executes(context -> MenuCommands.executeMenuDashboard(context.getSource(), courseManager, rulesetManager))
+                                .executes(context -> MenuCommands.executeMenuDashboard(context.getSource(), courseManager, playerRoundSessionStorage, rulesetManager))
                                 .then(literal("player")
                                         .executes(context -> MenuCommands.executeMenuPlayer(context.getSource(), rulesetManager)))
                                 .then(literal("admin").requires(McdgAdminCommands::canUseAdminCommands)
