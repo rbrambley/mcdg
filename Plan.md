@@ -2,6 +2,40 @@
 
 ---
 
+## Menu UX Refactor + Session Resume (2026-06-05)
+
+Implemented / validated:
+
+- `/mcdg` dashboard is now context-aware: shows round-active vs no-round buttons.
+- Saved session banner: if a player has a saved round, dashboard shows course
+  name, hole, and stroke count with a one-click `[Resume Saved Round]` button.
+- `PlayerRoundSessionStorage` now stores and returns `courseName`.
+- Save/resume labels clarified: `[Save & Leave Round]` and `[Resume Saved Round]`.
+- `RoundSessionStorage` (crash recovery) is now visually separated from player
+  save/resume in all menus and labeled "Crash Recovery" in Admin menu.
+- `[Play Course]` button removed from all menus; `[List Courses]` provides
+  per-entry `[PLAY]` / `[STRICT]` / `[REMOVE]` clickable buttons.
+- `[Prune Catalog to 6]` and `[Remove Course]` removed from Admin menu.
+- `[Show Ruleset]` fixed: was pointing to non-existent `/mcdg ruleset show`.
+- `[Strict Surface Preset]` fixed: was pointing to non-existent
+  `/mcdg ruleset strictsurface show`.
+- `sendBackToMenu()` helper added: every sub-command output ends with
+  `[ ← MENU ]` so menu is always one click away.
+- `/mcdg waypoint clear` command added to clear stale server-side waypoints.
+- Stale waypoints cleared on player disconnect.
+- `autocourse` prompt/start split: menu button runs prompt, then player fills
+  course name and presses Enter.
+
+Branch merged: `feature/minimap-improvements` → `master` (fast-forward).
+
+Open / next:
+
+- Book GUI menu (`/mcdg` opens a Written Book with persistent clickable pages).
+- Multiplayer live validation (2-player full round still pending).
+- `practicecourse` deprecation phases (still open from prior plan).
+
+---
+
 ## MCDG Coordinated Plan (Up To Date)
 
 Date: 2026-05-30
