@@ -96,8 +96,6 @@ public final class MenuCommands {
         source.sendFeedback(() -> Text.literal("Admin").formatted(Formatting.RED, Formatting.BOLD), false);
         source.sendFeedback(() -> menuButton("Clear Waypoints", "/mcdg waypoint clear", Formatting.DARK_GRAY, true), false);
         source.sendFeedback(() -> menuButton("Cleanup Course", "/mcdg menu confirm-request cleanupcourse", Formatting.DARK_RED, true), false);
-        source.sendFeedback(() -> menuButton("Prune Catalog to 6", "/mcdg menu confirm-request prunecourses", Formatting.DARK_RED, true), false);
-        source.sendFeedback(() -> menuButton("Remove Course", "/mcdg removecourse ", Formatting.RED, false), false);
         source.sendFeedback(() -> Text.literal("─ Crash Recovery ─").formatted(Formatting.DARK_GRAY), false);
         source.sendFeedback(() -> menuButton("Crash Recovery Status", "/mcdg roundsession status", Formatting.DARK_GRAY, true), false);
         source.sendFeedback(() -> menuButton("Clear Crash Recovery", "/mcdg roundsession clear", Formatting.DARK_GRAY, true), false);
@@ -134,10 +132,10 @@ public final class MenuCommands {
 
     public static int executeMenuRules(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
         source.sendFeedback(() -> Text.literal("Rules").formatted(Formatting.BLUE, Formatting.BOLD), false);
-        source.sendFeedback(() -> menuButton("Show Ruleset", "/mcdg ruleset show", Formatting.BLUE, true), false);
+        source.sendFeedback(() -> menuButton("Show Ruleset", "/mcdg ruleset", Formatting.BLUE, true), false);
         source.sendFeedback(() -> menuButton("Set Casual", "/mcdg ruleset casual", Formatting.GREEN, true), false);
         source.sendFeedback(() -> menuButton("Set Strict", "/mcdg ruleset strict", Formatting.GOLD, true), false);
-        source.sendFeedback(() -> menuButton("Strict Surface Preset", "/mcdg ruleset strictsurface show", Formatting.AQUA, true), false);
+        source.sendFeedback(() -> menuButton("Strict Surface Preset", "/mcdg ruleset surface", Formatting.AQUA, true), false);
         sendBackToMenu(source);
         return 1;
     }
