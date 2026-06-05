@@ -209,9 +209,13 @@ public final class McdgMenuScreen extends Screen {
 
     private void buildRulesPage(int cx, int cy, int bw) {
         int y = cy;
-        addBtn("Set Casual",            "/mcdg ruleset casual",  cx, y, bw, TEXT_GREEN, BTN_TINT_GREEN); y += BTN_H + BTN_GAP;
-        addBtn("Set Strict",            "/mcdg ruleset strict",  cx, y, bw, TEXT_GOLD,  BTN_TINT_GOLD);  y += BTN_H + BTN_GAP;
-        addBtn("Strict Surface Preset", "/mcdg ruleset surface", cx, y, bw, TEXT_WHITE, BTN_TINT_NONE);
+        addBtn("Set Casual",              "/mcdg ruleset casual",             cx, y, bw, TEXT_GREEN, BTN_TINT_GREEN); y += BTN_H + BTN_GAP;
+        addBtn("Set Strict",              "/mcdg ruleset strict",             cx, y, bw, TEXT_GOLD,  BTN_TINT_GOLD);  y += BTN_H + BTN_GAP;
+        if (state.isAdmin()) {
+            addBtn("Surface: Fast",       "/mcdg ruleset surface fast",       cx, y, bw, TEXT_MUTED, BTN_TINT_MUTED); y += BTN_H + BTN_GAP;
+            addBtn("Surface: Balanced",   "/mcdg ruleset surface balanced",   cx, y, bw, TEXT_MUTED, BTN_TINT_MUTED); y += BTN_H + BTN_GAP;
+            addBtn("Surface: Tournament", "/mcdg ruleset surface tournament", cx, y, bw, TEXT_MUTED, BTN_TINT_MUTED);
+        }
     }
 
     private void buildAdminPage(int cx, int cy, int bw) {
