@@ -390,7 +390,6 @@ public final class McdgAdminCommands {
                         .then(literal("cleanupcourse").requires(McdgAdminCommands::canUseAdminCommands)
                                 .executes(context -> executeCleanupCourse(context.getSource(), courseManager, placementService, roundStateManager, practiceCourseStorage)))
                         .then(literal("gotocourse").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeGotoCourse(context.getSource(), courseManager)))
                         .then(literal("waypoint").requires(McdgAdminCommands::canUseAdminCommands)
                                 .then(literal("list")

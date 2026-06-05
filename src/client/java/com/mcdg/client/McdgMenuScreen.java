@@ -142,17 +142,16 @@ public final class McdgMenuScreen extends Screen {
 
         } else if (state.courseLoaded()) {
             // ── Course placed, no active round ──
-            String startLabel = "▶ Start Round";
-            if (!state.courseName().isBlank()) {
-                startLabel = "▶ Start Round: " + state.courseName()
-                        + (state.activeHoleCount() > 0 ? " (" + state.activeHoleCount() + "H)" : "");
+            String courseSuffix = state.courseName().isBlank() ? ""
+                    : ": " + state.courseName() + (state.activeHoleCount() > 0 ? " (" + state.activeHoleCount() + "H)" : "");
+            if (state.hasSavedSession()) {
+                addBtn("▶ Resume: " + state.savedCourseName() + "  H" + state.savedHole() + "  (" + state.savedStrokes() + " strokes)",
+                        "/mcdg resumesession", cx, y, bw, TEXT_GREEN, BTN_TINT_GREEN); y += BTN_H + BTN_GAP;
+                addBtn("Start New Round" + courseSuffix, "/mcdg startround", cx, y, bw, TEXT_MUTED, BTN_TINT_MUTED); y += BTN_H + BTN_GAP;
+            } else {
+                addBtn("▶ Start Round" + courseSuffix, "/mcdg startround", cx, y, bw, TEXT_GREEN, BTN_TINT_GREEN); y += BTN_H + BTN_GAP;
             }
-            String startCmd = state.activeCatalogIndex() > 0
-                    ? "/mcdg playcourse " + state.activeCatalogIndex()
-                    : "/mcdg joinround";
-            addBtn(startLabel, startCmd, cx, y, bw, TEXT_GREEN, BTN_TINT_GREEN); y += BTN_H + BTN_GAP;
-            addBtn("Teleport to Hole 1", "/mcdg gotocourse",   cx, y, bw, TEXT_WHITE, BTN_TINT_NONE);  y += BTN_H + BTN_GAP;
-            addBtn("Join Round",         "/mcdg joinround",    cx, y, bw, TEXT_WHITE, BTN_TINT_NONE);  y += BTN_H + BTN_GAP;
+            addBtn("Teleport to Hole 1", "/mcdg gotocourse", cx, y, bw, TEXT_WHITE, BTN_TINT_NONE); y += BTN_H + BTN_GAP;
             if (state.isAdmin()) {
                 addConfirmBtn("Cleanup Course", "/mcdg cleanupcourse", cx, y, bw); y += BTN_H + BTN_GAP;
             }
@@ -206,12 +205,10 @@ public final class McdgMenuScreen extends Screen {
             int idx = entry.index();
             int textCol = isActive ? TEXT_GREEN : TEXT_WHITE;
             int tintCol = isActive ? BTN_TINT_GREEN : BTN_TINT_NONE;
-            String playCmd = isActive ? "/mcdg joinround" : "/mcdg playcourse " + idx;
-            String playLabel = isActive ? "[RESUME]" : "[PLAY]";
-            int playBtnW = isActive ? 50 : 40;
+            int playBtnW = 40;
             int labelW = playW - playBtnW - 3;
-            addBtn(label, playCmd, cx, y, labelW, textCol, tintCol);
-            addBtn(playLabel, playCmd, cx + labelW + 3, y, playBtnW, isActive ? TEXT_GREEN : TEXT_GOLD, isActive ? BTN_TINT_GREEN : BTN_TINT_GOLD);
+            addBtn(label, "/mcdg playcourse " + idx, cx, y, labelW, textCol, tintCol);
+            addBtn("[PLAY]", "/mcdg playcourse " + idx, cx + labelW + 3, y, playBtnW, TEXT_GOLD, BTN_TINT_GOLD);
             addConfirmBtn("✕", "/mcdg removecourse " + idx, cx + labelW + playBtnW + 6, y, removeW);
             y += BTN_H + BTN_GAP;
         }
