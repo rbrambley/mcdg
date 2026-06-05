@@ -398,6 +398,7 @@ public final class McdgAdminCommands {
                                                 practiceCourseStorage,
                                                 placementService,
                                                 roundStateManager,
+                                                courseManager,
                                                 IntegerArgumentType.getInteger(context, "index")
                                         ))))
                         .then(literal("waypoint").requires(McdgAdminCommands::canUseAdminCommands)
@@ -1695,7 +1696,7 @@ public final class McdgAdminCommands {
                 }
         }
 
-        private static int executeCleanupCourseByIndex(ServerCommandSource source, PracticeCourseStorage practiceCourseStorage, CoursePlacementService placementService, RoundStateManager roundStateManager, int oneBasedIndex) {
+        private static int executeCleanupCourseByIndex(ServerCommandSource source, PracticeCourseStorage practiceCourseStorage, CoursePlacementService placementService, RoundStateManager roundStateManager, ActiveCourseManager courseManager, int oneBasedIndex) {
                 Optional<PracticeCourseStorage.LoadedPracticeCourse> loaded = practiceCourseStorage.loadReusableByIndex(source.getServer(), oneBasedIndex);
                 if (loaded.isEmpty()) {
                         source.sendError(Text.literal("Course #" + oneBasedIndex + " not found."));
@@ -1712,6 +1713,16 @@ public final class McdgAdminCommands {
                 evacuatePlayersBeforeCleanup(source, world, placed);
                 placementService.resetPlacedCourse(world, placed);
                 removeJunkDropsNearCourse(world, placed);
+
+                // If cleaning up the active course, clear the active state
+                Integer activeCatalogIndex = courseManager.getActiveCourseCatalogIndex().orElse(null);
+                if (activeCatalogIndex != null && activeCatalogIndex == oneBasedIndex) {
+                        courseManager.clearPlacedCourseState();
+                        courseManager.setActiveCourseCatalogIndex(null);
+                        courseManager.setRoundActive(false);
+                        clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
+                        practiceCourseStorage.clear(source.getServer());
+                }
 
                 practiceCourseStorage.pruneReusableByIndices(source.getServer(), Set.of(oneBasedIndex));
 

@@ -142,14 +142,9 @@ public final class McdgMenuScreen extends Screen {
 
         } else if (state.courseLoaded()) {
             // ── Course placed, no active round ──
-            String courseSuffix = state.courseName().isBlank() ? ""
-                    : ": " + state.courseName() + (state.activeHoleCount() > 0 ? " (" + state.activeHoleCount() + "H)" : "");
             if (state.hasSavedSession()) {
                 addBtn("▶ Resume: " + state.savedCourseName() + "  H" + state.savedHole() + "  (" + state.savedStrokes() + " strokes)",
                         "/mcdg resumesession", cx, y, bw, TEXT_GREEN, BTN_TINT_GREEN); y += BTN_H + BTN_GAP;
-                addBtn("Start New Round" + courseSuffix, "/mcdg startround", cx, y, bw, TEXT_MUTED, BTN_TINT_MUTED); y += BTN_H + BTN_GAP;
-            } else {
-                addBtn("▶ Start Round" + courseSuffix, "/mcdg startround", cx, y, bw, TEXT_GREEN, BTN_TINT_GREEN); y += BTN_H + BTN_GAP;
             }
             addPageSwitchBtn("Manage Courses →", Page.COURSES, cx, y, bw, TEXT_MUTED, BTN_TINT_NONE);
 
