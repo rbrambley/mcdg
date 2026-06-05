@@ -384,13 +384,22 @@ public final class McdgAdminCommands {
                                                 practiceCourseStorage,
                                                 IntegerArgumentType.getInteger(context, "index")
                                         ))))
-                        .then(literal("resetcourse").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
-                                .executes(context -> executeCleanupCourse(context.getSource(), courseManager, placementService, roundStateManager, practiceCourseStorage)))
-                        .then(literal("cleanupcourse").requires(McdgAdminCommands::canUseAdminCommands)
-                                .executes(context -> executeCleanupCourse(context.getSource(), courseManager, placementService, roundStateManager, practiceCourseStorage)))
-                        .then(literal("gotocourse").requires(McdgAdminCommands::canUseAdminCommands)
-                                .executes(context -> executeGotoCourse(context.getSource(), courseManager)))
+                        .then(literal("gotocoursebyindex").requires(McdgAdminCommands::canUseAdminCommands)
+                                .then(argument("index", IntegerArgumentType.integer(1))
+                                        .executes(context -> executeGotoCourseByIndex(
+                                                context.getSource(),
+                                                practiceCourseStorage,
+                                                IntegerArgumentType.getInteger(context, "index")
+                                        ))))
+                        .then(literal("cleanupcoursebyindex").requires(McdgAdminCommands::canUseAdminCommands)
+                                .then(argument("index", IntegerArgumentType.integer(1))
+                                        .executes(context -> executeCleanupCourseByIndex(
+                                                context.getSource(),
+                                                practiceCourseStorage,
+                                                placementService,
+                                                roundStateManager,
+                                                IntegerArgumentType.getInteger(context, "index")
+                                        ))))
                         .then(literal("waypoint").requires(McdgAdminCommands::canUseAdminCommands)
                                 .then(literal("list")
                                         .executes(context -> WaypointCommands.executeWaypointList(context.getSource(), courseManager)))
@@ -1654,6 +1663,62 @@ public final class McdgAdminCommands {
                 }
         }
 
+        private static int executeGotoCourseByIndex(ServerCommandSource source, PracticeCourseStorage practiceCourseStorage, int oneBasedIndex) {
+                Optional<PracticeCourseStorage.LoadedPracticeCourse> loaded = practiceCourseStorage.loadReusableByIndex(source.getServer(), oneBasedIndex);
+                if (loaded.isEmpty()) {
+                        source.sendError(Text.literal("Course #" + oneBasedIndex + " not found."));
+                        return 0;
+                }
+
+                PlacedCourseState placed = loaded.get().placedCourseState();
+                BlockPos firstTee = placed.holeTees().get(1);
+                if (firstTee == null) {
+                        source.sendError(Text.literal("Hole 1 tee location is unavailable for course #" + oneBasedIndex + "."));
+                        return 0;
+                }
+
+                ServerWorld world = source.getServer().getWorld(placed.worldKey());
+                if (world == null) {
+                        source.sendError(Text.literal("World for course #" + oneBasedIndex + " is not available."));
+                        return 0;
+                }
+
+                try {
+                        var player = source.getPlayerOrThrow();
+                        BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
+                        player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
+                        source.sendFeedback(() -> Text.literal("Teleported to Hole 1 of course #" + oneBasedIndex + "."), false);
+                        return 1;
+                } catch (Exception ex) {
+                        source.sendError(Text.literal("This command must be run by a player."));
+                        return 0;
+                }
+        }
+
+        private static int executeCleanupCourseByIndex(ServerCommandSource source, PracticeCourseStorage practiceCourseStorage, CoursePlacementService placementService, RoundStateManager roundStateManager, int oneBasedIndex) {
+                Optional<PracticeCourseStorage.LoadedPracticeCourse> loaded = practiceCourseStorage.loadReusableByIndex(source.getServer(), oneBasedIndex);
+                if (loaded.isEmpty()) {
+                        source.sendError(Text.literal("Course #" + oneBasedIndex + " not found."));
+                        return 0;
+                }
+
+                PlacedCourseState placed = loaded.get().placedCourseState();
+                ServerWorld world = source.getServer().getWorld(placed.worldKey());
+                if (world == null) {
+                        source.sendError(Text.literal("World for course #" + oneBasedIndex + " is not available."));
+                        return 0;
+                }
+
+                evacuatePlayersBeforeCleanup(source, world, placed);
+                placementService.resetPlacedCourse(world, placed);
+                removeJunkDropsNearCourse(world, placed);
+
+                practiceCourseStorage.pruneReusableByIndices(source.getServer(), Set.of(oneBasedIndex));
+
+                source.sendFeedback(() -> Text.literal("Course #" + oneBasedIndex + " cleaned up and removed from catalog."), true);
+                return 1;
+        }
+
         private static int executeGotoLie(ServerCommandSource source, RoundStateManager roundStateManager) {
                 try {
                         ServerPlayerEntity player = source.getPlayerOrThrow();
@@ -2218,11 +2283,9 @@ public final class McdgAdminCommands {
         TournamentRulesetManager.StrictSurfacePreset preset = rulesetManager.getStrictSurfacePreset();
 
         List<MenuScreenSync.CourseEntry> courses = new ArrayList<>();
-        if (!roundActive) {
-            List<PracticeCourseStorage.ReusableCourseEntry> entries = practiceCourseStorage.listReusable(source.getServer());
-            for (PracticeCourseStorage.ReusableCourseEntry entry : entries) {
-                courses.add(new MenuScreenSync.CourseEntry(entry.index(), entry.name(), entry.holeCount()));
-            }
+        List<PracticeCourseStorage.ReusableCourseEntry> entries = practiceCourseStorage.listReusable(source.getServer());
+        for (PracticeCourseStorage.ReusableCourseEntry entry : entries) {
+            courses.add(new MenuScreenSync.CourseEntry(entry.index(), entry.name(), entry.holeCount()));
         }
 
         MenuScreenSync.Payload payload = new MenuScreenSync.Payload(

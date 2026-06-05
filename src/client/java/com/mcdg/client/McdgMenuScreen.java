@@ -151,11 +151,7 @@ public final class McdgMenuScreen extends Screen {
             } else {
                 addBtn("▶ Start Round" + courseSuffix, "/mcdg startround", cx, y, bw, TEXT_GREEN, BTN_TINT_GREEN); y += BTN_H + BTN_GAP;
             }
-            addBtn("Teleport to Hole 1", "/mcdg gotocourse", cx, y, bw, TEXT_WHITE, BTN_TINT_NONE); y += BTN_H + BTN_GAP;
-            if (state.isAdmin()) {
-                addConfirmBtn("Cleanup Course", "/mcdg cleanupcourse", cx, y, bw); y += BTN_H + BTN_GAP;
-            }
-            addPageSwitchBtn("Browse Courses →", Page.COURSES, cx, y, bw, TEXT_MUTED, BTN_TINT_NONE);
+            addPageSwitchBtn("Manage Courses →", Page.COURSES, cx, y, bw, TEXT_MUTED, BTN_TINT_NONE);
 
         } else {
             // ── Nothing loaded ──
@@ -186,12 +182,15 @@ public final class McdgMenuScreen extends Screen {
     private void buildCoursesPage(int cx, int cy, int bw, int panelX, int panelY) {
         List<MenuScreenSync.CourseEntry> courses = state.courses();
 
-        if (state.roundActive() || courses.isEmpty()) {
+        if (courses.isEmpty()) {
             return;
         }
 
-        int removeW = 14;
-        int playW = bw - removeW - 3;
+        int tpW = 28;
+        int playW = 42;
+        int removeW = 16;
+        int gap = 3;
+        int totalBtnsW = tpW + playW + removeW + (gap * 2);
         int visibleRows = Math.min(ROWS_VISIBLE, courses.size());
         int maxOffset = Math.max(0, courses.size() - visibleRows);
         playScrollOffset = Math.max(0, Math.min(playScrollOffset, maxOffset));
@@ -205,11 +204,19 @@ public final class McdgMenuScreen extends Screen {
             int idx = entry.index();
             int textCol = isActive ? TEXT_GREEN : TEXT_WHITE;
             int tintCol = isActive ? BTN_TINT_GREEN : BTN_TINT_NONE;
-            int playBtnW = 40;
-            int labelW = playW - playBtnW - 3;
-            addBtn(label, "/mcdg playcourse " + idx, cx, y, labelW, textCol, tintCol);
-            addBtn("[PLAY]", "/mcdg playcourse " + idx, cx + labelW + 3, y, playBtnW, TEXT_GOLD, BTN_TINT_GOLD);
-            addConfirmBtn("✕", "/mcdg removecourse " + idx, cx + labelW + playBtnW + 6, y, removeW);
+            int labelW = bw - totalBtnsW;
+            int x = cx;
+            addBtn(label, "/mcdg playcourse " + idx, x, y, labelW, textCol, tintCol);
+            x += labelW + gap;
+            addBtn("[TP]", "/mcdg gotocoursebyindex " + idx, x, y, tpW, TEXT_WHITE, BTN_TINT_NONE);
+            x += tpW + gap;
+            if (state.roundActive() && isActive) {
+                addBtn("[PLAY]", null, x, y, playW, TEXT_MUTED, BTN_TINT_MUTED);
+            } else {
+                addBtn("[PLAY]", "/mcdg playcourse " + idx, x, y, playW, TEXT_GOLD, BTN_TINT_GOLD);
+            }
+            x += playW + gap;
+            addConfirmBtn("[X]", "/mcdg cleanupcoursebyindex " + idx, x, y, removeW);
             y += BTN_H + BTN_GAP;
         }
 
@@ -369,10 +376,6 @@ public final class McdgMenuScreen extends Screen {
             if (currentPage == Page.COURSES && state.courses().isEmpty()) {
                 context.drawTextWithShadow(textRenderer,
                         Text.literal("No saved courses. Use Build to create one."),
-                        panelX + CONTENT_X_OFFSET, panelY + 60, TEXT_MUTED);
-            } else if (currentPage == Page.COURSES && state.roundActive()) {
-                context.drawTextWithShadow(textRenderer,
-                        Text.literal("End the active round to switch courses."),
                         panelX + CONTENT_X_OFFSET, panelY + 60, TEXT_MUTED);
             }
 
