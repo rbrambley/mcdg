@@ -971,7 +971,9 @@ public final class McdgClientMod implements ClientModInitializer {
         int y = Math.max(8, Math.min(preferredY, drawContext.getScaledWindowHeight() - panelH - 8));
         float hudAlpha = hudFadeAlpha();
 
-        drawHudCard(drawContext, client, x, y, panelW, panelH, "Scorecard", hudAlpha);
+        String courseName = scorecardRoot.getString(ScorecardManager.KEY_COURSE_NAME);
+        String panelTitle = (courseName != null && !courseName.isBlank()) ? courseName : "Scorecard";
+        drawHudCard(drawContext, client, x, y, panelW, panelH, panelTitle, hudAlpha);
 
         drawContext.drawTextWithShadow(client.textRenderer, Text.literal("H"), x + colHoleX, y + 14, withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
         drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Dist"), x + colDistX, y + 14, withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
