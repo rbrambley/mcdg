@@ -1108,7 +1108,6 @@ public final class McdgAdminCommands {
                 }
 
                 source.sendFeedback(() -> Text.literal("Reusable courses (newest first): " + entries.size()), false);
-                source.sendFeedback(() -> Text.literal("Tip: use /mcdg playcourse <index> to select and start a saved course in one step."), false);
                 for (PracticeCourseStorage.ReusableCourseEntry entry : entries) {
                         String command = "/mcdg playcourse " + entry.index();
                         String strictCommand = "/mcdg playcourse " + entry.index() + " strict";
@@ -1137,6 +1136,7 @@ public final class McdgAdminCommands {
                                         .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Delete from catalog: " + removeCommand + "\nThis does not cleanup world blocks.")))
                                 )), false);
                 }
+                MenuCommands.sendBackToMenu(source);
                 return 1;
         }
 

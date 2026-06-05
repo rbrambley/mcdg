@@ -60,7 +60,6 @@ public final class MenuCommands {
         } else {
             source.sendFeedback(() -> Text.literal("─ Play ─").formatted(Formatting.GREEN), false);
             source.sendFeedback(() -> menuButton("List Courses", "/mcdg listcourses", Formatting.AQUA, true), false);
-            source.sendFeedback(() -> menuButton("Play Course", "/mcdg playcourse ", Formatting.GREEN, false), false);
             source.sendFeedback(() -> menuButton("Join Round", "/mcdg joinround", Formatting.GREEN, true), false);
         }
 
@@ -110,7 +109,6 @@ public final class MenuCommands {
         source.sendFeedback(() -> Text.literal("Round").formatted(Formatting.GREEN, Formatting.BOLD), false);
         source.sendFeedback(() -> menuButton("Auto Build Course", "/mcdg autocourse", Formatting.YELLOW, true), false);
         source.sendFeedback(() -> menuButton("List Courses", "/mcdg listcourses", Formatting.AQUA, true), false);
-        source.sendFeedback(() -> menuButton("Play Course", "/mcdg playcourse ", Formatting.GREEN, false), false);
         source.sendFeedback(() -> menuButton("Join Round", "/mcdg joinround", Formatting.GREEN, true), false);
         source.sendFeedback(() -> menuButton("End Round", "/mcdg endround", Formatting.GOLD, true), false);
         sendBackToMenu(source);
@@ -122,7 +120,6 @@ public final class MenuCommands {
         source.sendFeedback(() -> menuButton("Auto Build Course", "/mcdg autocourse", Formatting.YELLOW, true), false);
         source.sendFeedback(() -> menuButton("Manual Build Course", "/mcdg buildcourse", Formatting.GREEN, true), false);
         source.sendFeedback(() -> menuButton("List Courses", "/mcdg listcourses", Formatting.AQUA, true), false);
-        source.sendFeedback(() -> menuButton("Play Course", "/mcdg playcourse ", Formatting.GOLD, false), false);
         sendBackToMenu(source);
         return 1;
     }
