@@ -368,7 +368,7 @@ public final class McdgClientMod implements ClientModInitializer {
                 for (RoundRunningScoresSync.PlayerRow row : payload.rows()) {
                     rows.add(new RunningRoundScoreRow(row.playerName(), row.online(), row.holeScores(), row.runningTotal()));
                 }
-                runningRoundScoreState = new RunningRoundScoreState(payload.totalHoles(), payload.focusHole(), rows);
+                runningRoundScoreState = new RunningRoundScoreState(payload.totalHoles(), payload.focusHole(), payload.courseName(), rows);
             });
         });
         HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {
@@ -1050,7 +1050,8 @@ public final class McdgClientMod implements ClientModInitializer {
         int y = drawContext.getScaledWindowHeight() - panelH - 8;
         float hudAlpha = hudFadeAlpha();
 
-        drawHudCard(drawContext, client, x, y, panelW, panelH, "Round Scores", hudAlpha);
+        String panelTitle = (state.courseName() != null && !state.courseName().isBlank()) ? state.courseName() : "Round Scores";
+        drawHudCard(drawContext, client, x, y, panelW, panelH, panelTitle, hudAlpha);
 
         int cursorX = x + 6;
         int headerY = y + 14;
@@ -3023,6 +3024,7 @@ public final class McdgClientMod implements ClientModInitializer {
     private record RunningRoundScoreState(
             int totalHoles,
             int focusHole,
+            String courseName,
             List<RunningRoundScoreRow> rows
     ) {
     }

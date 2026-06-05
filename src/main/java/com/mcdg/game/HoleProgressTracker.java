@@ -444,7 +444,7 @@ public final class HoleProgressTracker {
                 snapshot,
                 course.holes().size()
         );
-        ServerPlayNetworking.send(player, RoundRunningScoresSync.Payload.active(course.holes().size(), focusHole, rows));
+        ServerPlayNetworking.send(player, RoundRunningScoresSync.Payload.active(course.holes().size(), focusHole, course.name(), rows));
     }
 
     private static int cumulativeParThroughHole(Course course, int holeIndexInclusive) {
@@ -616,7 +616,7 @@ public final class HoleProgressTracker {
             List<RoundRunningScoresSync.PlayerRow> rows = buildRunningScoreRows(server, participantIds, focusHole, snapshot, course.holes().size());
             ServerPlayNetworking.send(
                     viewer,
-                    RoundRunningScoresSync.Payload.active(course.holes().size(), focusHole, rows)
+                    RoundRunningScoresSync.Payload.active(course.holes().size(), focusHole, course.name(), rows)
             );
         }
     }

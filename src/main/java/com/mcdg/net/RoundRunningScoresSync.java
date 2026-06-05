@@ -40,7 +40,7 @@ public final class RoundRunningScoresSync {
         }
     }
 
-    public record Payload(boolean active, int totalHoles, int focusHole, List<PlayerRow> rows) implements CustomPayload {
+    public record Payload(boolean active, int totalHoles, int focusHole, String courseName, List<PlayerRow> rows) implements CustomPayload {
         public static Payload read(RegistryByteBuf buf) {
             boolean active = buf.readBoolean();
             if (!active) {
@@ -49,12 +49,13 @@ public final class RoundRunningScoresSync {
 
             int totalHoles = buf.readVarInt();
             int focusHole = buf.readVarInt();
+            String courseName = buf.readString();
             int rowCount = buf.readVarInt();
             List<PlayerRow> rows = new ArrayList<>();
             for (int i = 0; i < rowCount; i++) {
                 rows.add(PlayerRow.read(buf));
             }
-            return active(totalHoles, focusHole, rows);
+            return active(totalHoles, focusHole, courseName, rows);
         }
 
         public void write(RegistryByteBuf buf) {
@@ -65,6 +66,7 @@ public final class RoundRunningScoresSync {
 
             buf.writeVarInt(totalHoles);
             buf.writeVarInt(focusHole);
+            buf.writeString(courseName != null ? courseName : "");
             buf.writeVarInt(rows.size());
             for (PlayerRow row : rows) {
                 row.write(buf);
@@ -72,11 +74,11 @@ public final class RoundRunningScoresSync {
         }
 
         public static Payload inactive() {
-            return new Payload(false, 0, 0, List.of());
+            return new Payload(false, 0, 0, "", List.of());
         }
 
-        public static Payload active(int totalHoles, int focusHole, List<PlayerRow> rows) {
-            return new Payload(true, totalHoles, focusHole, List.copyOf(rows));
+        public static Payload active(int totalHoles, int focusHole, String courseName, List<PlayerRow> rows) {
+            return new Payload(true, totalHoles, focusHole, courseName != null ? courseName : "", List.copyOf(rows));
         }
 
         @Override
