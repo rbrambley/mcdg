@@ -283,17 +283,17 @@ public final class RegressionCheckRunner {
 
         assertContains(
             placementSource,
-            "private static final int MAX_WATER_CARRY_BLOCKS = 91;",
+            "MAX_WATER_CARRY_BLOCKS = CoursePlacementConfig.WaterLanding.MAX_CARRY_BLOCKS;",
             "Unified max water-carry policy changed unexpectedly."
         );
         assertContains(
             placementSource,
-            "private static final int PAR5_ROUTE_MAX_WATER_CARRY = MAX_WATER_CARRY_BLOCKS;",
+            "PAR5_ROUTE_MAX_WATER_CARRY = CoursePlacementConfig.RoutePolicy.PAR5_MAX_WATER_CARRY;",
             "Par 5 carry policy diverged from unified max carry policy."
         );
         assertContains(
             placementSource,
-            "private static final int PAR34_ROUTE_MAX_WATER_CARRY = MAX_WATER_CARRY_BLOCKS;",
+            "PAR34_ROUTE_MAX_WATER_CARRY = CoursePlacementConfig.RoutePolicy.PAR34_MAX_WATER_CARRY;",
             "Par 3/4 carry policy diverged from unified max carry policy."
         );
     }
