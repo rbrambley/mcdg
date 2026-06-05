@@ -105,6 +105,7 @@ public final class PlayerRoundSessionStorage {
             String worldKey,
             long courseSeed,
             int holeCount,
+            String courseName,
             PlayerRoundState state,
             long savedAtMs
     ) {}
@@ -118,6 +119,7 @@ public final class PlayerRoundSessionStorage {
             String worldKey,
             long courseSeed,
             int holeCount,
+            String courseName,
             int currentHole,
             int lieX,
             int lieY,
@@ -133,6 +135,7 @@ public final class PlayerRoundSessionStorage {
                     placed.worldKey().getValue().toString(),
                     course.seed(),
                     course.holes().size(),
+                    course.name(),
                     state.currentHole(),
                     lie.getX(),
                     lie.getY(),
@@ -163,7 +166,8 @@ public final class PlayerRoundSessionStorage {
                 return Optional.empty();
             }
 
-            return Optional.of(new LoadedPlayerRoundSession(worldKey, courseSeed, holeCount, state, savedAtMs));
+            String resolvedName = (courseName != null && !courseName.isBlank()) ? courseName : "Unknown Course";
+            return Optional.of(new LoadedPlayerRoundSession(worldKey, courseSeed, holeCount, resolvedName, state, savedAtMs));
         }
     }
 }
