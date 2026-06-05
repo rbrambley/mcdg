@@ -2271,9 +2271,10 @@ public final class McdgAdminCommands {
 
         boolean roundActive = courseManager.isRoundActive();
         boolean courseLoaded = courseManager.getPlacedCourseState().isPresent();
-        String courseName = courseManager.getActiveCourse()
-                .map(c -> c.name() != null ? c.name() : "")
-                .orElse("");
+        com.mcdg.data.Course activeCourse = courseManager.getActiveCourse().orElse(null);
+        String courseName = activeCourse != null && activeCourse.name() != null ? activeCourse.name() : "";
+        int activeCatalogIndex = courseManager.getActiveCourseCatalogIndex().orElse(-1);
+        int activeHoleCount = activeCourse != null ? activeCourse.holes().size() : 0;
         boolean isAdmin = canUseAdminCommands(source);
 
         boolean hasSavedSession = false;
@@ -2303,6 +2304,7 @@ public final class McdgAdminCommands {
 
         MenuScreenSync.Payload payload = new MenuScreenSync.Payload(
                 roundActive, courseLoaded, courseName,
+                activeCatalogIndex, activeHoleCount,
                 hasSavedSession, savedCourseName, savedHole, savedStrokes,
                 isAdmin,
                 ruleset.name().toLowerCase(),

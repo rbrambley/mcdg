@@ -32,6 +32,8 @@ public final class MenuScreenSync {
             boolean roundActive,
             boolean courseLoaded,
             String courseName,
+            int activeCatalogIndex,
+            int activeHoleCount,
             boolean hasSavedSession,
             String savedCourseName,
             int savedHole,
@@ -46,6 +48,8 @@ public final class MenuScreenSync {
             boolean roundActive = buf.readBoolean();
             boolean courseLoaded = buf.readBoolean();
             String courseName = buf.readString();
+            int activeCatalogIndex = buf.readVarInt();
+            int activeHoleCount = buf.readVarInt();
             boolean hasSavedSession = buf.readBoolean();
             String savedCourseName = buf.readString();
             int savedHole = buf.readVarInt();
@@ -58,15 +62,17 @@ public final class MenuScreenSync {
             for (int i = 0; i < courseCount; i++) {
                 courses.add(CourseEntry.read(buf));
             }
-            return new Payload(roundActive, courseLoaded, courseName, hasSavedSession,
-                    savedCourseName, savedHole, savedStrokes, isAdmin, rulesetName, presetName,
-                    List.copyOf(courses));
+            return new Payload(roundActive, courseLoaded, courseName, activeCatalogIndex,
+                    activeHoleCount, hasSavedSession, savedCourseName, savedHole, savedStrokes,
+                    isAdmin, rulesetName, presetName, List.copyOf(courses));
         }
 
         public void write(RegistryByteBuf buf) {
             buf.writeBoolean(roundActive);
             buf.writeBoolean(courseLoaded);
             buf.writeString(courseName != null ? courseName : "");
+            buf.writeVarInt(activeCatalogIndex);
+            buf.writeVarInt(activeHoleCount);
             buf.writeBoolean(hasSavedSession);
             buf.writeString(savedCourseName != null ? savedCourseName : "");
             buf.writeVarInt(savedHole);
