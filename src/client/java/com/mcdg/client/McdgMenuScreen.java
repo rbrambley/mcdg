@@ -134,15 +134,30 @@ public final class McdgMenuScreen extends Screen {
         }
         if (state.roundActive()) {
             addBtn("Go to Lie",          "/mcdg gotolie",     cx, y, bw, TEXT_WHITE, BTN_TINT_NONE);  y += BTN_H + BTN_GAP;
+            addBtn("Waypoints",          "/mcdg waypoint tp", cx, y, bw, TEXT_WHITE, BTN_TINT_NONE);  y += BTN_H + BTN_GAP;
             addBtn("End Round",          "/mcdg endround",    cx, y, bw, TEXT_GOLD,  BTN_TINT_GOLD);  y += BTN_H + BTN_GAP;
             addBtn("Save & Leave Round", "/mcdg savesession", cx, y, bw, TEXT_MUTED, BTN_TINT_MUTED);
         } else {
-            addBtn("List Courses",       "/mcdg listcourses", cx, y, bw, TEXT_WHITE, BTN_TINT_NONE);  y += BTN_H + BTN_GAP;
-            addBtn("Join Round",         "/mcdg joinround",   cx, y, bw, TEXT_GREEN, BTN_TINT_GREEN); y += BTN_H + BTN_GAP;
-            if (state.isAdmin()) {
-                addBtn("Auto Build Course", "/mcdg autocourse", cx, y, bw, TEXT_GOLD, BTN_TINT_GOLD);
+            if (state.courseLoaded()) {
+                addBtn("Join Round", "/mcdg joinround", cx, y, bw, TEXT_GREEN, BTN_TINT_GREEN); y += BTN_H + BTN_GAP;
             }
+            if (state.isAdmin()) {
+                addBtn("Auto Build Course", "/mcdg autocourse", cx, y, bw, TEXT_GOLD, BTN_TINT_GOLD); y += BTN_H + BTN_GAP;
+            }
+            addPageSwitchBtn("Play a Course →", Page.PLAY, cx, y, bw, TEXT_WHITE, BTN_TINT_NONE);
         }
+    }
+
+    private void addPageSwitchBtn(String label, Page page, int x, int y, int w, int textColor, int tint) {
+        ButtonWidget btn = ButtonWidget.builder(Text.literal(label), b -> {
+            currentPage = page;
+            confirmPending = false;
+            playScrollOffset = 0;
+            rebuild();
+        }).dimensions(x, y, w, BTN_H).build();
+        contentButtons.add(btn);
+        buttonTints.add(new int[]{x, y, w, BTN_H, tint});
+        addDrawableChild(btn);
     }
 
     private void buildPlayPage(int cx, int cy, int bw, int panelX, int panelY) {
@@ -151,6 +166,12 @@ public final class McdgMenuScreen extends Screen {
             return;
         }
 
+        if (state.roundActive()) {
+            return;
+        }
+
+        int removeW = 14;
+        int playW = bw - removeW - 3;
         int visibleRows = Math.min(ROWS_VISIBLE, courses.size());
         int maxOffset = Math.max(0, courses.size() - visibleRows);
         playScrollOffset = Math.max(0, Math.min(playScrollOffset, maxOffset));
@@ -160,7 +181,8 @@ public final class McdgMenuScreen extends Screen {
             MenuScreenSync.CourseEntry entry = courses.get(i);
             String label = entry.name() + "  (" + entry.holeCount() + "H)";
             int idx = entry.index();
-            addBtn("[PLAY] " + label, "/mcdg playcourse " + idx, cx, y, bw, TEXT_GREEN, BTN_TINT_GREEN);
+            addBtn(label, "/mcdg playcourse " + idx, cx, y, playW, TEXT_GREEN, BTN_TINT_GREEN);
+            addConfirmBtn("✕", "/mcdg removecourse " + idx, cx + playW + 3, y, removeW);
             y += BTN_H + BTN_GAP;
         }
 
@@ -187,7 +209,6 @@ public final class McdgMenuScreen extends Screen {
 
     private void buildRulesPage(int cx, int cy, int bw) {
         int y = cy;
-        addBtn("Show Ruleset",          "/mcdg ruleset",         cx, y, bw, TEXT_WHITE, BTN_TINT_NONE);  y += BTN_H + BTN_GAP;
         addBtn("Set Casual",            "/mcdg ruleset casual",  cx, y, bw, TEXT_GREEN, BTN_TINT_GREEN); y += BTN_H + BTN_GAP;
         addBtn("Set Strict",            "/mcdg ruleset strict",  cx, y, bw, TEXT_GOLD,  BTN_TINT_GOLD);  y += BTN_H + BTN_GAP;
         addBtn("Strict Surface Preset", "/mcdg ruleset surface", cx, y, bw, TEXT_WHITE, BTN_TINT_NONE);
@@ -313,6 +334,22 @@ public final class McdgMenuScreen extends Screen {
             String pageTitle = currentPage.name().charAt(0) + currentPage.name().substring(1).toLowerCase();
             context.drawTextWithShadow(textRenderer, Text.literal(pageTitle),
                     panelX + CONTENT_X_OFFSET, panelY + 32, TEXT_TITLE);
+
+            if (currentPage == Page.PLAY && state.courses().isEmpty()) {
+                context.drawTextWithShadow(textRenderer,
+                        Text.literal("No courses saved. Use Auto Build to create one."),
+                        panelX + CONTENT_X_OFFSET, panelY + 60, TEXT_MUTED);
+            } else if (currentPage == Page.PLAY && state.roundActive()) {
+                context.drawTextWithShadow(textRenderer,
+                        Text.literal("End the active round to play a new course."),
+                        panelX + CONTENT_X_OFFSET, panelY + 60, TEXT_MUTED);
+            }
+
+            if (currentPage == Page.RULES) {
+                String ruleInfo = "Current: " + state.rulesetName() + " / " + state.presetName();
+                context.drawTextWithShadow(textRenderer, Text.literal(ruleInfo),
+                        panelX + CONTENT_X_OFFSET, panelY + 33, TEXT_MUTED);
+            }
 
             if (state.roundActive() && !state.courseName().isBlank()) {
                 String label = state.courseName() + "  ·  " + state.rulesetName();
