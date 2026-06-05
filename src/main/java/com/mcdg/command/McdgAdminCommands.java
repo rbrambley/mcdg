@@ -1498,6 +1498,7 @@ public final class McdgAdminCommands {
                 courseManager.setRoundActive(false);
                 clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
                 practiceCourseStorage.clear(source.getServer());
+                HoleProgressTracker.resetAllState(source.getServer());
 
                 source.sendFeedback(() -> Text.literal("Course cleanup complete. Original blocks restored."), true);
                 return 1;
@@ -1723,6 +1724,7 @@ public final class McdgAdminCommands {
                         clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
                         practiceCourseStorage.clear(source.getServer());
                 }
+                HoleProgressTracker.resetAllState(source.getServer());
 
                 practiceCourseStorage.pruneReusableByIndices(source.getServer(), Set.of(oneBasedIndex));
 

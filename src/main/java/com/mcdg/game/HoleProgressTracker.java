@@ -1113,6 +1113,41 @@ public final class HoleProgressTracker {
         }
     }
 
+    /**
+     * Resets all static state. Call this when cleaning up a course to ensure
+     * no stale minimap packets or round state leak into the next session.
+     */
+    public static void resetAllState(MinecraftServer server) {
+        ROUND_WAS_ACTIVE = false;
+        LAST_PROCESSED_THROW_TOTAL.clear();
+        LAST_THROW_PENDING_TICKS.clear();
+        LAST_THROW_PEARL_UUID.clear();
+        LAST_THROW_RELEASE_TICK.clear();
+        LAST_RESOLUTION_REASON.clear();
+        HOLE_SCORE_HISTORY.clear();
+        HOLE_ONE_RANDOM_ORDER.clear();
+        ACTIVE_TURN_PLAYER_BY_HOLE.clear();
+        ACTIVE_TURN_STARTED_AT_BY_HOLE.clear();
+        ACTIVE_TURN_TOTAL_STROKES_BY_HOLE.clear();
+        TURN_SKIP_ONCE_BY_HOLE.clear();
+        LAST_LIE_POSITION.clear();
+        LAST_BREADCRUMB_POSITION.clear();
+        CACHED_CORRIDOR_HALF_WIDTH.clear();
+        LAST_MINIMAP_HOLE.clear();
+        LAST_MINIMAP_PAYLOAD_HASH.clear();
+        AUTOTEST_MARKER_TRAIL_REFCOUNT = 0;
+        if (MINIMAP_ACTIVE_SENT) {
+            sendMiniMapInactive(server);
+            MINIMAP_ACTIVE_SENT = false;
+        }
+        if (LAST_RUNNING_SCOREBOARD_HASH != Integer.MIN_VALUE) {
+            sendRunningScoreboardInactive(server);
+        }
+        LAST_RUNNING_SCOREBOARD_HASH = Integer.MIN_VALUE;
+        clearAllLieMarkers(server);
+        HoleTeeMapManager.clearAllRoundHoleMaps(server);
+    }
+
     private static void updateLieMarker(ServerPlayerEntity player, BlockPos lieFeet) {
         ServerWorld world = player.getServerWorld();
         BlockPos markerPos = lieFeet.down();
