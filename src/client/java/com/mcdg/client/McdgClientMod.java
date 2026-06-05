@@ -245,6 +245,7 @@ public final class McdgClientMod implements ClientModInitializer {
             syncClientWaypointsToServer(client);
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            removePermanentCourseWaypoint(client, activeRoundCourseWaypointName);
             miniMapJoinWarmupPending = false;
             miniMapJoinPrimeTicksRemaining = 0;
             miniMapState = null;
@@ -260,10 +261,12 @@ public final class McdgClientMod implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(HoleMiniMapSync.ID, (payload, context) -> {
             context.client().execute(() -> {
                 if (!payload.active()) {
+                    String courseToRemove = activeRoundCourseWaypointName;
                     miniMapState = null;
                     miniMapReceivedAtMs = 0L;
                     activeRoundCourseWaypointName = "";
                     roundHoleWaypoints.clear();
+                    removePermanentCourseWaypoint(context.client(), courseToRemove);
                     hudVisibleSinceMs = 0L;
                     displayedDistanceFeet = Float.NaN;
                     displayedTotalStrokes = Float.NaN;
@@ -350,6 +353,7 @@ public final class McdgClientMod implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(RoundRunningScoresSync.ID, (payload, context) -> {
             context.client().execute(() -> {
                 if (!payload.active()) {
+                    removePermanentCourseWaypoint(context.client(), activeRoundCourseWaypointName);
                     runningRoundScoreState = null;
                     activeRoundCourseWaypointName = "";
                     roundHoleWaypoints.clear();
@@ -1976,6 +1980,16 @@ public final class McdgClientMod implements ClientModInitializer {
         }
 
         clientWaypoints.add(new ClientWaypoint(StringHelper.truncate(name, 24, false), x, UNKNOWN_WAYPOINT_Y, z, WAYPOINT_COURSE_COLOR, dimensionKey));
+        saveWaypointStore(client);
+    }
+
+    private static void removePermanentCourseWaypoint(MinecraftClient client, String name) {
+        if (client == null || name == null || name.isBlank()) {
+            return;
+        }
+        ensureWaypointContextLoaded(client);
+        String dimensionKey = currentWaypointDimensionKey(client);
+        clientWaypoints.removeIf(wp -> wp.name().equals(name) && wp.dimensionId().equals(dimensionKey) && wp.color() == WAYPOINT_COURSE_COLOR);
         saveWaypointStore(client);
     }
 
