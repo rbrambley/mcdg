@@ -17,6 +17,7 @@ import com.mcdg.game.RoundSessionStorage;
 import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.ScorecardManager;
 import com.mcdg.game.ThrowAutoTestService;
+import com.mcdg.game.AutoCourseService;
 import com.mcdg.game.BuildCourseSessionManager;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.PlacementAutoTestService;
@@ -27,6 +28,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import java.util.ArrayList;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -80,7 +82,8 @@ public final class McdgAdminCommands {
             ThrowAutoTestService throwAutoTestService,
             RoundSessionStorage roundSessionStorage,
             PlayerRoundSessionStorage playerRoundSessionStorage,
-            BuildCourseSessionManager buildCourseSessionManager
+            BuildCourseSessionManager buildCourseSessionManager,
+            AutoCourseService autoCourseService
     ) {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
                 dispatcher.register(literal("mcdg")
@@ -128,6 +131,17 @@ public final class McdgAdminCommands {
                                                 courseManager,
                                                 LongArgumentType.getLong(context, "seed")
                                         ))))
+                        .then(literal("autocourse").requires(McdgAdminCommands::canUseAdminCommands)
+                                .executes(context -> autoCourseService.executeAutoCoursePrompt(context.getSource()))
+                                .then(literal("start")
+                                        .then(argument("name", StringArgumentType.greedyString())
+                                                .executes(context -> autoCourseService.executeAutoCourse(
+                                                        context.getSource(),
+                                                        StringArgumentType.getString(context, "name"),
+                                                        ThreadLocalRandom.current().nextLong()
+                                                ))))
+                                .then(literal("cancel")
+                                        .executes(context -> autoCourseService.executeCancel(context.getSource()))))
                         .then(literal("startround").requires(McdgAdminCommands::canUseAdminCommands)
                                 .executes(context -> executeStartRound(
                                         context.getSource(),

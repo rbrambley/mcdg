@@ -745,7 +745,7 @@ public final class CoursePlacementService {
 
     public void resetPlacedCourse(ServerWorld world, PlacedCourseState placedCourseState) {
         for (Map.Entry<BlockPos, BlockState> entry : placedCourseState.originalBlocks().entrySet()) {
-            world.setBlockState(entry.getKey(), entry.getValue(), Block.NOTIFY_ALL);
+            world.setBlockState(entry.getKey(), entry.getValue(), 0);
         }
     }
 
@@ -3962,6 +3962,6 @@ public final class CoursePlacementService {
         }
 
         originalBlocks.computeIfAbsent(immutablePos, p -> current);
-        world.setBlockState(immutablePos, newState, Block.NOTIFY_ALL);
+        world.setBlockState(immutablePos, newState, 0);
     }
 }

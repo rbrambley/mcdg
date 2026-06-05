@@ -65,9 +65,13 @@ public final class HoleProgressTracker {
     private static final Map<Integer, UUID> TURN_SKIP_ONCE_BY_HOLE = new HashMap<>();
     private static final Map<UUID, BlockPos> LAST_LIE_POSITION = new HashMap<>();
     private static final Map<UUID, BlockPos> LAST_BREADCRUMB_POSITION = new HashMap<>();
+    private static final Map<UUID, Integer> CACHED_CORRIDOR_HALF_WIDTH = new HashMap<>();
+    private static final Map<UUID, Integer> LAST_MINIMAP_HOLE = new HashMap<>();
+    private static final Map<UUID, Integer> LAST_MINIMAP_PAYLOAD_HASH = new HashMap<>();
     private static int LAST_RUNNING_SCOREBOARD_HASH = Integer.MIN_VALUE;
     private static boolean MINIMAP_ACTIVE_SENT = false;
     private static int AUTOTEST_MARKER_TRAIL_REFCOUNT = 0;
+    private static boolean ROUND_WAS_ACTIVE = false;
 
     private HoleProgressTracker() {
     }
@@ -81,31 +85,38 @@ public final class HoleProgressTracker {
     ) {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             if (!courseManager.isRoundActive()) {
-                LAST_PROCESSED_THROW_TOTAL.clear();
-                LAST_THROW_PENDING_TICKS.clear();
-                LAST_THROW_PEARL_UUID.clear();
-                LAST_THROW_RELEASE_TICK.clear();
-                LAST_RESOLUTION_REASON.clear();
-                HOLE_SCORE_HISTORY.clear();
-                HOLE_ONE_RANDOM_ORDER.clear();
-                ACTIVE_TURN_PLAYER_BY_HOLE.clear();
-                ACTIVE_TURN_STARTED_AT_BY_HOLE.clear();
-                ACTIVE_TURN_TOTAL_STROKES_BY_HOLE.clear();
-                TURN_SKIP_ONCE_BY_HOLE.clear();
-                LAST_LIE_POSITION.clear();
-                LAST_BREADCRUMB_POSITION.clear();
-                if (LAST_RUNNING_SCOREBOARD_HASH != Integer.MIN_VALUE) {
-                    sendRunningScoreboardInactive(server);
+                if (ROUND_WAS_ACTIVE) {
+                    ROUND_WAS_ACTIVE = false;
+                    LAST_PROCESSED_THROW_TOTAL.clear();
+                    LAST_THROW_PENDING_TICKS.clear();
+                    LAST_THROW_PEARL_UUID.clear();
+                    LAST_THROW_RELEASE_TICK.clear();
+                    LAST_RESOLUTION_REASON.clear();
+                    HOLE_SCORE_HISTORY.clear();
+                    HOLE_ONE_RANDOM_ORDER.clear();
+                    ACTIVE_TURN_PLAYER_BY_HOLE.clear();
+                    ACTIVE_TURN_STARTED_AT_BY_HOLE.clear();
+                    ACTIVE_TURN_TOTAL_STROKES_BY_HOLE.clear();
+                    TURN_SKIP_ONCE_BY_HOLE.clear();
+                    LAST_LIE_POSITION.clear();
+                    LAST_BREADCRUMB_POSITION.clear();
+                    CACHED_CORRIDOR_HALF_WIDTH.clear();
+                    LAST_MINIMAP_HOLE.clear();
+                    LAST_MINIMAP_PAYLOAD_HASH.clear();
+                    if (LAST_RUNNING_SCOREBOARD_HASH != Integer.MIN_VALUE) {
+                        sendRunningScoreboardInactive(server);
+                    }
+                    if (MINIMAP_ACTIVE_SENT) {
+                        sendMiniMapInactive(server);
+                        MINIMAP_ACTIVE_SENT = false;
+                    }
+                    LAST_RUNNING_SCOREBOARD_HASH = Integer.MIN_VALUE;
+                    clearAllLieMarkers(server);
+                    HoleTeeMapManager.clearAllRoundHoleMaps(server);
                 }
-                if (MINIMAP_ACTIVE_SENT) {
-                    sendMiniMapInactive(server);
-                    MINIMAP_ACTIVE_SENT = false;
-                }
-                LAST_RUNNING_SCOREBOARD_HASH = Integer.MIN_VALUE;
-                clearAllLieMarkers(server);
-                HoleTeeMapManager.clearAllRoundHoleMaps(server);
                 return;
             }
+            ROUND_WAS_ACTIVE = true;
 
             Course course = courseManager.getActiveCourse().orElse(null);
             PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
@@ -176,13 +187,21 @@ public final class HoleProgressTracker {
                     state.holeStrokes()
                 );
                 int cumulativeParDelta = state.totalStrokes() - runningExpectedThrows;
-                int corridorHalfWidth = strictCorridorHalfWidth(
-                    currentHole,
-                    (ServerWorld) player.getWorld(),
-                    tee,
-                    basket,
-                    rulesetManager
-                );
+                UUID playerId = player.getUuid();
+                Integer cachedHole = LAST_MINIMAP_HOLE.get(playerId);
+                int corridorHalfWidth;
+                if (cachedHole == null || cachedHole != state.currentHole() || !CACHED_CORRIDOR_HALF_WIDTH.containsKey(playerId)) {
+                    corridorHalfWidth = strictCorridorHalfWidth(
+                        currentHole,
+                        (ServerWorld) player.getWorld(),
+                        tee,
+                        basket,
+                        rulesetManager
+                    );
+                    CACHED_CORRIDOR_HALF_WIDTH.put(playerId, corridorHalfWidth);
+                } else {
+                    corridorHalfWidth = CACHED_CORRIDOR_HALF_WIDTH.get(playerId);
+                }
 
                 BlockPos mapFocus = player.getBlockPos();
                 HoleMiniMapSync.Payload miniMapPayload = buildMiniMapPayload(
@@ -225,10 +244,12 @@ public final class HoleProgressTracker {
                     );
                 }
 
-                ServerPlayNetworking.send(
-                    player,
-                    miniMapPayload
-                );
+                int miniMapHash = miniMapPayload.hashCode();
+                if (!LAST_MINIMAP_PAYLOAD_HASH.containsKey(playerId) || LAST_MINIMAP_PAYLOAD_HASH.get(playerId) != miniMapHash) {
+                    ServerPlayNetworking.send(player, miniMapPayload);
+                    LAST_MINIMAP_PAYLOAD_HASH.put(playerId, miniMapHash);
+                    LAST_MINIMAP_HOLE.put(playerId, state.currentHole());
+                }
                 MINIMAP_ACTIVE_SENT = true;
                 if (!suppressHud && hudScoringDebug && (server.getTicks() % 20) == 0) {
                     McdgMod.LOGGER.info(

@@ -72,6 +72,11 @@ public final class McdgMod implements ModInitializer {
             COURSE_PLACEMENT_VALIDATOR,
             PRACTICE_COURSE_STORAGE
     );
+    private static final com.mcdg.game.AutoCourseService AUTO_COURSE_SERVICE = new com.mcdg.game.AutoCourseService(
+            COURSE_PLACEMENT_SERVICE,
+            COURSE_PLACEMENT_VALIDATOR,
+            PRACTICE_COURSE_STORAGE
+    );
         private static final ThrowAutoTestService THROW_AUTO_TEST_SERVICE = new ThrowAutoTestService(
             ACTIVE_COURSE_MANAGER,
             ROUND_STATE_MANAGER
@@ -114,12 +119,14 @@ public final class McdgMod implements ModInitializer {
             THROW_AUTO_TEST_SERVICE,
             ROUND_SESSION_STORAGE,
             PLAYER_ROUND_SESSION_STORAGE,
-            BUILD_COURSE_SESSION_MANAGER
+            BUILD_COURSE_SESSION_MANAGER,
+            AUTO_COURSE_SERVICE
         );
         ServerTickEvents.END_SERVER_TICK.register(PLACEMENT_AUTO_TEST_SERVICE::tick);
         ServerTickEvents.END_SERVER_TICK.register(THROW_AUTO_TEST_SERVICE::tick);
         ServerTickEvents.END_SERVER_TICK.register(ROUND_PRESENTATION_SERVICE::tick);
         ServerTickEvents.END_SERVER_TICK.register(BUILD_COURSE_SESSION_MANAGER::tick);
+        ServerTickEvents.END_SERVER_TICK.register(AUTO_COURSE_SERVICE::tick);
         ServerTickEvents.END_SERVER_TICK.register(McdgMod::handlePendingAutoStrictSetup);
         ServerTickEvents.END_SERVER_TICK.register(McdgMod::autosaveRoundSession);
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::loadPersistedPracticeCourse);

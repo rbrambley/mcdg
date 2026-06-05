@@ -69,7 +69,7 @@ public final class MenuCommands {
 
     public static int executeMenuRound(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
         source.sendFeedback(() -> Text.literal("Round").formatted(Formatting.GREEN, Formatting.BOLD), false);
-        source.sendFeedback(() -> menuButton("Create Course", "/mcdg createcourse ", Formatting.YELLOW, false), false);
+        source.sendFeedback(() -> menuButton("Auto Build Course", "/mcdg autocourse", Formatting.YELLOW, true), false);
         source.sendFeedback(() -> menuButton("Start Round", "/mcdg startround", Formatting.GREEN, true), false);
         source.sendFeedback(() -> menuButton("Join Round", "/mcdg joinround", Formatting.GREEN, true), false);
         source.sendFeedback(() -> menuButton("End Round", "/mcdg endround", Formatting.GOLD, true), false);
@@ -80,7 +80,8 @@ public final class MenuCommands {
 
     public static int executeMenuCourses(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
         source.sendFeedback(() -> Text.literal("Courses").formatted(Formatting.GOLD, Formatting.BOLD), false);
-        source.sendFeedback(() -> menuButton("Build Course", "/mcdg buildcourse", Formatting.GREEN, true), false);
+        source.sendFeedback(() -> menuButton("Auto Build Course", "/mcdg autocourse", Formatting.YELLOW, true), false);
+        source.sendFeedback(() -> menuButton("Manual Build Course", "/mcdg buildcourse", Formatting.GREEN, true), false);
         source.sendFeedback(() -> menuButton("List Courses", "/mcdg listcourses", Formatting.AQUA, true), false);
         source.sendFeedback(() -> menuButton("Play Course", "/mcdg playcourse ", Formatting.GOLD, false), false);
         source.sendFeedback(() -> menuButton("Remove Course", "/mcdg removecourse ", Formatting.RED, false), false);

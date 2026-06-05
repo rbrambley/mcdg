@@ -153,6 +153,7 @@ public final class McdgClientMod implements ClientModInitializer {
     private static boolean waypointLabelsVisible = true;
     private static boolean miniMapJoinWarmupPending;
     private static int miniMapJoinPrimeTicksRemaining;
+    private static boolean waypointsDirty = false;
     private static String activeRoundCourseWaypointName = "";
     private static String loadedWaypointContextKey = "";
     private static String lastSentWaypointSyncSignature = "";
@@ -222,7 +223,10 @@ public final class McdgClientMod implements ClientModInitializer {
             client.options.write();
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            maybeSyncClientWaypoints(client);
+            if (waypointsDirty) {
+                maybeSyncClientWaypoints(client);
+                waypointsDirty = false;
+            }
             maybeAutoConnect(client);
             handleMiniMapHotkeys(client);
             tickMiniMapJoinPrime(client);
@@ -1623,7 +1627,7 @@ public final class McdgClientMod implements ClientModInitializer {
             if (nearest != null) {
                 clientWaypoints.remove(nearest);
                 saveWaypointStore(client);
-                syncClientWaypointsToServer(client);
+                waypointsDirty = true;
                 client.player.sendMessage(Text.literal("Waypoint removed: " + nearest.name()).formatted(Formatting.GRAY), true);
             }
         }
@@ -1703,6 +1707,7 @@ public final class McdgClientMod implements ClientModInitializer {
         int color = WAYPOINT_COLORS[colorIndex];
         clientWaypoints.add(new ClientWaypoint(name, pendingWaypointX, pendingWaypointY, pendingWaypointZ, color, currentWaypointDimensionKey(client)));
         saveWaypointStore(client);
+        waypointsDirty = true;
         client.player.sendMessage(Text.literal("Waypoint added: " + name + " (" + pendingWaypointX + ", " + pendingWaypointY + ", " + pendingWaypointZ + ") " + WAYPOINT_COLOR_NAMES[colorIndex]).formatted(Formatting.LIGHT_PURPLE), false);
 
         waypointPromptStage = WaypointPromptStage.NONE;
@@ -1929,7 +1934,7 @@ public final class McdgClientMod implements ClientModInitializer {
             waypointLabelsVisible = true;
         }
 
-        syncClientWaypointsToServer(client);
+        waypointsDirty = true;
     }
 
     private static void saveWaypointStore(MinecraftClient client) {
@@ -1976,11 +1981,13 @@ public final class McdgClientMod implements ClientModInitializer {
 
             clientWaypoints.set(i, new ClientWaypoint(name, x, existing.y(), z, WAYPOINT_COURSE_COLOR, dimensionKey));
             saveWaypointStore(client);
+            waypointsDirty = true;
             return;
         }
 
         clientWaypoints.add(new ClientWaypoint(StringHelper.truncate(name, 24, false), x, UNKNOWN_WAYPOINT_Y, z, WAYPOINT_COURSE_COLOR, dimensionKey));
         saveWaypointStore(client);
+        waypointsDirty = true;
     }
 
     private static void removePermanentCourseWaypoint(MinecraftClient client, String name) {
@@ -1991,6 +1998,7 @@ public final class McdgClientMod implements ClientModInitializer {
         String dimensionKey = currentWaypointDimensionKey(client);
         clientWaypoints.removeIf(wp -> wp.name().equals(name) && wp.dimensionId().equals(dimensionKey) && wp.color() == WAYPOINT_COURSE_COLOR);
         saveWaypointStore(client);
+        waypointsDirty = true;
     }
 
     private static void syncRoundHoleWaypointsFromPayload(HoleMiniMapSync.Payload payload) {
