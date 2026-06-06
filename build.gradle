@@ -3,6 +3,8 @@ plugins {
     id 'eclipse'
     id 'fabric-loom' version "${loom_version}"
     id 'maven-publish'
+    id 'jacoco'
+    id 'pmd'
 }
 
 version = project.mod_version
@@ -22,6 +24,11 @@ dependencies {
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // Testing
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testImplementation 'org.mockito:mockito-core:5.11.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.11.0'
 }
 
 loom {
@@ -198,4 +205,27 @@ publishing {
             from components.java
         }
     }
+}
+
+tasks.named('test', Test) {
+    useJUnitPlatform()
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+    }
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+pmd {
+    toolVersion = '7.1.0'
+    rulesMinimumPriority = 3
+    ruleSets = []
+    ruleSetConfig = resources.text.fromFile('config/pmd/pmd.xml')
 }

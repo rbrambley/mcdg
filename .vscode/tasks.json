@@ -4,9 +4,37 @@
     {
       "label": "Build Mod",
       "type": "shell",
-      "command": "gradle",
+      "command": "gradlew",
       "args": [
         "build"
+      ],
+      "group": "build",
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^(.+):(\\d+):\\s+(error|warning):\\s+(.+)$",
+          "file": 1,
+          "line": 2,
+          "severity": 3,
+          "message": 4
+        }
+      }
+    },
+    {
+      "label": "Run Tests",
+      "type": "shell",
+      "command": "gradlew",
+      "args": [
+        "test"
+      ],
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run PMD",
+      "type": "shell",
+      "command": "gradlew",
+      "args": [
+        "pmdMain"
       ],
       "group": "build",
       "problemMatcher": []
@@ -114,14 +142,22 @@
     {
       "label": "Global Safety Gate",
       "type": "shell",
-      "command": "gradle",
+      "command": "gradlew",
       "args": [
         "quickRegression",
         "smokeRegression",
         "build"
       ],
       "group": "build",
-      "problemMatcher": []
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^(.+):(\\d+):\\s+(error|warning):\\s+(.+)$",
+          "file": 1,
+          "line": 2,
+          "severity": 3,
+          "message": 4
+        }
+      }
     }
   ]
 }

@@ -12,3 +12,5 @@ out/
 .settings/
 bin/
 *.launch
+.devin/
+.windsurf/
