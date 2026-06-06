@@ -1,0 +1,84 @@
+package com.mcdg.client;
+
+import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.util.InputUtil;
+import org.lwjgl.glfw.GLFW;
+
+/**
+ * Registers and polls MCDG client keybindings.
+ * Keeps GLFW/KeyBinding boilerplate out of {@link McdgClientMod}.
+ */
+public final class ClientKeybinds {
+    private static KeyBinding increaseMiniMapSizeKey;
+    private static KeyBinding decreaseMiniMapSizeKey;
+    private static KeyBinding addWaypointKey;
+    private static KeyBinding removeNearestWaypointKey;
+    private static KeyBinding toggleWaypointLabelsKey;
+
+    private ClientKeybinds() {
+    }
+
+    public static void register() {
+        increaseMiniMapSizeKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.mcdg.minimap_size_up",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_EQUAL,
+                "category.mcdg"
+        ));
+        decreaseMiniMapSizeKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.mcdg.minimap_size_down",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_MINUS,
+                "category.mcdg"
+        ));
+        addWaypointKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.mcdg.add_waypoint",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_M,
+                "category.mcdg"
+        ));
+        removeNearestWaypointKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.mcdg.remove_nearest_waypoint",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_N,
+                "category.mcdg"
+        ));
+        toggleWaypointLabelsKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.mcdg.toggle_waypoint_labels",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_L,
+                "category.mcdg"
+        ));
+    }
+
+    public static void forEachMinimapSizeUpPress(Runnable action) {
+        while (increaseMiniMapSizeKey.wasPressed()) {
+            action.run();
+        }
+    }
+
+    public static void forEachMinimapSizeDownPress(Runnable action) {
+        while (decreaseMiniMapSizeKey.wasPressed()) {
+            action.run();
+        }
+    }
+
+    public static void forEachAddWaypointPress(Runnable action) {
+        while (addWaypointKey.wasPressed()) {
+            action.run();
+        }
+    }
+
+    public static void forEachRemoveNearestWaypointPress(Runnable action) {
+        while (removeNearestWaypointKey.wasPressed()) {
+            action.run();
+        }
+    }
+
+    public static void forEachToggleWaypointLabelsPress(Runnable action) {
+        while (toggleWaypointLabelsKey.wasPressed()) {
+            action.run();
+        }
+    }
+}

@@ -23,7 +23,6 @@ import java.util.Objects;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -33,7 +32,6 @@ import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.DisconnectedScreen;
 import net.minecraft.client.gui.screen.Screen;
@@ -139,11 +137,6 @@ public final class McdgClientMod implements ClientModInitializer {
     private static long miniMapReceivedAtMs;
     private static int miniMapStyleIndex = 1;
     private static MiniMapRenderCache miniMapRenderCache;
-    private static KeyBinding increaseMiniMapSizeKey;
-    private static KeyBinding decreaseMiniMapSizeKey;
-    private static KeyBinding addWaypointKey;
-    private static KeyBinding removeNearestWaypointKey;
-    private static KeyBinding toggleWaypointLabelsKey;
     private static long hudVisibleSinceMs;
     private static float displayedDistanceFeet = Float.NaN;
     private static float displayedTotalStrokes = Float.NaN;
@@ -187,36 +180,7 @@ public final class McdgClientMod implements ClientModInitializer {
                 }
         );
 
-        increaseMiniMapSizeKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-            "key.mcdg.minimap_size_up",
-                InputUtil.Type.KEYSYM,
-            GLFW.GLFW_KEY_EQUAL,
-                "category.mcdg"
-        ));
-        decreaseMiniMapSizeKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-            "key.mcdg.minimap_size_down",
-                InputUtil.Type.KEYSYM,
-            GLFW.GLFW_KEY_MINUS,
-                "category.mcdg"
-        ));
-        addWaypointKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-            "key.mcdg.add_waypoint",
-            InputUtil.Type.KEYSYM,
-            GLFW.GLFW_KEY_M,
-            "category.mcdg"
-        ));
-        removeNearestWaypointKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-            "key.mcdg.remove_nearest_waypoint",
-            InputUtil.Type.KEYSYM,
-            GLFW.GLFW_KEY_N,
-            "category.mcdg"
-        ));
-        toggleWaypointLabelsKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-            "key.mcdg.toggle_waypoint_labels",
-            InputUtil.Type.KEYSYM,
-            GLFW.GLFW_KEY_L,
-            "category.mcdg"
-        ));
+        ClientKeybinds.register();
 
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
             client.options.getChatScale().setValue(0.65);
@@ -1588,35 +1552,35 @@ public final class McdgClientMod implements ClientModInitializer {
     private static void handleMiniMapHotkeys(MinecraftClient client) {
         ensureWaypointContextLoaded(client);
 
-        while (increaseMiniMapSizeKey.wasPressed()) {
+        ClientKeybinds.forEachMinimapSizeUpPress(() -> {
             miniMapStyleIndex = Math.min(MINIMAP_SIZES.length - 1, miniMapStyleIndex + 1);
             if (client.player != null) {
                 client.player.sendMessage(Text.literal("Mini-map size: " + MINIMAP_SIZES[miniMapStyleIndex] + "px").formatted(Formatting.GRAY), true);
             }
-        }
+        });
 
-        while (decreaseMiniMapSizeKey.wasPressed()) {
+        ClientKeybinds.forEachMinimapSizeDownPress(() -> {
             miniMapStyleIndex = Math.max(0, miniMapStyleIndex - 1);
             if (client.player != null) {
                 client.player.sendMessage(Text.literal("Mini-map size: " + MINIMAP_SIZES[miniMapStyleIndex] + "px").formatted(Formatting.GRAY), true);
             }
-        }
+        });
 
-        while (addWaypointKey.wasPressed()) {
+        ClientKeybinds.forEachAddWaypointPress(() -> {
             if (client.player == null) {
-                continue;
+                return;
             }
             beginWaypointPrompt(client);
-        }
+        });
 
-        while (removeNearestWaypointKey.wasPressed()) {
+        ClientKeybinds.forEachRemoveNearestWaypointPress(() -> {
             if (client.player == null) {
-                continue;
+                return;
             }
             List<ClientWaypoint> currentDimensionWaypoints = resolveSavedWaypointsForCurrentDimension(client);
             if (currentDimensionWaypoints.isEmpty()) {
                 client.player.sendMessage(Text.literal("No waypoints to remove.").formatted(Formatting.GRAY), true);
-                continue;
+                return;
             }
             int x = net.minecraft.util.math.MathHelper.floor(client.player.getX());
             int z = net.minecraft.util.math.MathHelper.floor(client.player.getZ());
@@ -1637,15 +1601,15 @@ public final class McdgClientMod implements ClientModInitializer {
                 waypointsDirty = true;
                 client.player.sendMessage(Text.literal("Waypoint removed: " + nearest.name()).formatted(Formatting.GRAY), true);
             }
-        }
+        });
 
-        while (toggleWaypointLabelsKey.wasPressed()) {
+        ClientKeybinds.forEachToggleWaypointLabelsPress(() -> {
             waypointLabelsVisible = !waypointLabelsVisible;
             saveWaypointStore(client);
             if (client.player != null) {
                 client.player.sendMessage(Text.literal("Waypoint labels " + (waypointLabelsVisible ? "ON" : "OFF")).formatted(Formatting.GRAY), true);
             }
-        }
+        });
     }
 
     private static void beginWaypointPrompt(MinecraftClient client) {
