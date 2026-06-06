@@ -46,7 +46,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
-import net.minecraft.particle.ParticleTypes;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.MapColor;
@@ -63,7 +62,6 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.hit.HitResult;
-import net.minecraft.client.util.InputUtil;
 import net.minecraft.util.StringHelper;
 import net.minecraft.util.WorldSavePath;
 import net.minecraft.world.Heightmap;
@@ -71,7 +69,6 @@ import net.minecraft.world.RaycastContext;
 import net.minecraft.world.biome.Biome;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.lwjgl.glfw.GLFW;
 
 public final class McdgClientMod implements ClientModInitializer {
     private static final Logger LOGGER = LoggerFactory.getLogger("mcdg-minimap");
@@ -101,9 +98,6 @@ public final class McdgClientMod implements ClientModInitializer {
     private static final int HUD_CARD_MUTED_TEXT = 0xAAB8CC;
     private static final int HAZARD_OVERLAY_ARGB = 0x8CFF9A32;
     private static final int HAZARD_SAMPLE_STEP_PX = 2;
-    private static final long ACE_CINEMATIC_DURATION_MS = 3600L;
-    private static final long ACE_CINEMATIC_PARTICLE_STEP_MS = 80L;
-    private static final long ROUND_COMPLETE_CINEMATIC_DURATION_MS = 20000L;
     private static final int BASKET_GREEN_RADIUS_BLOCKS = 7;
     private static final int BASKET_GREEN_HEIGHT_BLOCKS = 8;
     private static final Identifier TRAINING_DISC_CHARGED_PREDICATE = new Identifier("mcdg", "charged");
@@ -147,9 +141,6 @@ public final class McdgClientMod implements ClientModInitializer {
     private static int pendingWaypointX;
     private static int pendingWaypointY;
     private static int pendingWaypointZ;
-    private static AceCinematicState aceCinematicState;
-    private static long nextAceCinematicParticleAtMs;
-    private static RoundCompleteCinematicState roundCompleteCinematicState;
     private static RunningRoundScoreState runningRoundScoreState;
     private static final List<ClientWaypoint> clientWaypoints = new ArrayList<>();
     private static final List<ClientWaypoint> roundHoleWaypoints = new ArrayList<>();
@@ -184,8 +175,7 @@ public final class McdgClientMod implements ClientModInitializer {
             AutoConnect.tick(client);
             handleMiniMapHotkeys(client);
             tickMiniMapJoinPrime(client);
-            updateAceCinematicEffects(client);
-            updateRoundCompleteCinematicEffects(client);
+            CinematicOverlay.tick(client);
         });
         // When a chunk arrives from the server, reset the minimap rebuild timer so the
         // next render frame picks up the newly loaded terrain rather than waiting up to
@@ -275,24 +265,19 @@ public final class McdgClientMod implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(AceCinematicSync.ID, (payload, context) -> {
             context.client().execute(() -> {
                 if (!payload.active()) {
-                    aceCinematicState = null;
+                    CinematicOverlay.clearAce();
                     return;
                 }
-
-                long now = System.currentTimeMillis();
-                aceCinematicState = new AceCinematicState(payload.holeIndex(), payload.distanceFeet(), now, now + ACE_CINEMATIC_DURATION_MS);
-                nextAceCinematicParticleAtMs = now;
+                CinematicOverlay.activateAce(payload.holeIndex(), payload.distanceFeet());
             });
         });
         ClientPlayNetworking.registerGlobalReceiver(RoundCompleteCinematicSync.ID, (payload, context) -> {
             context.client().execute(() -> {
                 if (!payload.active()) {
-                    roundCompleteCinematicState = null;
+                    CinematicOverlay.clearRoundComplete();
                     return;
                 }
-
-                long now = System.currentTimeMillis();
-                roundCompleteCinematicState = new RoundCompleteCinematicState(
+                CinematicOverlay.activateRoundComplete(
                         payload.totalPar(),
                         payload.totalPlayers(),
                         payload.firstName(),
@@ -302,9 +287,7 @@ public final class McdgClientMod implements ClientModInitializer {
                         payload.thirdName(),
                         payload.thirdScore(),
                         payload.localRank(),
-                        payload.localScore(),
-                        now,
-                        now + ROUND_COMPLETE_CINEMATIC_DURATION_MS
+                        payload.localScore()
                 );
             });
         });
@@ -336,8 +319,7 @@ public final class McdgClientMod implements ClientModInitializer {
             renderRunningRoundScoreboardOverlay(drawContext);
             renderCompassOverlay(drawContext);
             renderPowerOverlay(drawContext);
-            renderAceCinematicOverlay(drawContext);
-            renderRoundCompleteCinematicOverlay(drawContext);
+            CinematicOverlay.render(drawContext);
         });
         WorldRenderEvents.AFTER_TRANSLUCENT.register(McdgClientMod::renderWaypointWorldLabels);
     }
@@ -2239,190 +2221,6 @@ public final class McdgClientMod implements ClientModInitializer {
         drawContext.drawTextWithShadow(client.textRenderer, Text.literal(Integer.toString(percent) + "%"), barX - 8, barTop - 12, 0x66E3FF);
     }
 
-    private static void updateAceCinematicEffects(MinecraftClient client) {
-        if (aceCinematicState == null) {
-            return;
-        }
-
-        long now = System.currentTimeMillis();
-        if (now >= aceCinematicState.endAtMs()) {
-            aceCinematicState = null;
-            return;
-        }
-
-        if (client == null || client.player == null || client.world == null) {
-            return;
-        }
-
-        if (now < nextAceCinematicParticleAtMs) {
-            return;
-        }
-
-        nextAceCinematicParticleAtMs = now + ACE_CINEMATIC_PARTICLE_STEP_MS;
-        double centerX = client.player.getX();
-        double centerY = client.player.getY() + 1.2;
-        double centerZ = client.player.getZ();
-        double phase = (now - aceCinematicState.startAtMs()) / 150.0d;
-
-        for (int i = 0; i < 14; i++) {
-            double angle = phase + ((Math.PI * 2.0d * i) / 14.0d);
-            double radius = 0.9d + ((i % 3) * 0.18d);
-            double px = centerX + (Math.cos(angle) * radius);
-            double pz = centerZ + (Math.sin(angle) * radius);
-            double vy = 0.02d + ((i % 4) * 0.01d);
-            client.world.addParticle(ParticleTypes.END_ROD, px, centerY + ((i % 3) * 0.08d), pz, 0.0d, vy, 0.0d);
-        }
-    }
-
-    private static void renderAceCinematicOverlay(DrawContext drawContext) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null || client.options.hudHidden || client.textRenderer == null || aceCinematicState == null) {
-            return;
-        }
-
-        long now = System.currentTimeMillis();
-        if (now >= aceCinematicState.endAtMs()) {
-            aceCinematicState = null;
-            return;
-        }
-
-        float duration = Math.max(1.0f, (float) (aceCinematicState.endAtMs() - aceCinematicState.startAtMs()));
-        float progress = Math.max(0.0f, Math.min(1.0f, (now - aceCinematicState.startAtMs()) / duration));
-        float fadeIn = Math.min(1.0f, progress / 0.16f);
-        float fadeOut = Math.min(1.0f, (1.0f - progress) / 0.22f);
-        float alpha = Math.max(0.0f, Math.min(fadeIn, fadeOut));
-        if (alpha <= 0.0f) {
-            return;
-        }
-
-        int width = drawContext.getScaledWindowWidth();
-        int height = drawContext.getScaledWindowHeight();
-        int cardW = 238;
-        int cardH = 72;
-        int x = (width - cardW) / 2;
-        int y = Math.max(18, (height / 2) - 120);
-
-        drawContext.fill(x, y, x + cardW, y + cardH, withAlpha(0xC0141820, alpha));
-        drawContext.fill(x, y, x + cardW, y + 14, withAlpha(0xE3987A19, alpha));
-        drawContext.fill(x, y, x + cardW, y + 1, withAlpha(0xFFE5BD4A, alpha));
-        drawContext.fill(x, y + cardH - 1, x + cardW, y + cardH, withAlpha(0xFFE5BD4A, alpha));
-        drawContext.fill(x, y, x + 1, y + cardH, withAlpha(0xFFE5BD4A, alpha));
-        drawContext.fill(x + cardW - 1, y, x + cardW, y + cardH, withAlpha(0xFFE5BD4A, alpha));
-
-        String title = "ACE!";
-        String sub1 = "Hole-in-One";
-        String sub2 = "Hole " + aceCinematicState.holeIndex() + "  Dist " + aceCinematicState.distanceFeet() + " ft";
-        int titleX = x + ((cardW - client.textRenderer.getWidth(title)) / 2);
-        int sub1X = x + ((cardW - client.textRenderer.getWidth(sub1)) / 2);
-        int sub2X = x + ((cardW - client.textRenderer.getWidth(sub2)) / 2);
-
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(title).formatted(Formatting.GOLD, Formatting.BOLD), titleX, y + 18, withAlpha(0xFFF6D15A, alpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(sub1).formatted(Formatting.YELLOW), sub1X, y + 35, withAlpha(0xFFF3E5B3, alpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(sub2).formatted(Formatting.WHITE), sub2X, y + 49, withAlpha(0xFFF7F8FB, alpha));
-    }
-
-    private static void updateRoundCompleteCinematicEffects(MinecraftClient client) {
-        if (roundCompleteCinematicState == null) {
-            return;
-        }
-
-        long now = System.currentTimeMillis();
-        if (now >= roundCompleteCinematicState.endAtMs()) {
-            roundCompleteCinematicState = null;
-            return;
-        }
-
-        if (client == null || client.player == null || client.currentScreen != null) {
-            roundCompleteCinematicState = null;
-            return;
-        }
-
-        long handle = client.getWindow().getHandle();
-        if (InputUtil.isKeyPressed(handle, GLFW.GLFW_KEY_W)
-                || InputUtil.isKeyPressed(handle, GLFW.GLFW_KEY_A)
-                || InputUtil.isKeyPressed(handle, GLFW.GLFW_KEY_S)
-                || InputUtil.isKeyPressed(handle, GLFW.GLFW_KEY_D)
-                || InputUtil.isKeyPressed(handle, GLFW.GLFW_KEY_SPACE)) {
-            roundCompleteCinematicState = null;
-        }
-    }
-
-    private static void renderRoundCompleteCinematicOverlay(DrawContext drawContext) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null || client.options.hudHidden || client.textRenderer == null || roundCompleteCinematicState == null) {
-            return;
-        }
-
-        long now = System.currentTimeMillis();
-        if (now >= roundCompleteCinematicState.endAtMs()) {
-            roundCompleteCinematicState = null;
-            return;
-        }
-
-        float duration = Math.max(1.0f, (float) (roundCompleteCinematicState.endAtMs() - roundCompleteCinematicState.startAtMs()));
-        float progress = Math.max(0.0f, Math.min(1.0f, (now - roundCompleteCinematicState.startAtMs()) / duration));
-        float fadeIn = Math.min(1.0f, progress / 0.14f);
-        float fadeOut = Math.min(1.0f, (1.0f - progress) / 0.18f);
-        float alpha = Math.max(0.0f, Math.min(fadeIn, fadeOut));
-        if (alpha <= 0.0f) {
-            return;
-        }
-
-        int width = drawContext.getScaledWindowWidth();
-        int height = drawContext.getScaledWindowHeight();
-        int cardW = 312;
-        int cardH = 162;
-        int x = (width - cardW) / 2;
-        int y = Math.max(18, (height / 2) - 134);
-
-        drawContext.fill(x, y, x + cardW, y + cardH, withAlpha(0xCC121720, alpha));
-        drawContext.fill(x, y, x + cardW, y + 16, withAlpha(0xE3947A24, alpha));
-        drawContext.fill(x, y, x + cardW, y + 1, withAlpha(0xFFE0C468, alpha));
-        drawContext.fill(x, y + cardH - 1, x + cardW, y + cardH, withAlpha(0xFFE0C468, alpha));
-        drawContext.fill(x, y, x + 1, y + cardH, withAlpha(0xFFE0C468, alpha));
-        drawContext.fill(x + cardW - 1, y, x + cardW, y + cardH, withAlpha(0xFFE0C468, alpha));
-
-        String title = "Round Complete";
-        String subtitle = roundCompleteCinematicState.totalPlayers() + " Players  |  Par " + roundCompleteCinematicState.totalPar();
-        int titleX = x + ((cardW - client.textRenderer.getWidth(title)) / 2);
-        int subtitleX = x + ((cardW - client.textRenderer.getWidth(subtitle)) / 2);
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(title).formatted(Formatting.GOLD, Formatting.BOLD), titleX, y + 22, withAlpha(0xFFF5D57A, alpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(subtitle).formatted(Formatting.YELLOW), subtitleX, y + 37, withAlpha(0xFFEFE4BF, alpha));
-
-        drawRoundPodiumLine(drawContext, client, x + 20, y + 62, 1, roundCompleteCinematicState.firstName(), roundCompleteCinematicState.firstScore(), roundCompleteCinematicState.totalPar(), alpha);
-        drawRoundPodiumLine(drawContext, client, x + 20, y + 78, 2, roundCompleteCinematicState.secondName(), roundCompleteCinematicState.secondScore(), roundCompleteCinematicState.totalPar(), alpha);
-        drawRoundPodiumLine(drawContext, client, x + 20, y + 94, 3, roundCompleteCinematicState.thirdName(), roundCompleteCinematicState.thirdScore(), roundCompleteCinematicState.totalPar(), alpha);
-
-        String local;
-        if (roundCompleteCinematicState.localRank() > 0) {
-            int delta = roundCompleteCinematicState.localScore() - roundCompleteCinematicState.totalPar();
-            String deltaText = delta == 0 ? "E" : (delta > 0 ? "+" + delta : Integer.toString(delta));
-            local = "You: #" + roundCompleteCinematicState.localRank() + "  Score " + roundCompleteCinematicState.localScore() + " (" + deltaText + ")";
-        } else {
-            local = "You: spectator";
-        }
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(local).formatted(Formatting.WHITE), x + 20, y + 122, withAlpha(0xFFF5F7FB, alpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Press movement key or jump to skip").formatted(Formatting.GRAY), x + 20, y + 138, withAlpha(0xFFABB5C2, alpha));
-    }
-
-    private static void drawRoundPodiumLine(
-            DrawContext drawContext,
-            MinecraftClient client,
-            int x,
-            int y,
-            int rank,
-            String name,
-            int score,
-            int par,
-            float alpha
-    ) {
-        String safeName = (name == null || name.isBlank()) ? "-" : name;
-        int delta = score - par;
-        String deltaText = delta == 0 ? "E" : (delta > 0 ? "+" + delta : Integer.toString(delta));
-        String line = "#" + rank + "  " + safeName + "  " + score + " (" + deltaText + ")";
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line), x, y, withAlpha(0xFFE5ECF7, alpha));
-    }
-
     private static void refreshMiniMapRenderCache(MinecraftClient client, int mapSpan) {
         if (client == null || mapSpan <= 0) {
             return;
@@ -2914,30 +2712,6 @@ public final class McdgClientMod implements ClientModInitializer {
                     && centerZ == playerFeetZ;
         }
     }
-
-    private record AceCinematicState(
-            int holeIndex,
-            int distanceFeet,
-            long startAtMs,
-            long endAtMs
-    ) {
-    }
-
-        private record RoundCompleteCinematicState(
-            int totalPar,
-            int totalPlayers,
-            String firstName,
-            int firstScore,
-            String secondName,
-            int secondScore,
-            String thirdName,
-            int thirdScore,
-            int localRank,
-            int localScore,
-            long startAtMs,
-            long endAtMs
-        ) {
-        }
 
     private record RunningRoundScoreState(
             int totalHoles,
