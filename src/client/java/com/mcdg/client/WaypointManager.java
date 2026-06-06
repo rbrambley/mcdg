@@ -26,7 +26,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.StringHelper;
 import net.minecraft.util.WorldSavePath;
-import net.minecraft.util.math.BlockPos;
+
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.world.Heightmap;
@@ -157,7 +157,7 @@ public final class WaypointManager {
             WaypointRenderMode mode = resolveWaypointRenderMode(waypoint, distanceBlocks);
             float waypointDx = (float) ((waypoint.x() - centerWorldX) * mapScale);
             float waypointDz = (float) ((waypoint.z() - centerWorldZ) * mapScale);
-            float[] rotated = McdgClientMod.rotateMiniMapVector(waypointDx, waypointDz, mapRotationDegrees);
+            float[] rotated = MiniMapRenderer.rotateMiniMapVector(waypointDx, waypointDz, mapRotationDegrees);
 
             if (mode == WaypointRenderMode.MINIMAP_EDGE_ARROW) {
                 float len = (float) Math.sqrt((rotated[0] * rotated[0]) + (rotated[1] * rotated[1]));
@@ -166,7 +166,7 @@ public final class WaypointManager {
                 float arrowX = mapCenterX + ((rotated[0] / len) * arrowDistance);
                 float arrowY = mapCenterY + ((rotated[1] / len) * arrowDistance);
                 float angle = (float) Math.toDegrees(Math.atan2(rotated[1], rotated[0]));
-                McdgClientMod.drawHeadingTriangleClipped(drawContext, arrowX, arrowY, angle, 6.0f, 4.0f,
+                MiniMapRenderer.drawHeadingTriangleClipped(drawContext, arrowX, arrowY, angle, 6.0f, 4.0f,
                         HudUtil.withAlpha(waypoint.color(), hudAlpha), HudUtil.withAlpha(0xFF10161F, hudAlpha),
                         clipCenterX, clipCenterY, clipRadius);
                 continue;
@@ -174,10 +174,10 @@ public final class WaypointManager {
 
             float waypointPx = mapCenterX + rotated[0];
             float waypointPz = mapCenterY + rotated[1];
-            if (!McdgClientMod.isPointInsideCircle((int) waypointPx, (int) waypointPz, clipCenterX, clipCenterY, clipRadius * clipRadius)) continue;
-            McdgClientMod.drawFilledCircle(drawContext, waypointPx, waypointPz, 3.5f, HudUtil.withAlpha(waypoint.color(), hudAlpha));
-            McdgClientMod.drawCircleOutline(drawContext, waypointPx, waypointPz, 3.5f, HudUtil.withAlpha(0xFF10161F, hudAlpha));
-            if (drawLabels && McdgClientMod.isPointInsideCircle((int) (waypointPx + 4), (int) (waypointPz - 6), clipCenterX, clipCenterY, clipRadius * clipRadius)) {
+            if (!MiniMapRenderer.isPointInsideCircle((int) waypointPx, (int) waypointPz, clipCenterX, clipCenterY, clipRadius * clipRadius)) continue;
+            MiniMapRenderer.drawFilledCircle(drawContext, waypointPx, waypointPz, 3.5f, HudUtil.withAlpha(waypoint.color(), hudAlpha));
+            MiniMapRenderer.drawCircleOutline(drawContext, waypointPx, waypointPz, 3.5f, HudUtil.withAlpha(0xFF10161F, hudAlpha));
+            if (drawLabels && MiniMapRenderer.isPointInsideCircle((int) (waypointPx + 4), (int) (waypointPz - 6), clipCenterX, clipCenterY, clipRadius * clipRadius)) {
                 drawContext.drawTextWithShadow(client.textRenderer, Text.literal(waypoint.name()), (int) waypointPx + 3, (int) waypointPz - 8, HudUtil.withAlpha(0xE8EEF7, hudAlpha));
             }
         }
