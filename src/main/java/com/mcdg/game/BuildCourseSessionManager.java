@@ -861,7 +861,9 @@ public final class BuildCourseSessionManager {
         for (BuiltHole built : sortedBuiltHoles()) {
             holes.add(built.hole);
             PlacedCourseState placed = built.placedState();
-            mergedOriginals.putAll(placed.originalBlocks());
+            for (Map.Entry<BlockPos, net.minecraft.block.BlockState> entry : placed.originalBlocks().entrySet()) {
+                mergedOriginals.putIfAbsent(entry.getKey(), entry.getValue());
+            }
             tees.putAll(placed.holeTees());
             baskets.putAll(placed.holeBaskets());
             alternates.putAll(placed.holeAlternateAnchors());
@@ -1035,6 +1037,7 @@ public final class BuildCourseSessionManager {
     }
 
     private void rollbackPlaced(ServerWorld world, PlacedCourseState placed) {
+        CoursePlacementService.evacuatePlayersFromRestoreArea(world, placed.originalBlocks());
         for (Map.Entry<BlockPos, net.minecraft.block.BlockState> entry : placed.originalBlocks().entrySet()) {
             world.setBlockState(entry.getKey(), entry.getValue(), Block.NOTIFY_ALL);
         }

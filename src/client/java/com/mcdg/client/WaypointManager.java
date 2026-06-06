@@ -21,7 +21,6 @@ import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
-import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.StringHelper;
@@ -488,7 +487,7 @@ public final class WaypointManager {
         if (visibleWaypoints.isEmpty()) return;
         Vec3d cameraPos = context.camera().getPos();
         VertexConsumerProvider.Immediate consumers = client.getBufferBuilders().getEntityVertexConsumers();
-        VertexConsumer beamConsumer = consumers.getBuffer(RenderLayer.getLines());
+        VertexConsumer beamConsumer = consumers.getBuffer(RenderLayer.getDebugLineStrip(2.0));
         for (ClientWaypoint waypoint : visibleWaypoints) {
             double distanceBlocks = Math.hypot(waypoint.x() - client.player.getX(), waypoint.z() - client.player.getZ());
             WaypointRenderMode mode = resolveWaypointRenderMode(waypoint, distanceBlocks);
@@ -525,13 +524,13 @@ public final class WaypointManager {
         float r = ((waypoint.color() >> 16) & 0xFF) / 255.0f;
         float g = ((waypoint.color() >> 8) & 0xFF) / 255.0f;
         float b = (waypoint.color() & 0xFF) / 255.0f;
-        double minX = (waypoint.x() + 0.30d) - cameraPos.x;
-        double maxX = (waypoint.x() + 0.70d) - cameraPos.x;
-        double minY = (surfaceY + 0.05d) - cameraPos.y;
-        double maxY = (surfaceY + WAYPOINT_BEAM_HEIGHT_BLOCKS) - cameraPos.y;
-        double minZ = (waypoint.z() + 0.30d) - cameraPos.z;
-        double maxZ = (waypoint.z() + 0.70d) - cameraPos.z;
-        WorldRenderer.drawBox(context.matrixStack(), beamConsumer, minX, minY, minZ, maxX, maxY, maxZ, r, g, b, WAYPOINT_BEAM_ALPHA);
+        float a = WAYPOINT_BEAM_ALPHA;
+        float cx = (float) ((waypoint.x() + 0.5d) - cameraPos.x);
+        float cz = (float) ((waypoint.z() + 0.5d) - cameraPos.z);
+        float y1 = (float) ((surfaceY + 0.05d) - cameraPos.y);
+        float y2 = (float) ((surfaceY + WAYPOINT_BEAM_HEIGHT_BLOCKS) - cameraPos.y);
+        beamConsumer.vertex(cx, y1, cz).color(r, g, b, a).next();
+        beamConsumer.vertex(cx, y2, cz).color(r, g, b, a).next();
     }
 
     private enum WaypointPromptStage { NONE, WAITING_NAME, WAITING_COLOR }

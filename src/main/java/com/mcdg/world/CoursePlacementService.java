@@ -24,6 +24,7 @@ import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.registry.tag.BiomeTags;
 import net.minecraft.block.entity.SignText;
 import net.minecraft.world.biome.Biome;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.property.Properties;
 import net.minecraft.text.Text;
@@ -135,16 +136,24 @@ public final class CoursePlacementService {
      * Use this for buildcourse hole placement so the result matches the preview position.
      */
     public PlacedCourseState placeCourseAtFixedOrigin(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback) {
+        return placeCourseAtFixedOrigin(world, origin, course, progressCallback, null);
+    }
+
+    public PlacedCourseState placeCourseAtFixedOrigin(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback, Set<BlockPos> externalProtectedPositions) {
         boolean previous = useFixedAnchor;
         useFixedAnchor = true;
         try {
-            return placeCourse(world, origin, course, progressCallback);
+            return placeCourse(world, origin, course, progressCallback, externalProtectedPositions);
         } finally {
             useFixedAnchor = previous;
         }
     }
 
     public PlacedCourseState placeCourse(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback) {
+        return placeCourse(world, origin, course, progressCallback, null);
+    }
+
+    private PlacedCourseState placeCourse(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback, Set<BlockPos> externalProtectedPositions) {
         // Current MVP behavior: place relative to the player's surface location.
         CourseBounds courseBounds = findCourseBounds(course);
         Set<Long> rejectedAnchorKeys = new HashSet<>();
@@ -210,7 +219,7 @@ public final class CoursePlacementService {
         Map<Integer, BlockPos> holeAlternateAnchors = new HashMap<>();
         Map<Integer, Integer> holeEffectivePars = new HashMap<>();
         Map<Integer, String> holeRoutingNotes = new HashMap<>();
-        Set<BlockPos> protectedPositions = new HashSet<>();
+        Set<BlockPos> protectedPositions = externalProtectedPositions != null ? externalProtectedPositions : new HashSet<>();
         int startingHoleIndex = course.holes().isEmpty() ? 1 : course.holes().get(0).index();
 
         int offsetX = anchor.getX() - courseBounds.centerX();
@@ -743,7 +752,21 @@ public final class CoursePlacementService {
         return expanded;
     }
 
+    public static void evacuatePlayersFromRestoreArea(ServerWorld world, Map<BlockPos, BlockState> originalBlocks) {
+        for (ServerPlayerEntity player : world.getServer().getPlayerManager().getPlayerList()) {
+            if (!player.getWorld().getRegistryKey().equals(world.getRegistryKey())) {
+                continue;
+            }
+            BlockPos feet = player.getBlockPos();
+            if (originalBlocks.containsKey(feet) || originalBlocks.containsKey(feet.up())) {
+                BlockPos spawn = world.getSpawnPos();
+                player.teleport(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+            }
+        }
+    }
+
     public void resetPlacedCourse(ServerWorld world, PlacedCourseState placedCourseState) {
+        evacuatePlayersFromRestoreArea(world, placedCourseState.originalBlocks());
         for (Map.Entry<BlockPos, BlockState> entry : placedCourseState.originalBlocks().entrySet()) {
             world.setBlockState(entry.getKey(), entry.getValue(), Block.NOTIFY_ALL);
         }
@@ -3900,7 +3923,7 @@ public final class CoursePlacementService {
                 || state.isOf(Blocks.POWDER_SNOW);
     }
 
-    private static void addProtectedColumnArea(Set<BlockPos> protectedPositions, BlockPos center, int radius, int height) {
+    public static void addProtectedColumnArea(Set<BlockPos> protectedPositions, BlockPos center, int radius, int height) {
         int r = Math.max(0, radius);
         int h = Math.max(1, height);
         for (int dx = -r; dx <= r; dx++) {

@@ -12,7 +12,9 @@ import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.HoleLayoutValidator;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -173,7 +175,7 @@ public final class AutoCourseService {
             );
 
             Course tempCourse = new Course(spec.seed, "auto-hole-" + spec.holeIndex, List.of(candidate));
-            PlacedCourseState placed = placementService.placeCourseAtFixedOrigin(world, center, tempCourse, ignored -> {});
+            PlacedCourseState placed = placementService.placeCourseAtFixedOrigin(world, center, tempCourse, ignored -> {}, state.globalProtectedPositions);
 
             BlockPos actualTee = placed.holeTees().get(spec.holeIndex);
             BlockPos actualBasket = placed.holeBaskets().get(spec.holeIndex);
@@ -197,12 +199,37 @@ public final class AutoCourseService {
                     spec.holeIndex == state.signatureHoleIndex ? SignatureHoleType.ISLAND_GREEN : SignatureHoleType.NONE
             );
 
+            boolean isFirstHole = state.builtHoles.isEmpty();
             state.builtHoles.add(actualHole);
-            state.mergedOriginals.putAll(placed.originalBlocks());
+            for (Map.Entry<BlockPos, net.minecraft.block.BlockState> entry : placed.originalBlocks().entrySet()) {
+                state.mergedOriginals.putIfAbsent(entry.getKey(), entry.getValue());
+            }
             state.tees.putAll(placed.holeTees());
             state.baskets.putAll(placed.holeBaskets());
             state.alternates.putAll(placed.holeAlternateAnchors());
             state.effectivePars.putAll(placed.effectiveHolePars());
+
+            BlockPos placedTee = placed.holeTees().get(spec.holeIndex);
+            BlockPos placedBasket = placed.holeBaskets().get(spec.holeIndex);
+            if (placedTee != null && placedBasket != null) {
+                CoursePlacementService.addProtectedColumnArea(state.globalProtectedPositions, placedTee, 2, 6);
+                CoursePlacementService.addProtectedColumnArea(state.globalProtectedPositions, placedBasket.down(), 2, 8);
+                int dx = placedBasket.getX() - placedTee.getX();
+                int dz = placedBasket.getZ() - placedTee.getZ();
+                int[] forward;
+                if (Math.abs(dx) >= Math.abs(dz)) {
+                    forward = new int[] { Integer.compare(dx, 0), 0 };
+                } else {
+                    forward = new int[] { 0, Integer.compare(dz, 0) };
+                }
+                BlockPos teeLamp = placedTee.add(-forward[0], 0, -forward[1]);
+                CoursePlacementService.addProtectedColumnArea(state.globalProtectedPositions, teeLamp, 1, 6);
+                if (isFirstHole) {
+                    int[] back = new int[] { -forward[0], -forward[1] };
+                    BlockPos hubApprox = placedTee.add(back[0] * 9, 0, back[1] * 9);
+                    CoursePlacementService.addProtectedColumnArea(state.globalProtectedPositions, hubApprox, 9, 7);
+                }
+            }
 
             int builtIndex = state.nextHoleIndex;
             state.nextHoleIndex++;
@@ -256,6 +283,7 @@ public final class AutoCourseService {
         if (state == null) {
             return;
         }
+        CoursePlacementService.evacuatePlayersFromRestoreArea(state.world, state.mergedOriginals);
         if (!state.mergedOriginals.isEmpty()) {
             for (Map.Entry<BlockPos, net.minecraft.block.BlockState> entry : state.mergedOriginals.entrySet()) {
                 state.world.setBlockState(entry.getKey(), entry.getValue(), Block.NOTIFY_ALL);
@@ -374,6 +402,7 @@ public final class AutoCourseService {
         private int signatureHoleIndex = 1;
         private final List<Hole> builtHoles = new ArrayList<>();
         private final Map<BlockPos, net.minecraft.block.BlockState> mergedOriginals = new HashMap<>();
+        private final Set<BlockPos> globalProtectedPositions = new HashSet<>();
         private final Map<Integer, BlockPos> tees = new HashMap<>();
         private final Map<Integer, BlockPos> baskets = new HashMap<>();
         private final Map<Integer, BlockPos> alternates = new HashMap<>();

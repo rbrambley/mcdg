@@ -9,6 +9,11 @@
 - `./gradlew pmdMain` — static analysis report
 - `./gradlew jacocoTestReport` — coverage report (run after tests)
 
+## Deploy
+- ATLauncher instance: `C:\Users\rich\AppData\Roaming\ATLauncher\instances\Minecraft1206withFabric\mods`
+- VS Code task "Build + Deploy to ATLauncher Test Instance" is wired with the path above.
+- Manual: `powershell -File scripts\deploy-to-atlauncher.ps1` (requires `ATLAUNCHER_TEST_MODS_DIR` env var if run outside VS Code).
+
 ## Code Conventions
 - Java 21, Fabric 1.20.6
 - Records for DTOs (see `McdgClientMod.MiniMapState`, `WaypointSync.WaypointEntry`)

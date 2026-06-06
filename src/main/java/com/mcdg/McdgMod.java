@@ -33,7 +33,11 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.fabricmc.fabric.api.resource.ResourcePackActivationType;
+import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.api.ModInitializer;
+import net.minecraft.util.Identifier;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
@@ -102,6 +106,13 @@ public final class McdgMod implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(RoundRunningScoresSync.ID, RoundRunningScoresSync.CODEC);
         PayloadTypeRegistry.playS2C().register(RoundCompleteCinematicSync.ID, RoundCompleteCinematicSync.CODEC);
         PayloadTypeRegistry.playS2C().register(MenuScreenSync.ID, MenuScreenSync.CODEC);
+
+        ResourceManagerHelper.registerBuiltinResourcePack(
+                new Identifier(MOD_ID, "mcdg-test-resources"),
+                FabricLoader.getInstance().getModContainer(MOD_ID).orElseThrow(),
+                Text.literal("MCDG Test Resources"),
+                ResourcePackActivationType.DEFAULT_ENABLED
+        );
         ServerPlayNetworking.registerGlobalReceiver(WaypointSync.ID, (payload, context) ->
             context.server().execute(() -> WaypointSync.update(context.player(), payload.waypoints()))
         );

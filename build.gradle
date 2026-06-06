@@ -51,6 +51,13 @@ processResources {
     filesMatching("fabric.mod.json") {
         expand("version": project.version)
     }
+
+    from("resourcepacks/MCDG-Test-Resources") {
+        into("resourcepacks/mcdg-test-resources")
+        exclude("ASSET-SPECS.md")
+        exclude("README.md")
+        exclude("**/.gitkeep")
+    }
 }
 
 tasks.register('quickRegression', JavaExec) {

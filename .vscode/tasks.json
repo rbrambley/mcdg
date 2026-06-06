@@ -51,7 +51,12 @@
         "${workspaceFolder}\\scripts\\deploy-to-atlauncher.ps1"
       ],
       "group": "build",
-      "problemMatcher": []
+      "problemMatcher": [],
+      "options": {
+        "env": {
+          "ATLAUNCHER_TEST_MODS_DIR": "C:\\Users\\rich\\AppData\\Roaming\\ATLauncher\\instances\\Minecraft1206withFabric\\mods"
+        }
+      }
     },
     {
       "label": "Build + Deploy (Clean Lifecycle Smoke)",
@@ -66,7 +71,12 @@
         "-EnforceCleanLifecycleSmoke"
       ],
       "group": "build",
-      "problemMatcher": []
+      "problemMatcher": [],
+      "options": {
+        "env": {
+          "ATLAUNCHER_TEST_MODS_DIR": "C:\\Users\\rich\\AppData\\Roaming\\ATLauncher\\instances\\Minecraft1206withFabric\\mods"
+        }
+      }
     },
     {
       "label": "Run Strict Dev Server",
