@@ -16,8 +16,8 @@ import java.util.regex.Pattern;
 public final class RegressionCheckRunner {
     private static final int HOLE_COUNT = 9;
     private static final int PAR5_CAP_SEED_SAMPLES = 120;
-    private static final Path CLIENT_MINIMAP_FILE = Paths.get(
-        "src", "client", "java", "com", "mcdg", "client", "McdgClientMod.java"
+    private static final Path MINIMAP_RENDERER_FILE = Paths.get(
+        "src", "client", "java", "com", "mcdg", "client", "MiniMapRenderer.java"
     );
     private static final Path VALIDATOR_FILE = Paths.get(
         "src", "main", "java", "com", "mcdg", "world", "CoursePlacementValidator.java"
@@ -136,20 +136,20 @@ public final class RegressionCheckRunner {
     }
 
     private static void runMiniMapChecks() {
-        if (!Files.exists(CLIENT_MINIMAP_FILE)) {
-            throw new RuntimeException("Minimap regression file missing: " + CLIENT_MINIMAP_FILE);
+        if (!Files.exists(MINIMAP_RENDERER_FILE)) {
+            throw new RuntimeException("Minimap renderer regression file missing: " + MINIMAP_RENDERER_FILE);
         }
 
         String source;
         try {
-            source = Files.readString(CLIENT_MINIMAP_FILE, StandardCharsets.UTF_8);
+            source = Files.readString(MINIMAP_RENDERER_FILE, StandardCharsets.UTF_8);
         } catch (IOException ex) {
-            throw new RuntimeException("Failed to read minimap source for regression checks", ex);
+            throw new RuntimeException("Failed to read minimap renderer source for regression checks", ex);
         }
 
         assertContains(
             source,
-            "private static final int PASSIVE_MINIMAP_SPAN_BLOCKS = 96;",
+            "public static final int PASSIVE_MINIMAP_SPAN_BLOCKS = 96;",
             "Minimap world span baseline changed unexpectedly."
         );
         assertContains(
@@ -174,7 +174,7 @@ public final class RegressionCheckRunner {
         );
         assertContains(
             source,
-            "private static void refreshMiniMapRenderCache(MinecraftClient client, int mapSpan)",
+            "public static void refreshMiniMapRenderCache(MinecraftClient client, int mapSpan)",
             "Minimap refresh cache signature must remain decoupled from gameplay state."
         );
         assertContains(
@@ -220,7 +220,7 @@ public final class RegressionCheckRunner {
         );
         assertContains(
             source,
-            "private static float[] rotateMiniMapVector(float x, float y, float rotationDegrees)",
+            "public static float[] rotateMiniMapVector(float x, float y, float rotationDegrees)",
             "Minimap baseline must include map-space rotation helper."
         );
         assertContains(
@@ -361,7 +361,7 @@ public final class RegressionCheckRunner {
         );
         assertContains(
             source,
-            "return new Payload(false, 0, 0, List.of());",
+            "return new Payload(false, 0, 0, \"\", List.of());",
             "Running-scores regression: inactive payload contract changed unexpectedly."
         );
     }

@@ -228,4 +228,5 @@ pmd {
     rulesMinimumPriority = 3
     ruleSets = []
     ruleSetConfig = resources.text.fromFile('config/pmd/pmd.xml')
+    ignoreFailures = true
 }

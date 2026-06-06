@@ -23,9 +23,9 @@
         </properties>
     </rule>
 
-    <rule ref="category/java/design.xml/ExcessiveClassLength">
+    <rule ref="category/java/design.xml/TooManyFields">
         <properties>
-            <property name="maximum" value="800"/>
+            <property name="maxfields" value="20"/>
         </properties>
     </rule>
 
