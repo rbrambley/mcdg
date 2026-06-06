@@ -91,9 +91,7 @@ public final class McdgClientMod implements ClientModInitializer {
     private static final int MINIMAP_TEXTURE_SIZE = 128; // Higher sample density while keeping a wider world span.
     private static final int[] MINIMAP_SIZES = { 84, 104, 126 };
     private static final int[] MINIMAP_SURFACE_ALPHA = { 0xD0, 0xB8, 0x9A };
-    private static final int HUD_CARD_BG = 0xA5121822;
     private static final int HUD_CARD_BORDER = 0xA63A4E66;
-    private static final int HUD_CARD_HEADER_BG = 0xB01B2638;
     private static final int HUD_CARD_TEXT = 0xE8EEF7;
     private static final int HUD_CARD_MUTED_TEXT = 0xAAB8CC;
     private static final int HAZARD_OVERLAY_ARGB = 0x8CFF9A32;
@@ -407,8 +405,8 @@ public final class McdgClientMod implements ClientModInitializer {
         int headerTextW = client.textRenderer.getWidth(holeLabel) + 8;
         int headerW = Math.max(miniMapSize, headerTextW);
         int headerH = 12;
-        drawHudCard(drawContext, client, panelX, panelY, headerW, headerH, null, hudAlpha);
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(holeLabel).formatted(Formatting.GRAY), panelX + 4, panelY + 2, withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
+        HudUtil.drawCard(drawContext, client, panelX, panelY, headerW, headerH, null, hudAlpha);
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(holeLabel).formatted(Formatting.GRAY), panelX + 4, panelY + 2, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
 
         int mapX = panelX;
         int mapY = panelY + headerH + 2;
@@ -436,7 +434,7 @@ public final class McdgClientMod implements ClientModInitializer {
         int playerPx = mapCenterX;
         int playerPz = mapCenterY;
         float mapRadius = (miniMapSize / 2.0f) - 1.0f;
-        drawFilledCircle(drawContext, mapCenterX, mapCenterY, mapRadius, withAlpha((surfaceAlpha << 24) | 0x121212, hudAlpha));
+        drawFilledCircle(drawContext, mapCenterX, mapCenterY, mapRadius, HudUtil.withAlpha((surfaceAlpha << 24) | 0x121212, hudAlpha));
 
         // Always paint a live biome fallback first so the card is never plain gray
         // if the dynamic texture fails to render during join/reconnect timing.
@@ -519,8 +517,8 @@ public final class McdgClientMod implements ClientModInitializer {
                     playerFacingOnMapDegrees,
                     8.0f,
                     5.0f,
-                    withAlpha(0xFFFF5A3D, hudAlpha),
-                    withAlpha(0xFF10161F, hudAlpha),
+                    HudUtil.withAlpha(0xFFFF5A3D, hudAlpha),
+                    HudUtil.withAlpha(0xFF10161F, hudAlpha),
                     mapCenterX,
                     mapCenterY,
                     mapRadius
@@ -532,12 +530,12 @@ public final class McdgClientMod implements ClientModInitializer {
                         playerPz,
                         6,
                         1,
-                        withAlpha(0xFF7CFF6B, hudAlpha),
+                        HudUtil.withAlpha(0xFF7CFF6B, hudAlpha),
                         mapCenterX,
                         mapCenterY,
                         mapRadius
                     );
-            drawCircleOutline(drawContext, mapCenterX, mapCenterY, mapRadius, withAlpha(HUD_CARD_BORDER, hudAlpha));
+            drawCircleOutline(drawContext, mapCenterX, mapCenterY, mapRadius, HudUtil.withAlpha(HUD_CARD_BORDER, hudAlpha));
             drawMiniMapCardinalLabels(drawContext, client, mapCenterX, mapCenterY, miniMapSize, mapRotationDegrees, hudAlpha);
             drawContext.disableScissor();
         } else {
@@ -574,8 +572,8 @@ public final class McdgClientMod implements ClientModInitializer {
                     playerFacingOnMapDegrees,
                     8.0f,
                     5.0f,
-                    withAlpha(0xFFFF5A3D, hudAlpha),
-                    withAlpha(0xFF10161F, hudAlpha),
+                    HudUtil.withAlpha(0xFFFF5A3D, hudAlpha),
+                    HudUtil.withAlpha(0xFF10161F, hudAlpha),
                     mapCenterX,
                     mapCenterY,
                     mapRadius
@@ -587,13 +585,13 @@ public final class McdgClientMod implements ClientModInitializer {
                     playerPz,
                     6,
                     1,
-                    withAlpha(0xFF7CFF6B, hudAlpha),
+                    HudUtil.withAlpha(0xFF7CFF6B, hudAlpha),
                     mapCenterX,
                     mapCenterY,
                     mapRadius
             );
 
-            drawCircleOutline(drawContext, mapCenterX, mapCenterY, mapRadius, withAlpha(HUD_CARD_BORDER, hudAlpha));
+            drawCircleOutline(drawContext, mapCenterX, mapCenterY, mapRadius, HudUtil.withAlpha(HUD_CARD_BORDER, hudAlpha));
             drawMiniMapCardinalLabels(drawContext, client, mapCenterX, mapCenterY, miniMapSize, mapRotationDegrees, hudAlpha);
         }
     }
@@ -635,7 +633,7 @@ public final class McdgClientMod implements ClientModInitializer {
                     color = applyVisibleSurfaceShading(client.world, worldX, worldZ, color);
                 }
 
-                drawContext.fill(mapX + px, mapY + py, mapX + px + 1, mapY + py + 1, withAlpha(color, hudAlpha));
+                drawContext.fill(mapX + px, mapY + py, mapX + px + 1, mapY + py + 1, HudUtil.withAlpha(color, hudAlpha));
             }
         }
     }
@@ -683,8 +681,8 @@ public final class McdgClientMod implements ClientModInitializer {
                         angle,
                         7.0f,
                         4.5f,
-                        withAlpha(waypoint.color(), hudAlpha),
-                        withAlpha(0xFF0D1117, hudAlpha),
+                        HudUtil.withAlpha(waypoint.color(), hudAlpha),
+                        HudUtil.withAlpha(0xFF0D1117, hudAlpha),
                         clipCenterX,
                         clipCenterY,
                         clipRadius
@@ -696,7 +694,7 @@ public final class McdgClientMod implements ClientModInitializer {
             int waypointPz = mapCenterY + Math.round(rotated[1]);
             drawMiniMapIconClipped(drawContext, MINIMAP_BREADCRUMB_TEXTURE, waypointPx, waypointPz, 7, clipCenterX, clipCenterY, clipRadius);
             if (drawLabels && isPointInsideCircle(waypointPx + 4, waypointPz - 6, clipCenterX, clipCenterY, clipRadius * clipRadius)) {
-                drawContext.drawTextWithShadow(client.textRenderer, Text.literal(waypoint.name()), waypointPx + 3, waypointPz - 8, withAlpha(0xE8EEF7, hudAlpha));
+                drawContext.drawTextWithShadow(client.textRenderer, Text.literal(waypoint.name()), waypointPx + 3, waypointPz - 8, HudUtil.withAlpha(0xE8EEF7, hudAlpha));
             }
         }
     }
@@ -807,15 +805,15 @@ public final class McdgClientMod implements ClientModInitializer {
         int y = client.getDebugHud().shouldShowDebugHud() ? 76 : 8;
         float hudAlpha = hudFadeAlpha();
 
-        drawHudCard(drawContext, client, x, y, panelW, panelH, "Round", hudAlpha);
+        HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, "Round", hudAlpha);
 
         int animatedTotal = Math.max(0, Math.round(displayedTotalStrokes));
         int animatedDelta = Math.round(displayedCumulativeDelta);
         String animatedDeltaText = animatedDelta == 0 ? "E" : (animatedDelta > 0 ? "+" + animatedDelta : Integer.toString(animatedDelta));
         String animatedLine4 = "Total " + animatedTotal + "  " + animatedDeltaText;
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line2), x + 6, y + 16, withAlpha(0xFFFFFF, hudAlpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line3), x + 6, y + 28, withAlpha(0xCFE8FF, hudAlpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(animatedLine4), x + 6, y + 40, withAlpha(0xB5F7B5, hudAlpha));
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line2), x + 6, y + 16, HudUtil.withAlpha(0xFFFFFF, hudAlpha));
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line3), x + 6, y + 28, HudUtil.withAlpha(0xCFE8FF, hudAlpha));
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(animatedLine4), x + 6, y + 40, HudUtil.withAlpha(0xB5F7B5, hudAlpha));
     }
 
     private static void renderScorecardOverlay(DrawContext drawContext) {
@@ -867,12 +865,12 @@ public final class McdgClientMod implements ClientModInitializer {
 
         String courseName = scorecardRoot.getString(ScorecardManager.KEY_COURSE_NAME);
         String panelTitle = (courseName != null && !courseName.isBlank()) ? courseName : "Scorecard";
-        drawHudCard(drawContext, client, x, y, panelW, panelH, panelTitle, hudAlpha);
+        HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, panelTitle, hudAlpha);
 
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("H"), x + colHoleX, y + 14, withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Dist"), x + colDistX, y + 14, withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Par"), x + colParX, y + 14, withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Score"), x + colScoreX, y + 14, withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("H"), x + colHoleX, y + 14, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Dist"), x + colDistX, y + 14, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Par"), x + colParX, y + 14, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Score"), x + colScoreX, y + 14, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
 
         for (int i = 0; i < visibleRows; i++) {
             NbtCompound row = holes.getCompound(i);
@@ -892,28 +890,28 @@ public final class McdgClientMod implements ClientModInitializer {
                     Text.literal(holeText),
                     x + rightAlign(colHoleX, holeColW, client.textRenderer.getWidth(holeText)),
                     rowY,
-                    withAlpha(rowColor, hudAlpha)
+                    HudUtil.withAlpha(rowColor, hudAlpha)
             );
             drawContext.drawTextWithShadow(
                     client.textRenderer,
                     Text.literal(distText),
                     x + rightAlign(colDistX, distColW, client.textRenderer.getWidth(distText)),
                     rowY,
-                        withAlpha(rowColor, hudAlpha)
+                        HudUtil.withAlpha(rowColor, hudAlpha)
             );
             drawContext.drawTextWithShadow(
                     client.textRenderer,
                     Text.literal(parText),
                     x + rightAlign(colParX, parColW, client.textRenderer.getWidth(parText)),
                     rowY,
-                        withAlpha(rowColor, hudAlpha)
+                        HudUtil.withAlpha(rowColor, hudAlpha)
             );
             drawContext.drawTextWithShadow(
                     client.textRenderer,
                     Text.literal(scoreText),
                     x + rightAlign(colScoreX, scoreColW, client.textRenderer.getWidth(scoreText)),
                     rowY,
-                    withAlpha(rowColor, hudAlpha)
+                    HudUtil.withAlpha(rowColor, hudAlpha)
             );
         }
     }
@@ -951,11 +949,11 @@ public final class McdgClientMod implements ClientModInitializer {
         float hudAlpha = hudFadeAlpha();
 
         String panelTitle = (state.courseName() != null && !state.courseName().isBlank()) ? state.courseName() : "Round Scores";
-        drawHudCard(drawContext, client, x, y, panelW, panelH, panelTitle, hudAlpha);
+        HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, panelTitle, hudAlpha);
 
         int cursorX = x + 6;
         int headerY = y + 14;
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Player"), cursorX, headerY, withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Player"), cursorX, headerY, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
         cursorX += nameColW + colGap;
 
         for (int hole = startHole; hole <= endHole; hole++) {
@@ -966,13 +964,13 @@ public final class McdgClientMod implements ClientModInitializer {
                     Text.literal(label),
                     cursorX + rightAlign(0, holeColW, client.textRenderer.getWidth(label)),
                     headerY,
-                    withAlpha(color, hudAlpha)
+                    HudUtil.withAlpha(color, hudAlpha)
             );
             cursorX += holeColW + 2;
         }
 
         cursorX += colGap;
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Tot"), cursorX, headerY, withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Tot"), cursorX, headerY, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
 
         for (int rowIndex = 0; rowIndex < state.rows().size(); rowIndex++) {
             RunningRoundScoreRow row = state.rows().get(rowIndex);
@@ -980,7 +978,7 @@ public final class McdgClientMod implements ClientModInitializer {
             int rowColor = row.online() ? HUD_CARD_TEXT : HUD_CARD_MUTED_TEXT;
 
             String displayName = row.online() ? row.playerName() : (row.playerName() + " (off)");
-            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(displayName), x + 6, rowY, withAlpha(rowColor, hudAlpha));
+            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(displayName), x + 6, rowY, HudUtil.withAlpha(rowColor, hudAlpha));
 
             int rowCursorX = x + 6 + nameColW + colGap;
             for (int hole = startHole; hole <= endHole; hole++) {
@@ -992,14 +990,14 @@ public final class McdgClientMod implements ClientModInitializer {
                         Text.literal(text),
                         rowCursorX + rightAlign(0, holeColW, client.textRenderer.getWidth(text)),
                         rowY,
-                        withAlpha(valueColor, hudAlpha)
+                        HudUtil.withAlpha(valueColor, hudAlpha)
                 );
                 rowCursorX += holeColW + 2;
             }
 
             rowCursorX += colGap;
             String totalText = Integer.toString(row.runningTotal());
-            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(totalText), rowCursorX, rowY, withAlpha(0xFFB5F7B5, hudAlpha));
+            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(totalText), rowCursorX, rowY, HudUtil.withAlpha(0xFFB5F7B5, hudAlpha));
         }
     }
 
@@ -1068,7 +1066,7 @@ public final class McdgClientMod implements ClientModInitializer {
         }
 
         ClientWorld world = client.world;
-        int overlayColor = withAlpha(HAZARD_OVERLAY_ARGB, hudAlpha);
+        int overlayColor = HudUtil.withAlpha(HAZARD_OVERLAY_ARGB, hudAlpha);
         int sampleStep = Math.max(2, HAZARD_SAMPLE_STEP_PX);
         float clipRadiusSq = clipRadius * clipRadius;
         int minY = Math.round(mapCenterY - clipRadius);
@@ -1284,8 +1282,8 @@ public final class McdgClientMod implements ClientModInitializer {
         float basketPx = mapCenterX + rotatedBasket[0];
         float basketPy = mapCenterY + rotatedBasket[1];
 
-        int ring100Color = withAlpha(0xE6F2D14A, hudAlpha);
-        int ring200Color = withAlpha(0xE664D5FF, hudAlpha);
+        int ring100Color = HudUtil.withAlpha(0xE6F2D14A, hudAlpha);
+        int ring200Color = HudUtil.withAlpha(0xE664D5FF, hudAlpha);
         int ring100RadiusPx = Math.max(2, Math.round((100.0f / 3.28084f) * mapScale));
         int ring200RadiusPx = Math.max(2, Math.round((200.0f / 3.28084f) * mapScale));
 
@@ -1299,9 +1297,9 @@ public final class McdgClientMod implements ClientModInitializer {
                 drawContext,
                 Math.round(basketPx),
                 Math.round(basketPy),
-                withAlpha(0xFF1E232B, hudAlpha),
-                withAlpha(0xFFF2F4F8, hudAlpha),
-                withAlpha(0xFF121417, hudAlpha),
+                HudUtil.withAlpha(0xFF1E232B, hudAlpha),
+                HudUtil.withAlpha(0xFFF2F4F8, hudAlpha),
+                HudUtil.withAlpha(0xFF121417, hudAlpha),
                 clipCenterX,
                 clipCenterY,
                 clipRadius
@@ -1422,7 +1420,7 @@ public final class McdgClientMod implements ClientModInitializer {
 
     private static void drawCardinalLabel(DrawContext drawContext, MinecraftClient client, String label, float x, float y, int color, float hudAlpha) {
         int textWidth = client.textRenderer.getWidth(label);
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(label), Math.round(x - (textWidth / 2.0f)), Math.round(y - 4.0f), withAlpha(color, hudAlpha));
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(label), Math.round(x - (textWidth / 2.0f)), Math.round(y - 4.0f), HudUtil.withAlpha(color, hudAlpha));
     }
 
 
@@ -1432,18 +1430,6 @@ public final class McdgClientMod implements ClientModInitializer {
         int g = Math.max(0, Math.min(255, Math.round(((argb >>> 8) & 0xFF) * multiplier)));
         int b = Math.max(0, Math.min(255, Math.round((argb & 0xFF) * multiplier)));
         return (a << 24) | (r << 16) | (g << 8) | b;
-    }
-
-    private static void drawHudCard(DrawContext drawContext, MinecraftClient client, int x, int y, int w, int h, String title, float alpha) {
-        drawContext.fill(x, y, x + w, y + h, withAlpha(HUD_CARD_BG, alpha));
-        drawContext.fill(x, y, x + w, y + 12, withAlpha(HUD_CARD_HEADER_BG, alpha));
-        drawContext.fill(x, y, x + w, y + 1, withAlpha(HUD_CARD_BORDER, alpha));
-        drawContext.fill(x, y + h - 1, x + w, y + h, withAlpha(HUD_CARD_BORDER, alpha));
-        drawContext.fill(x, y, x + 1, y + h, withAlpha(HUD_CARD_BORDER, alpha));
-        drawContext.fill(x + w - 1, y, x + w, y + h, withAlpha(HUD_CARD_BORDER, alpha));
-        if (title != null && !title.isBlank()) {
-            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(title).formatted(Formatting.GRAY), x + 6, y + 2, withAlpha(HUD_CARD_MUTED_TEXT, alpha));
-        }
     }
 
     private static int rightAlign(int startX, int width, int textWidth) {
@@ -1456,12 +1442,6 @@ public final class McdgClientMod implements ClientModInitializer {
         }
         long elapsed = System.currentTimeMillis() - hudVisibleSinceMs;
         return Math.max(0.0f, Math.min(1.0f, elapsed / 180.0f));
-    }
-
-    private static int withAlpha(int argb, float alphaFactor) {
-        int baseAlpha = (argb >>> 24) & 0xFF;
-        int appliedAlpha = Math.max(0, Math.min(255, Math.round(baseAlpha * alphaFactor)));
-        return (argb & 0x00FFFFFF) | (appliedAlpha << 24);
     }
 
     private static int argbToAbgr(int argb) {
