@@ -86,7 +86,7 @@ if ($EnforceCleanRuntime.IsPresent) {
 }
 
 try {
-    gradle runServer
+    ./gradlew runServer --no-daemon
     if ($LASTEXITCODE -ne 0) {
         throw "runServer exited with code $LASTEXITCODE"
     }
