@@ -33,12 +33,6 @@ import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.DisconnectedScreen;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.TitleScreen;
-import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
-import net.minecraft.client.network.ServerAddress;
-import net.minecraft.client.network.ServerInfo;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.client.render.LightmapTextureManager;
@@ -81,8 +75,6 @@ import org.lwjgl.glfw.GLFW;
 
 public final class McdgClientMod implements ClientModInitializer {
     private static final Logger LOGGER = LoggerFactory.getLogger("mcdg-minimap");
-    private static final String AUTOCONNECT_SERVER_ENV = "MCDG_AUTOCONNECT_SERVER";
-    private static final long AUTOCONNECT_RETRY_DELAY_MS = 3000L;
     private static final int POWER_BAR_HEIGHT = 72;
     private static final int POWER_BAR_WIDTH = 8;
     private static final int MINIMAP_PADDING = 8;
@@ -130,9 +122,6 @@ public final class McdgClientMod implements ClientModInitializer {
         };
         private static final String[] WAYPOINT_COLOR_NAMES = { "Red", "Green", "Blue", "Yellow", "Purple", "White" };
 
-    private static long nextAutoconnectAttemptAt = 0L;
-    private static boolean autoconnectSatisfied = false;
-    private static String autoconnectServer = readAutoconnectServer();
     private static MiniMapState miniMapState;
     private static long miniMapReceivedAtMs;
     private static int miniMapStyleIndex = 1;
@@ -192,7 +181,7 @@ public final class McdgClientMod implements ClientModInitializer {
                 maybeSyncClientWaypoints(client);
                 waypointsDirty = false;
             }
-            maybeAutoConnect(client);
+            AutoConnect.tick(client);
             handleMiniMapHotkeys(client);
             tickMiniMapJoinPrime(client);
             updateAceCinematicEffects(client);
@@ -351,47 +340,6 @@ public final class McdgClientMod implements ClientModInitializer {
             renderRoundCompleteCinematicOverlay(drawContext);
         });
         WorldRenderEvents.AFTER_TRANSLUCENT.register(McdgClientMod::renderWaypointWorldLabels);
-    }
-
-    private static void maybeAutoConnect(MinecraftClient client) {
-        if (autoconnectSatisfied) {
-            return;
-        }
-
-        if (autoconnectServer == null || client == null) {
-            return;
-        }
-
-        if (client.player != null) {
-            autoconnectSatisfied = true;
-            return;
-        }
-
-        Screen currentScreen = client.currentScreen;
-        if (!(currentScreen instanceof TitleScreen) && !(currentScreen instanceof DisconnectedScreen)) {
-            return;
-        }
-
-        long now = System.currentTimeMillis();
-        if (now < nextAutoconnectAttemptAt) {
-            return;
-        }
-
-        nextAutoconnectAttemptAt = now + AUTOCONNECT_RETRY_DELAY_MS;
-        Screen parent = client.currentScreen == null ? new TitleScreen(false) : client.currentScreen;
-        ServerAddress address = ServerAddress.parse(autoconnectServer);
-        ServerInfo serverInfo = new ServerInfo("MCDG Dev Server", address.toString(), ServerInfo.ServerType.OTHER);
-        ConnectScreen.connect(parent, client, address, serverInfo, false, null);
-    }
-
-    private static String readAutoconnectServer() {
-        String value = System.getenv(AUTOCONNECT_SERVER_ENV);
-        if (value == null) {
-            return null;
-        }
-
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private static void tickMiniMapJoinPrime(MinecraftClient client) {
