@@ -17,9 +17,6 @@ public final class ActiveCourseManager {
     private final Set<UUID> activeParticipantIds = ConcurrentHashMap.newKeySet();
 
     public void setActiveCourse(Course course) {
-        if (course == null) {
-            throw new IllegalArgumentException("course is required");
-        }
         this.activeCourse = course;
     }
 

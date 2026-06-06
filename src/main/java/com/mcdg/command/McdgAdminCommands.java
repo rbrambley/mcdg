@@ -381,6 +381,7 @@ public final class McdgAdminCommands {
                                         .executes(context -> executeRemoveCourse(
                                                 context.getSource(),
                                                 courseManager,
+                                                roundStateManager,
                                                 practiceCourseStorage,
                                                 IntegerArgumentType.getInteger(context, "index")
                                         ))))
@@ -1283,6 +1284,7 @@ public final class McdgAdminCommands {
         private static int executeRemoveCourse(
                         ServerCommandSource source,
                         ActiveCourseManager courseManager,
+                        RoundStateManager roundStateManager,
                         PracticeCourseStorage practiceCourseStorage,
                         int oneBasedIndex
         ) {
@@ -1294,8 +1296,14 @@ public final class McdgAdminCommands {
 
                 Integer activeCatalogIndex = courseManager.getActiveCourseCatalogIndex().orElse(null);
                 if (activeCatalogIndex != null && activeCatalogIndex == oneBasedIndex) {
+                        courseManager.setActiveCourse(null);
+                        courseManager.clearPlacedCourseState();
                         courseManager.setActiveCourseCatalogIndex(null);
+                        courseManager.setRoundActive(false);
+                        clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
+                        practiceCourseStorage.clear(source.getServer());
                 }
+                HoleProgressTracker.resetAllState(source.getServer());
 
                 source.sendFeedback(() -> Text.literal("Removed reusable course #" + oneBasedIndex + "."), true);
                 return 1;
