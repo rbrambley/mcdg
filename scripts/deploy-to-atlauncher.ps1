@@ -127,7 +127,7 @@ try {
     if (-not $SkipBuild) {
         if ($QuickOnly) {
             Write-Host "Running quick deploy gate: quickRegression + smokeRegression + build"
-            gradle quickRegression smokeRegression build
+            cmd /c gradlew.bat quickRegression smokeRegression build
             if ($LASTEXITCODE -ne 0) { throw "Quick regression gate failed (exit $LASTEXITCODE)." }
         } else {
             Write-Host "Running full deploy gate: lifecycle smoke + quickRegression + smokeRegression + build"
@@ -162,12 +162,12 @@ try {
 
             Write-Host ""
             Write-Host "--- Step 2/3: Quick + smoke regression ---"
-            gradle quickRegression smokeRegression
+            cmd /c gradlew.bat quickRegression smokeRegression
             if ($LASTEXITCODE -ne 0) { throw "Regression checks failed (exit $LASTEXITCODE)." }
 
             Write-Host ""
             Write-Host "--- Step 3/3: Build ---"
-            gradle build
+            cmd /c gradlew.bat build
             if ($LASTEXITCODE -ne 0) { throw "Build failed (exit $LASTEXITCODE)." }
         }
     }
