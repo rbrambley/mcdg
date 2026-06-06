@@ -2,12 +2,9 @@ package com.mcdg.client;
 
 import com.mcdg.game.ChargedDiscItem;
 import com.mcdg.game.McdgItems;
-import com.mcdg.net.AceCinematicSync;
 import com.mcdg.net.WaypointSync;
 import com.mcdg.net.HoleMiniMapSync;
 import com.mcdg.net.RoundRunningScoresSync;
-import com.mcdg.net.MenuScreenSync;
-import com.mcdg.net.RoundCompleteCinematicSync;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -191,108 +188,7 @@ public final class McdgClientMod implements ClientModInitializer {
             clearMiniMapRenderCache(client);
         });
         ClientSendMessageEvents.ALLOW_CHAT.register(message -> handleWaypointPromptInput(message));
-        ClientPlayNetworking.registerGlobalReceiver(HoleMiniMapSync.ID, (payload, context) -> {
-            context.client().execute(() -> {
-                if (!payload.active()) {
-                    String courseToRemove = activeRoundCourseWaypointName;
-                    miniMapState = null;
-                    miniMapReceivedAtMs = 0L;
-                    activeRoundCourseWaypointName = "";
-                    roundHoleWaypoints.clear();
-                    removePermanentCourseWaypoint(context.client(), courseToRemove);
-                    hudVisibleSinceMs = 0L;
-                    miniMapJoinWarmupPending = true;
-                    miniMapJoinPrimeTicksRemaining = MINIMAP_JOIN_PRIME_TICKS;
-                    // Keep the last rendered passive terrain texture to avoid a grey flash on round end.
-                    lastMiniMapRenderAtMs = 0L;
-                    return;
-                }
-
-                if (miniMapState == null) {
-                    hudVisibleSinceMs = System.currentTimeMillis();
-                }
-
-                miniMapState = new MiniMapState(
-                        payload.holeIndex(),
-                        payload.teeX(),
-                        payload.teeZ(),
-                        payload.basketX(),
-                        payload.basketZ(),
-                        payload.lieX(),
-                        payload.lieZ(),
-                        payload.par(),
-                        payload.throwNumber(),
-                        payload.totalStrokes(),
-                        payload.cumulativeParDelta(),
-                        payload.strictMode(),
-                        payload.strictSurfacePresetOrdinal(),
-                        payload.corridorHalfWidth(),
-                        payload.hasAlternateAnchor(),
-                        payload.alternateAnchorX(),
-                        payload.alternateAnchorZ(),
-                        payload.mapSpan()
-                );
-                    activeRoundCourseWaypointName = payload.courseWaypointName();
-                    upsertPermanentCourseWaypoint(
-                        context.client(),
-                        payload.courseWaypointName(),
-                        payload.courseWaypointX(),
-                        payload.courseWaypointZ()
-                    );
-                    syncRoundHoleWaypointsFromPayload(payload);
-                miniMapReceivedAtMs = System.currentTimeMillis();
-                refreshMiniMapRenderCache(context.client(), PASSIVE_MINIMAP_SPAN_BLOCKS);
-            });
-        });
-        ClientPlayNetworking.registerGlobalReceiver(AceCinematicSync.ID, (payload, context) -> {
-            context.client().execute(() -> {
-                if (!payload.active()) {
-                    CinematicOverlay.clearAce();
-                    return;
-                }
-                CinematicOverlay.activateAce(payload.holeIndex(), payload.distanceFeet());
-            });
-        });
-        ClientPlayNetworking.registerGlobalReceiver(RoundCompleteCinematicSync.ID, (payload, context) -> {
-            context.client().execute(() -> {
-                if (!payload.active()) {
-                    CinematicOverlay.clearRoundComplete();
-                    return;
-                }
-                CinematicOverlay.activateRoundComplete(
-                        payload.totalPar(),
-                        payload.totalPlayers(),
-                        payload.firstName(),
-                        payload.firstScore(),
-                        payload.secondName(),
-                        payload.secondScore(),
-                        payload.thirdName(),
-                        payload.thirdScore(),
-                        payload.localRank(),
-                        payload.localScore()
-                );
-            });
-        });
-        ClientPlayNetworking.registerGlobalReceiver(MenuScreenSync.ID, (payload, context) ->
-            context.client().execute(() -> context.client().setScreen(new McdgMenuScreen(payload)))
-        );
-        ClientPlayNetworking.registerGlobalReceiver(RoundRunningScoresSync.ID, (payload, context) -> {
-            context.client().execute(() -> {
-                if (!payload.active()) {
-                    removePermanentCourseWaypoint(context.client(), activeRoundCourseWaypointName);
-                    runningRoundScoreState = null;
-                    activeRoundCourseWaypointName = "";
-                    roundHoleWaypoints.clear();
-                    return;
-                }
-
-                List<RunningRoundScoreRow> rows = new ArrayList<>();
-                for (RoundRunningScoresSync.PlayerRow row : payload.rows()) {
-                    rows.add(new RunningRoundScoreRow(row.playerName(), row.online(), row.holeScores(), row.runningTotal()));
-                }
-                runningRoundScoreState = new RunningRoundScoreState(payload.totalHoles(), payload.focusHole(), payload.courseName(), rows);
-            });
-        });
+        ClientNetworking.registerReceivers();
         HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {
             RoundInfoOverlay.updateTweens(miniMapState);
             float hudAlpha = hudFadeAlpha();
@@ -2343,6 +2239,73 @@ public final class McdgClientMod implements ClientModInitializer {
             List<Integer> holeScores,
             int runningTotal
     ) {
+    }
+
+    public static void onHoleMiniMapSync(HoleMiniMapSync.Payload payload, MinecraftClient client) {
+        if (!payload.active()) {
+            String courseToRemove = activeRoundCourseWaypointName;
+            miniMapState = null;
+            miniMapReceivedAtMs = 0L;
+            activeRoundCourseWaypointName = "";
+            roundHoleWaypoints.clear();
+            removePermanentCourseWaypoint(client, courseToRemove);
+            hudVisibleSinceMs = 0L;
+            miniMapJoinWarmupPending = true;
+            miniMapJoinPrimeTicksRemaining = MINIMAP_JOIN_PRIME_TICKS;
+            lastMiniMapRenderAtMs = 0L;
+            return;
+        }
+
+        if (miniMapState == null) {
+            hudVisibleSinceMs = System.currentTimeMillis();
+        }
+
+        miniMapState = new MiniMapState(
+                payload.holeIndex(),
+                payload.teeX(),
+                payload.teeZ(),
+                payload.basketX(),
+                payload.basketZ(),
+                payload.lieX(),
+                payload.lieZ(),
+                payload.par(),
+                payload.throwNumber(),
+                payload.totalStrokes(),
+                payload.cumulativeParDelta(),
+                payload.strictMode(),
+                payload.strictSurfacePresetOrdinal(),
+                payload.corridorHalfWidth(),
+                payload.hasAlternateAnchor(),
+                payload.alternateAnchorX(),
+                payload.alternateAnchorZ(),
+                payload.mapSpan()
+        );
+        activeRoundCourseWaypointName = payload.courseWaypointName();
+        upsertPermanentCourseWaypoint(
+                client,
+                payload.courseWaypointName(),
+                payload.courseWaypointX(),
+                payload.courseWaypointZ()
+        );
+        syncRoundHoleWaypointsFromPayload(payload);
+        miniMapReceivedAtMs = System.currentTimeMillis();
+        refreshMiniMapRenderCache(client, PASSIVE_MINIMAP_SPAN_BLOCKS);
+    }
+
+    public static void onRoundRunningScoresSync(RoundRunningScoresSync.Payload payload, MinecraftClient client) {
+        if (!payload.active()) {
+            removePermanentCourseWaypoint(client, activeRoundCourseWaypointName);
+            runningRoundScoreState = null;
+            activeRoundCourseWaypointName = "";
+            roundHoleWaypoints.clear();
+            return;
+        }
+
+        List<RunningRoundScoreRow> rows = new ArrayList<>();
+        for (RoundRunningScoresSync.PlayerRow row : payload.rows()) {
+            rows.add(new RunningRoundScoreRow(row.playerName(), row.online(), row.holeScores(), row.runningTotal()));
+        }
+        runningRoundScoreState = new RunningRoundScoreState(payload.totalHoles(), payload.focusHole(), payload.courseName(), rows);
     }
 
     private record ClientWaypoint(String name, int x, int y, int z, int color, String dimensionId) {
