@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import net.minecraft.block.Block;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -257,7 +258,7 @@ public final class AutoCourseService {
         }
         if (!state.mergedOriginals.isEmpty()) {
             for (Map.Entry<BlockPos, net.minecraft.block.BlockState> entry : state.mergedOriginals.entrySet()) {
-                state.world.setBlockState(entry.getKey(), entry.getValue(), 0);
+                state.world.setBlockState(entry.getKey(), entry.getValue(), Block.NOTIFY_ALL);
             }
         }
     }

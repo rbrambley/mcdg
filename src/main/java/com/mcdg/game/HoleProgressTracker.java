@@ -28,6 +28,7 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.entity.projectile.thrown.EnderPearlEntity;
 import net.minecraft.particle.ParticleTypes;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
@@ -1096,7 +1097,7 @@ public final class HoleProgressTracker {
                 if (world == null) {
                     continue;
                 }
-                world.setBlockState(markerState.markerPos(), markerState.previousGroundState(), 0);
+                world.setBlockState(markerState.markerPos(), markerState.previousGroundState(), Block.NOTIFY_ALL);
             }
         }
         LIE_MARKER_HISTORY.clear();
@@ -1185,7 +1186,7 @@ public final class HoleProgressTracker {
             if (world == null) {
                 continue;
             }
-            world.setBlockState(markerState.markerPos(), markerState.previousGroundState(), 0);
+            world.setBlockState(markerState.markerPos(), markerState.previousGroundState(), Block.NOTIFY_ALL);
         }
 
         markerStates.clear();
