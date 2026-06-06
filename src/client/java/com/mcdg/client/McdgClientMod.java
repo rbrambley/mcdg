@@ -583,7 +583,7 @@ public final class McdgClientMod implements ClientModInitializer {
         return visible;
     }
 
-    private static boolean isRoundWaypointModeActive() {
+    public static boolean isRoundWaypointModeActive() {
         if (runningRoundScoreState != null) {
             return true;
         }
@@ -593,7 +593,7 @@ public final class McdgClientMod implements ClientModInitializer {
         return (System.currentTimeMillis() - miniMapReceivedAtMs) <= MINIMAP_STALE_TIMEOUT_MS;
     }
 
-    private static float[] rotateMiniMapVector(float x, float y, float rotationDegrees) {
+    public static float[] rotateMiniMapVector(float x, float y, float rotationDegrees) {
         double radians = Math.toRadians(rotationDegrees);
         float cos = (float) Math.cos(radians);
         float sin = (float) Math.sin(radians);
@@ -813,7 +813,7 @@ public final class McdgClientMod implements ClientModInitializer {
         return Math.sqrt(mx * mx + mz * mz);
     }
 
-    private static void fillRectClipped(
+    public static void fillRectClipped(
             DrawContext drawContext,
             int x,
             int y,
@@ -934,7 +934,7 @@ public final class McdgClientMod implements ClientModInitializer {
         drawContext.drawTexture(texture, centerX - half, centerY - half, 0, 0, size, size, size, size);
     }
 
-    private static void drawPixelClipped(
+    public static void drawPixelClipped(
             DrawContext drawContext,
             int px,
             int py,
@@ -949,7 +949,7 @@ public final class McdgClientMod implements ClientModInitializer {
         drawContext.fill(px, py, px + 1, py + 1, color);
     }
 
-    private static void drawCircleOutline(DrawContext drawContext, float centerX, float centerY, float radius, int color) {
+    public static void drawCircleOutline(DrawContext drawContext, float centerX, float centerY, float radius, int color) {
         for (int degrees = 0; degrees < 360; degrees += 8) {
             double radians = Math.toRadians(degrees);
             int px = Math.round(centerX + (float) Math.cos(radians) * radius);
@@ -958,7 +958,7 @@ public final class McdgClientMod implements ClientModInitializer {
         }
     }
 
-    private static void drawFilledCircle(DrawContext drawContext, float centerX, float centerY, float radius, int color) {
+    public static void drawFilledCircle(DrawContext drawContext, float centerX, float centerY, float radius, int color) {
         if (radius <= 0.0f) {
             return;
         }
@@ -1007,7 +1007,7 @@ public final class McdgClientMod implements ClientModInitializer {
     }
 
 
-    private static int scaleColor(int argb, float multiplier) {
+    public static int scaleColor(int argb, float multiplier) {
         int a = (argb >>> 24) & 0xFF;
         int r = Math.max(0, Math.min(255, Math.round(((argb >>> 16) & 0xFF) * multiplier)));
         int g = Math.max(0, Math.min(255, Math.round(((argb >>> 8) & 0xFF) * multiplier)));
@@ -1023,7 +1023,7 @@ public final class McdgClientMod implements ClientModInitializer {
         return Math.max(0.0f, Math.min(1.0f, elapsed / 180.0f));
     }
 
-    private static int argbToAbgr(int argb) {
+    public static int argbToAbgr(int argb) {
         int a = (argb >>> 24) & 0xFF;
         int r = (argb >>> 16) & 0xFF;
         int g = (argb >>> 8) & 0xFF;
@@ -1574,7 +1574,7 @@ public final class McdgClientMod implements ClientModInitializer {
         );
     }
 
-    private static void drawHeadingTriangleClipped(
+    public static void drawHeadingTriangleClipped(
             DrawContext drawContext,
             float centerX,
             float centerY,
@@ -1619,7 +1619,7 @@ public final class McdgClientMod implements ClientModInitializer {
         );
     }
 
-    private static void drawFilledTriangleClipped(
+    public static void drawFilledTriangleClipped(
             DrawContext drawContext,
             float x1,
             float y1,
@@ -1650,7 +1650,7 @@ public final class McdgClientMod implements ClientModInitializer {
         }
     }
 
-    private static boolean isPointInTriangle(
+    public static boolean isPointInTriangle(
             float px,
             float py,
             float x1,
@@ -1668,11 +1668,11 @@ public final class McdgClientMod implements ClientModInitializer {
         return !(hasNeg && hasPos);
     }
 
-    private static float crossSign(float px, float py, float ax, float ay, float bx, float by) {
+    public static float crossSign(float px, float py, float ax, float ay, float bx, float by) {
         return (px - bx) * (ay - by) - (ax - bx) * (py - by);
     }
 
-    private static void drawCircleOutlineClipped(
+    public static void drawCircleOutlineClipped(
             DrawContext drawContext,
             float centerX,
             float centerY,
@@ -1693,7 +1693,7 @@ public final class McdgClientMod implements ClientModInitializer {
         }
     }
 
-    private static void drawCircleBandClipped(
+    public static void drawCircleBandClipped(
             DrawContext drawContext,
             float centerX,
             float centerY,
@@ -1719,13 +1719,13 @@ public final class McdgClientMod implements ClientModInitializer {
         }
     }
 
-    private static boolean isPointInsideCircle(int x, int y, float centerX, float centerY, float radiusSq) {
+    public static boolean isPointInsideCircle(int x, int y, float centerX, float centerY, float radiusSq) {
         float dx = x - centerX;
         float dy = y - centerY;
         return ((dx * dx) + (dy * dy)) <= radiusSq;
     }
 
-    private static float normalizeDegrees(float degrees) {
+    public static float normalizeDegrees(float degrees) {
         float normalized = degrees % 360.0f;
         if (normalized < 0.0f) {
             normalized += 360.0f;
