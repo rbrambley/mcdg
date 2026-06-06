@@ -2,7 +2,6 @@ package com.mcdg.client;
 
 import com.mcdg.game.ChargedDiscItem;
 import com.mcdg.game.McdgItems;
-import com.mcdg.game.ScorecardManager;
 import com.mcdg.net.AceCinematicSync;
 import com.mcdg.net.WaypointSync;
 import com.mcdg.net.HoleMiniMapSync;
@@ -42,10 +41,6 @@ import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.client.item.ModelPredicateProviderRegistry;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtList;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.MapColor;
@@ -88,7 +83,6 @@ public final class McdgClientMod implements ClientModInitializer {
     private static final int[] MINIMAP_SIZES = { 84, 104, 126 };
     private static final int[] MINIMAP_SURFACE_ALPHA = { 0xD0, 0xB8, 0x9A };
     private static final int HUD_CARD_BORDER = 0xA63A4E66;
-    private static final int HUD_CARD_TEXT = 0xE8EEF7;
     private static final int HUD_CARD_MUTED_TEXT = 0xAAB8CC;
     private static final int HAZARD_OVERLAY_ARGB = 0x8CFF9A32;
     private static final int HAZARD_SAMPLE_STEP_PX = 2;
@@ -114,9 +108,6 @@ public final class McdgClientMod implements ClientModInitializer {
     private static int miniMapStyleIndex = 1;
     private static MiniMapRenderCache miniMapRenderCache;
     private static long hudVisibleSinceMs;
-    private static float displayedDistanceFeet = Float.NaN;
-    private static float displayedTotalStrokes = Float.NaN;
-    private static float displayedCumulativeDelta = Float.NaN;
     private static MiniMapRenderDebug miniMapRenderDebug = MiniMapRenderDebug.empty();
     private static long lastMiniMapRenderAtMs = 0L;
     private static int nextWaypointIndex = 1;
@@ -169,6 +160,7 @@ public final class McdgClientMod implements ClientModInitializer {
             handleMiniMapHotkeys(client);
             tickMiniMapJoinPrime(client);
             CinematicOverlay.tick(client);
+            RoundInfoOverlay.updateTweens(miniMapState);
         });
         // When a chunk arrives from the server, reset the minimap rebuild timer so the
         // next render frame picks up the newly loaded terrain rather than waiting up to
@@ -209,9 +201,6 @@ public final class McdgClientMod implements ClientModInitializer {
                     roundHoleWaypoints.clear();
                     removePermanentCourseWaypoint(context.client(), courseToRemove);
                     hudVisibleSinceMs = 0L;
-                    displayedDistanceFeet = Float.NaN;
-                    displayedTotalStrokes = Float.NaN;
-                    displayedCumulativeDelta = Float.NaN;
                     miniMapJoinWarmupPending = true;
                     miniMapJoinPrimeTicksRemaining = MINIMAP_JOIN_PRIME_TICKS;
                     // Keep the last rendered passive terrain texture to avoid a grey flash on round end.
@@ -305,11 +294,12 @@ public final class McdgClientMod implements ClientModInitializer {
             });
         });
         HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {
-            updateHudTweens();
+            RoundInfoOverlay.updateTweens(miniMapState);
+            float hudAlpha = hudFadeAlpha();
             renderHoleMiniMapOverlay(drawContext);
-            renderRoundInfoOverlay(drawContext);
-            renderScorecardOverlay(drawContext);
-            renderRunningRoundScoreboardOverlay(drawContext);
+            RoundInfoOverlay.render(drawContext, miniMapState, hudAlpha);
+            ScorecardOverlay.render(drawContext, miniMapState, miniMapReceivedAtMs, hudAlpha);
+            RunningScoreboardOverlay.render(drawContext, runningRoundScoreState, hudAlpha);
             HudOverlays.renderCompass(drawContext);
             HudOverlays.renderPower(drawContext);
             CinematicOverlay.render(drawContext);
@@ -727,267 +717,6 @@ public final class McdgClientMod implements ClientModInitializer {
         return lookHeading;
     }
 
-    private static void renderRoundInfoOverlay(DrawContext drawContext) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null || client.options.hudHidden || client.textRenderer == null) {
-            return;
-        }
-
-        MiniMapState state = miniMapState;
-        if (state == null) {
-            return;
-        }
-
-        String deltaText;
-        if (state.cumulativeParDelta() == 0) {
-            deltaText = "E";
-        } else if (state.cumulativeParDelta() > 0) {
-            deltaText = "+" + state.cumulativeParDelta();
-        } else {
-            deltaText = Integer.toString(state.cumulativeParDelta());
-        }
-
-        String line1 = "Round";
-        String line2 = "H" + state.holeIndex() + "  P" + state.par() + "  T" + state.throwNumber();
-    int animatedDistanceFeet = Math.max(0, Math.round(displayedDistanceFeet));
-    String line3 = animatedDistanceFeet + "ft";
-        String line4 = "Total " + state.totalStrokes() + "  " + deltaText;
-        int maxTextWidth = Math.max(
-                Math.max(client.textRenderer.getWidth(line1), client.textRenderer.getWidth(line2)),
-                Math.max(client.textRenderer.getWidth(line3), client.textRenderer.getWidth(line4))
-        );
-
-        int panelW = maxTextWidth + 16;
-        int panelH = 54;
-        int x = drawContext.getScaledWindowWidth() - panelW - 8;
-        int y = client.getDebugHud().shouldShowDebugHud() ? 76 : 8;
-        float hudAlpha = hudFadeAlpha();
-
-        HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, "Round", hudAlpha);
-
-        int animatedTotal = Math.max(0, Math.round(displayedTotalStrokes));
-        int animatedDelta = Math.round(displayedCumulativeDelta);
-        String animatedDeltaText = animatedDelta == 0 ? "E" : (animatedDelta > 0 ? "+" + animatedDelta : Integer.toString(animatedDelta));
-        String animatedLine4 = "Total " + animatedTotal + "  " + animatedDeltaText;
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line2), x + 6, y + 16, HudUtil.withAlpha(0xFFFFFF, hudAlpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line3), x + 6, y + 28, HudUtil.withAlpha(0xCFE8FF, hudAlpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(animatedLine4), x + 6, y + 40, HudUtil.withAlpha(0xB5F7B5, hudAlpha));
-    }
-
-    private static void renderScorecardOverlay(DrawContext drawContext) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null || client.options.hudHidden || client.textRenderer == null) {
-            return;
-        }
-
-        // Only show the on-screen scorecard while round HUD data is actively streaming.
-        MiniMapState state = miniMapState;
-        if (state == null || (System.currentTimeMillis() - miniMapReceivedAtMs) > MINIMAP_STALE_TIMEOUT_MS) {
-            return;
-        }
-
-        NbtCompound scorecardRoot = findScorecardRoot(client);
-        if (scorecardRoot == null) {
-            return;
-        }
-
-        NbtList holes = scorecardRoot.getList(ScorecardManager.KEY_HOLES, NbtElement.COMPOUND_TYPE);
-        if (holes.isEmpty()) {
-            return;
-        }
-
-        int visibleRows = holes.size();
-        int holeColW = Math.max(client.textRenderer.getWidth("H"), client.textRenderer.getWidth(Integer.toString(holes.size())));
-        int distColW = client.textRenderer.getWidth("Dist");
-        int parColW = client.textRenderer.getWidth("Par");
-        int scoreColW = client.textRenderer.getWidth("Score");
-        for (int i = 0; i < visibleRows; i++) {
-            NbtCompound row = holes.getCompound(i);
-            int dist = row.getInt(ScorecardManager.KEY_DISTANCE_FEET);
-            int score = row.getInt(ScorecardManager.KEY_SCORE);
-            distColW = Math.max(distColW, client.textRenderer.getWidth(dist + "ft"));
-            scoreColW = Math.max(scoreColW, client.textRenderer.getWidth(score < 0 ? "-" : Integer.toString(score)));
-        }
-
-        int colGap = 10;
-        int colHoleX = 6;
-        int colDistX = colHoleX + holeColW + colGap;
-        int colParX = colDistX + distColW + colGap;
-        int colScoreX = colParX + parColW + colGap;
-        int panelW = colScoreX + scoreColW + 6;
-        int panelH = 22 + (visibleRows * 10);
-        int x = drawContext.getScaledWindowWidth() - panelW - 8;
-        int preferredY = Math.max((drawContext.getScaledWindowHeight() / 2) + 14, drawContext.getScaledWindowHeight() - panelH - 8);
-        int y = Math.max(8, Math.min(preferredY, drawContext.getScaledWindowHeight() - panelH - 8));
-        float hudAlpha = hudFadeAlpha();
-
-        String courseName = scorecardRoot.getString(ScorecardManager.KEY_COURSE_NAME);
-        String panelTitle = (courseName != null && !courseName.isBlank()) ? courseName : "Scorecard";
-        HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, panelTitle, hudAlpha);
-
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("H"), x + colHoleX, y + 14, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Dist"), x + colDistX, y + 14, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Par"), x + colParX, y + 14, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Score"), x + colScoreX, y + 14, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
-
-        for (int i = 0; i < visibleRows; i++) {
-            NbtCompound row = holes.getCompound(i);
-            int hole = row.getInt(ScorecardManager.KEY_HOLE_INDEX);
-            int dist = row.getInt(ScorecardManager.KEY_DISTANCE_FEET);
-            int par = row.getInt(ScorecardManager.KEY_PAR);
-            int score = row.getInt(ScorecardManager.KEY_SCORE);
-            String holeText = Integer.toString(hole);
-            String distText = dist + "ft";
-            String parText = Integer.toString(par);
-            String scoreText = score < 0 ? "-" : Integer.toString(score);
-            int rowY = y + 24 + (i * 10);
-            int rowColor = hole == state.holeIndex() ? 0xFFF4D37A : HUD_CARD_TEXT;
-
-            drawContext.drawTextWithShadow(
-                    client.textRenderer,
-                    Text.literal(holeText),
-                    x + rightAlign(colHoleX, holeColW, client.textRenderer.getWidth(holeText)),
-                    rowY,
-                    HudUtil.withAlpha(rowColor, hudAlpha)
-            );
-            drawContext.drawTextWithShadow(
-                    client.textRenderer,
-                    Text.literal(distText),
-                    x + rightAlign(colDistX, distColW, client.textRenderer.getWidth(distText)),
-                    rowY,
-                        HudUtil.withAlpha(rowColor, hudAlpha)
-            );
-            drawContext.drawTextWithShadow(
-                    client.textRenderer,
-                    Text.literal(parText),
-                    x + rightAlign(colParX, parColW, client.textRenderer.getWidth(parText)),
-                    rowY,
-                        HudUtil.withAlpha(rowColor, hudAlpha)
-            );
-            drawContext.drawTextWithShadow(
-                    client.textRenderer,
-                    Text.literal(scoreText),
-                    x + rightAlign(colScoreX, scoreColW, client.textRenderer.getWidth(scoreText)),
-                    rowY,
-                    HudUtil.withAlpha(rowColor, hudAlpha)
-            );
-        }
-    }
-
-    private static void renderRunningRoundScoreboardOverlay(DrawContext drawContext) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null || client.options.hudHidden || client.textRenderer == null) {
-            return;
-        }
-
-        RunningRoundScoreState state = runningRoundScoreState;
-        if (state == null || state.rows().isEmpty()) {
-            return;
-        }
-
-        int focusHole = Math.max(1, Math.min(state.totalHoles(), state.focusHole()));
-        int startHole = Math.max(1, focusHole - 2);
-        int endHole = focusHole;
-        int visibleHoleCount = Math.max(1, endHole - startHole + 1);
-        int nameColW = client.textRenderer.getWidth("Player");
-        int totalColW = client.textRenderer.getWidth("Tot");
-        for (RunningRoundScoreRow row : state.rows()) {
-            String displayName = row.online() ? row.playerName() : (row.playerName() + " (off)");
-            nameColW = Math.max(nameColW, client.textRenderer.getWidth(displayName));
-            totalColW = Math.max(totalColW, client.textRenderer.getWidth(Integer.toString(row.runningTotal())));
-        }
-
-        int holeColW = 12;
-        int colGap = 6;
-        int rowHeight = 10;
-        int panelW = 8 + nameColW + colGap + (visibleHoleCount * (holeColW + 2)) + colGap + totalColW + 8;
-        int panelH = 22 + ((state.rows().size() + 1) * rowHeight);
-        int x = 8;
-        int y = drawContext.getScaledWindowHeight() - panelH - 8;
-        float hudAlpha = hudFadeAlpha();
-
-        String panelTitle = (state.courseName() != null && !state.courseName().isBlank()) ? state.courseName() : "Round Scores";
-        HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, panelTitle, hudAlpha);
-
-        int cursorX = x + 6;
-        int headerY = y + 14;
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Player"), cursorX, headerY, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
-        cursorX += nameColW + colGap;
-
-        for (int hole = startHole; hole <= endHole; hole++) {
-            String label = Integer.toString(hole);
-            int color = hole == focusHole ? 0xFFEAC26F : HUD_CARD_MUTED_TEXT;
-            drawContext.drawTextWithShadow(
-                    client.textRenderer,
-                    Text.literal(label),
-                    cursorX + rightAlign(0, holeColW, client.textRenderer.getWidth(label)),
-                    headerY,
-                    HudUtil.withAlpha(color, hudAlpha)
-            );
-            cursorX += holeColW + 2;
-        }
-
-        cursorX += colGap;
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Tot"), cursorX, headerY, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
-
-        for (int rowIndex = 0; rowIndex < state.rows().size(); rowIndex++) {
-            RunningRoundScoreRow row = state.rows().get(rowIndex);
-            int rowY = y + 24 + (rowIndex * rowHeight);
-            int rowColor = row.online() ? HUD_CARD_TEXT : HUD_CARD_MUTED_TEXT;
-
-            String displayName = row.online() ? row.playerName() : (row.playerName() + " (off)");
-            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(displayName), x + 6, rowY, HudUtil.withAlpha(rowColor, hudAlpha));
-
-            int rowCursorX = x + 6 + nameColW + colGap;
-            for (int hole = startHole; hole <= endHole; hole++) {
-                int value = (hole - 1) < row.holeScores().size() ? row.holeScores().get(hole - 1) : -1;
-                String text = value < 0 ? "-" : Integer.toString(value);
-                int valueColor = hole == focusHole ? 0xFFF5D684 : rowColor;
-                drawContext.drawTextWithShadow(
-                        client.textRenderer,
-                        Text.literal(text),
-                        rowCursorX + rightAlign(0, holeColW, client.textRenderer.getWidth(text)),
-                        rowY,
-                        HudUtil.withAlpha(valueColor, hudAlpha)
-                );
-                rowCursorX += holeColW + 2;
-            }
-
-            rowCursorX += colGap;
-            String totalText = Integer.toString(row.runningTotal());
-            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(totalText), rowCursorX, rowY, HudUtil.withAlpha(0xFFB5F7B5, hudAlpha));
-        }
-    }
-
-    private static void updateHudTweens() {
-        MiniMapState state = miniMapState;
-        if (state == null) {
-            return;
-        }
-
-        int dx = state.basketX() - state.lieX();
-        int dz = state.basketZ() - state.lieZ();
-        float targetMeters = Math.max(0, Math.round((float) Math.sqrt((dx * dx) + (dz * dz))));
-        float targetFeet = Math.max(0, Math.round(targetMeters * 3.28084f));
-        displayedDistanceFeet = tween(displayedDistanceFeet, targetFeet, 0.18f);
-        displayedTotalStrokes = tween(displayedTotalStrokes, state.totalStrokes(), 0.22f);
-        displayedCumulativeDelta = tween(displayedCumulativeDelta, state.cumulativeParDelta(), 0.22f);
-    }
-
-    private static NbtCompound findScorecardRoot(MinecraftClient client) {
-        for (int slot = 0; slot < client.player.getInventory().size(); slot++) {
-            ItemStack stack = client.player.getInventory().getStack(slot);
-            if (!stack.isOf(McdgItems.SCORECARD)) {
-                continue;
-            }
-            NbtCompound root = ScorecardManager.getScorecardRoot(stack);
-            if (root != null) {
-                return root;
-            }
-        }
-        return null;
-    }
-
     private static int miniMapTerrainColor(int terrainClass) {
         return switch (terrainClass) {
             case 1 -> 0xFF3F76E4;
@@ -1390,10 +1119,6 @@ public final class McdgClientMod implements ClientModInitializer {
         return (a << 24) | (r << 16) | (g << 8) | b;
     }
 
-    private static int rightAlign(int startX, int width, int textWidth) {
-        return startX + Math.max(0, width - textWidth);
-    }
-
     private static float hudFadeAlpha() {
         if (hudVisibleSinceMs <= 0L) {
             return 1.0f;
@@ -1408,13 +1133,6 @@ public final class McdgClientMod implements ClientModInitializer {
         int g = (argb >>> 8) & 0xFF;
         int b = argb & 0xFF;
         return (a << 24) | (b << 16) | (g << 8) | r;
-    }
-
-    private static float tween(float current, float target, float factor) {
-        if (Float.isNaN(current)) {
-            return target;
-        }
-        return current + ((target - current) * factor);
     }
 
     private static void handleMiniMapHotkeys(MinecraftClient client) {
@@ -2575,7 +2293,7 @@ public final class McdgClientMod implements ClientModInitializer {
         MINIMAP_EDGE_ARROW
     }
 
-    private record MiniMapState(
+    public record MiniMapState(
             int holeIndex,
             int teeX,
             int teeZ,
@@ -2611,7 +2329,7 @@ public final class McdgClientMod implements ClientModInitializer {
         }
     }
 
-    private record RunningRoundScoreState(
+    public record RunningRoundScoreState(
             int totalHoles,
             int focusHole,
             String courseName,
@@ -2619,7 +2337,7 @@ public final class McdgClientMod implements ClientModInitializer {
     ) {
     }
 
-    private record RunningRoundScoreRow(
+    public record RunningRoundScoreRow(
             String playerName,
             boolean online,
             List<Integer> holeScores,

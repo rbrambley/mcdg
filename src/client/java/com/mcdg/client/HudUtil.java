@@ -20,6 +20,13 @@ public final class HudUtil {
         return (argb & 0x00FFFFFF) | (appliedAlpha << 24);
     }
 
+    public static float tween(float current, float target, float factor) {
+        if (Float.isNaN(current)) {
+            return target;
+        }
+        return current + ((target - current) * factor);
+    }
+
     public static void drawCard(DrawContext drawContext, MinecraftClient client, int x, int y, int w, int h, String title, float alpha) {
         drawContext.fill(x, y, x + w, y + h, withAlpha(HUD_CARD_BG, alpha));
         drawContext.fill(x, y, x + w, y + 12, withAlpha(HUD_CARD_HEADER_BG, alpha));
