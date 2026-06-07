@@ -692,6 +692,46 @@ public final class MiniMapRenderer {
             }
         }
     }
+    public static void drawLineClipped(
+            DrawContext drawContext,
+            int x1, int y1, int x2, int y2,
+            int color,
+            int thickness,
+            float clipCenterX,
+            float clipCenterY,
+            float clipRadius
+    ) {
+        float clipRadiusSq = clipRadius * clipRadius;
+        int dx = Math.abs(x2 - x1);
+        int dy = Math.abs(y2 - y1);
+        int sx = x1 < x2 ? 1 : -1;
+        int sy = y1 < y2 ? 1 : -1;
+        int err = dx - dy;
+
+        while (true) {
+            // Draw thickness
+            for (int tx = -thickness / 2; tx <= thickness / 2; tx++) {
+                for (int ty = -thickness / 2; ty <= thickness / 2; ty++) {
+                    int px = x1 + tx;
+                    int py = y1 + ty;
+                    if (isPointInsideCircle(px, py, clipCenterX, clipCenterY, clipRadiusSq)) {
+                        drawContext.fill(px, py, px + 1, py + 1, color);
+                    }
+                }
+            }
+
+            if (x1 == x2 && y1 == y2) break;
+            int e2 = 2 * err;
+            if (e2 > -dy) {
+                err -= dy;
+                x1 += sx;
+            }
+            if (e2 < dx) {
+                err += dx;
+                y1 += sy;
+            }
+        }
+    }
 
     private static void drawMiniMapHoleGuides(
             DrawContext drawContext,
@@ -741,8 +781,107 @@ public final class MiniMapRenderer {
                 clipCenterY,
                 clipRadius
         );
-    }
 
+        // Draw corridor boundary lines (left and right edges of the safe fairway)
+        drawMiniMapCorridorBoundaries(
+                drawContext,
+                state,
+                centerWorldX,
+                centerWorldZ,
+                mapCenterX,
+                mapCenterY,
+                mapScale,
+                mapRotationDegrees,
+                hudAlpha,
+                clipCenterX,
+                clipCenterY,
+                clipRadius
+        );
+    }
+    private static void drawMiniMapCorridorBoundaries(
+            DrawContext drawContext,
+            McdgClientMod.MiniMapState state,
+            double centerWorldX,
+            double centerWorldZ,
+            int mapCenterX,
+            int mapCenterY,
+            float mapScale,
+            float mapRotationDegrees,
+            float hudAlpha,
+            float clipCenterX,
+            float clipCenterY,
+            float clipRadius
+    ) {
+        if (state.corridorHalfWidth() <= 0) return;
+
+        int corridorColor = HudUtil.withAlpha(0xE6FFB366, hudAlpha); // Light orange/yellow corridor
+        int halfWidth = state.corridorHalfWidth();
+
+        // Calculate tee and basket positions
+        double teeX = state.teeX() + 0.5d;
+        double teeZ = state.teeZ() + 0.5d;
+        double basketX = state.basketX() + 0.5d;
+        double basketZ = state.basketZ() + 0.5d;
+
+        // Calculate direction vector from tee to basket
+        double dx = basketX - teeX;
+        double dz = basketZ - teeZ;
+        double length = Math.sqrt(dx * dx + dz * dz);
+        if (length < 0.001) return;
+
+        // Normalize and get perpendicular vector
+        double dirX = dx / length;
+        double dirZ = dz / length;
+        double perpX = -dirZ; // Perpendicular to direction
+        double perpZ = dirX;
+
+        // Calculate left and right corridor edge points at tee and basket
+        double leftTeeX = teeX + perpX * halfWidth;
+        double leftTeeZ = teeZ + perpZ * halfWidth;
+        double rightTeeX = teeX - perpX * halfWidth;
+        double rightTeeZ = teeZ - perpZ * halfWidth;
+
+        double leftBasketX = basketX + perpX * halfWidth;
+        double leftBasketZ = basketZ + perpZ * halfWidth;
+        double rightBasketX = basketX - perpX * halfWidth;
+        double rightBasketZ = basketZ - perpZ * halfWidth;
+
+        // Convert to screen coordinates
+        float[] leftTeeScreen = rotateMiniMapVector(
+            (float) ((leftTeeX - centerWorldX) * mapScale),
+            (float) ((leftTeeZ - centerWorldZ) * mapScale),
+            mapRotationDegrees
+        );
+        float[] rightTeeScreen = rotateMiniMapVector(
+            (float) ((rightTeeX - centerWorldX) * mapScale),
+            (float) ((rightTeeZ - centerWorldZ) * mapScale),
+            mapRotationDegrees
+        );
+        float[] leftBasketScreen = rotateMiniMapVector(
+            (float) ((leftBasketX - centerWorldX) * mapScale),
+            (float) ((leftBasketZ - centerWorldZ) * mapScale),
+            mapRotationDegrees
+        );
+        float[] rightBasketScreen = rotateMiniMapVector(
+            (float) ((rightBasketX - centerWorldX) * mapScale),
+            (float) ((rightBasketZ - centerWorldZ) * mapScale),
+            mapRotationDegrees
+        );
+
+        int x1 = Math.round(mapCenterX + leftTeeScreen[0]);
+        int y1 = Math.round(mapCenterY + leftTeeScreen[1]);
+        int x2 = Math.round(mapCenterX + leftBasketScreen[0]);
+        int y2 = Math.round(mapCenterY + leftBasketScreen[1]);
+        int x3 = Math.round(mapCenterX + rightTeeScreen[0]);
+        int y3 = Math.round(mapCenterY + rightTeeScreen[1]);
+        int x4 = Math.round(mapCenterX + rightBasketScreen[0]);
+        int y4 = Math.round(mapCenterY + rightBasketScreen[1]);
+
+        // Draw left boundary line
+        drawLineClipped(drawContext, x1, y1, x2, y2, corridorColor, 1, clipCenterX, clipCenterY, clipRadius);
+        // Draw right boundary line
+        drawLineClipped(drawContext, x3, y3, x4, y4, corridorColor, 1, clipCenterX, clipCenterY, clipRadius);
+    }
     private static void drawMiniMapBasketFlagClipped(
             DrawContext drawContext,
             int centerX,

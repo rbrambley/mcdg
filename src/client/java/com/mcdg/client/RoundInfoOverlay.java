@@ -18,6 +18,11 @@ public final class RoundInfoOverlay {
     private RoundInfoOverlay() {
     }
 
+    private static String buildWaterGapLine(int startFeet, int endFeet, boolean hasGap) {
+        if (!hasGap || startFeet < 0 || endFeet <= startFeet) return "";
+        return "Water " + startFeet + "-" + endFeet + "ft";
+    }
+
     private static String buildCorridorEntryLine(int feet, int bearingDeg) {
         if (feet <= 0) return "";
         int idx = (int) Math.round(((bearingDeg % 360 + 360) % 360) / 45.0) % 8;
@@ -61,15 +66,17 @@ public final class RoundInfoOverlay {
         String line3 = animatedDistanceFeet + "ft";
         String line4 = state.lastThrowDistanceFeet() > 0 ? "Last " + state.lastThrowDistanceFeet() + "ft" : "";
         String line5 = buildCorridorEntryLine(state.corridorEntryFeet(), state.corridorEntryBearing());
+        String line5b = buildWaterGapLine(state.waterGapStartFeet(), state.waterGapEndFeet(), state.hasWaterGap());
         String line6 = "Total " + state.totalStrokes() + "  " + deltaText;
         int maxTextWidth = Math.max(
                 Math.max(client.textRenderer.getWidth(line1), client.textRenderer.getWidth(line2)),
                 Math.max(client.textRenderer.getWidth(line3),
                         Math.max(client.textRenderer.getWidth(line4),
-                                Math.max(client.textRenderer.getWidth(line5), client.textRenderer.getWidth(line6))))
+                                Math.max(client.textRenderer.getWidth(line5),
+                                        Math.max(client.textRenderer.getWidth(line5b), client.textRenderer.getWidth(line6)))))
         );
 
-        int extraRows = (line4.isEmpty() ? 0 : 1) + (line5.isEmpty() ? 0 : 1);
+        int extraRows = (line4.isEmpty() ? 0 : 1) + (line5.isEmpty() ? 0 : 1) + (line5b.isEmpty() ? 0 : 1);
         int panelW = maxTextWidth + 16;
         int panelH = 54 + (extraRows * 12);
         int x = drawContext.getScaledWindowWidth() - panelW - 8;
@@ -92,6 +99,10 @@ public final class RoundInfoOverlay {
         }
         if (!line5.isEmpty()) {
             drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line5), x + 6, row, HudUtil.withAlpha(0xFFCC44, hudAlpha));
+            row += 12;
+        }
+        if (!line5b.isEmpty()) {
+            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line5b), x + 6, row, HudUtil.withAlpha(0x66CCFF, hudAlpha));
             row += 12;
         }
         drawContext.drawTextWithShadow(client.textRenderer, Text.literal(animatedLine6), x + 6, row, HudUtil.withAlpha(0xB5F7B5, hudAlpha));

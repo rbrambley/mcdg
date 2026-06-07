@@ -118,7 +118,10 @@ public final class McdgClientMod implements ClientModInitializer {
             int mapSpan,
             int lastThrowDistanceFeet,
             int corridorEntryFeet,
-            int corridorEntryBearing
+            int corridorEntryBearing,
+            int waterGapStartFeet,
+            int waterGapEndFeet,
+            boolean hasWaterGap
     ) {
     }
 
@@ -177,7 +180,10 @@ public final class McdgClientMod implements ClientModInitializer {
                 payload.mapSpan(),
                 payload.lastThrowDistanceFeet(),
                 payload.corridorEntryFeet(),
-                payload.corridorEntryBearing()
+                payload.corridorEntryBearing(),
+                payload.waterGapStartFeet(),
+                payload.waterGapEndFeet(),
+                payload.hasWaterGap()
         ));
         WaypointManager.setActiveRoundCourseWaypointName(payload.courseWaypointName());
         WaypointManager.upsertPermanentCourseWaypoint(

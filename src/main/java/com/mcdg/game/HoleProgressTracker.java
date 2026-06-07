@@ -214,6 +214,7 @@ public final class HoleProgressTracker {
                 int corridorEntryFeet = corridorEntry != null ? corridorEntry[0] : 0;
                 int corridorEntryBearing = corridorEntry != null ? corridorEntry[1] : 0;
                 HoleMiniMapSync.Payload miniMapPayload = buildMiniMapPayload(
+                    (ServerWorld) player.getWorld(),
                     courseManager,
                     course,
                     placed,
@@ -993,6 +994,7 @@ public final class HoleProgressTracker {
     }
 
     private static HoleMiniMapSync.Payload buildMiniMapPayload(
+            ServerWorld world,
             ActiveCourseManager courseManager,
             Course course,
             PlacedCourseState placed,
@@ -1013,6 +1015,12 @@ public final class HoleProgressTracker {
             int corridorEntryFeet,
             int corridorEntryBearing
     ) {
+        // Compute water gap along the tee->basket line
+        int[] waterGap = findLongestWaterGap(world, tee, basket);
+        int waterGapStartFeet = waterGap[2] > 0 ? Math.round(waterGap[0] * 3.28084f) : 0;
+        int waterGapEndFeet = waterGap[2] > 0 ? Math.round(waterGap[1] * 3.28084f) : 0;
+        boolean hasWaterGap = waterGap[2] > 0;
+
         int span;
         int minX = Math.min(Math.min(tee.getX(), basket.getX()), mapFocus.getX());
         int maxX = Math.max(Math.max(tee.getX(), basket.getX()), mapFocus.getX());
@@ -1077,7 +1085,10 @@ public final class HoleProgressTracker {
                 holeTeeZs,
                 lastThrowDistanceFeet,
                 corridorEntryFeet,
-                corridorEntryBearing
+                corridorEntryBearing,
+                waterGapStartFeet,
+                waterGapEndFeet,
+                hasWaterGap
             );
     }
 
@@ -1766,49 +1777,67 @@ public final class HoleProgressTracker {
         return baseline;
     }
 
-    private static int computeLongestWaterCarryGap(ServerWorld world, BlockPos start, BlockPos end) {
-        int dx = end.getX() - start.getX();
-        int dz = end.getZ() - start.getZ();
-        int dominant = Math.max(Math.abs(dx), Math.abs(dz));
-        if (dominant == 0) {
-            return 0;
-        }
-
-        int stepX = Integer.signum(dx);
-        int stepZ = Integer.signum(dz);
-
-        int longest = 0;
-        int current = 0;
-
-        int x = start.getX();
-        int z = start.getZ();
-        int errX = 0;
-        int errZ = 0;
-
-        for (int i = 0; i <= dominant; i++) {
-            if (isWaterCarryColumn(world, x, z)) {
-                current++;
-                if (current > longest) {
-                    longest = current;
-                }
-            } else if (current > 0) {
-                current = 0;
-            }
-
-            errX += Math.abs(dx);
-            if (errX >= dominant && stepX != 0) {
-                x += stepX;
-                errX -= dominant;
-            }
-            errZ += Math.abs(dz);
-            if (errZ >= dominant && stepZ != 0) {
-                z += stepZ;
-                errZ -= dominant;
-            }
-        }
-
-        return longest;
+/**
+ * Finds the longest continuous water gap along the line from start to end.
+ * Returns int[3] = { startDistanceBlocks, endDistanceBlocks, maxGapLengthBlocks }
+ * where distances are measured from the start position.
+ */
+private static int[] findLongestWaterGap(ServerWorld world, BlockPos start, BlockPos end) {
+    int dx = end.getX() - start.getX();
+    int dz = end.getZ() - start.getZ();
+    int dominant = Math.max(Math.abs(dx), Math.abs(dz));
+    if (dominant == 0) {
+        return new int[]{0, 0, 0};
     }
+
+    int stepX = Integer.signum(dx);
+    int stepZ = Integer.signum(dz);
+
+    int longest = 0;
+    int current = 0;
+    int currentStart = 0;
+    int bestStart = 0;
+    int bestEnd = 0;
+
+    int x = start.getX();
+    int z = start.getZ();
+    int errX = 0;
+    int errZ = 0;
+
+    for (int i = 0; i <= dominant; i++) {
+        if (isWaterCarryColumn(world, x, z)) {
+            if (current == 0) {
+                currentStart = i;
+            }
+            current++;
+            if (current > longest) {
+                longest = current;
+                bestStart = currentStart;
+                bestEnd = i;
+            }
+        } else if (current > 0) {
+            current = 0;
+        }
+
+        errX += Math.abs(dx);
+        if (errX >= dominant && stepX != 0) {
+            x += stepX;
+            errX -= dominant;
+        }
+        errZ += Math.abs(dz);
+        if (errZ >= dominant && stepZ != 0) {
+            z += stepZ;
+            errZ -= dominant;
+        }
+    }
+
+    return new int[]{bestStart, bestEnd, longest};
+}
+
+/** Legacy wrapper that returns just the max gap length for corridor width decisions. */
+private static int computeLongestWaterCarryGap(ServerWorld world, BlockPos start, BlockPos end) {
+    return findLongestWaterGap(world, start, end)[2];
+}
 
     /**
      * Returns a standable position in the 2-block ring around the basket (as if the disc bounced off it).

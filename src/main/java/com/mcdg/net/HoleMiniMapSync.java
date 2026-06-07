@@ -45,7 +45,10 @@ public final class HoleMiniMapSync {
             List<Integer> holeTeeZs,
             int lastThrowDistanceFeet,
             int corridorEntryFeet,
-            int corridorEntryBearing
+            int corridorEntryBearing,
+            int waterGapStartFeet,
+            int waterGapEndFeet,
+            boolean hasWaterGap
     ) implements CustomPayload {
         public static Payload read(RegistryByteBuf buf) {
             boolean active = buf.readBoolean();
@@ -111,7 +114,10 @@ public final class HoleMiniMapSync {
                     holeTeeZs,
                     buf.readVarInt(),
                     buf.readVarInt(),
-                    buf.readVarInt()
+                    buf.readVarInt(),
+                    buf.readVarInt(),
+                    buf.readVarInt(),
+                    buf.readBoolean()
             );
         }
 
@@ -155,7 +161,7 @@ public final class HoleMiniMapSync {
         }
 
         public static Payload inactive() {
-            return new Payload(false, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, false, 0, 0, false, 0, 0, 0, "", 0, 0, 0, List.of(), List.of(), 0, 0, 0);
+            return new Payload(false, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, false, 0, 0, false, 0, 0, 0, "", 0, 0, 0, List.of(), List.of(), 0, 0, 0, 0, 0, false);
         }
 
         public static Payload active(
@@ -185,7 +191,10 @@ public final class HoleMiniMapSync {
                 List<Integer> holeTeeZs,
                 int lastThrowDistanceFeet,
                 int corridorEntryFeet,
-                int corridorEntryBearing
+                int corridorEntryBearing,
+                int waterGapStartFeet,
+                int waterGapEndFeet,
+                boolean hasWaterGap
         ) {
             return new Payload(
                     true,
@@ -215,7 +224,10 @@ public final class HoleMiniMapSync {
                     holeTeeZs == null ? List.of() : List.copyOf(holeTeeZs),
                     Math.max(0, lastThrowDistanceFeet),
                     Math.max(0, corridorEntryFeet),
-                    ((corridorEntryBearing % 360) + 360) % 360
+                    ((corridorEntryBearing % 360) + 360) % 360,
+                    Math.max(0, waterGapStartFeet),
+                    Math.max(0, waterGapEndFeet),
+                    hasWaterGap
             );
         }
 
