@@ -1,6 +1,6 @@
-{
-  "Git": {
-    "Commit": "db1929d4e0d553fe4d2967cc779241a7c090c669",
-    "Dirty": false
-  }
+﻿{
+    "Git":  {
+                "Dirty":  true,
+                "Commit":  "3eaa8fb3414ef21407b959e4b24ddc9272bc751e"
+            }
 }
