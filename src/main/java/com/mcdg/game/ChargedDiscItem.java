@@ -109,8 +109,8 @@ public final class ChargedDiscItem extends Item {
                 return;
             }
 
-            if (HoleProgressTracker.isThrowResolutionPending(serverPlayer.getUuid(), state.totalStrokes())) {
-                String snapshot = HoleProgressTracker.strictThrowGateDebugSnapshot(serverPlayer.getUuid(), state.totalStrokes());
+            if (ThrowResolver.isThrowResolutionPending(serverPlayer.getUuid(), state.totalStrokes())) {
+                String snapshot = ThrowResolver.strictThrowGateDebugSnapshot(serverPlayer.getUuid(), state.totalStrokes());
                 McdgMod.LOGGER.info(
                     "Throw gate pending resolution | player={} total={} hole={} lie={} playerPos={} mode={} snapshot={}",
                     serverPlayer.getGameProfile().getName(),
@@ -130,7 +130,7 @@ public final class ChargedDiscItem extends Item {
             }
 
             if (strictFlowDebug) {
-                String snapshot = HoleProgressTracker.strictThrowGateDebugSnapshot(serverPlayer.getUuid(), state.totalStrokes());
+                String snapshot = ThrowResolver.strictThrowGateDebugSnapshot(serverPlayer.getUuid(), state.totalStrokes());
                 McdgMod.LOGGER.info(
                     "Throw gate | player={} total={} hole={} lie={} playerPos={} allowed={} mode={} snapshot={}",
                         serverPlayer.getGameProfile().getName(),
@@ -147,7 +147,7 @@ public final class ChargedDiscItem extends Item {
             int distanceFromLie = horizontalDistance(serverPlayer.getBlockPos(), state.lie());
             int allowedDistance = rulesetManager.allowedLieToleranceBlocks();
             if (distanceFromLie > allowedDistance) {
-                String snapshot = HoleProgressTracker.strictThrowGateDebugSnapshot(serverPlayer.getUuid(), state.totalStrokes());
+                String snapshot = ThrowResolver.strictThrowGateDebugSnapshot(serverPlayer.getUuid(), state.totalStrokes());
                 McdgMod.LOGGER.warn(
                         "Throw gate blocked | player={} hole={} total={} holeStrokes={} distanceFromLie={} allowed={} stateLie={} playerPos={} mode={} snapshot={}",
                         serverPlayer.getGameProfile().getName(),
@@ -182,7 +182,7 @@ public final class ChargedDiscItem extends Item {
         pearl.setItem(new ItemStack(Items.ENDER_PEARL));
         pearl.setVelocity(serverPlayer, serverPlayer.getPitch(), serverPlayer.getYaw(), 0.0f, velocity, 1.0f);
         world.spawnEntity(pearl);
-        HoleProgressTracker.registerThrowRelease(serverPlayer.getUuid(), pearl.getUuid(), world.getTime());
+        ThrowResolver.registerThrowRelease(serverPlayer.getUuid(), pearl.getUuid(), world.getTime());
 
         world.playSound(
                 null,

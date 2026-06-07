@@ -148,7 +148,7 @@ public final class ThrowAutoTestService {
             return;
         }
 
-        boolean resolutionPending = HoleProgressTracker.isThrowResolutionPending(session.playerId, state.totalStrokes());
+        boolean resolutionPending = ThrowResolver.isThrowResolutionPending(session.playerId, state.totalStrokes());
         if (state.totalStrokes() > session.lastObservedTotalStrokes) {
             session.lastObservedTotalStrokes = state.totalStrokes();
         }
@@ -293,7 +293,7 @@ public final class ThrowAutoTestService {
         pearl.setItem(new ItemStack(Items.ENDER_PEARL));
         pearl.setVelocity(player, pitch, yaw, 0.0f, (float) speed, 0.0f);
         world.spawnEntity(pearl);
-        HoleProgressTracker.registerThrowRelease(player.getUuid(), pearl.getUuid(), world.getTime());
+        ThrowResolver.registerThrowRelease(player.getUuid(), pearl.getUuid(), world.getTime());
 
         roundStateManager.recordThrow(session.playerId, lie);
         session.lastThrowLie = lie;

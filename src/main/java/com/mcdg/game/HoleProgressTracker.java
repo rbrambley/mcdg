@@ -47,18 +47,9 @@ public final class HoleProgressTracker {
     private static final int BASKET_GREEN_RADIUS_BLOCKS = 7;
     private static final int BASKET_GREEN_HEIGHT_BLOCKS = 8;
     // Proximity make radius: flat putts within this distance that hit the basket column count as makes
-    private static final int PROXIMITY_MAKE_RADIUS_BLOCKS = 3;
-    private static final int MAX_THROW_RESOLUTION_WAIT_TICKS = 320;
-    private static final int THROW_RELEASE_GRACE_TICKS = 8;
     private static final int TURN_TIMEOUT_TICKS = 20 * 120;
     // Temporary safety rollback: keep core throw/lie flow stable while strict landing penalties are reworked.
-    private static final boolean ENABLE_STRICT_LANDING_PENALTIES = true;
     private static final HudStateFormatter HUD_STATE_FORMATTER = new HudStateFormatter();
-    private static final Map<UUID, Integer> LAST_PROCESSED_THROW_TOTAL = new HashMap<>();
-    private static final Map<UUID, Integer> LAST_THROW_PENDING_TICKS = new HashMap<>();
-    private static final Map<UUID, UUID> LAST_THROW_PEARL_UUID = new HashMap<>();
-    private static final Map<UUID, Long> LAST_THROW_RELEASE_TICK = new HashMap<>();
-    private static final Map<UUID, String> LAST_RESOLUTION_REASON = new HashMap<>();
     private static final Map<UUID, Map<BlockPos, LieMarkerState>> LIE_MARKER_HISTORY = new HashMap<>();
     private static final Map<UUID, Map<Integer, Integer>> HOLE_SCORE_HISTORY = new HashMap<>();
     private static final Map<UUID, Integer> HOLE_ONE_RANDOM_ORDER = new HashMap<>();
@@ -69,7 +60,6 @@ public final class HoleProgressTracker {
     private static final Map<UUID, BlockPos> LAST_LIE_POSITION = new HashMap<>();
     private static final Map<UUID, BlockPos> LAST_BREADCRUMB_POSITION = new HashMap<>();
     private static final Map<UUID, Integer> CACHED_CORRIDOR_HALF_WIDTH = new HashMap<>();
-    private static final Map<UUID, Integer> LAST_THROW_DISTANCE_FEET = new HashMap<>();
     private static int LAST_RUNNING_SCOREBOARD_HASH = Integer.MIN_VALUE;
     private static int AUTOTEST_MARKER_TRAIL_REFCOUNT = 0;
     private static boolean ROUND_WAS_ACTIVE = false;
@@ -89,12 +79,7 @@ public final class HoleProgressTracker {
             if (!courseManager.isRoundActive()) {
                 if (ROUND_WAS_ACTIVE) {
                     ROUND_WAS_ACTIVE = false;
-                    LAST_PROCESSED_THROW_TOTAL.clear();
-                    LAST_THROW_PENDING_TICKS.clear();
-                    LAST_THROW_PEARL_UUID.clear();
-                    LAST_THROW_RELEASE_TICK.clear();
-                    LAST_RESOLUTION_REASON.clear();
-                    HOLE_SCORE_HISTORY.clear();
+        ThrowResolver.reset();
                     HOLE_ONE_RANDOM_ORDER.clear();
                     ACTIVE_TURN_PLAYER_BY_HOLE.clear();
                     ACTIVE_TURN_STARTED_AT_BY_HOLE.clear();
@@ -104,7 +89,6 @@ public final class HoleProgressTracker {
                     LAST_BREADCRUMB_POSITION.clear();
                     CACHED_CORRIDOR_HALF_WIDTH.clear();
                     MiniMapSyncService.reset();
-                    LAST_THROW_DISTANCE_FEET.clear();
                     if (LAST_RUNNING_SCOREBOARD_HASH != Integer.MIN_VALUE) {
                         sendRunningScoreboardInactive(server);
                     }
@@ -161,7 +145,7 @@ public final class HoleProgressTracker {
                 }
 
                 if (tee != null) {
-                    state = resolveThrowLanding(
+                    state = ThrowResolver.resolve(
                             player,
                             state,
                             currentHole,
@@ -216,7 +200,7 @@ public final class HoleProgressTracker {
                         rulesetManager,
                         corridorHalfWidth,
                         cumulativeParDelta,
-                        LAST_THROW_DISTANCE_FEET.getOrDefault(player.getUuid(), 0),
+                        ThrowResolver.lastThrowDistanceFeetForPlayer(player.getUuid()),
                         strictFlowDebug
                 );
                 if (!suppressHud && hudScoringDebug && (server.getTicks() % 20) == 0) {
@@ -375,7 +359,7 @@ public final class HoleProgressTracker {
         roundStateManager.updateLie(player.getUuid(), safeLie);
         updateLieMarker(player, safeLie);
         player.teleport(safeLie.getX() + 0.5, safeLie.getY() + 1.0, safeLie.getZ() + 0.5);
-        LAST_RESOLUTION_REASON.put(player.getUuid(), "GOTOLIE");
+        ThrowResolver.recordResolutionReason(player.getUuid(), "GOTOLIE");
         return Optional.of(safeLie);
     }
 
@@ -877,67 +861,24 @@ public final class HoleProgressTracker {
         return dx <= BASKET_RADIUS_BLOCKS && dz <= BASKET_RADIUS_BLOCKS && dy <= BASKET_HEIGHT_TOLERANCE;
     }
 
-    private static boolean shouldBounceOffBasketStructure(BlockPos liePos, BlockPos basketPos) {
-        if (liePos == null || basketPos == null) {
-            return false;
-        }
 
-        int dx = Math.abs(liePos.getX() - basketPos.getX());
-        int dz = Math.abs(liePos.getZ() - basketPos.getZ());
-        if (dx != 0 || dz != 0) {
-            return false;
-        }
-
-        // Made basket remains hopper + one block above; upper basket structure should bounce.
-        return liePos.getY() >= (basketPos.getY() + 2);
-    }
-
-    private static boolean isDiscThroughBasket(BlockPos throwLie, BlockPos landingFeet, BlockPos basket) {
-        int targetX = basket.getX();
-        int targetZ = basket.getZ();
-        int targetY = basket.getY() + 1;
-        int distance = Math.max(1, manhattanDistance(throwLie, landingFeet));
-        int samples = Math.max(24, distance * 4);
-        for (int i = 1; i <= samples; i++) {
-            double t = i / (double) samples;
-            int x = (int) Math.floor((throwLie.getX() + 0.5) + ((landingFeet.getX() + 0.5 - (throwLie.getX() + 0.5)) * t));
-            int y = (int) Math.floor((throwLie.getY() + 0.5) + ((landingFeet.getY() + 0.5 - (throwLie.getY() + 0.5)) * t));
-            int z = (int) Math.floor((throwLie.getZ() + 0.5) + ((landingFeet.getZ() + 0.5 - (throwLie.getZ() + 0.5)) * t));
-            if (x == targetX && z == targetZ && y == targetY) {
-                return true;
-            }
-        }
-        return false;
-    }
     /**
      * Detects makes from short flat putts that don't arc through the hopper.
      * When the player is very close to the basket and lands on the basket column, count it as a make.
      */
-    private static boolean isCloseProximityMake(BlockPos throwLie, BlockPos landingFeet, BlockPos basket) {
-        // Must land on the basket column (same X/Z as basket)
-        if (landingFeet.getX() != basket.getX() || landingFeet.getZ() != basket.getZ()) {
-            return false;
-        }
-        // Check if throw started within proximity radius (horizontal distance only)
-        int dx = throwLie.getX() - basket.getX();
-        int dz = throwLie.getZ() - basket.getZ();
-        int horizontalDistSq = dx * dx + dz * dz;
-        int radiusSq = PROXIMITY_MAKE_RADIUS_BLOCKS * PROXIMITY_MAKE_RADIUS_BLOCKS;
-        return horizontalDistSq <= radiusSq;
-    }
 
-    private static int manhattanDistance(BlockPos from, BlockPos to) {
+    static int manhattanDistance(BlockPos from, BlockPos to) {
         return Math.abs(from.getX() - to.getX()) + Math.abs(from.getY() - to.getY()) + Math.abs(from.getZ() - to.getZ());
     }
 
-    private static int distanceMeters(BlockPos from, BlockPos to) {
+    static int distanceMeters(BlockPos from, BlockPos to) {
         double dx = (to.getX() + 0.5) - (from.getX() + 0.5);
         double dy = (to.getY() + 0.5) - (from.getY() + 0.5);
         double dz = (to.getZ() + 0.5) - (from.getZ() + 0.5);
         return Math.max(0, (int) Math.round(Math.sqrt(dx * dx + dy * dy + dz * dz)));
     }
 
-    private static int distanceFeet(BlockPos from, BlockPos to) {
+    static int distanceFeet(BlockPos from, BlockPos to) {
         return Math.max(0, Math.round(distanceMeters(from, to) * 3.28084f));
     }
 
@@ -971,12 +912,7 @@ public final class HoleProgressTracker {
      */
     public static void resetAllState(MinecraftServer server) {
         ROUND_WAS_ACTIVE = false;
-        LAST_PROCESSED_THROW_TOTAL.clear();
-        LAST_THROW_PENDING_TICKS.clear();
-        LAST_THROW_PEARL_UUID.clear();
-        LAST_THROW_RELEASE_TICK.clear();
-        LAST_RESOLUTION_REASON.clear();
-        HOLE_SCORE_HISTORY.clear();
+        ThrowResolver.reset();
         HOLE_ONE_RANDOM_ORDER.clear();
         ACTIVE_TURN_PLAYER_BY_HOLE.clear();
         ACTIVE_TURN_STARTED_AT_BY_HOLE.clear();
@@ -986,7 +922,6 @@ public final class HoleProgressTracker {
         LAST_BREADCRUMB_POSITION.clear();
         CACHED_CORRIDOR_HALF_WIDTH.clear();
         MiniMapSyncService.reset();
-        LAST_THROW_DISTANCE_FEET.clear();
         AUTOTEST_MARKER_TRAIL_REFCOUNT = 0;
         MiniMapSyncService.sendInactive(server);
         if (LAST_RUNNING_SCOREBOARD_HASH != Integer.MIN_VALUE) {
@@ -997,7 +932,7 @@ public final class HoleProgressTracker {
         HoleTeeMapManager.clearAllRoundHoleMaps(server);
     }
 
-    private static void updateLieMarker(ServerPlayerEntity player, BlockPos lieFeet) {
+    static void updateLieMarker(ServerPlayerEntity player, BlockPos lieFeet) {
         ServerWorld world = player.getServerWorld();
         BlockPos markerPos = lieFeet.down();
         UUID playerId = player.getUuid();
@@ -1023,7 +958,7 @@ public final class HoleProgressTracker {
         history.put(markerKey, new LieMarkerState(world.getRegistryKey(), markerKey, original));
     }
 
-    private static void clearPlayerLieMarkers(MinecraftServer server, UUID playerId) {
+    static void clearPlayerLieMarkers(MinecraftServer server, UUID playerId) {
         Map<BlockPos, LieMarkerState> markerStates = LIE_MARKER_HISTORY.get(playerId);
         if (markerStates == null || markerStates.isEmpty()) {
             return;
@@ -1040,7 +975,7 @@ public final class HoleProgressTracker {
         markerStates.clear();
     }
 
-    private static void spawnBreadcrumbLine(ServerWorld world, ServerPlayerEntity player, BlockPos to) {
+    static void spawnBreadcrumbLine(ServerWorld world, ServerPlayerEntity player, BlockPos to) {
         double sx = player.getX();
         double sy = player.getY() + 6.5;
         double sz = player.getZ();
@@ -1063,13 +998,13 @@ public final class HoleProgressTracker {
         }
     }
 
-    private static void sendClankTitle(ServerPlayerEntity player) {
+    static void sendClankTitle(ServerPlayerEntity player) {
         player.networkHandler.sendPacket(new TitleFadeS2CPacket(3, 25, 8));
         player.networkHandler.sendPacket(new TitleS2CPacket(
                 Text.literal("CLANK!").formatted(net.minecraft.util.Formatting.GRAY, net.minecraft.util.Formatting.ITALIC)));
     }
 
-    private static void sendStrictPenaltyTitle(ServerPlayerEntity player, StrictPenaltyType landingPenalty, int penaltyStrokes) {
+    static void sendStrictPenaltyTitle(ServerPlayerEntity player, StrictPenaltyType landingPenalty, int penaltyStrokes) {
         String titleText = landingPenalty == StrictPenaltyType.OB ? "OB +" + penaltyStrokes : "Hazard +" + penaltyStrokes;
         String subtitleText = landingPenalty == StrictPenaltyType.OB ? "Returned to lie" : "Penalty applied";
 
@@ -1078,7 +1013,7 @@ public final class HoleProgressTracker {
         player.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal(subtitleText).formatted(net.minecraft.util.Formatting.WHITE)));
     }
 
-    private static void sendHoleFinishTitle(ServerPlayerEntity player, int holeScore, int holePar) {
+    static void sendHoleFinishTitle(ServerPlayerEntity player, int holeScore, int holePar) {
         int holeDelta = holeScore - holePar;
         String resultName = golfResultName(holeScore, holeDelta);
         String deltaText = holeDelta == 0 ? "E" : (holeDelta > 0 ? "+" + holeDelta : Integer.toString(holeDelta));
@@ -1091,7 +1026,7 @@ public final class HoleProgressTracker {
         player.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal(deltaText).formatted(resultColor, net.minecraft.util.Formatting.BOLD)));
     }
 
-    private static String golfResultName(int holeScore, int holeDelta) {
+    static String golfResultName(int holeScore, int holeDelta) {
         if (holeScore == 1) {
             return "Ace";
         }
@@ -1122,7 +1057,7 @@ public final class HoleProgressTracker {
         return "+" + holeDelta + " Bogey";
     }
 
-    private static BlockPos resolveSafeFeetNear(ServerWorld world, BlockPos preferredFeet) {
+    static BlockPos resolveSafeFeetNear(ServerWorld world, BlockPos preferredFeet) {
         if (isStandableFeet(world, preferredFeet)) {
             return preferredFeet;
         }
@@ -1165,7 +1100,7 @@ public final class HoleProgressTracker {
         return preferredFeet;
     }
 
-    private static boolean isStandableFeet(ServerWorld world, BlockPos feet) {
+    static boolean isStandableFeet(ServerWorld world, BlockPos feet) {
         if (!world.getFluidState(feet).isEmpty()) {
             return false;
         }
@@ -1193,288 +1128,14 @@ public final class HoleProgressTracker {
         RoundInventoryCleaner.purgeRoundItemsAndJunk(player);
     }
 
-    private static PlayerRoundState resolveThrowLanding(
-            ServerPlayerEntity player,
-            PlayerRoundState state,
-            Hole currentHole,
-            BlockPos tee,
-            BlockPos basket,
-            BlockPos alternateAnchor,
-            RoundStateManager roundStateManager,
-            TournamentRulesetManager rulesetManager,
-                boolean hudScoringDebug,
-                boolean strictFlowDebug
-    ) {
-        Integer processedTotalObj = LAST_PROCESSED_THROW_TOTAL.get(player.getUuid());
-        int processedTotal;
-        if (processedTotalObj == null) {
-            // First tracker tick for this player in the active round.
-            // If no throws yet, initialize and wait. If throws already happened,
-            // process the latest throw instead of skipping it.
-            if (state.totalStrokes() == 0) {
-                LAST_PROCESSED_THROW_TOTAL.put(player.getUuid(), 0);
-                return state;
-            }
-            processedTotal = state.totalStrokes() - 1;
-        } else {
-            processedTotal = processedTotalObj;
-        }
 
-        if (state.totalStrokes() <= processedTotal) {
-            LAST_RESOLUTION_REASON.put(player.getUuid(), "NO_NEW_THROW");
-            return state;
-        }
 
-        ServerWorld world = player.getServerWorld();
-        BlockPos throwLie = state.lie();
-        BlockPos currentFeet = player.getBlockPos();
 
-        // Wait for the exact throw pearl (plus a short release grace window) before resolving lie.
-        // This avoids stale, older pearls from keeping resolution pinned at the tee.
-        boolean trackedPearlInFlight = hasTrackedPearlInFlight(world, player, throwLie);
-        boolean withinReleaseGrace = isWithinThrowReleaseGrace(world, player.getUuid());
-        if (trackedPearlInFlight || withinReleaseGrace) {
-            int pendingTicks = LAST_THROW_PENDING_TICKS.merge(player.getUuid(), 1, Integer::sum);
-            if (pendingTicks <= MAX_THROW_RESOLUTION_WAIT_TICKS) {
-                if (strictFlowDebug) {
-                    McdgMod.LOGGER.info(
-                            "Strict landing wait | player={} hole={} total={} throwLie={} currentFeet={} pendingTicks={} inFlightPearl={} releaseGrace={}",
-                            player.getGameProfile().getName(),
-                            state.currentHole(),
-                            state.totalStrokes(),
-                            formatPos(throwLie),
-                            formatPos(currentFeet),
-                            pendingTicks,
-                            trackedPearlInFlight,
-                            withinReleaseGrace
-                    );
-                }
-                LAST_RESOLUTION_REASON.put(player.getUuid(), trackedPearlInFlight ? "WAITING_TRACKED_PEARL" : "WAITING_RELEASE_GRACE");
-                return state;
-            }
 
-            // If the exact throw pearl is still in flight after timeout, keep waiting instead of
-            // force-resolving to the throw lie. This avoids false strict blocks on very long throws.
-            if (trackedPearlInFlight) {
-                if (strictFlowDebug) {
-                    McdgMod.LOGGER.warn(
-                            "Strict landing long-flight wait extension | player={} hole={} total={} throwLie={} currentFeet={} pendingTicks={} trackedPearlStillInFlight=true",
-                            player.getGameProfile().getName(),
-                            state.currentHole(),
-                            state.totalStrokes(),
-                            formatPos(throwLie),
-                            formatPos(currentFeet),
-                            pendingTicks
-                    );
-                }
-                LAST_RESOLUTION_REASON.put(player.getUuid(), "WAITING_TRACKED_PEARL_LONG_FLIGHT");
-                return state;
-            }
 
-            McdgMod.LOGGER.warn(
-                    "Forcing throw landing resolution after {} ticks with in-flight pearl still present | player={} hole={} throwLie={} {} {}",
-                    pendingTicks,
-                    player.getGameProfile().getName(),
-                    state.currentHole(),
-                    throwLie.getX(),
-                    throwLie.getY(),
-                    throwLie.getZ()
-            );
-        }
-        LAST_THROW_PENDING_TICKS.remove(player.getUuid());
 
-        BlockPos landingFeet = findNearestStandableFeet(world, currentFeet);
 
-        BlockPos resultingLie = landingFeet;
-        BlockPos firstOutCrossing = null;
-        StrictPenaltyType landingPenalty = StrictPenaltyType.NONE;
-        if (ENABLE_STRICT_LANDING_PENALTIES && rulesetManager.isStrict()) {
-            StrictPenaltyType currentFeetPenalty = classifyOutType(world, currentFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
-            StrictPenaltyType standableFeetPenalty = classifyOutType(world, landingFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
-            landingPenalty = combinePenalty(currentFeetPenalty, standableFeetPenalty);
-            if (landingPenalty != StrictPenaltyType.NONE) {
-                if (strictFlowDebug) {
-                    McdgMod.LOGGER.info(
-                            "Strict landing classified | player={} hole={} total={} throwLie={} currentFeet={} landingFeet={} currentPenalty={} standablePenalty={} penalty={}",
-                            player.getGameProfile().getName(),
-                            state.currentHole(),
-                            state.totalStrokes(),
-                            formatPos(throwLie),
-                            formatPos(currentFeet),
-                            formatPos(landingFeet),
-                            currentFeetPenalty.name(),
-                            standableFeetPenalty.name(),
-                            landingPenalty.name()
-                    );
-                }
-                if (landingPenalty == StrictPenaltyType.OB) {
-                    CrossingResolution crossing = findLastSolidBeforeOutCrossing(
-                            world,
-                            throwLie,
-                            currentFeet,
-                            currentHole,
-                            tee,
-                            basket,
-                                alternateAnchor,
-                            rulesetManager
-                    );
-                    resultingLie = crossing.safeLie();
-                    firstOutCrossing = crossing.firstOutCrossing();
-                } else {
-                    resultingLie = currentFeet.toImmutable();
-                }
-
-                int penaltyStrokes = landingPenalty == StrictPenaltyType.OB
-                        ? rulesetManager.strictObPenaltyStrokes()
-                        : rulesetManager.strictHazardPenaltyStrokes();
-                if (penaltyStrokes > 0) {
-                    roundStateManager.applyPenaltyStrokes(player.getUuid(), penaltyStrokes);
-                }
-
-                player.teleport(
-                        resultingLie.getX() + 0.5,
-                        resultingLie.getY() + 1.0,
-                        resultingLie.getZ() + 0.5
-                );
-
-                String label = landingPenalty == StrictPenaltyType.OB ? "OB" : "Hazard";
-                String penaltyText = landingPenalty == StrictPenaltyType.OB
-                        ? "Returned to last in-bounds solid block."
-                        : "Play next throw from hazard lie.";
-                player.sendMessage(
-                    Text.literal(label + " landing in strict mode: +" + penaltyStrokes + " stroke. " + penaltyText),
-                    true
-                );
-                sendStrictPenaltyTitle(player, landingPenalty, penaltyStrokes);
-                state = roundStateManager.markLastThrowPenalty(player.getUuid(), true).orElse(state);
-                }
-
-                if (hudScoringDebug) {
-                player.sendMessage(Text.literal(
-                        "Strict dbg | landing=" + landingPenalty.name()
-                                + " | firstOut=" + formatPos(firstOutCrossing)
-                                + " | safeLie=" + formatPos(resultingLie)
-                ), false);
-            }
-        }
-
-        if (landingPenalty == StrictPenaltyType.NONE) {
-            state = roundStateManager.markLastThrowPenalty(player.getUuid(), false).orElse(state);
-        }
-
-        // Made shot: pearl path passed through the hopper (Y+1) at the basket column.
-        // Made shot: pearl path passed through the hopper (Y+1) at the basket column,
-        // or flat putt from very close range that lands on the basket column.
-        boolean madeShot = isDiscThroughBasket(throwLie, currentFeet, basket)
-                || isCloseProximityMake(throwLie, currentFeet, basket);
-        if (madeShot) {
-            resultingLie = basket.up();
-            player.teleport(resultingLie.getX() + 0.5, resultingLie.getY() + 1.0, resultingLie.getZ() + 0.5);
-        }
-
-        // Basket body hits (above the make-zone) should bounce to the ring with a CLANK cue.
-        if (!madeShot && shouldBounceOffBasketStructure(resultingLie, basket)) {
-            BlockPos bounced = basketBouncePosition(world, basket);
-            resultingLie = bounced;
-            player.teleport(resultingLie.getX() + 0.5, resultingLie.getY() + 1.0, resultingLie.getZ() + 0.5);
-            sendClankTitle(player);
-        }
-
-        if (!madeShot) {
-            resultingLie = findNearestStandableFeet(world, resultingLie);
-            if (!isStandableFeetBlock(world, resultingLie)) {
-                resultingLie = findNearestStandableFeet(world, throwLie);
-            }
-        }
-
-        roundStateManager.updateLie(player.getUuid(), resultingLie);
-        LAST_THROW_DISTANCE_FEET.put(player.getUuid(), distanceFeet(throwLie, resultingLie));
-        updateLieMarker(player, resultingLie);
-        PlayerRoundState updated = roundStateManager.getState(player.getUuid()).orElse(state);
-        if (strictFlowDebug) {
-            McdgMod.LOGGER.info(
-                    "Strict landing resolved | player={} hole={} totalBefore={} totalAfter={} throwLie={} resultingLie={} penalty={} lastPenalty={}",
-                    player.getGameProfile().getName(),
-                    updated.currentHole(),
-                    state.totalStrokes(),
-                    updated.totalStrokes(),
-                    formatPos(throwLie),
-                    formatPos(resultingLie),
-                    landingPenalty.name(),
-                    updated.lastThrowPenalty()
-            );
-        }
-        LAST_PROCESSED_THROW_TOTAL.put(player.getUuid(), updated.totalStrokes());
-        LAST_THROW_PEARL_UUID.remove(player.getUuid());
-        LAST_THROW_RELEASE_TICK.remove(player.getUuid());
-        LAST_RESOLUTION_REASON.put(player.getUuid(), "RESOLVED");
-        return updated;
-    }
-
-    static void registerThrowRelease(UUID playerId, UUID pearlId, long worldTime) {
-        LAST_THROW_PEARL_UUID.put(playerId, pearlId);
-        LAST_THROW_RELEASE_TICK.put(playerId, worldTime);
-        LAST_THROW_PENDING_TICKS.remove(playerId);
-    }
-
-    static boolean isThrowResolutionPending(UUID playerId, int totalStrokes) {
-        if (totalStrokes <= 0) {
-            return false;
-        }
-
-        Integer processedTotal = LAST_PROCESSED_THROW_TOTAL.get(playerId);
-        if (processedTotal == null) {
-            return true;
-        }
-
-        return processedTotal < totalStrokes;
-    }
-
-    static String strictThrowGateDebugSnapshot(UUID playerId, int totalStrokes) {
-        Integer processedTotal = LAST_PROCESSED_THROW_TOTAL.get(playerId);
-        Integer pendingTicks = LAST_THROW_PENDING_TICKS.get(playerId);
-        String reason = LAST_RESOLUTION_REASON.getOrDefault(playerId, "UNKNOWN");
-        boolean pending = totalStrokes > 0 && (processedTotal == null || processedTotal < totalStrokes);
-        return "pending=" + pending
-                + " totalStrokes=" + totalStrokes
-                + " processedTotal=" + (processedTotal == null ? "-" : processedTotal)
-                + " pendingTicks=" + (pendingTicks == null ? "-" : pendingTicks)
-                + " lastReason=" + reason;
-    }
-
-    private static StrictPenaltyType combinePenalty(StrictPenaltyType first, StrictPenaltyType second) {
-        if (first == StrictPenaltyType.OB || second == StrictPenaltyType.OB) {
-            return StrictPenaltyType.OB;
-        }
-        if (first == StrictPenaltyType.HAZARD || second == StrictPenaltyType.HAZARD) {
-            return StrictPenaltyType.HAZARD;
-        }
-        return StrictPenaltyType.NONE;
-    }
-
-    private static boolean hasTrackedPearlInFlight(ServerWorld world, ServerPlayerEntity player, BlockPos origin) {
-        UUID trackedPearlId = LAST_THROW_PEARL_UUID.get(player.getUuid());
-        if (trackedPearlId == null) {
-            return false;
-        }
-
-        Box search = new Box(origin).expand(384.0, 192.0, 384.0);
-        return !world.getEntitiesByClass(
-                EnderPearlEntity.class,
-                search,
-                pearl -> trackedPearlId.equals(pearl.getUuid()) && !pearl.isRemoved()
-        ).isEmpty();
-    }
-
-    private static boolean isWithinThrowReleaseGrace(ServerWorld world, UUID playerId) {
-        Long releaseTick = LAST_THROW_RELEASE_TICK.get(playerId);
-        if (releaseTick == null) {
-            return false;
-        }
-        return (world.getTime() - releaseTick) <= THROW_RELEASE_GRACE_TICKS;
-    }
-
-    private static StrictPenaltyType classifyOutType(
+    static StrictPenaltyType classifyOutType(
             ServerWorld world,
             BlockPos feet,
             Hole currentHole,
@@ -1487,7 +1148,7 @@ public final class HoleProgressTracker {
         return classifyOutTypeWithCorridor(world, feet, currentHole, tee, basket, alternateAnchor, rulesetManager, corridorHalfWidth);
     }
 
-    private static StrictPenaltyType classifyOutTypeWithCorridor(
+    static StrictPenaltyType classifyOutTypeWithCorridor(
             ServerWorld world,
             BlockPos feet,
             Hole currentHole,
@@ -1527,7 +1188,7 @@ public final class HoleProgressTracker {
         return StrictPenaltyType.NONE;
     }
 
-    private static boolean isBasketGreenSafe(BlockPos feet, BlockPos basketSurface) {
+    static boolean isBasketGreenSafe(BlockPos feet, BlockPos basketSurface) {
         int dx = feet.getX() - basketSurface.getX();
         int dz = feet.getZ() - basketSurface.getZ();
         int dy = feet.getY() - basketSurface.getY();
@@ -1536,14 +1197,14 @@ public final class HoleProgressTracker {
                 && dy <= BASKET_GREEN_HEIGHT_BLOCKS;
     }
 
-    private static boolean isFluidPenaltyZone(ServerWorld world, BlockPos feet) {
+    static boolean isFluidPenaltyZone(ServerWorld world, BlockPos feet) {
         return world.getFluidState(feet).isIn(FluidTags.WATER)
                 || world.getFluidState(feet).isIn(FluidTags.LAVA)
                 || world.getFluidState(feet.down()).isIn(FluidTags.WATER)
                 || world.getFluidState(feet.down()).isIn(FluidTags.LAVA);
     }
 
-    private static int strictCorridorHalfWidth(Hole hole, ServerWorld world, BlockPos tee, BlockPos basket, TournamentRulesetManager rulesetManager) {
+    static int strictCorridorHalfWidth(Hole hole, ServerWorld world, BlockPos tee, BlockPos basket, TournamentRulesetManager rulesetManager) {
         int maxSegmentWidth = 0;
         for (var segment : hole.fairwaySegments()) {
             maxSegmentWidth = Math.max(maxSegmentWidth, segment.width());
@@ -1626,24 +1287,8 @@ private static int computeLongestWaterCarryGap(ServerWorld world, BlockPos start
      * Tries all 8 adjacent + diagonal offsets at radius 1–2; picks the first solid standable block.
      * Falls back to one block north if no standable block is found.
      */
-    private static BlockPos basketBouncePosition(ServerWorld world, BlockPos basket) {
-        int[] offsets = {1, -1, 2, -2};
-        for (int dz : offsets) {
-            for (int dx : offsets) {
-                int dist = Math.abs(dx) + Math.abs(dz);
-                if (dist < 1 || dist > 3) continue;
-                BlockPos candidate = findNearestStandableFeet(world,
-                        new BlockPos(basket.getX() + dx, basket.getY(), basket.getZ() + dz));
-                if (candidate != null && manhattanDistance(candidate, basket) >= 1) {
-                    return candidate;
-                }
-            }
-        }
-        // Absolute fallback: one block north at basket height.
-        return basket.north();
-    }
 
-    private static boolean isWaterCarryColumn(ServerWorld world, int x, int z) {
+    static boolean isWaterCarryColumn(ServerWorld world, int x, int z) {
         int surfaceY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
         if (surfaceY < world.getBottomY()) {
             return false;
@@ -1657,7 +1302,7 @@ private static int computeLongestWaterCarryGap(ServerWorld world, BlockPos start
         return !hasAnySafeLandingNearby(world, surface);
     }
 
-    private static boolean hasAnySafeLandingNearby(ServerWorld world, BlockPos center) {
+    static boolean hasAnySafeLandingNearby(ServerWorld world, BlockPos center) {
         for (int dx = -6; dx <= 6; dx++) {
             for (int dz = -6; dz <= 6; dz++) {
                 if ((dx * dx) + (dz * dz) > 36) {
@@ -1815,48 +1460,8 @@ private static int computeLongestWaterCarryGap(ServerWorld world, BlockPos start
         if (lsq < 1.0e-6) return 0.0;
         return ((px - sx) * dx + (pz - sz) * dz) / lsq;
     }
-    private static CrossingResolution findLastSolidBeforeOutCrossing(
-            ServerWorld world,
-            BlockPos throwLie,
-            BlockPos landingFeet,
-            Hole currentHole,
-            BlockPos tee,
-            BlockPos basket,
-            BlockPos alternateAnchor,
-            TournamentRulesetManager rulesetManager
-    ) {
-        BlockPos start = findNearestStandableFeet(world, throwLie);
-        BlockPos end = landingFeet;
-        BlockPos lastInBoundsSolid = start;
-        BlockPos firstOut = null;
 
-        int distance = Math.max(1, manhattanDistance(start, end));
-        int samples = Math.max(24, distance * 4);
-        for (int i = 1; i <= samples; i++) {
-            double t = i / (double) samples;
-            int x = (int) Math.floor((start.getX() + 0.5) + ((end.getX() + 0.5 - (start.getX() + 0.5)) * t));
-            int y = (int) Math.floor((start.getY() + 0.5) + ((end.getY() + 0.5 - (start.getY() + 0.5)) * t));
-            int z = (int) Math.floor((start.getZ() + 0.5) + ((end.getZ() + 0.5 - (start.getZ() + 0.5)) * t));
-            BlockPos probeRaw = new BlockPos(x, y, z);
-
-            if (classifyOutType(world, probeRaw, currentHole, tee, basket, alternateAnchor, rulesetManager) != StrictPenaltyType.NONE) {
-                if (firstOut == null) {
-                    firstOut = probeRaw.toImmutable();
-                }
-                continue;
-            }
-
-            BlockPos standableProbe = findNearestStandableFeet(world, probeRaw);
-            if (isStandableFeetBlock(world, standableProbe)
-                    && classifyOutType(world, standableProbe, currentHole, tee, basket, alternateAnchor, rulesetManager) == StrictPenaltyType.NONE) {
-                lastInBoundsSolid = standableProbe;
-            }
-        }
-
-        return new CrossingResolution(lastInBoundsSolid.toImmutable(), firstOut);
-    }
-
-    private static boolean isSteepSlopeHazard(ServerWorld world, BlockPos feet, int slopeDeltaThreshold) {
+    static boolean isSteepSlopeHazard(ServerWorld world, BlockPos feet, int slopeDeltaThreshold) {
         int centerY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, feet.getX(), feet.getZ()) - 1;
         int[] offsets = { -2, 0, 2 };
         for (int dx : offsets) {
@@ -1873,7 +1478,7 @@ private static int computeLongestWaterCarryGap(ServerWorld world, BlockPos start
         return false;
     }
 
-    private static boolean isDenseRoughHazard(ServerWorld world, BlockPos feet, int threshold) {
+    static boolean isDenseRoughHazard(ServerWorld world, BlockPos feet, int threshold) {
         int roughHits = 0;
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
@@ -1899,14 +1504,14 @@ private static int computeLongestWaterCarryGap(ServerWorld world, BlockPos start
                 || state.isOf(Blocks.CACTUS);
     }
 
-    private static String formatPos(BlockPos pos) {
+    static String formatPos(BlockPos pos) {
         if (pos == null) {
             return "-";
         }
         return pos.getX() + "," + pos.getY() + "," + pos.getZ();
     }
 
-    private static BlockPos findNearestStandableFeet(ServerWorld world, BlockPos baseFeet) {
+    static BlockPos findNearestStandableFeet(ServerWorld world, BlockPos baseFeet) {
         BlockPos candidate = baseFeet;
         if (isStandableFeetBlock(world, candidate)) {
             return candidate;
@@ -1958,7 +1563,7 @@ private static int computeLongestWaterCarryGap(ServerWorld world, BlockPos start
         return baseFeet;
     }
 
-    private static boolean isStandableFeetBlock(ServerWorld world, BlockPos feet) {
+    static boolean isStandableFeetBlock(ServerWorld world, BlockPos feet) {
         if (!world.getFluidState(feet).isEmpty()) {
             return false;
         }
@@ -1992,14 +1597,6 @@ private static int computeLongestWaterCarryGap(ServerWorld world, BlockPos start
         return dy > 1;
     }
 
-    private enum StrictPenaltyType {
-        NONE,
-        HAZARD,
-        OB
-    }
-
-    private record CrossingResolution(BlockPos safeLie, BlockPos firstOutCrossing) {
-    }
 
         private record LieMarkerState(
             RegistryKey<net.minecraft.world.World> worldKey,
