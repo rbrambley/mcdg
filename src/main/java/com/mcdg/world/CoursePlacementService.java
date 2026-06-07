@@ -478,6 +478,13 @@ public final class CoursePlacementService {
         }
 
         // Phase 3: place all tee pads, baskets, and tee lanterns after fairways so they remain visible.
+        // Pre-protect all basket columns so hub and other structures can't overwrite them.
+        for (Hole hole : course.holes()) {
+            BlockPos bsProtect = holeBaskets.get(hole.index());
+            if (bsProtect != null) {
+                addProtectedColumnArea(protectedPositions, bsProtect.down(), 1, 6);
+            }
+        }
         for (Hole hole : course.holes()) {
             BlockPos teeSurface = holeTees.get(hole.index());
             BlockPos basketSurface = holeBaskets.get(hole.index()) == null ? null : holeBaskets.get(hole.index()).down();
