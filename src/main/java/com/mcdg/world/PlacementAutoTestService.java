@@ -4,6 +4,7 @@ import com.mcdg.data.Course;
 import com.mcdg.game.ActiveCourseManager;
 import com.mcdg.game.HoleProgressTracker;
 import com.mcdg.game.PlacedCourseState;
+import com.mcdg.game.AutoCourseService;
 import com.mcdg.game.RoundStateManager;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -34,6 +35,7 @@ public final class PlacementAutoTestService {
     private static final String AUTOTEST_SHADOW_SURFACE_ENV = "MCDG_AUTOTEST_SHADOW_SURFACE_RULE";
 
     private final CourseGenerator generator;
+    private final AutoCourseService autoCourseService;
     private final CoursePlacementService placementService;
     private final CoursePlacementValidator placementValidator;
     private final ActiveCourseManager courseManager;
@@ -49,7 +51,19 @@ public final class PlacementAutoTestService {
             ActiveCourseManager courseManager,
             RoundStateManager roundStateManager
     ) {
+        this(generator, placementService, placementValidator, courseManager, roundStateManager, null);
+    }
+
+    public PlacementAutoTestService(
+            CourseGenerator generator,
+            CoursePlacementService placementService,
+            CoursePlacementValidator placementValidator,
+            ActiveCourseManager courseManager,
+            RoundStateManager roundStateManager,
+            AutoCourseService autoCourseService
+    ) {
         this.generator = generator;
+        this.autoCourseService = autoCourseService;
         this.placementService = placementService;
         this.placementValidator = placementValidator;
         this.courseManager = courseManager;
@@ -195,9 +209,40 @@ public final class PlacementAutoTestService {
             applyScenarioOutcome(session, shadow, true);
         }
 
+        // Also run an AutoCourseService scenario if available, to validate the autocourse build path.
+        if (autoCourseService != null) {
+            ScenarioOutcome autoCourseOutcome = executeAutoCourseScenario(session, runNumber, seed, runOrigin);
+            applyScenarioOutcome(session, autoCourseOutcome, false);
+        }
+
         session.completedRuns++;
         float pct = Math.min(1.0f, session.completedRuns / (float) Math.max(1, session.runs));
         session.progressBar.setPercent(pct);
+    }
+
+    private ScenarioOutcome executeAutoCourseScenario(
+            AutoTestSession session,
+            int runNumber,
+            long seed,
+            BlockPos runOrigin
+    ) {
+        AutoCourseService.AutoCourseScenarioResult result = null;
+        try {
+            result = autoCourseService.runSynchronousScenario(session.world, runOrigin, seed, "autotest-" + runNumber);
+            CoursePlacementValidator.ValidationReport report = placementValidator.validatePlacedCourse(
+                    session.world,
+                    result.course(),
+                    result.placedState(),
+                    "autocourse-run-" + runNumber
+            );
+            return ScenarioOutcome.success(runNumber, seed, report);
+        } catch (RuntimeException ex) {
+            return ScenarioOutcome.failure(runNumber, seed, "[autocourse] " + ex.getMessage());
+        } finally {
+            if (result != null) {
+                placementService.resetPlacedCourse(session.world, result.placedState());
+            }
+        }
     }
 
     private ScenarioOutcome executeScenario(

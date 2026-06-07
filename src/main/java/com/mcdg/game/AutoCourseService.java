@@ -10,6 +10,7 @@ import com.mcdg.data.TeePoint;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.HoleLayoutValidator;
+import com.mcdg.game.PlacedCourseState;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -119,7 +120,7 @@ public final class AutoCourseService {
 
         java.util.Random random = new java.util.Random(seed);
         int signatureHoleIndex = random.nextInt(HOLE_COUNT) + 1;
-        List<HoleSpec> holeSpecs = generateHoleSpecs(seed, player);
+        List<HoleSpec> holeSpecs = generateHoleSpecsFromOrigin(seed, player.getBlockPos());
         state = new AutoBuildState(player.getUuid(), trimmed, seed, holeSpecs, player.getServerWorld());
         state.signatureHoleIndex = signatureHoleIndex;
 
@@ -291,11 +292,83 @@ public final class AutoCourseService {
         }
     }
 
-    private List<HoleSpec> generateHoleSpecs(long seed, ServerPlayerEntity player) {
+    /** Result of a synchronous autotest scenario run via runSynchronousScenario(). */
+    public record AutoCourseScenarioResult(Course course, PlacedCourseState placedState) {}
+
+    /**
+     * Runs the full AutoCourseService build logic synchronously from a fixed origin,
+     * without needing a player or tick loop. Used by PlacementAutoTestService.
+     * Callers are responsible for resetting the placed state via CoursePlacementService.resetPlacedCourse().
+     */
+    public AutoCourseScenarioResult runSynchronousScenario(ServerWorld world, BlockPos origin, long seed, String courseName) {
+        java.util.Random random = new java.util.Random(seed);
+        int signatureHoleIndex = random.nextInt(HOLE_COUNT) + 1;
+        List<HoleSpec> holeSpecs = generateHoleSpecsFromOrigin(seed, origin);
+
+        List<Hole> builtHoles = new ArrayList<>();
+        Map<BlockPos, net.minecraft.block.BlockState> mergedOriginals = new HashMap<>();
+        Set<BlockPos> globalProtectedPositions = new HashSet<>();
+        Map<Integer, BlockPos> tees = new HashMap<>();
+        Map<Integer, BlockPos> baskets = new HashMap<>();
+        Map<Integer, BlockPos> alternates = new HashMap<>();
+        Map<Integer, Integer> effectivePars = new HashMap<>();
+
+        for (HoleSpec spec : holeSpecs) {
+            BlockPos center = new BlockPos(spec.teeX, 64, spec.teeZ);
+            int localBasketX = spec.basketX - spec.teeX;
+            int localBasketZ = spec.basketZ - spec.teeZ;
+            Hole candidate = new Hole(
+                    spec.holeIndex, spec.par, spec.distanceFeet,
+                    new TeePoint(0, 64, 0),
+                    new BasketPoint(localBasketX, 64, localBasketZ, spec.basketHeight),
+                    List.of(new FairwaySegment(0, 0, localBasketX, localBasketZ, spec.fairwayWidth)),
+                    spec.holeIndex == signatureHoleIndex ? SignatureHoleType.ISLAND_GREEN : SignatureHoleType.NONE
+            );
+            Course tempCourse = new Course(spec.seed, courseName + "-hole-" + spec.holeIndex, List.of(candidate));
+            PlacedCourseState placed = placementService.placeCourseAtFixedOrigin(world, center, tempCourse, ignored -> {}, globalProtectedPositions);
+
+            BlockPos actualTee = placed.holeTees().get(spec.holeIndex);
+            BlockPos actualBasket = placed.holeBaskets().get(spec.holeIndex);
+            if (actualTee == null || actualBasket == null) {
+                placementService.resetPlacedCourse(world, placed);
+                for (Map.Entry<BlockPos, net.minecraft.block.BlockState> entry : mergedOriginals.entrySet()) {
+                    world.setBlockState(entry.getKey(), entry.getValue(), Block.NOTIFY_ALL);
+                }
+                throw new RuntimeException("AutoCourse hole " + spec.holeIndex + " produced no tee/basket");
+            }
+
+            int actualFeet = layoutValidator.distanceFeetFromBlocks(actualTee.getX(), actualTee.getZ(), actualBasket.getX(), actualBasket.getZ());
+            int effectivePar = placed.effectiveHolePars().getOrDefault(spec.holeIndex, computePar(actualFeet));
+            Hole actualHole = new Hole(
+                    spec.holeIndex, effectivePar, actualFeet,
+                    new TeePoint(actualTee.getX(), actualTee.getY(), actualTee.getZ()),
+                    new BasketPoint(actualBasket.getX(), actualBasket.getY(), actualBasket.getZ(), spec.basketHeight),
+                    List.of(new FairwaySegment(actualTee.getX(), actualTee.getZ(), actualBasket.getX(), actualBasket.getZ(), spec.fairwayWidth)),
+                    spec.holeIndex == signatureHoleIndex ? SignatureHoleType.ISLAND_GREEN : SignatureHoleType.NONE
+            );
+            builtHoles.add(actualHole);
+
+            for (Map.Entry<BlockPos, net.minecraft.block.BlockState> entry : placed.originalBlocks().entrySet()) {
+                mergedOriginals.putIfAbsent(entry.getKey(), entry.getValue());
+            }
+            tees.putAll(placed.holeTees());
+            baskets.putAll(placed.holeBaskets());
+            alternates.putAll(placed.holeAlternateAnchors());
+            effectivePars.putAll(placed.effectiveHolePars());
+
+            CoursePlacementService.addProtectedColumnArea(globalProtectedPositions, actualTee, 2, 6);
+            CoursePlacementService.addProtectedColumnArea(globalProtectedPositions, actualBasket.down(), 2, 8);
+        }
+
+        Course course = new Course(seed, courseName, builtHoles);
+        PlacedCourseState mergedState = new PlacedCourseState(world.getRegistryKey(), mergedOriginals, tees, baskets, alternates, effectivePars);
+        return new AutoCourseScenarioResult(course, mergedState);
+    }
+
+    List<HoleSpec> generateHoleSpecsFromOrigin(long seed, BlockPos origin) {
         java.util.Random random = new java.util.Random(seed);
         List<HoleSpec> specs = new ArrayList<>();
 
-        BlockPos origin = player.getBlockPos();
         int hubX = origin.getX();
         int hubZ = origin.getZ();
 

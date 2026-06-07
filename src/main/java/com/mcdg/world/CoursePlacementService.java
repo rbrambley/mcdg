@@ -3109,9 +3109,14 @@ public final class CoursePlacementService {
         double perpX = -dirZ;
         double perpZ = dirX;
 
-        int actualLength = (int) Math.min(minLength, distance);
+        // Leave a clear margin before the basket so the landing zone never overwrites basket blocks.
+        int basketMargin = halfWidth + 2;
+        int actualLength = (int) Math.min(minLength, Math.max(0, distance - basketMargin));
         int surfaceY = resolveSurfacePos(world, anchor.getX(), anchor.getZ()).getY();
         int platformY = Math.max(surfaceY, world.getSeaLevel());
+
+        // Protect the basket column so fill never clobbers the hopper/bars/lantern placed later.
+        addProtectedColumnArea(protectedPositions, basketSurface, halfWidth + 1, 6);
 
         for (int step = -halfWidth; step <= actualLength + halfWidth; step++) {
             int centerX = (int) Math.round(anchor.getX() + dirX * step);

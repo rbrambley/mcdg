@@ -101,7 +101,8 @@ public final class McdgMod implements ModInitializer {
             COURSE_PLACEMENT_SERVICE,
             COURSE_PLACEMENT_VALIDATOR,
             ACTIVE_COURSE_MANAGER,
-            ROUND_STATE_MANAGER
+            ROUND_STATE_MANAGER,
+            AUTO_COURSE_SERVICE
     );
         private static Long pendingAutoStrictSetupSeed;
         private static int pendingAutoStrictSetupWaitTicks;
