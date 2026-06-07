@@ -71,6 +71,7 @@ public final class HoleProgressTracker {
     private static final Map<UUID, Integer> CACHED_CORRIDOR_HALF_WIDTH = new HashMap<>();
     private static final Map<UUID, Integer> LAST_MINIMAP_HOLE = new HashMap<>();
     private static final Map<UUID, Integer> LAST_MINIMAP_PAYLOAD_HASH = new HashMap<>();
+    private static final Map<UUID, Integer> LAST_THROW_DISTANCE_FEET = new HashMap<>();
     private static int LAST_RUNNING_SCOREBOARD_HASH = Integer.MIN_VALUE;
     private static boolean MINIMAP_ACTIVE_SENT = false;
     private static int AUTOTEST_MARKER_TRAIL_REFCOUNT = 0;
@@ -107,6 +108,7 @@ public final class HoleProgressTracker {
                     CACHED_CORRIDOR_HALF_WIDTH.clear();
                     LAST_MINIMAP_HOLE.clear();
                     LAST_MINIMAP_PAYLOAD_HASH.clear();
+                    LAST_THROW_DISTANCE_FEET.clear();
                     if (LAST_RUNNING_SCOREBOARD_HASH != Integer.MIN_VALUE) {
                         sendRunningScoreboardInactive(server);
                     }
@@ -224,7 +226,8 @@ public final class HoleProgressTracker {
                         rulesetManager.isStrict(),
                         rulesetManager.getStrictSurfacePreset().ordinal(),
                         corridorHalfWidth,
-                        alternateAnchor
+                        alternateAnchor,
+                        LAST_THROW_DISTANCE_FEET.getOrDefault(player.getUuid(), 0)
                 );
 
                 if (strictFlowDebug && (server.getTicks() % 20) == 0) {
@@ -1000,7 +1003,8 @@ public final class HoleProgressTracker {
             boolean strictMode,
                 int strictSurfacePresetOrdinal,
                 int corridorHalfWidth,
-            BlockPos alternateAnchor
+            BlockPos alternateAnchor,
+            int lastThrowDistanceFeet
     ) {
         int span;
         int minX = Math.min(Math.min(tee.getX(), basket.getX()), mapFocus.getX());
@@ -1063,7 +1067,8 @@ public final class HoleProgressTracker {
                 courseWaypointZ,
                 totalHoles,
                 holeTeeXs,
-                holeTeeZs
+                holeTeeZs,
+                lastThrowDistanceFeet
             );
     }
 
@@ -1176,6 +1181,7 @@ public final class HoleProgressTracker {
         CACHED_CORRIDOR_HALF_WIDTH.clear();
         LAST_MINIMAP_HOLE.clear();
         LAST_MINIMAP_PAYLOAD_HASH.clear();
+        LAST_THROW_DISTANCE_FEET.clear();
         AUTOTEST_MARKER_TRAIL_REFCOUNT = 0;
         if (MINIMAP_ACTIVE_SENT) {
             sendMiniMapInactive(server);
@@ -1580,6 +1586,7 @@ public final class HoleProgressTracker {
         }
 
         roundStateManager.updateLie(player.getUuid(), resultingLie);
+        LAST_THROW_DISTANCE_FEET.put(player.getUuid(), distanceFeet(throwLie, resultingLie));
         updateLieMarker(player, resultingLie);
         PlayerRoundState updated = roundStateManager.getState(player.getUuid()).orElse(state);
         if (strictFlowDebug) {

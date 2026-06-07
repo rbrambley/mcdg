@@ -51,14 +51,15 @@ public final class RoundInfoOverlay {
         String line2 = "H" + state.holeIndex() + "  P" + state.par() + "  T" + state.throwNumber();
         int animatedDistanceFeet = Math.max(0, Math.round(displayedDistanceFeet));
         String line3 = animatedDistanceFeet + "ft";
-        String line4 = "Total " + state.totalStrokes() + "  " + deltaText;
+        String line4 = state.lastThrowDistanceFeet() > 0 ? "Last " + state.lastThrowDistanceFeet() + "ft" : "";
+        String line5 = "Total " + state.totalStrokes() + "  " + deltaText;
         int maxTextWidth = Math.max(
                 Math.max(client.textRenderer.getWidth(line1), client.textRenderer.getWidth(line2)),
-                Math.max(client.textRenderer.getWidth(line3), client.textRenderer.getWidth(line4))
+                Math.max(client.textRenderer.getWidth(line3), Math.max(client.textRenderer.getWidth(line4), client.textRenderer.getWidth(line5)))
         );
 
         int panelW = maxTextWidth + 16;
-        int panelH = 54;
+        int panelH = line4.isEmpty() ? 54 : 68;
         int x = drawContext.getScaledWindowWidth() - panelW - 8;
         int y = client.getDebugHud().shouldShowDebugHud() ? 76 : 8;
 
@@ -67,9 +68,16 @@ public final class RoundInfoOverlay {
         int animatedTotal = Math.max(0, Math.round(displayedTotalStrokes));
         int animatedDelta = Math.round(displayedCumulativeDelta);
         String animatedDeltaText = animatedDelta == 0 ? "E" : (animatedDelta > 0 ? "+" + animatedDelta : Integer.toString(animatedDelta));
-        String animatedLine4 = "Total " + animatedTotal + "  " + animatedDeltaText;
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line2), x + 6, y + 16, HudUtil.withAlpha(0xFFFFFF, hudAlpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line3), x + 6, y + 28, HudUtil.withAlpha(0xCFE8FF, hudAlpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(animatedLine4), x + 6, y + 40, HudUtil.withAlpha(0xB5F7B5, hudAlpha));
+        String animatedLine5 = "Total " + animatedTotal + "  " + animatedDeltaText;
+        int row = y + 16;
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line2), x + 6, row, HudUtil.withAlpha(0xFFFFFF, hudAlpha));
+        row += 12;
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line3), x + 6, row, HudUtil.withAlpha(0xCFE8FF, hudAlpha));
+        row += 12;
+        if (!line4.isEmpty()) {
+            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line4), x + 6, row, HudUtil.withAlpha(0x99BBDD, hudAlpha));
+            row += 12;
+        }
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(animatedLine5), x + 6, row, HudUtil.withAlpha(0xB5F7B5, hudAlpha));
     }
 }

@@ -42,7 +42,8 @@ public final class HoleMiniMapSync {
             int courseWaypointZ,
             int totalHoles,
             List<Integer> holeTeeXs,
-            List<Integer> holeTeeZs
+            List<Integer> holeTeeZs,
+            int lastThrowDistanceFeet
     ) implements CustomPayload {
         public static Payload read(RegistryByteBuf buf) {
             boolean active = buf.readBoolean();
@@ -105,7 +106,8 @@ public final class HoleMiniMapSync {
                     courseWaypointZ,
                     totalHoles,
                     holeTeeXs,
-                    holeTeeZs
+                    holeTeeZs,
+                    buf.readVarInt()
             );
         }
 
@@ -143,10 +145,11 @@ public final class HoleMiniMapSync {
                 buf.writeVarInt(holeTeeXs.get(i));
                 buf.writeVarInt(holeTeeZs.get(i));
             }
+            buf.writeVarInt(lastThrowDistanceFeet);
         }
 
         public static Payload inactive() {
-            return new Payload(false, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, false, 0, 0, false, 0, 0, 0, "", 0, 0, 0, List.of(), List.of());
+            return new Payload(false, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, false, 0, 0, false, 0, 0, 0, "", 0, 0, 0, List.of(), List.of(), 0);
         }
 
         public static Payload active(
@@ -173,7 +176,8 @@ public final class HoleMiniMapSync {
                 int courseWaypointZ,
                 int totalHoles,
                 List<Integer> holeTeeXs,
-                List<Integer> holeTeeZs
+                List<Integer> holeTeeZs,
+                int lastThrowDistanceFeet
         ) {
             return new Payload(
                     true,
@@ -200,7 +204,8 @@ public final class HoleMiniMapSync {
                     courseWaypointZ,
                     totalHoles,
                     holeTeeXs == null ? List.of() : List.copyOf(holeTeeXs),
-                    holeTeeZs == null ? List.of() : List.copyOf(holeTeeZs)
+                    holeTeeZs == null ? List.of() : List.copyOf(holeTeeZs),
+                    Math.max(0, lastThrowDistanceFeet)
             );
         }
 
