@@ -1309,8 +1309,12 @@ public final class McdgAdminCommands {
                         return 0;
                 }
 
+                // Always clear the active round when any course is removed - the removed course may
+                // not be the one whose catalog index is tracked, but an active round referencing a
+                // deleted course must not persist (it would re-save a broken session on next autosave).
                 Integer activeCatalogIndex = courseManager.getActiveCourseCatalogIndex().orElse(null);
-                if (activeCatalogIndex != null && activeCatalogIndex == oneBasedIndex) {
+                boolean wasActiveMatch = activeCatalogIndex != null && activeCatalogIndex == oneBasedIndex;
+                if (wasActiveMatch || courseManager.isRoundActive()) {
                         courseManager.setActiveCourse(null);
                         courseManager.clearPlacedCourseState();
                         courseManager.setActiveCourseCatalogIndex(null);
