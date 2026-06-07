@@ -58,7 +58,7 @@ import net.minecraft.util.math.Box;
 public final class McdgAdminCommands {
         private static final String ADVANCED_COMMANDS_ENV = "MCDG_SHOW_ADVANCED_COMMANDS";
         private static final String ADVANCED_COMMANDS_PROPERTY = "mcdg.showAdvancedCommands";
-        private static final boolean SHOW_ADVANCED_COMMANDS = readAdvancedCommandVisibility();
+        static final boolean SHOW_ADVANCED_COMMANDS = readAdvancedCommandVisibility();
     private McdgAdminCommands() {
     }
 
@@ -545,10 +545,10 @@ public final class McdgAdminCommands {
                                                 .executes(context -> RulesetCommands.executeSetStrictSurfacePreset(context.getSource(), rulesetManager, StringArgumentType.getString(context, "preset"))))))
                         .then(literal("debugperms").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
-                                .executes(context -> executeDebugPermissions(context.getSource())))
+                                .executes(context -> DebugCommands.executeDebugPermissions(context.getSource())))
                         .then(literal("validateplacement").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
-                                .executes(context -> executeValidatePlacement(
+                                .executes(context -> DebugCommands.executeValidatePlacement(
                                         context.getSource(),
                                         courseManager,
                                         placementValidator
@@ -563,7 +563,7 @@ public final class McdgAdminCommands {
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .then(argument("runs", IntegerArgumentType.integer(1, 200))
                                         .then(argument("holes", IntegerArgumentType.integer(1, 18))
-                                                .executes(context -> executeAutoTestPlacement(
+                                                .executes(context -> DebugCommands.executeAutoTestPlacement(
                                                         context.getSource(),
                                                         autoTestService,
                                                         IntegerArgumentType.getInteger(context, "runs"),
@@ -574,7 +574,7 @@ public final class McdgAdminCommands {
                                 .then(argument("runs", IntegerArgumentType.integer(1, 200))
                                         .then(argument("holes", IntegerArgumentType.integer(1, 18))
                                                 .then(argument("seed", LongArgumentType.longArg())
-                                                        .executes(context -> executeAutoTestPlacementSeeded(
+                                                        .executes(context -> DebugCommands.executeAutoTestPlacementSeeded(
                                                                 context.getSource(),
                                                                 autoTestService,
                                                                 IntegerArgumentType.getInteger(context, "runs"),
@@ -583,20 +583,20 @@ public final class McdgAdminCommands {
                                                         ))))))
                         .then(literal("autotestshadow").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
-                                .executes(context -> executeAutoTestShadowStatus(context.getSource(), autoTestService))
+                                .executes(context -> DebugCommands.executeAutoTestShadowStatus(context.getSource(), autoTestService))
                                 .then(literal("status")
-                                        .executes(context -> executeAutoTestShadowStatus(context.getSource(), autoTestService)))
+                                        .executes(context -> DebugCommands.executeAutoTestShadowStatus(context.getSource(), autoTestService)))
                                 .then(literal("on")
-                                        .executes(context -> executeAutoTestShadowSet(context.getSource(), autoTestService, true)))
+                                        .executes(context -> DebugCommands.executeAutoTestShadowSet(context.getSource(), autoTestService, true)))
                                 .then(literal("off")
-                                        .executes(context -> executeAutoTestShadowSet(context.getSource(), autoTestService, false))))
+                                        .executes(context -> DebugCommands.executeAutoTestShadowSet(context.getSource(), autoTestService, false))))
                         .then(literal("cancelautotest").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
-                                .executes(context -> executeCancelAutoTest(context.getSource(), autoTestService)))
+                                .executes(context -> DebugCommands.executeCancelAutoTest(context.getSource(), autoTestService)))
                         .then(literal("autotestthrows").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .then(argument("count", IntegerArgumentType.integer(1, 200))
-                                        .executes(context -> executeAutoTestThrows(
+                                        .executes(context -> DebugCommands.executeAutoTestThrows(
                                                 context.getSource(),
                                                 throwAutoTestService,
                                                 IntegerArgumentType.getInteger(context, "count")
@@ -620,7 +620,7 @@ public final class McdgAdminCommands {
                                                 )))))
                         .then(literal("cancelthrowtest").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
-                                .executes(context -> executeCancelThrowTest(context.getSource(), throwAutoTestService)))
+                                .executes(context -> DebugCommands.executeCancelThrowTest(context.getSource(), throwAutoTestService)))
                         .then(literal("leaderboard")
                                 .executes(context -> {
                                     ServerPlayerEntity player = context.getSource().getPlayerOrThrow();
@@ -636,7 +636,7 @@ public final class McdgAdminCommands {
                                 }))));
     }
 
-        private static boolean canUseAdminCommands(ServerCommandSource source) {
+        static boolean canUseAdminCommands(ServerCommandSource source) {
                 if (source.hasPermissionLevel(2)) {
                         return true;
                 }
@@ -645,38 +645,10 @@ public final class McdgAdminCommands {
                 return !source.getServer().isDedicated();
         }
 
-        private static boolean canUseAdvancedCommands(ServerCommandSource source) {
+        static boolean canUseAdvancedCommands(ServerCommandSource source) {
                 return canUseAdminCommands(source) && SHOW_ADVANCED_COMMANDS;
         }
 
-        private static int executeDebugPermissions(ServerCommandSource source) {
-                boolean hasPermissionLevelTwo = source.hasPermissionLevel(2);
-                boolean dedicated = source.getServer().isDedicated();
-                boolean allowedByGate = canUseAdminCommands(source);
-
-                String sourceType = "non-entity";
-                String sourceIdentity = source.getName();
-                if (source.getEntity() instanceof ServerPlayerEntity player) {
-                        sourceType = "player";
-                        sourceIdentity = player.getGameProfile().getName() + " (" + player.getUuid() + ")";
-                } else if (source.getEntity() != null) {
-                        sourceType = "entity";
-                        sourceIdentity = source.getEntity().getName().getString();
-                }
-
-                final String finalSourceType = sourceType;
-                final String finalSourceIdentity = sourceIdentity;
-
-                source.sendFeedback(() -> Text.literal(
-                        "mcdg debug perms -> hasPermissionLevel(2)=" + hasPermissionLevelTwo
-                                + ", dedicated=" + dedicated
-                                + ", canUseAdminCommands=" + allowedByGate
-                                + ", showAdvancedCommands=" + SHOW_ADVANCED_COMMANDS
-                                + ", sourceType=" + finalSourceType
-                                + ", source=" + finalSourceIdentity
-                ), false);
-                return 1;
-        }
 
         private static int completePlayerFacingLegacyCommand(ServerCommandSource source, String submenu) {
                 source.sendFeedback(() -> Text.literal("Tip: use /mcdg menu for clickable controls. Opening " + submenu + " menu...")
@@ -2045,128 +2017,13 @@ public final class McdgAdminCommands {
                 }
         }
 
-        private static int executeValidatePlacement(
-                        ServerCommandSource source,
-                        ActiveCourseManager courseManager,
-                        CoursePlacementValidator placementValidator
-        ) {
-                Course course = courseManager.getActiveCourse().orElse(null);
-                if (course == null) {
-                        source.sendError(Text.literal("No active course. Run /mcdg createcourse <seed> and /mcdg startround first."));
-                        return 0;
-                }
 
-                PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
-                if (placed == null) {
-                        source.sendError(Text.literal("No placed course found. Run /mcdg startround first."));
-                        return 0;
-                }
 
-                ServerWorld world = source.getServer().getWorld(placed.worldKey());
-                if (world == null) {
-                        source.sendError(Text.literal("Placed course world is unavailable for validation."));
-                        return 0;
-                }
 
-                CoursePlacementValidator.ValidationReport report = placementValidator.validatePlacedCourse(world, course, placed, "active-course");
-                int invalidHoles = report.metrics().getOrDefault("invalid_holes", 0);
-                int warningLandingGaps = report.metrics().getOrDefault("warning_landing_gaps", 0);
-                int maxLandingGap = report.metrics().getOrDefault("max_landing_gap", 0);
-                int landingGapWarningThreshold = report.metrics().getOrDefault("landing_gap_warning_threshold", 95);
-                int landingGapFailThreshold = report.metrics().getOrDefault("landing_gap_fail_threshold", 110);
-                source.sendFeedback(() -> Text.literal(
-                                "Validation " + (report.passed() ? "PASSED" : "FAILED")
-                                        + " | holes=" + report.metrics().getOrDefault("total_holes", 0)
-                                        + ", invalid=" + invalidHoles
-                                        + ", issues=" + report.issueCount()
-                                        + ", warningLandingGaps=" + warningLandingGaps
-                                        + ", maxLandingGap=" + maxLandingGap
-                                        + " (warn>" + landingGapWarningThreshold + ", fail>" + landingGapFailThreshold + ")"
-                                        + ", biome=" + report.biome()
-                ), true);
 
-                int maxIssueLines = 8;
-                List<CoursePlacementValidator.ValidationIssue> issues = report.issues();
-                for (int i = 0; i < issues.size() && i < maxIssueLines; i++) {
-                        CoursePlacementValidator.ValidationIssue issue = issues.get(i);
-                        String posText = issue.position() == null
-                                ? ""
-                                : (" @ " + issue.position().getX() + " " + issue.position().getY() + " " + issue.position().getZ());
-                        source.sendFeedback(() -> Text.literal(
-                                " - H" + issue.holeIndex() + " [" + issue.code() + "] " + issue.message() + posText
-                        ), false);
-                }
 
-                if (issues.size() > maxIssueLines) {
-                        int remaining = issues.size() - maxIssueLines;
-                        source.sendFeedback(() -> Text.literal(" - ... and " + remaining + " more issues."), false);
-                }
 
-                return report.passed() ? 1 : 0;
-        }
 
-        private static int executeAutoTestPlacement(
-                        ServerCommandSource source,
-                        PlacementAutoTestService autoTestService,
-                        int runs,
-                        int holes
-        ) {
-                return autoTestService.start(source, runs, holes);
-        }
-
-        private static int executeAutoTestPlacementSeeded(
-                        ServerCommandSource source,
-                        PlacementAutoTestService autoTestService,
-                        int runs,
-                        int holes,
-                        long seed
-        ) {
-                source.sendFeedback(() -> Text.literal(
-                        "Starting seeded autotest with baseSeed=" + seed + "."
-                ), false);
-                return autoTestService.start(source, runs, holes, seed);
-        }
-
-        private static int executeAutoTestShadowStatus(
-                        ServerCommandSource source,
-                        PlacementAutoTestService autoTestService
-        ) {
-                boolean enabled = autoTestService.isShadowSurfaceRuleEnabledNow();
-                boolean override = autoTestService.isShadowSurfaceRuleOverrideSet();
-                String mode = override ? "manual override" : "environment/default";
-                source.sendFeedback(() -> Text.literal(
-                        "Autotest shadow mode is " + (enabled ? "ON" : "OFF") + " (" + mode + ")."
-                ), false);
-                return 1;
-        }
-
-        private static int executeAutoTestShadowSet(
-                        ServerCommandSource source,
-                        PlacementAutoTestService autoTestService,
-                        boolean enabled
-        ) {
-                autoTestService.setShadowSurfaceRuleOverride(enabled);
-                source.sendFeedback(() -> Text.literal(
-                        "Autotest shadow mode override set to " + (enabled ? "ON" : "OFF") + "."
-                ), true);
-                return 1;
-        }
-
-        private static int executeCancelAutoTest(ServerCommandSource source, PlacementAutoTestService autoTestService) {
-                return autoTestService.cancel(source);
-        }
-
-        private static int executeAutoTestThrows(
-                        ServerCommandSource source,
-                        ThrowAutoTestService throwAutoTestService,
-                        int count
-        ) {
-                return throwAutoTestService.start(source, count);
-        }
-
-        private static int executeCancelThrowTest(ServerCommandSource source, ThrowAutoTestService throwAutoTestService) {
-                return throwAutoTestService.cancel(source);
-        }
 
         private static int executeQuickThrowTest(
                         ServerCommandSource source,
@@ -2203,7 +2060,7 @@ public final class McdgAdminCommands {
                         return 0;
                 }
 
-                int testStarted = executeAutoTestThrows(source, throwAutoTestService, throwCount);
+                int testStarted = DebugCommands.executeAutoTestThrows(source, throwAutoTestService, throwCount);
                 if (testStarted == 0) {
                         return 0;
                 }
