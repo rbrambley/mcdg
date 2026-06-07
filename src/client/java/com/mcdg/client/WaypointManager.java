@@ -413,7 +413,11 @@ public final class WaypointManager {
                     color = (int) Long.parseLong(parts[3], 16);
                     dimensionId = parts.length >= 5 ? parts[4].trim() : currentWaypointDimensionKey(client);
                 }
-                if (!name.isEmpty()) {
+                // Skip course waypoints on load — they are transient and only valid while a round is
+                // active. The server re-sends them via HoleMiniMapSync on join if a round is running.
+                // Without this guard, a crash or disconnect mid-round leaves stale green labels in the
+                // world indefinitely.
+                if (!name.isEmpty() && color != WAYPOINT_COURSE_COLOR) {
                     clientWaypoints.add(new ClientWaypoint(StringHelper.truncate(name, 24, false), x, y, z, color, dimensionId));
                 }
             }
