@@ -160,13 +160,24 @@ public final class RegressionCheckRunner {
             "private static final int MINIMAP_TEXTURE_SIZE = 128;",
             "Minimap texture resolution baseline changed unexpectedly."
         );
+        // Hazard overlay constants moved to HazardOverlayRenderer
+        Path hazardOverlayFile = Paths.get("src", "client", "java", "com", "mcdg", "client", "HazardOverlayRenderer.java");
+        if (!Files.exists(hazardOverlayFile)) {
+            throw new RuntimeException("Hazard overlay renderer regression file missing: " + hazardOverlayFile);
+        }
+        String hazardSource;
+        try {
+            hazardSource = Files.readString(hazardOverlayFile, StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to read hazard overlay renderer source for regression checks", ex);
+        }
         assertContains(
-            source,
+            hazardSource,
             "private static final int HAZARD_OVERLAY_ARGB = 0x8CFF9A32;",
             "Minimap strict hazard overlay alpha baseline changed unexpectedly."
         );
         assertContains(
-            source,
+            hazardSource,
             "private static final int HAZARD_SAMPLE_STEP_PX = 2;",
             "Minimap strict hazard sample-density baseline changed unexpectedly."
         );
@@ -197,7 +208,7 @@ public final class RegressionCheckRunner {
         );
         assertContains(
             source,
-            "image.setColor(px, py, argbToAbgr(0x00000000));",
+            "image.setColor(px, py, TerrainSampler.argbToAbgr(0x00000000));",
             "Minimap baseline must preserve transparent texture outside circular area."
         );
 

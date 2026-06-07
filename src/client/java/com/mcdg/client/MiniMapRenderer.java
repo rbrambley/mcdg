@@ -24,17 +24,13 @@ public final class MiniMapRenderer {
     public static final int PASSIVE_MINIMAP_SPAN_BLOCKS = 96;
     public static final long MINIMAP_STALE_TIMEOUT_MS = 15000L;
     private static final int MINIMAP_PADDING = 8;
-    private static final int MINIMAP_COLOR_UNSET = Integer.MIN_VALUE;
+    static final int MINIMAP_COLOR_UNSET = Integer.MIN_VALUE;
     public static final int MINIMAP_JOIN_PRIME_TICKS = 100;
     private static final int MINIMAP_TEXTURE_SIZE = 128;
     private static final int[] MINIMAP_SIZES = { 84, 104, 126 };
     private static final int[] MINIMAP_SURFACE_ALPHA = { 0xD0, 0xB8, 0x9A };
     private static final int HUD_CARD_BORDER = 0xA63A4E66;
     private static final int HUD_CARD_MUTED_TEXT = 0xAAB8CC;
-    private static final int HAZARD_OVERLAY_ARGB = 0x8CFF9A32;
-    private static final int HAZARD_SAMPLE_STEP_PX = 2;
-    private static final int BASKET_GREEN_RADIUS_BLOCKS = 7;
-    private static final int BASKET_GREEN_HEIGHT_BLOCKS = 8;
     private static final Identifier MINIMAP_TEE_MARKER_TEXTURE = new Identifier("mcdg", "textures/block/mcdg_tee_marker.png");
     private static final Identifier MINIMAP_BASKET_MARKER_TEXTURE = new Identifier("mcdg", "textures/block/mcdg_basket_marker.png");
     private static final Identifier MINIMAP_LIE_MARKER_TEXTURE = new Identifier("mcdg", "textures/block/mcdg_lie_marker.png");
@@ -153,509 +149,30 @@ public final class MiniMapRenderer {
         }
     }
 
-    private enum MiniMapSampleSource {
-        VISIBLE_SURFACE,
-        HEIGHTMAP_FALLBACK,
-        CHUNK_UNLOADED
-    }
 
-    private enum MiniMapFluidKind {
-        NONE,
-        WATER,
-        LAVA
-    }
 
-    private record SurfaceResolveResult(BlockPos surface, MiniMapSampleSource source) {
-    }
 
-    private record TerrainSampleResult(
-            int color,
-            boolean waterDetected,
-            MiniMapSampleSource source,
-            MiniMapFluidKind fluidKind,
-            int surfaceY
-    ) {
-    }
 
-    private static int worldBottom(ClientWorld world) {
-        return world == null ? 0 : world.getBottomY();
-    }
 
-    private static boolean isVisualNoiseSurface(BlockState state) {
-        return state.isOf(Blocks.SHORT_GRASS)
-                || state.isOf(Blocks.TALL_GRASS)
-                || state.isOf(Blocks.FERN)
-                || state.isOf(Blocks.LARGE_FERN)
-                || state.isOf(Blocks.DEAD_BUSH)
-                || state.isOf(Blocks.SEAGRASS)
-                || state.isIn(BlockTags.SMALL_FLOWERS)
-                || state.isIn(BlockTags.TALL_FLOWERS);
-    }
 
-    private static SurfaceResolveResult resolveVisibleSurfaceForSampling(ClientWorld world, int x, int z, int startY) {
-        int y = Math.max(world.getBottomY(), Math.min(startY, world.getTopY() - 1));
-        int attempts = 0;
-        int maxDownChecks = 6;
-        boolean usedHeightmapFallback = false;
-        while (y > world.getBottomY() && attempts < maxDownChecks) {
-            BlockPos probe = new BlockPos(x, y, z);
-            if (!world.getBlockState(probe).isAir() || !world.getFluidState(probe).isEmpty()) {
-                break;
-            }
-            y--;
-            attempts++;
-        }
 
-        BlockPos resolved = new BlockPos(x, y, z);
-        if (world.getBlockState(resolved).isAir() && world.getFluidState(resolved).isEmpty()) {
-            int fallbackY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z) - 1;
-            y = Math.max(world.getBottomY(), Math.min(fallbackY, world.getTopY() - 1));
-            attempts = 0;
-            usedHeightmapFallback = true;
-            while (y > world.getBottomY() && attempts < 6) {
-                BlockPos probe = new BlockPos(x, y, z);
-                if (!world.getBlockState(probe).isAir() || !world.getFluidState(probe).isEmpty()) {
-                    break;
-                }
-                y--;
-                attempts++;
-            }
-            resolved = new BlockPos(x, y, z);
-        }
 
-        int noiseSkips = 0;
-        while (y > world.getBottomY() && noiseSkips < 3) {
-            BlockPos probe = new BlockPos(x, y, z);
-            if (!world.getFluidState(probe).isEmpty()) {
-                break;
-            }
-            if (!isVisualNoiseSurface(world.getBlockState(probe))) {
-                break;
-            }
-            y--;
-            noiseSkips++;
-        }
-        resolved = new BlockPos(x, y, z);
 
-        MiniMapSampleSource source = usedHeightmapFallback ? MiniMapSampleSource.HEIGHTMAP_FALLBACK : MiniMapSampleSource.VISIBLE_SURFACE;
-        return new SurfaceResolveResult(resolved, source);
-    }
 
-    private static TerrainSampleResult sampleClientWorldTerrain(ClientWorld world, int x, int z) {
-        if (!world.isChunkLoaded(x >> 4, z >> 4)) {
-            int fallback = miniMapBiomeFallbackColor(world, x, z);
-            return new TerrainSampleResult(
-                    fallback,
-                    false,
-                    MiniMapSampleSource.CHUNK_UNLOADED,
-                    MiniMapFluidKind.NONE,
-                    worldBottom(world)
-            );
-        }
 
-        int topSurfaceY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z) - 1;
-        int startY = topSurfaceY;
-        if (startY < world.getBottomY()) {
-            int fallback = miniMapBiomeFallbackColor(world, x, z);
-            return new TerrainSampleResult(
-                fallback,
-                    false,
-                    MiniMapSampleSource.HEIGHTMAP_FALLBACK,
-                    MiniMapFluidKind.NONE,
-                    worldBottom(world)
-            );
-        }
 
-        SurfaceResolveResult resolvedSurface = resolveVisibleSurfaceForSampling(world, x, z, startY);
-        BlockPos surface = resolvedSurface.surface();
-        BlockState state = world.getBlockState(surface);
-        if (world.getFluidState(surface).isIn(FluidTags.LAVA)) {
-            return new TerrainSampleResult(
-                    0xFFFF6A00,
-                    false,
-                    resolvedSurface.source(),
-                    MiniMapFluidKind.LAVA,
-                    surface.getY()
-            );
-        }
-        if (world.getFluidState(surface).isIn(FluidTags.WATER)) {
-            return new TerrainSampleResult(
-                    0xFF3F76E4,
-                    true,
-                    resolvedSurface.source(),
-                    MiniMapFluidKind.WATER,
-                    surface.getY()
-            );
-        }
 
-        MapColor mapColor = state.getMapColor(world, surface);
-        if (mapColor != null && mapColor != MapColor.CLEAR) {
-            return new TerrainSampleResult(
-                    0xFF000000 | mapColor.color,
-                    false,
-                    resolvedSurface.source(),
-                    MiniMapFluidKind.NONE,
-                    surface.getY()
-            );
-        }
 
-        int terrainClass = classifyClientMiniMapTerrainClass(world, x, z, surface.getY());
-        int color = miniMapTerrainColor(terrainClass);
-        if (color == 0) {
-            return new TerrainSampleResult(
-                    0xFF6B7C93,
-                    false,
-                    resolvedSurface.source(),
-                    MiniMapFluidKind.NONE,
-                    surface.getY()
-            );
-        }
-        return new TerrainSampleResult(
-                color,
-                false,
-                resolvedSurface.source(),
-                MiniMapFluidKind.NONE,
-                surface.getY()
-        );
-    }
 
-    private static int classifyClientMiniMapTerrainClass(ClientWorld world, int x, int z, int surfaceY) {
-        if (surfaceY < world.getBottomY()) {
-            return 0;
-        }
 
-        BlockPos surface = new BlockPos(x, surfaceY, z);
-        BlockState state = world.getBlockState(surface);
-        if (world.getFluidState(surface).isIn(FluidTags.LAVA)) {
-            return 10;
-        }
-        if (world.getFluidState(surface).isIn(FluidTags.WATER)) {
-            return 1;
-        }
-        if (state.isOf(Blocks.ICE) || state.isOf(Blocks.PACKED_ICE) || state.isOf(Blocks.BLUE_ICE)
-                || state.isOf(Blocks.FROSTED_ICE)) {
-            return 7;
-        }
-        if (state.isOf(Blocks.SNOW) || state.isOf(Blocks.SNOW_BLOCK) || state.isOf(Blocks.POWDER_SNOW)) {
-            return 6;
-        }
-        if (state.isOf(Blocks.GRASS_BLOCK) || state.isOf(Blocks.MOSS_BLOCK)
-                || state.isOf(Blocks.FERN)
-                || state.isOf(Blocks.TALL_GRASS) || state.isOf(Blocks.SHORT_GRASS)) {
-            return 3;
-        }
-        if (state.isOf(Blocks.DIRT) || state.isOf(Blocks.COARSE_DIRT) || state.isOf(Blocks.ROOTED_DIRT)
-                || state.isOf(Blocks.PODZOL) || state.isOf(Blocks.MUD) || state.isOf(Blocks.MYCELIUM)
-                || state.isOf(Blocks.SOUL_SOIL)) {
-            return 8;
-        }
-        if (state.isOf(Blocks.DIRT_PATH) || state.isOf(Blocks.FARMLAND)
-                || state.isOf(Blocks.CLAY) || state.isOf(Blocks.GRAVEL)) {
-            return 9;
-        }
-        if (state.isOf(Blocks.SAND) || state.isOf(Blocks.RED_SAND)) {
-            return 2;
-        }
-        if (state.isIn(BlockTags.LEAVES) || state.isIn(BlockTags.LOGS)) {
-            return 4;
-        }
-        if (state.isOf(Blocks.STONE) || state.isOf(Blocks.ANDESITE) || state.isOf(Blocks.DIORITE)
-                || state.isOf(Blocks.GRANITE)
-                || state.isOf(Blocks.DEEPSLATE) || state.isOf(Blocks.COBBLESTONE) || state.isOf(Blocks.TUFF)
-                || state.isOf(Blocks.CALCITE)) {
-            return 5;
-        }
-        return 8;
-    }
 
-    private static int miniMapTerrainColor(int terrainClass) {
-        return switch (terrainClass) {
-            case 1 -> 0xFF3F76E4;
-            case 2 -> 0xFFF7E9A3;
-            case 3 -> 0xFF7FB238;
-            case 4 -> 0xFF4C8E2F;
-            case 5 -> 0xFFA0A0A0;
-            case 6 -> 0xFFFFFFFF;
-            case 7 -> 0xFFA0A0FF;
-            case 8 -> 0xFF8B6D4A;
-            case 9 -> 0xFFA58F6A;
-            case 10 -> 0xFFFF6A00;
-            default -> 0;
-        };
-    }
 
-    private static int miniMapBiomeFallbackColor(ClientWorld world, int x, int z) {
-        String biomeId = biomeId(world.getBiome(new BlockPos(x, world.getSeaLevel(), z)));
-        if (biomeId.contains("ocean") || biomeId.contains("river") || biomeId.contains("beach") || biomeId.contains("shore")) {
-            return 0xFF3F76E4;
-        }
-        if (biomeId.contains("desert") || biomeId.contains("badlands") || biomeId.contains("savanna")) {
-            return 0xFFD7BF7A;
-        }
-        if (biomeId.contains("snow") || biomeId.contains("frozen") || biomeId.contains("ice")) {
-            return 0xFFE9F2FF;
-        }
-        if (biomeId.contains("jungle") || biomeId.contains("forest") || biomeId.contains("taiga") || biomeId.contains("grove")) {
-            return 0xFF5EA54A;
-        }
-        return 0xFF7FB238;
-    }
 
-    private static String biomeId(RegistryEntry<Biome> biome) {
-        RegistryKey<Biome> key = biome.getKey().orElse(null);
-        if (key == null) {
-            return "unknown";
-        }
-        return key.getValue().getPath();
-    }
 
-    private static int applyVisibleSurfaceShading(ClientWorld world, int x, int z, int baseColor) {
-        if (baseColor == MINIMAP_COLOR_UNSET) {
-            return 0xFF5E6F86;
-        }
-        if (!world.isChunkLoaded(x >> 4, z >> 4)) {
-            return baseColor;
-        }
 
-        int currentY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z) - 1;
-        int northY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z - 1) - 1;
-        int southY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z + 1) - 1;
-        int westY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x - 1, z) - 1;
-        int eastY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x + 1, z) - 1;
 
-        int litDelta = (northY + westY) - (southY + eastY);
-        float shade = 1.0f + Math.max(-0.30f, Math.min(0.30f, litDelta * 0.08f));
 
-        int neighborAvg = (northY + southY + eastY + westY) / 4;
-        int localRelief = currentY - neighborAvg;
-        shade += Math.max(-0.14f, Math.min(0.14f, localRelief * 0.07f));
 
-        if (Math.floorMod(currentY, 4) == 0) {
-            shade *= 0.93f;
-        }
-        if (Math.floorMod(currentY, 2) == 0) {
-            shade *= 0.97f;
-        }
-
-        int slopeStrength = Math.abs(eastY - westY) + Math.abs(southY - northY);
-        if (slopeStrength >= 4) {
-            shade *= 0.92f;
-        }
-
-        if (slopeStrength >= 8) {
-            shade *= 0.88f;
-        }
-
-        if (Math.abs(localRelief) >= 2) {
-            shade *= 0.94f;
-        }
-
-        shade = Math.max(0.65f, Math.min(1.35f, shade));
-        return scaleColor(baseColor, shade);
-    }
-
-    public static int scaleColor(int argb, float multiplier) {
-        int a = (argb >>> 24) & 0xFF;
-        int r = Math.max(0, Math.min(255, Math.round(((argb >>> 16) & 0xFF) * multiplier)));
-        int g = Math.max(0, Math.min(255, Math.round(((argb >>> 8) & 0xFF) * multiplier)));
-        int b = Math.max(0, Math.min(255, Math.round((argb & 0xFF) * multiplier)));
-        return (a << 24) | (r << 16) | (g << 8) | b;
-    }
-
-    public static int argbToAbgr(int argb) {
-        int a = (argb >>> 24) & 0xFF;
-        int r = (argb >>> 16) & 0xFF;
-        int g = (argb >>> 8) & 0xFF;
-        int b = argb & 0xFF;
-        return (a << 24) | (b << 16) | (g << 8) | r;
-    }
-
-    private enum StrictSurfacePresetClient {
-        FAST,
-        BALANCED,
-        TOURNAMENT
-    }
-
-    private static StrictSurfacePresetClient strictPresetFromOrdinal(int ordinal) {
-        return switch (ordinal) {
-            case 0 -> StrictSurfacePresetClient.FAST;
-            case 2 -> StrictSurfacePresetClient.TOURNAMENT;
-            default -> StrictSurfacePresetClient.BALANCED;
-        };
-    }
-
-    private static boolean isBasketGreenSafeClient(BlockPos feet, BlockPos basketSurface) {
-        int dx = feet.getX() - basketSurface.getX();
-        int dz = feet.getZ() - basketSurface.getZ();
-        int dy = feet.getY() - basketSurface.getY();
-        return (dx * dx) + (dz * dz) <= (BASKET_GREEN_RADIUS_BLOCKS * BASKET_GREEN_RADIUS_BLOCKS + 1)
-                && dy >= 0
-                && dy <= BASKET_GREEN_HEIGHT_BLOCKS;
-    }
-
-    private static boolean isFluidPenaltyZoneClient(ClientWorld world, BlockPos feet) {
-        return world.getFluidState(feet).isIn(FluidTags.WATER)
-                || world.getFluidState(feet).isIn(FluidTags.LAVA)
-                || world.getFluidState(feet.down()).isIn(FluidTags.WATER)
-                || world.getFluidState(feet.down()).isIn(FluidTags.LAVA);
-    }
-
-    private static boolean isSteepSlopeHazardClient(ClientWorld world, BlockPos feet, int slopeDeltaThreshold) {
-        int centerY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, feet.getX(), feet.getZ()) - 1;
-        int[] offsets = { -2, 0, 2 };
-        for (int dx : offsets) {
-            for (int dz : offsets) {
-                if (dx == 0 && dz == 0) {
-                    continue;
-                }
-                int sampleY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, feet.getX() + dx, feet.getZ() + dz) - 1;
-                if (Math.abs(sampleY - centerY) >= slopeDeltaThreshold) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private static boolean isDenseRoughHazardClient(ClientWorld world, BlockPos feet, int threshold) {
-        int roughHits = 0;
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                int x = feet.getX() + dx;
-                int z = feet.getZ() + dz;
-                int topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
-                BlockPos surface = new BlockPos(x, topY, z);
-                BlockState surfaceState = world.getBlockState(surface);
-                BlockState headState = world.getBlockState(surface.up());
-                if (isRoughMaterialClient(surfaceState) || isRoughMaterialClient(headState)) {
-                    roughHits++;
-                }
-            }
-        }
-        return roughHits >= threshold;
-    }
-
-    private static boolean isRoughMaterialClient(BlockState state) {
-        return state.isIn(BlockTags.LOGS)
-                || state.isIn(BlockTags.LEAVES)
-                || state.isOf(Blocks.VINE)
-                || state.isOf(Blocks.SWEET_BERRY_BUSH)
-                || state.isOf(Blocks.CACTUS);
-    }
-
-    private static double distanceFromPointToSegmentXZ(BlockPos point, BlockPos start, BlockPos end) {
-        double px = point.getX() + 0.5;
-        double pz = point.getZ() + 0.5;
-        double sx = start.getX() + 0.5;
-        double sz = start.getZ() + 0.5;
-        double ex = end.getX() + 0.5;
-        double ez = end.getZ() + 0.5;
-
-        double dx = ex - sx;
-        double dz = ez - sz;
-        double lengthSquared = dx * dx + dz * dz;
-        if (lengthSquared < 1.0e-6) {
-            double mx = px - sx;
-            double mz = pz - sz;
-            return Math.sqrt(mx * mx + mz * mz);
-        }
-
-        double t = Math.max(0.0, Math.min(1.0, ((px - sx) * dx + (pz - sz) * dz) / lengthSquared));
-        double projectionX = sx + t * dx;
-        double projectionZ = sz + t * dz;
-        double distanceX = px - projectionX;
-        double distanceZ = pz - projectionZ;
-        return Math.sqrt(distanceX * distanceX + distanceZ * distanceZ);
-    }
-
-    private static boolean isHazardPenaltyAt(
-            ClientWorld world,
-            BlockPos feet,
-            BlockPos tee,
-            BlockPos basket,
-            BlockPos basketSurface,
-            int corridorHalfWidth,
-            StrictSurfacePresetClient preset
-    ) {
-        if (isFluidPenaltyZoneClient(world, feet)) {
-            return false;
-        }
-
-        if (distanceFromPointToSegmentXZ(feet, tee, basket) > corridorHalfWidth) {
-            return false;
-        }
-
-        if (isBasketGreenSafeClient(feet, basketSurface)) {
-            return false;
-        }
-
-        boolean slopeHazard = preset != StrictSurfacePresetClient.FAST
-                && isSteepSlopeHazardClient(world, feet, preset == StrictSurfacePresetClient.TOURNAMENT ? 3 : 4);
-        if (slopeHazard) {
-            return true;
-        }
-
-        return preset == StrictSurfacePresetClient.TOURNAMENT
-                && isDenseRoughHazardClient(world, feet, 11);
-    }
-
-    private static void drawMiniMapStrictHazardOverlay(
-            DrawContext drawContext,
-            MinecraftClient client,
-            McdgClientMod.MiniMapState state,
-            double centerWorldX,
-            double centerWorldZ,
-            int mapCenterX,
-            int mapCenterY,
-            float mapScale,
-            float mapRotationDegrees,
-            float hudAlpha,
-            float clipCenterX,
-            float clipCenterY,
-            float clipRadius
-    ) {
-        if (client.world == null) {
-            return;
-        }
-
-        ClientWorld world = client.world;
-        int overlayColor = HudUtil.withAlpha(HAZARD_OVERLAY_ARGB, hudAlpha);
-        int sampleStep = Math.max(2, HAZARD_SAMPLE_STEP_PX);
-        float clipRadiusSq = clipRadius * clipRadius;
-        int minY = Math.round(mapCenterY - clipRadius);
-        int maxY = Math.round(mapCenterY + clipRadius);
-        int minX = Math.round(mapCenterX - clipRadius);
-        int maxX = Math.round(mapCenterX + clipRadius);
-
-        BlockPos tee = new BlockPos(state.teeX(), 0, state.teeZ());
-        BlockPos basket = new BlockPos(state.basketX(), 0, state.basketZ());
-        BlockPos basketSurface = basket.down();
-        StrictSurfacePresetClient preset = strictPresetFromOrdinal(state.strictSurfacePresetOrdinal());
-
-        for (int py = minY; py <= maxY; py += sampleStep) {
-            for (int px = minX; px <= maxX; px += sampleStep) {
-                if (!isPointInsideCircle(px, py, clipCenterX, clipCenterY, clipRadiusSq)) {
-                    continue;
-                }
-
-                float screenDx = px - mapCenterX;
-                float screenDz = py - mapCenterY;
-                float[] worldOffsetScaled = rotateMiniMapVector(screenDx, screenDz, -mapRotationDegrees);
-                double worldX = centerWorldX + (worldOffsetScaled[0] / mapScale);
-                double worldZ = centerWorldZ + (worldOffsetScaled[1] / mapScale);
-                int blockX = net.minecraft.util.math.MathHelper.floor(worldX);
-                int blockZ = net.minecraft.util.math.MathHelper.floor(worldZ);
-                int feetY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, blockX, blockZ) - 1;
-                BlockPos feet = new BlockPos(blockX, feetY, blockZ);
-
-                if (!isHazardPenaltyAt(world, feet, tee, basket, basketSurface, state.corridorHalfWidth(), preset)) {
-                    continue;
-                }
-
-                fillRectClipped(drawContext, px, py, sampleStep, sampleStep, overlayColor, clipCenterX, clipCenterY, clipRadiusSq);
-            }
-        }
-    }
 
     public static float[] rotateMiniMapVector(float x, float y, float rotationDegrees) {
         double radians = Math.toRadians(rotationDegrees);
@@ -1060,7 +577,7 @@ public final class MiniMapRenderer {
 
             McdgClientMod.MiniMapState state = miniMapState;
             if (state != null && (System.currentTimeMillis() - miniMapReceivedAtMs) <= MINIMAP_STALE_TIMEOUT_MS) {
-                drawMiniMapStrictHazardOverlay(
+                HazardOverlayRenderer.drawMiniMapStrictHazardOverlay(
                     drawContext,
                     client,
                     state,
@@ -1259,28 +776,28 @@ public final class MiniMapRenderer {
                 float textureDx = px - centerPx;
                 float textureDy = py - centerPy;
                 if (((textureDx * textureDx) + (textureDy * textureDy)) > textureRadiusSq) {
-                    image.setColor(px, py, argbToAbgr(0x00000000));
+                    image.setColor(px, py, TerrainSampler.argbToAbgr(0x00000000));
                     continue;
                 }
 
                 float dx = (px - centerPx) / texDenominator;
                 int worldX = net.minecraft.util.math.MathHelper.floor(centerWorldX + (dx * mapSpan));
 
-                TerrainSampleResult terrainSample = sampleClientWorldTerrain(client.world, worldX, worldZ);
+                TerrainSampler.TerrainSampleResult terrainSample = TerrainSampler.sampleClientWorldTerrain(client.world, worldX, worldZ);
                 boolean usedClientSample = terrainSample.color() != MINIMAP_COLOR_UNSET;
                 int baseColor = terrainSample.color();
-                if (terrainSample.source() == MiniMapSampleSource.CHUNK_UNLOADED) {
+                if (terrainSample.source() == TerrainSampler.MiniMapSampleSource.CHUNK_UNLOADED) {
                     chunkUnloadedSourcePixels++;
                 }
-                if (terrainSample.source() != MiniMapSampleSource.VISIBLE_SURFACE) {
+                if (terrainSample.source() != TerrainSampler.MiniMapSampleSource.VISIBLE_SURFACE) {
                     unresolvedSurfacePixels++;
                 }
                 if (!usedClientSample) {
-                    baseColor = miniMapBiomeFallbackColor(client.world, worldX, worldZ);
+                    baseColor = TerrainSampler.miniMapBiomeFallbackColor(client.world, worldX, worldZ);
                 }
 
-                int shadedArgb = applyVisibleSurfaceShading(client.world, worldX, worldZ, baseColor);
-                image.setColor(px, py, argbToAbgr(shadedArgb));
+                int shadedArgb = TerrainSampler.applyVisibleSurfaceShading(client.world, worldX, worldZ, baseColor);
+                image.setColor(px, py, TerrainSampler.argbToAbgr(shadedArgb));
             }
         }
 
@@ -1571,9 +1088,9 @@ public final class MiniMapRenderer {
                 int worldX = net.minecraft.util.math.MathHelper.floor(playerWorldX + ((worldDelta[0] / Math.max(1.0f, miniMapSize)) * mapSpan));
                 int worldZ = net.minecraft.util.math.MathHelper.floor(playerWorldZ + ((worldDelta[1] / Math.max(1.0f, miniMapSize)) * mapSpan));
 
-                int color = miniMapBiomeFallbackColor(client.world, worldX, worldZ);
+                int color = TerrainSampler.miniMapBiomeFallbackColor(client.world, worldX, worldZ);
                 if (client.world.isChunkLoaded(worldX >> 4, worldZ >> 4)) {
-                    color = applyVisibleSurfaceShading(client.world, worldX, worldZ, color);
+                    color = TerrainSampler.applyVisibleSurfaceShading(client.world, worldX, worldZ, color);
                 }
 
                 drawContext.fill(mapX + px, mapY + py, mapX + px + 1, mapY + py + 1, HudUtil.withAlpha(color, hudAlpha));
