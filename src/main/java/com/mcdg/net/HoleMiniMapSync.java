@@ -43,7 +43,9 @@ public final class HoleMiniMapSync {
             int totalHoles,
             List<Integer> holeTeeXs,
             List<Integer> holeTeeZs,
-            int lastThrowDistanceFeet
+            int lastThrowDistanceFeet,
+            int corridorEntryFeet,
+            int corridorEntryBearing
     ) implements CustomPayload {
         public static Payload read(RegistryByteBuf buf) {
             boolean active = buf.readBoolean();
@@ -107,6 +109,8 @@ public final class HoleMiniMapSync {
                     totalHoles,
                     holeTeeXs,
                     holeTeeZs,
+                    buf.readVarInt(),
+                    buf.readVarInt(),
                     buf.readVarInt()
             );
         }
@@ -146,10 +150,12 @@ public final class HoleMiniMapSync {
                 buf.writeVarInt(holeTeeZs.get(i));
             }
             buf.writeVarInt(lastThrowDistanceFeet);
+            buf.writeVarInt(corridorEntryFeet);
+            buf.writeVarInt(corridorEntryBearing);
         }
 
         public static Payload inactive() {
-            return new Payload(false, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, false, 0, 0, false, 0, 0, 0, "", 0, 0, 0, List.of(), List.of(), 0);
+            return new Payload(false, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, false, 0, 0, false, 0, 0, 0, "", 0, 0, 0, List.of(), List.of(), 0, 0, 0);
         }
 
         public static Payload active(
@@ -177,7 +183,9 @@ public final class HoleMiniMapSync {
                 int totalHoles,
                 List<Integer> holeTeeXs,
                 List<Integer> holeTeeZs,
-                int lastThrowDistanceFeet
+                int lastThrowDistanceFeet,
+                int corridorEntryFeet,
+                int corridorEntryBearing
         ) {
             return new Payload(
                     true,
@@ -205,7 +213,9 @@ public final class HoleMiniMapSync {
                     totalHoles,
                     holeTeeXs == null ? List.of() : List.copyOf(holeTeeXs),
                     holeTeeZs == null ? List.of() : List.copyOf(holeTeeZs),
-                    Math.max(0, lastThrowDistanceFeet)
+                    Math.max(0, lastThrowDistanceFeet),
+                    Math.max(0, corridorEntryFeet),
+                    ((corridorEntryBearing % 360) + 360) % 360
             );
         }
 

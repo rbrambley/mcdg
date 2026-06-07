@@ -116,7 +116,9 @@ public final class McdgClientMod implements ClientModInitializer {
             int alternateAnchorX,
             int alternateAnchorZ,
             int mapSpan,
-            int lastThrowDistanceFeet
+            int lastThrowDistanceFeet,
+            int corridorEntryFeet,
+            int corridorEntryBearing
     ) {
     }
 
@@ -173,7 +175,9 @@ public final class McdgClientMod implements ClientModInitializer {
                 payload.alternateAnchorX(),
                 payload.alternateAnchorZ(),
                 payload.mapSpan(),
-                payload.lastThrowDistanceFeet()
+                payload.lastThrowDistanceFeet(),
+                payload.corridorEntryFeet(),
+                payload.corridorEntryBearing()
         ));
         WaypointManager.setActiveRoundCourseWaypointName(payload.courseWaypointName());
         WaypointManager.upsertPermanentCourseWaypoint(

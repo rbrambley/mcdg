@@ -9,11 +9,19 @@ import net.minecraft.text.Text;
  * Manages its own tweened display values for smooth numeric transitions.
  */
 public final class RoundInfoOverlay {
+    private static final String[] COMPASS_8 = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
+
     private static float displayedDistanceFeet = Float.NaN;
     private static float displayedTotalStrokes = Float.NaN;
     private static float displayedCumulativeDelta = Float.NaN;
 
     private RoundInfoOverlay() {
+    }
+
+    private static String buildCorridorEntryLine(int feet, int bearingDeg) {
+        if (feet <= 0) return "";
+        int idx = (int) Math.round(((bearingDeg % 360 + 360) % 360) / 45.0) % 8;
+        return "Fairway " + feet + "ft " + COMPASS_8[idx];
     }
 
     public static void updateTweens(McdgClientMod.MiniMapState state) {
@@ -52,14 +60,18 @@ public final class RoundInfoOverlay {
         int animatedDistanceFeet = Math.max(0, Math.round(displayedDistanceFeet));
         String line3 = animatedDistanceFeet + "ft";
         String line4 = state.lastThrowDistanceFeet() > 0 ? "Last " + state.lastThrowDistanceFeet() + "ft" : "";
-        String line5 = "Total " + state.totalStrokes() + "  " + deltaText;
+        String line5 = buildCorridorEntryLine(state.corridorEntryFeet(), state.corridorEntryBearing());
+        String line6 = "Total " + state.totalStrokes() + "  " + deltaText;
         int maxTextWidth = Math.max(
                 Math.max(client.textRenderer.getWidth(line1), client.textRenderer.getWidth(line2)),
-                Math.max(client.textRenderer.getWidth(line3), Math.max(client.textRenderer.getWidth(line4), client.textRenderer.getWidth(line5)))
+                Math.max(client.textRenderer.getWidth(line3),
+                        Math.max(client.textRenderer.getWidth(line4),
+                                Math.max(client.textRenderer.getWidth(line5), client.textRenderer.getWidth(line6))))
         );
 
+        int extraRows = (line4.isEmpty() ? 0 : 1) + (line5.isEmpty() ? 0 : 1);
         int panelW = maxTextWidth + 16;
-        int panelH = line4.isEmpty() ? 54 : 68;
+        int panelH = 54 + (extraRows * 12);
         int x = drawContext.getScaledWindowWidth() - panelW - 8;
         int y = client.getDebugHud().shouldShowDebugHud() ? 76 : 8;
 
@@ -68,7 +80,7 @@ public final class RoundInfoOverlay {
         int animatedTotal = Math.max(0, Math.round(displayedTotalStrokes));
         int animatedDelta = Math.round(displayedCumulativeDelta);
         String animatedDeltaText = animatedDelta == 0 ? "E" : (animatedDelta > 0 ? "+" + animatedDelta : Integer.toString(animatedDelta));
-        String animatedLine5 = "Total " + animatedTotal + "  " + animatedDeltaText;
+        String animatedLine6 = "Total " + animatedTotal + "  " + animatedDeltaText;
         int row = y + 16;
         drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line2), x + 6, row, HudUtil.withAlpha(0xFFFFFF, hudAlpha));
         row += 12;
@@ -78,6 +90,10 @@ public final class RoundInfoOverlay {
             drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line4), x + 6, row, HudUtil.withAlpha(0x99BBDD, hudAlpha));
             row += 12;
         }
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(animatedLine5), x + 6, row, HudUtil.withAlpha(0xB5F7B5, hudAlpha));
+        if (!line5.isEmpty()) {
+            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line5), x + 6, row, HudUtil.withAlpha(0xFFCC44, hudAlpha));
+            row += 12;
+        }
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(animatedLine6), x + 6, row, HudUtil.withAlpha(0xB5F7B5, hudAlpha));
     }
 }

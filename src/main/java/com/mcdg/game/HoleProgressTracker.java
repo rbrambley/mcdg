@@ -210,6 +210,9 @@ public final class HoleProgressTracker {
                 }
 
                 BlockPos mapFocus = player.getBlockPos();
+                int[] corridorEntry = tee != null ? nearestForwardCorridorEntry(state.lie(), tee, basket, alternateAnchor, corridorHalfWidth) : null;
+                int corridorEntryFeet = corridorEntry != null ? corridorEntry[0] : 0;
+                int corridorEntryBearing = corridorEntry != null ? corridorEntry[1] : 0;
                 HoleMiniMapSync.Payload miniMapPayload = buildMiniMapPayload(
                     courseManager,
                     course,
@@ -227,7 +230,9 @@ public final class HoleProgressTracker {
                         rulesetManager.getStrictSurfacePreset().ordinal(),
                         corridorHalfWidth,
                         alternateAnchor,
-                        LAST_THROW_DISTANCE_FEET.getOrDefault(player.getUuid(), 0)
+                        LAST_THROW_DISTANCE_FEET.getOrDefault(player.getUuid(), 0),
+                        corridorEntryFeet,
+                        corridorEntryBearing
                 );
 
                 if (strictFlowDebug && (server.getTicks() % 20) == 0) {
@@ -1004,7 +1009,9 @@ public final class HoleProgressTracker {
                 int strictSurfacePresetOrdinal,
                 int corridorHalfWidth,
             BlockPos alternateAnchor,
-            int lastThrowDistanceFeet
+            int lastThrowDistanceFeet,
+            int corridorEntryFeet,
+            int corridorEntryBearing
     ) {
         int span;
         int minX = Math.min(Math.min(tee.getX(), basket.getX()), mapFocus.getX());
@@ -1068,7 +1075,9 @@ public final class HoleProgressTracker {
                 totalHoles,
                 holeTeeXs,
                 holeTeeZs,
-                lastThrowDistanceFeet
+                lastThrowDistanceFeet,
+                corridorEntryFeet,
+                corridorEntryBearing
             );
     }
 
@@ -1892,6 +1901,109 @@ public final class HoleProgressTracker {
         return Math.min(firstLeg, secondLeg);
     }
 
+
+    /**
+     * Finds the nearest point on the forward corridor boundary from the given lie.
+     * "Forward" means the half of the corridor between the lie's projection along the
+     * tee->basket axis and the basket (so we never point the player backward).
+     *
+     * Returns int[2] = { distanceFeet, bearingDegrees } where bearingDegrees is a
+     * geographic bearing (0=N, 90=E, 180=S, 270=W), or null if the lie is already
+     * inside the corridor (lateral distance <= corridorHalfWidth).
+     */
+    private static int[] nearestForwardCorridorEntry(BlockPos lie, BlockPos tee, BlockPos basket, BlockPos alternateAnchor, int corridorHalfWidth) {
+        // Choose the relevant segment: if there is an alternate anchor, use the leg
+        // whose projected t-value places the lie further forward (closer to the basket).
+        BlockPos segStart = tee;
+        BlockPos segEnd = basket;
+        if (alternateAnchor != null) {
+            double t1 = projectionT(lie, tee, alternateAnchor);
+            double t2 = projectionT(lie, alternateAnchor, basket);
+            // Use the second leg if the lie is past the alternate anchor
+            if (t1 >= 1.0 || t2 > 0.0) {
+                segStart = alternateAnchor;
+                segEnd = basket;
+            }
+        }
+
+        double px = lie.getX() + 0.5;
+        double pz = lie.getZ() + 0.5;
+        double sx = segStart.getX() + 0.5;
+        double sz = segStart.getZ() + 0.5;
+        double ex = segEnd.getX() + 0.5;
+        double ez = segEnd.getZ() + 0.5;
+
+        double dx = ex - sx;
+        double dz = ez - sz;
+        double lengthSquared = dx * dx + dz * dz;
+
+        double nearX, nearZ;
+        if (lengthSquared < 1.0e-6) {
+            // Degenerate segment - just point at the basket
+            nearX = ex;
+            nearZ = ez;
+        } else {
+            // Project lie onto the segment axis; clamp to [t_lie, 1.0] (forward half only)
+            double t = ((px - sx) * dx + (pz - sz) * dz) / lengthSquared;
+            double tLie = Math.max(0.0, Math.min(1.0, t));
+            // Forward half: from the lie's projection to the basket end
+            double tClamped = Math.max(tLie, Math.min(1.0, t));
+
+            // Nearest point on the axis
+            double axisX = sx + tClamped * dx;
+            double axisZ = sz + tClamped * dz;
+
+            // Perpendicular unit vector (rotate (dx,dz) 90 degrees)
+            double len = Math.sqrt(lengthSquared);
+            double perpX = -dz / len;
+            double perpZ = dx / len;
+
+            // The two corridor edge candidates at this projection point
+            double edgeL_X = axisX + perpX * corridorHalfWidth;
+            double edgeL_Z = axisZ + perpZ * corridorHalfWidth;
+            double edgeR_X = axisX - perpX * corridorHalfWidth;
+            double edgeR_Z = axisZ - perpZ * corridorHalfWidth;
+
+            double distL = Math.hypot(px - edgeL_X, pz - edgeL_Z);
+            double distR = Math.hypot(px - edgeR_X, pz - edgeR_Z);
+
+            // Check if already inside the corridor
+            double lateralDist = Math.abs((px - axisX) * perpX + (pz - axisZ) * perpZ);
+            if (lateralDist <= corridorHalfWidth) {
+                return null; // already in-bounds
+            }
+
+            if (distL <= distR) {
+                nearX = edgeL_X;
+                nearZ = edgeL_Z;
+            } else {
+                nearX = edgeR_X;
+                nearZ = edgeR_Z;
+            }
+        }
+
+        double distMeters = Math.hypot(nearX - px, nearZ - pz);
+        int distFeet = Math.max(1, (int) Math.round(distMeters * 3.28084));
+
+        // Geographic bearing: 0=N (+Z in Minecraft is S, -Z is N, +X is E, -X is W)
+        // Minecraft: Z increases south, X increases east
+        double bearingRad = Math.atan2(nearX - px, -(nearZ - pz)); // atan2(east, north)
+        int bearingDeg = (int) Math.round(Math.toDegrees(bearingRad));
+        bearingDeg = ((bearingDeg % 360) + 360) % 360;
+
+        return new int[]{distFeet, bearingDeg};
+    }
+
+    /** Returns the unclamped t-value for projecting point onto the start->end segment. */
+    private static double projectionT(BlockPos point, BlockPos start, BlockPos end) {
+        double px = point.getX() + 0.5, pz = point.getZ() + 0.5;
+        double sx = start.getX() + 0.5, sz = start.getZ() + 0.5;
+        double ex = end.getX() + 0.5,   ez = end.getZ() + 0.5;
+        double dx = ex - sx, dz = ez - sz;
+        double lsq = dx * dx + dz * dz;
+        if (lsq < 1.0e-6) return 0.0;
+        return ((px - sx) * dx + (pz - sz) * dz) / lsq;
+    }
     private static CrossingResolution findLastSolidBeforeOutCrossing(
             ServerWorld world,
             BlockPos throwLie,
