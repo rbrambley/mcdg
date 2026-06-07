@@ -2,14 +2,11 @@ package com.mcdg.world;
 
 import java.util.Map;
 import java.util.Set;
-import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.block.BedBlock;
 import net.minecraft.block.enums.BedPart;
-import net.minecraft.block.enums.StairShape;
 import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.Direction;
 

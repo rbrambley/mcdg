@@ -2,10 +2,8 @@ package com.mcdg.world;
 
 import com.mcdg.McdgMod;
 import com.mcdg.data.Course;
-import com.mcdg.data.FairwaySegment;
 import com.mcdg.data.Hole;
 import com.mcdg.game.PlacedCourseState;
-import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.HashMap;
@@ -77,14 +75,10 @@ public final class CoursePlacementService {
     private static final int BASKET_ENCLOSURE_RECOVERY_MAX_LAVA_REROUTE_ATTEMPTS = CoursePlacementConfig.Basket.ENCLOSURE_RECOVERY_MAX_LAVA_REROUTE_ATTEMPTS;
     private static final int BASKET_ENCLOSURE_WALL_DEPTH_THRESHOLD = CoursePlacementConfig.Basket.ENCLOSURE_WALL_DEPTH_THRESHOLD;
     private static final double BASKET_ENCLOSURE_HIGH_WALL_RATIO = CoursePlacementConfig.Basket.ENCLOSURE_HIGH_WALL_RATIO;
-    private static final int BASKET_DRY_COLUMN_CHECK_HEIGHT = CoursePlacementConfig.Basket.DRY_COLUMN_CHECK_HEIGHT;
-    private static final int TEE_EXIT_Y_TOLERANCE = CoursePlacementConfig.Tee.EXIT_Y_TOLERANCE;
-    private static final int TEE_MIN_NEARBY_EXITS = CoursePlacementConfig.Tee.MIN_NEARBY_EXITS;
     private static final int TEE_WALL_SCAN_RADIUS = CoursePlacementConfig.Tee.WALL_SCAN_RADIUS;
     private static final int TEE_MAX_ENCLOSURE_SCORE = CoursePlacementConfig.Tee.MAX_ENCLOSURE_SCORE;
     private static final int TEE_PREFILTER_ENCLOSURE_DEPTH_FAIL = CoursePlacementConfig.Tee.PREFILTER_ENCLOSURE_DEPTH_FAIL;
     private static final int TEE_PIT_DEPTH_THRESHOLD = CoursePlacementConfig.Tee.PIT_DEPTH_THRESHOLD;
-    private static final int SURFACE_SEARCH_DEPTH_LIMIT = CoursePlacementConfig.Surface.SEARCH_DEPTH_LIMIT;
     private static final int PLAYER_RELATIVE_TEE_MIN_Y_OFFSET = CoursePlacementConfig.Surface.PLAYER_RELATIVE_TEE_MIN_Y_OFFSET;
     private static final int PLAYER_RELATIVE_BASKET_TARGET_MIN_Y_OFFSET = CoursePlacementConfig.Surface.PLAYER_RELATIVE_BASKET_TARGET_MIN_Y_OFFSET;
     private static final int PLAYER_RELATIVE_BASKET_ABSOLUTE_MIN_Y_OFFSET = CoursePlacementConfig.Surface.PLAYER_RELATIVE_BASKET_ABSOLUTE_MIN_Y_OFFSET;
