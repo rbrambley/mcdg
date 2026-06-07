@@ -14,3 +14,8 @@ bin/
 *.launch
 .devin/
 .windsurf/
+
+# Temporary helper scripts and patches
+scripts/*.ps1
+water-gap-changes.patch
+net/
