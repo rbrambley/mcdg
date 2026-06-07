@@ -96,9 +96,9 @@ public final class MenuCommands {
         source.sendFeedback(() -> Text.literal("Admin").formatted(Formatting.RED, Formatting.BOLD), false);
         source.sendFeedback(() -> menuButton("Clear Waypoints", "/mcdg waypoint clear", Formatting.DARK_GRAY, true), false);
         source.sendFeedback(() -> menuButton("Cleanup Course", "/mcdg menu confirm-request cleanupcourse", Formatting.DARK_RED, true), false);
-        source.sendFeedback(() -> Text.literal("─ Crash Recovery ─").formatted(Formatting.DARK_GRAY), false);
-        source.sendFeedback(() -> menuButton("Crash Recovery Status", "/mcdg roundsession status", Formatting.DARK_GRAY, true), false);
-        source.sendFeedback(() -> menuButton("Clear Crash Recovery", "/mcdg roundsession clear", Formatting.DARK_GRAY, true), false);
+        source.sendFeedback(() -> Text.literal("─ Stuck Round ─").formatted(Formatting.DARK_GRAY), false);
+        source.sendFeedback(() -> menuButton("Stuck Round Status", "/mcdg roundsession status", Formatting.DARK_GRAY, true), false);
+        source.sendFeedback(() -> menuButton("Force Clear Stuck Round", "/mcdg roundsession clear", Formatting.DARK_RED, true), false);
         sendBackToMenu(source);
         return 1;
     }
@@ -141,9 +141,9 @@ public final class MenuCommands {
     }
 
     public static int executeMenuSession(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
-        source.sendFeedback(() -> Text.literal("Crash Recovery (Admin)").formatted(Formatting.DARK_GRAY, Formatting.BOLD), false);
-        source.sendFeedback(() -> menuButton("Crash Recovery Status", "/mcdg roundsession status", Formatting.DARK_GRAY, true), false);
-        source.sendFeedback(() -> menuButton("Clear Crash Recovery", "/mcdg roundsession clear", Formatting.DARK_GRAY, true), false);
+        source.sendFeedback(() -> Text.literal("Stuck Round (Admin)").formatted(Formatting.DARK_GRAY, Formatting.BOLD), false);
+        source.sendFeedback(() -> menuButton("Stuck Round Status", "/mcdg roundsession status", Formatting.DARK_GRAY, true), false);
+        source.sendFeedback(() -> menuButton("Force Clear Stuck Round", "/mcdg roundsession clear", Formatting.DARK_RED, true), false);
         sendBackToMenu(source);
         return 1;
     }

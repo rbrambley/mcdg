@@ -528,7 +528,10 @@ public final class McdgAdminCommands {
                                 .then(literal("clear")
                                         .executes(context -> SessionCommands.executeRoundSessionClear(
                                                 context.getSource(),
-                                                roundSessionStorage
+                                                roundSessionStorage,
+                                                courseManager,
+                                                roundStateManager,
+                                                practiceCourseStorage
                                         ))))
                         .then(literal("ruleset").requires(McdgAdminCommands::canUseAdminCommands)
                                 .executes(context -> RulesetCommands.executeShowRuleset(context.getSource(), rulesetManager))

@@ -301,12 +301,25 @@ public final class SessionCommands {
 
     public static int executeRoundSessionClear(
             ServerCommandSource source,
-            RoundSessionStorage roundSessionStorage
+            RoundSessionStorage roundSessionStorage,
+            ActiveCourseManager courseManager,
+            RoundStateManager roundStateManager,
+            PracticeCourseStorage practiceCourseStorage
     ) {
+        // Clear in-memory round state first so the autosave tick doesn't immediately recreate the file.
+        if (courseManager.isRoundActive() || courseManager.getActiveCourse().isPresent()) {
+            courseManager.setActiveCourse(null);
+            courseManager.clearPlacedCourseState();
+            courseManager.setActiveCourseCatalogIndex(null);
+            courseManager.setRoundActive(false);
+            roundStateManager.clearAll();
+            courseManager.setActiveParticipantIds(java.util.Set.of());
+            practiceCourseStorage.clear(source.getServer());
+        }
+        com.mcdg.game.HoleProgressTracker.resetAllState(source.getServer());
         roundSessionStorage.clear(source.getServer(), null);
         source.sendFeedback(() -> Text.literal(
-                "Cleared persisted round session snapshot."
-                        + " If a round is currently active, autosave may recreate it shortly."
+                "Round state and session file cleared. The world should return to normal."
         ), true);
         return 1;
     }
