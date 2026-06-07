@@ -166,7 +166,7 @@ public final class CoursePlacementService {
             // buildcourse: use origin directly so placement matches preview position exactly.
             anchor = resolveSurfacePos(world, origin.getX(), origin.getZ());
             projectedWaterRatio = estimateProjectedWaterRatio(world, course, anchor, courseBounds);
-            anchorBiome = biomeId(world.getBiome(anchor));
+            anchorBiome = PlacementUtils.biomeId(world.getBiome(anchor));
             McdgMod.LOGGER.info(
                     "Course anchor fixed (buildcourse) anchor=({}, {}, {}) biome={} projectedWaterRatio={}",
                     anchor.getX(), anchor.getY(), anchor.getZ(), anchorBiome,
@@ -176,7 +176,7 @@ public final class CoursePlacementService {
             for (int attempt = 1; attempt <= COURSE_ANCHOR_MAX_RETRIES; attempt++) {
                 anchor = findPreferredCourseAnchor(world, origin, course, courseBounds, rejectedAnchorKeys);
                 projectedWaterRatio = estimateProjectedWaterRatio(world, course, anchor, courseBounds);
-                anchorBiome = biomeId(world.getBiome(anchor));
+                anchorBiome = PlacementUtils.biomeId(world.getBiome(anchor));
                 McdgMod.LOGGER.info(
                         "Course anchor candidate attempt={}/{} anchor=({}, {}, {}) biome={} projectedWaterRatio={}",
                         attempt,
@@ -805,7 +805,7 @@ public final class CoursePlacementService {
         placePermanentLodgingSite(world, campCenter, side, back, originalBlocks, protectedPositions);
 
         BlockPos markerPos = campCenter.down();
-        setTrackedBlock(world, markerPos, CAMP_SITE_MARKER_BLOCK, originalBlocks);
+        PlacementUtils.setTrackedBlock(world, markerPos, CAMP_SITE_MARKER_BLOCK, originalBlocks);
         return new LodgingBuildResult(true, "Permanent lodging site built.", campCenter);
     }
 
@@ -1235,16 +1235,16 @@ public final class CoursePlacementService {
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
                 BlockPos pos = center.add(dx, 0, dz);
-                setTrackedBlock(world, pos, Blocks.SMOOTH_STONE.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, pos, Blocks.SMOOTH_STONE.getDefaultState(), originalBlocks);
             }
         }
-        setTrackedBlock(world, center, Blocks.LIME_CONCRETE.getDefaultState(), originalBlocks);
+        PlacementUtils.setTrackedBlock(world, center, Blocks.LIME_CONCRETE.getDefaultState(), originalBlocks);
     }
 
     private static void placeBasketMarker(ServerWorld world, BlockPos center, Map<BlockPos, BlockState> originalBlocks, int basketHeight) {
         BlockState ground = world.getBlockState(center);
         if (!isBasketGroundSafe(ground)) {
-            setTrackedBlock(world, center, Blocks.GRASS_BLOCK.getDefaultState(), originalBlocks);
+            PlacementUtils.setTrackedBlock(world, center, Blocks.GRASS_BLOCK.getDefaultState(), originalBlocks);
         }
 
         BlockPos base = center.up();
@@ -1252,16 +1252,16 @@ public final class CoursePlacementService {
         for (int i = 0; i <= basketHeight + 2; i++) {
             BlockPos markerPos = base.up(i);
             if (!world.getFluidState(markerPos).isEmpty()) {
-                setTrackedBlock(world, markerPos, Blocks.AIR.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, markerPos, Blocks.AIR.getDefaultState(), originalBlocks);
             }
         }
-        setTrackedBlock(world, base, Blocks.HOPPER.getDefaultState(), originalBlocks);
+        PlacementUtils.setTrackedBlock(world, base, Blocks.HOPPER.getDefaultState(), originalBlocks);
 
         for (int i = 1; i <= basketHeight + 1; i++) {
-            setTrackedBlock(world, base.up(i), Blocks.IRON_BARS.getDefaultState(), originalBlocks);
+            PlacementUtils.setTrackedBlock(world, base.up(i), Blocks.IRON_BARS.getDefaultState(), originalBlocks);
         }
 
-        setTrackedBlock(world, base.up(basketHeight + 2), Blocks.LANTERN.getDefaultState(), originalBlocks);
+        PlacementUtils.setTrackedBlock(world, base.up(basketHeight + 2), Blocks.LANTERN.getDefaultState(), originalBlocks);
     }
 
     private static boolean isBasketGroundSafe(BlockState state) {
@@ -1373,7 +1373,7 @@ public final class CoursePlacementService {
                         continue;
                     }
 
-                    setTrackedBlock(world, pathPos, pathState, originalBlocks);
+                    PlacementUtils.setTrackedBlock(world, pathPos, pathState, originalBlocks);
                 }
             }
 
@@ -1577,7 +1577,7 @@ public final class CoursePlacementService {
                 continue;
             }
 
-            setTrackedBlock(world, target, Blocks.AIR.getDefaultState(), originalBlocks);
+            PlacementUtils.setTrackedBlock(world, target, Blocks.AIR.getDefaultState(), originalBlocks);
             clearedTreeNodes.add(target.toImmutable());
         }
     }
@@ -1617,7 +1617,7 @@ public final class CoursePlacementService {
                 continue;
             }
 
-            setTrackedBlock(world, pos, Blocks.AIR.getDefaultState(), originalBlocks);
+            PlacementUtils.setTrackedBlock(world, pos, Blocks.AIR.getDefaultState(), originalBlocks);
             cleared++;
 
             for (int dx = -1; dx <= 1; dx++) {
@@ -1661,9 +1661,9 @@ public final class CoursePlacementService {
         int height = Math.max(1, postHeight);
         clearHeadroom(world, ground, 1, height + 2, originalBlocks, null);
         for (int i = 1; i <= height; i++) {
-            setTrackedBlock(world, ground.up(i), Blocks.OAK_FENCE.getDefaultState(), originalBlocks);
+            PlacementUtils.setTrackedBlock(world, ground.up(i), Blocks.OAK_FENCE.getDefaultState(), originalBlocks);
         }
-        setTrackedBlock(world, ground.up(height + 1), Blocks.LANTERN.getDefaultState(), originalBlocks);
+        PlacementUtils.setTrackedBlock(world, ground.up(height + 1), Blocks.LANTERN.getDefaultState(), originalBlocks);
     }
 
     private static void placeCourseCentralHub(
@@ -1689,7 +1689,7 @@ public final class CoursePlacementService {
         placeRegistrationDesk(world, hubSurface, side, back, originalBlocks, protectedPositions);
         placeMerchCanopy(world, hubSurface, side, back, originalBlocks, protectedPositions);
         placePracticeBaskets(world, hubSurface, side, back, originalBlocks, protectedPositions);
-        placeLeaderboardSign(world, hubSurface, side, back, courseName, originalBlocks, protectedPositions);
+        SignTextGenerator.placeLeaderboardSign(world, hubSurface, side, back, courseName, originalBlocks, protectedPositions);
 
         addProtectedColumnArea(protectedPositions, hubSurface, 9, 7);
     }
@@ -1704,19 +1704,19 @@ public final class CoursePlacementService {
     ) {
         for (int v = -3; v <= 8; v++) {
             for (int u = -8; u <= 8; u++) {
-                BlockPos pos = orientedOffset(hubSurface, side, back, u, v, 0);
+                BlockPos pos = PlacementUtils.orientedOffset(hubSurface, side, back, u, v, 0);
                 if (isProtected(protectedPositions, pos)) {
                     continue;
                 }
                 boolean rim = Math.abs(u) >= 8 || v <= -3 || v >= 8;
-                setTrackedBlock(world, pos, rim ? Blocks.POLISHED_ANDESITE.getDefaultState() : Blocks.SPRUCE_PLANKS.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, pos, rim ? Blocks.POLISHED_ANDESITE.getDefaultState() : Blocks.SPRUCE_PLANKS.getDefaultState(), originalBlocks);
             }
         }
 
         for (int step = 3; step <= 8; step++) {
             BlockPos walkway = hubSurface.add(-back[0] * step, 0, -back[1] * step);
             if (!isProtected(protectedPositions, walkway)) {
-                setTrackedBlock(world, walkway, Blocks.SMOOTH_STONE.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, walkway, Blocks.SMOOTH_STONE.getDefaultState(), originalBlocks);
             }
         }
     }
@@ -1729,13 +1729,13 @@ public final class CoursePlacementService {
             Map<BlockPos, BlockState> originalBlocks,
             Set<BlockPos> protectedPositions
     ) {
-        BlockPos deskOrigin = orientedOffset(hubSurface, side, back, -4, 0, 0);
+        BlockPos deskOrigin = PlacementUtils.orientedOffset(hubSurface, side, back, -4, 0, 0);
 
         for (int u = 0; u <= 4; u++) {
             for (int v = 0; v <= 1; v++) {
-                BlockPos top = orientedOffset(deskOrigin, side, back, u, v, 1);
+                BlockPos top = PlacementUtils.orientedOffset(deskOrigin, side, back, u, v, 1);
                 if (!isProtected(protectedPositions, top)) {
-                    setTrackedBlock(world, top, Blocks.SMOOTH_STONE_SLAB.getDefaultState(), originalBlocks);
+                    PlacementUtils.setTrackedBlock(world, top, Blocks.SMOOTH_STONE_SLAB.getDefaultState(), originalBlocks);
                 }
             }
         }
@@ -1744,9 +1744,9 @@ public final class CoursePlacementService {
                 {0, 0}, {4, 0}, {0, 1}, {4, 1}
         };
         for (int[] leg : legs) {
-            BlockPos legPos = orientedOffset(deskOrigin, side, back, leg[0], leg[1], 0);
+            BlockPos legPos = PlacementUtils.orientedOffset(deskOrigin, side, back, leg[0], leg[1], 0);
             if (!isProtected(protectedPositions, legPos)) {
-                setTrackedBlock(world, legPos, Blocks.OAK_FENCE.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, legPos, Blocks.OAK_FENCE.getDefaultState(), originalBlocks);
             }
         }
 
@@ -1754,9 +1754,9 @@ public final class CoursePlacementService {
                 {1, 0}, {2, 0}, {3, 0}
         };
         for (int[] terminal : terminals) {
-            BlockPos terminalPos = orientedOffset(deskOrigin, side, back, terminal[0], terminal[1], 2);
+            BlockPos terminalPos = PlacementUtils.orientedOffset(deskOrigin, side, back, terminal[0], terminal[1], 2);
             if (!isProtected(protectedPositions, terminalPos)) {
-                setTrackedBlock(world, terminalPos, Blocks.DAYLIGHT_DETECTOR.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, terminalPos, Blocks.DAYLIGHT_DETECTOR.getDefaultState(), originalBlocks);
             }
         }
     }
@@ -1769,13 +1769,13 @@ public final class CoursePlacementService {
             Map<BlockPos, BlockState> originalBlocks,
             Set<BlockPos> protectedPositions
     ) {
-        BlockPos canopyCenter = orientedOffset(hubSurface, side, back, 4, 2, 0);
+        BlockPos canopyCenter = PlacementUtils.orientedOffset(hubSurface, side, back, 4, 2, 0);
 
         for (int u = -2; u <= 2; u++) {
             for (int v = -2; v <= 2; v++) {
-                BlockPos roof = orientedOffset(canopyCenter, side, back, u, v, 4);
+                BlockPos roof = PlacementUtils.orientedOffset(canopyCenter, side, back, u, v, 4);
                 if (!isProtected(protectedPositions, roof)) {
-                    setTrackedBlock(world, roof, Blocks.WHITE_WOOL.getDefaultState(), originalBlocks);
+                    PlacementUtils.setTrackedBlock(world, roof, Blocks.WHITE_WOOL.getDefaultState(), originalBlocks);
                 }
             }
         }
@@ -1785,21 +1785,21 @@ public final class CoursePlacementService {
         };
         for (int[] post : posts) {
             for (int y = 1; y <= 3; y++) {
-                BlockPos postPos = orientedOffset(canopyCenter, side, back, post[0], post[1], y);
+                BlockPos postPos = PlacementUtils.orientedOffset(canopyCenter, side, back, post[0], post[1], y);
                 if (!isProtected(protectedPositions, postPos)) {
-                    setTrackedBlock(world, postPos, Blocks.OAK_FENCE.getDefaultState(), originalBlocks);
+                    PlacementUtils.setTrackedBlock(world, postPos, Blocks.OAK_FENCE.getDefaultState(), originalBlocks);
                 }
             }
         }
 
         for (int u = -1; u <= 1; u++) {
-            BlockPos merchTableA = orientedOffset(canopyCenter, side, back, u, -1, 1);
-            BlockPos merchTableB = orientedOffset(canopyCenter, side, back, u, 1, 1);
+            BlockPos merchTableA = PlacementUtils.orientedOffset(canopyCenter, side, back, u, -1, 1);
+            BlockPos merchTableB = PlacementUtils.orientedOffset(canopyCenter, side, back, u, 1, 1);
             if (!isProtected(protectedPositions, merchTableA)) {
-                setTrackedBlock(world, merchTableA, Blocks.BARREL.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, merchTableA, Blocks.BARREL.getDefaultState(), originalBlocks);
             }
             if (!isProtected(protectedPositions, merchTableB)) {
-                setTrackedBlock(world, merchTableB, Blocks.BARREL.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, merchTableB, Blocks.BARREL.getDefaultState(), originalBlocks);
             }
         }
     }
@@ -1812,17 +1812,17 @@ public final class CoursePlacementService {
             Map<BlockPos, BlockState> originalBlocks,
             Set<BlockPos> protectedPositions
     ) {
-        BlockPos leftPracticeTarget = orientedOffset(hubSurface, side, back, -7, 6, 0);
-        BlockPos rightPracticeTarget = orientedOffset(hubSurface, side, back, 7, 6, 0);
+        BlockPos leftPracticeTarget = PlacementUtils.orientedOffset(hubSurface, side, back, -7, 6, 0);
+        BlockPos rightPracticeTarget = PlacementUtils.orientedOffset(hubSurface, side, back, 7, 6, 0);
 
         BlockPos leftSurface = resolveSurfacePos(world, leftPracticeTarget.getX(), leftPracticeTarget.getZ());
         BlockPos rightSurface = resolveSurfacePos(world, rightPracticeTarget.getX(), rightPracticeTarget.getZ());
 
         if (isUnsafeSurface(world, leftSurface)) {
-            leftSurface = orientedOffset(hubSurface, side, back, -7, 6, 0);
+            leftSurface = PlacementUtils.orientedOffset(hubSurface, side, back, -7, 6, 0);
         }
         if (isUnsafeSurface(world, rightSurface)) {
-            rightSurface = orientedOffset(hubSurface, side, back, 7, 6, 0);
+            rightSurface = PlacementUtils.orientedOffset(hubSurface, side, back, 7, 6, 0);
         }
 
         clearHeadroom(world, leftSurface, 1, 6, originalBlocks, protectedPositions);
@@ -1833,36 +1833,6 @@ public final class CoursePlacementService {
         addProtectedColumnArea(protectedPositions, rightSurface, 1, 6);
     }
 
-    private static void placeLeaderboardSign(
-            ServerWorld world,
-            BlockPos hubSurface,
-            int[] side,
-            int[] back,
-            String courseName,
-            Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
-    ) {
-        // Place sign at the front edge of the deck (v=-2) where players walk in from the tee.
-        // The sign post sits on the deck surface so the readable face is at eye level.
-        BlockPos signGround = orientedOffset(hubSurface, side, back, 3, -2, 0);
-        clearHeadroom(world, signGround, 1, 3, originalBlocks, protectedPositions);
-        BlockPos signPos = signGround.up(1);
-        BlockState signState = Blocks.OAK_SIGN.getDefaultState();
-        setTrackedBlock(world, signPos, signState, originalBlocks);
-
-        if (world.getBlockEntity(signPos) instanceof SignBlockEntity signBlockEntity) {
-            SignText front = signBlockEntity.getFrontText();
-            String nameLine = courseName.length() > 13 ? courseName.substring(0, 13) : courseName;
-            SignText updated = front
-                    .withMessage(0, Text.literal(nameLine))
-                    .withMessage(1, Text.literal("Leaderboard"))
-                    .withMessage(2, Text.literal("Right-click"))
-                    .withMessage(3, Text.literal("to view scores"));
-            signBlockEntity.setText(updated, true);
-            signBlockEntity.setText(updated, false);
-            signBlockEntity.markDirty();
-        }
-    }
 
     private static void placePermanentLodgingSite(
             ServerWorld world,
@@ -1872,7 +1842,7 @@ public final class CoursePlacementService {
             Map<BlockPos, BlockState> originalBlocks,
             Set<BlockPos> protectedPositions
     ) {
-        BlockPos campSeed = orientedOffset(hubSurface, side, back, 0, 22, 0);
+        BlockPos campSeed = PlacementUtils.orientedOffset(hubSurface, side, back, 0, 22, 0);
         BlockPos campCenter = resolveCampSurfaceCenter(world, campSeed, originalBlocks, protectedPositions);
         buildCampCommons(world, campCenter, side, back, originalBlocks, protectedPositions);
 
@@ -1886,7 +1856,7 @@ public final class CoursePlacementService {
         };
 
         for (int i = 0; i < yurtOffsets.length; i++) {
-            BlockPos yurtSeed = orientedOffset(campCenter, side, back, yurtOffsets[i][0], yurtOffsets[i][1], 0);
+            BlockPos yurtSeed = PlacementUtils.orientedOffset(campCenter, side, back, yurtOffsets[i][0], yurtOffsets[i][1], 0);
             BlockPos yurtCenter = resolveCampSurfaceCenter(world, yurtSeed, originalBlocks, protectedPositions);
             clearHeadroom(world, yurtCenter, 5, 7, originalBlocks, protectedPositions);
             placePlayerYurt(world, yurtCenter, campCenter, i, originalBlocks, protectedPositions);
@@ -1894,25 +1864,25 @@ public final class CoursePlacementService {
 
         BlockPos poolCenter = resolveCampSurfaceCenter(
             world,
-            orientedOffset(campCenter, side, back, -28, 22, 0),
+            PlacementUtils.orientedOffset(campCenter, side, back, -28, 22, 0),
             originalBlocks,
             protectedPositions
         );
         BlockPos tennisCenter = resolveCampSurfaceCenter(
             world,
-            orientedOffset(campCenter, side, back, 28, 22, 0),
+            PlacementUtils.orientedOffset(campCenter, side, back, 28, 22, 0),
             originalBlocks,
             protectedPositions
         );
         BlockPos basketballCenter = resolveCampSurfaceCenter(
             world,
-            orientedOffset(campCenter, side, back, 0, 46, 0),
+            PlacementUtils.orientedOffset(campCenter, side, back, 0, 46, 0),
             originalBlocks,
             protectedPositions
         );
         BlockPos bathhouseCenter = resolveCampSurfaceCenter(
             world,
-            orientedOffset(campCenter, side, back, -28, 46, 0),
+            PlacementUtils.orientedOffset(campCenter, side, back, -28, 46, 0),
             originalBlocks,
             protectedPositions
         );
@@ -1953,14 +1923,14 @@ public final class CoursePlacementService {
                     continue;
                 }
 
-                BlockPos ground = orientedOffset(campCenter, side, back, u, v, 0);
+                BlockPos ground = PlacementUtils.orientedOffset(campCenter, side, back, u, v, 0);
                 if (isProtected(protectedPositions, ground)) {
                     continue;
                 }
                 BlockState material = distSq > 36
                         ? Blocks.POLISHED_ANDESITE.getDefaultState()
                         : Blocks.GRAVEL.getDefaultState();
-                setTrackedBlock(world, ground, material, originalBlocks);
+                PlacementUtils.setTrackedBlock(world, ground, material, originalBlocks);
             }
         }
 
@@ -1972,11 +1942,11 @@ public final class CoursePlacementService {
                 {2, -2}
         };
         for (int i = 0; i < fireOffsets.length; i++) {
-            BlockPos firePos = orientedOffset(campCenter, side, back, fireOffsets[i][0], fireOffsets[i][1], 0);
+            BlockPos firePos = PlacementUtils.orientedOffset(campCenter, side, back, fireOffsets[i][0], fireOffsets[i][1], 0);
             if (isProtected(protectedPositions, firePos)) {
                 continue;
             }
-            setTrackedBlock(world, firePos, i == 0 ? Blocks.SOUL_CAMPFIRE.getDefaultState() : Blocks.CAMPFIRE.getDefaultState(), originalBlocks);
+            PlacementUtils.setTrackedBlock(world, firePos, i == 0 ? Blocks.SOUL_CAMPFIRE.getDefaultState() : Blocks.CAMPFIRE.getDefaultState(), originalBlocks);
             addProtectedColumnArea(protectedPositions, firePos, 0, 4);
         }
     }
@@ -2018,16 +1988,16 @@ public final class CoursePlacementService {
         BlockState wall = wallMaterials[Math.floorMod(yurtIndex, wallMaterials.length)];
         BlockState bed = bedMaterials[Math.floorMod(yurtIndex, bedMaterials.length)];
 
-        Direction doorFacing = cardinalDirectionToward(yurtCenter, campCenter);
+        Direction doorFacing = PlacementUtils.cardinalDirectionToward(yurtCenter, campCenter);
         Direction interiorFacing = doorFacing.getOpposite();
-        int doorSide = directionToSideStep(doorFacing);
-        int doorForward = directionToForwardStep(doorFacing);
+        int doorSide = PlacementUtils.directionToSideStep(doorFacing);
+        int doorForward = PlacementUtils.directionToForwardStep(doorFacing);
 
         for (int u = -4; u <= 3; u++) {
             for (int v = -4; v <= 3; v++) {
                 BlockPos floorPos = yurtCenter.add(u, 0, v);
                 if (!isProtected(protectedPositions, floorPos)) {
-                    setTrackedBlock(world, floorPos, floor, originalBlocks);
+                    PlacementUtils.setTrackedBlock(world, floorPos, floor, originalBlocks);
                 }
 
                 boolean edge = u == -4 || u == 3 || v == -4 || v == 3;
@@ -2040,14 +2010,14 @@ public final class CoursePlacementService {
                     for (int y = 1; y <= 3; y++) {
                         BlockPos wallPos = yurtCenter.add(u, y, v);
                         if (!isProtected(protectedPositions, wallPos)) {
-                            setTrackedBlock(world, wallPos, wall, originalBlocks);
+                            PlacementUtils.setTrackedBlock(world, wallPos, wall, originalBlocks);
                         }
                     }
                 }
 
                 BlockPos roofPos = yurtCenter.add(u, 4, v);
                 if (!isProtected(protectedPositions, roofPos)) {
-                    setTrackedBlock(world, roofPos, Blocks.SPRUCE_SLAB.getDefaultState(), originalBlocks);
+                    PlacementUtils.setTrackedBlock(world, roofPos, Blocks.SPRUCE_SLAB.getDefaultState(), originalBlocks);
                 }
             }
         }
@@ -2056,28 +2026,28 @@ public final class CoursePlacementService {
             for (int v = -2; v <= 1; v++) {
                 BlockPos roofCrown = yurtCenter.add(u, 5, v);
                 if (!isProtected(protectedPositions, roofCrown)) {
-                    setTrackedBlock(world, roofCrown, wall, originalBlocks);
+                    PlacementUtils.setTrackedBlock(world, roofCrown, wall, originalBlocks);
                 }
             }
         }
 
         BlockPos lanternAnchor = yurtCenter.up(4);
         if (!isProtected(protectedPositions, lanternAnchor)) {
-            setTrackedBlock(world, lanternAnchor, Blocks.CHAIN.getDefaultState(), originalBlocks);
+            PlacementUtils.setTrackedBlock(world, lanternAnchor, Blocks.CHAIN.getDefaultState(), originalBlocks);
         }
         if (!isProtected(protectedPositions, lanternAnchor.down())) {
-            setTrackedBlock(world, lanternAnchor.down(), Blocks.LANTERN.getDefaultState(), originalBlocks);
+            PlacementUtils.setTrackedBlock(world, lanternAnchor.down(), Blocks.LANTERN.getDefaultState(), originalBlocks);
         }
 
-        int bedSide = Math.max(-2, Math.min(1, directionToSideStep(interiorFacing) * 2));
-        int bedForward = Math.max(-2, Math.min(1, directionToForwardStep(interiorFacing) * 2));
+        int bedSide = Math.max(-2, Math.min(1, PlacementUtils.directionToSideStep(interiorFacing) * 2));
+        int bedForward = Math.max(-2, Math.min(1, PlacementUtils.directionToForwardStep(interiorFacing) * 2));
         BlockPos bedFoot = yurtCenter.add(bedSide, 1, bedForward);
         if (!isProtected(protectedPositions, bedFoot)) {
-            setTrackedBlock(world, bedFoot, bed.with(Properties.HORIZONTAL_FACING, interiorFacing).with(Properties.BED_PART, BedPart.FOOT), originalBlocks);
+            PlacementUtils.setTrackedBlock(world, bedFoot, bed.with(Properties.HORIZONTAL_FACING, interiorFacing).with(Properties.BED_PART, BedPart.FOOT), originalBlocks);
         }
         BlockPos bedHead = bedFoot.offset(interiorFacing);
         if (!isProtected(protectedPositions, bedHead)) {
-            setTrackedBlock(world, bedHead, bed.with(Properties.HORIZONTAL_FACING, interiorFacing).with(Properties.BED_PART, BedPart.HEAD), originalBlocks);
+            PlacementUtils.setTrackedBlock(world, bedHead, bed.with(Properties.HORIZONTAL_FACING, interiorFacing).with(Properties.BED_PART, BedPart.HEAD), originalBlocks);
         }
 
         BlockPos chestPos = yurtCenter.add(-2, 1, -2);
@@ -2085,16 +2055,16 @@ public final class CoursePlacementService {
         BlockPos furnacePos = yurtCenter.add(-2, 1, 2);
         BlockPos smelterPos = yurtCenter.add(2, 1, 2);
         if (!isProtected(protectedPositions, chestPos)) {
-            setTrackedBlock(world, chestPos, yurtIndex % 2 == 0 ? Blocks.CHEST.getDefaultState() : Blocks.BARREL.getDefaultState(), originalBlocks);
+            PlacementUtils.setTrackedBlock(world, chestPos, yurtIndex % 2 == 0 ? Blocks.CHEST.getDefaultState() : Blocks.BARREL.getDefaultState(), originalBlocks);
         }
         if (!isProtected(protectedPositions, craftingPos)) {
-            setTrackedBlock(world, craftingPos, Blocks.CRAFTING_TABLE.getDefaultState(), originalBlocks);
+            PlacementUtils.setTrackedBlock(world, craftingPos, Blocks.CRAFTING_TABLE.getDefaultState(), originalBlocks);
         }
         if (!isProtected(protectedPositions, furnacePos)) {
-            setTrackedBlock(world, furnacePos, Blocks.FURNACE.getDefaultState(), originalBlocks);
+            PlacementUtils.setTrackedBlock(world, furnacePos, Blocks.FURNACE.getDefaultState(), originalBlocks);
         }
         if (!isProtected(protectedPositions, smelterPos)) {
-            setTrackedBlock(world, smelterPos, Blocks.BLAST_FURNACE.getDefaultState(), originalBlocks);
+            PlacementUtils.setTrackedBlock(world, smelterPos, Blocks.BLAST_FURNACE.getDefaultState(), originalBlocks);
         }
 
         placeYurtUniqueAccent(world, yurtCenter, yurtIndex, originalBlocks, protectedPositions);
@@ -2150,27 +2120,27 @@ public final class CoursePlacementService {
 
         for (int u = -7; u <= 7; u++) {
             for (int v = -5; v <= 5; v++) {
-                BlockPos floor = orientedOffset(poolCenter, side, back, u, v, -2);
+                BlockPos floor = PlacementUtils.orientedOffset(poolCenter, side, back, u, v, -2);
                 BlockPos mid = floor.up(1);
                 BlockPos top = floor.up(2);
                 if (!isProtected(protectedPositions, floor)) {
-                    setTrackedBlock(world, floor, Blocks.SMOOTH_QUARTZ.getDefaultState(), originalBlocks);
+                    PlacementUtils.setTrackedBlock(world, floor, Blocks.SMOOTH_QUARTZ.getDefaultState(), originalBlocks);
                 }
 
                 boolean edge = Math.abs(u) == 7 || Math.abs(v) == 5;
                 if (edge) {
                     if (!isProtected(protectedPositions, mid)) {
-                        setTrackedBlock(world, mid, Blocks.SMOOTH_QUARTZ.getDefaultState(), originalBlocks);
+                        PlacementUtils.setTrackedBlock(world, mid, Blocks.SMOOTH_QUARTZ.getDefaultState(), originalBlocks);
                     }
                     if (!isProtected(protectedPositions, top)) {
-                        setTrackedBlock(world, top, Blocks.SMOOTH_QUARTZ.getDefaultState(), originalBlocks);
+                        PlacementUtils.setTrackedBlock(world, top, Blocks.SMOOTH_QUARTZ.getDefaultState(), originalBlocks);
                     }
                 } else {
                     if (!isProtected(protectedPositions, mid)) {
-                        setTrackedBlock(world, mid, Blocks.WATER.getDefaultState(), originalBlocks);
+                        PlacementUtils.setTrackedBlock(world, mid, Blocks.WATER.getDefaultState(), originalBlocks);
                     }
                     if (!isProtected(protectedPositions, top)) {
-                        setTrackedBlock(world, top, Blocks.WATER.getDefaultState(), originalBlocks);
+                        PlacementUtils.setTrackedBlock(world, top, Blocks.WATER.getDefaultState(), originalBlocks);
                     }
                 }
             }
@@ -2203,24 +2173,24 @@ public final class CoursePlacementService {
 
         for (int u = -11; u <= 11; u++) {
             for (int v = -6; v <= 6; v++) {
-                BlockPos pos = orientedOffset(courtCenter, side, back, u, v, 0);
+                BlockPos pos = PlacementUtils.orientedOffset(courtCenter, side, back, u, v, 0);
                 if (isProtected(protectedPositions, pos)) {
                     continue;
                 }
 
                 boolean line = Math.abs(u) == 11 || Math.abs(v) == 6 || u == 0 || Math.abs(v) == 4;
-                setTrackedBlock(world, pos, line ? Blocks.WHITE_CONCRETE.getDefaultState() : Blocks.GREEN_CONCRETE.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, pos, line ? Blocks.WHITE_CONCRETE.getDefaultState() : Blocks.GREEN_CONCRETE.getDefaultState(), originalBlocks);
             }
         }
 
         for (int v = -6; v <= 6; v++) {
-            BlockPos netLeft = orientedOffset(courtCenter, side, back, -1, v, 1);
-            BlockPos netRight = orientedOffset(courtCenter, side, back, 1, v, 1);
+            BlockPos netLeft = PlacementUtils.orientedOffset(courtCenter, side, back, -1, v, 1);
+            BlockPos netRight = PlacementUtils.orientedOffset(courtCenter, side, back, 1, v, 1);
             if (!isProtected(protectedPositions, netLeft)) {
-                setTrackedBlock(world, netLeft, Blocks.IRON_BARS.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, netLeft, Blocks.IRON_BARS.getDefaultState(), originalBlocks);
             }
             if (!isProtected(protectedPositions, netRight)) {
-                setTrackedBlock(world, netRight, Blocks.IRON_BARS.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, netRight, Blocks.IRON_BARS.getDefaultState(), originalBlocks);
             }
         }
 
@@ -2251,13 +2221,13 @@ public final class CoursePlacementService {
 
         for (int u = -9; u <= 9; u++) {
             for (int v = -5; v <= 5; v++) {
-                BlockPos pos = orientedOffset(courtCenter, side, back, u, v, 0);
+                BlockPos pos = PlacementUtils.orientedOffset(courtCenter, side, back, u, v, 0);
                 if (isProtected(protectedPositions, pos)) {
                     continue;
                 }
 
                 boolean line = Math.abs(u) == 9 || Math.abs(v) == 5 || u == 0 || (Math.abs(u) == 6 && Math.abs(v) <= 2);
-                setTrackedBlock(world, pos, line ? Blocks.WHITE_CONCRETE.getDefaultState() : Blocks.ORANGE_CONCRETE.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, pos, line ? Blocks.WHITE_CONCRETE.getDefaultState() : Blocks.ORANGE_CONCRETE.getDefaultState(), originalBlocks);
             }
         }
 
@@ -2266,7 +2236,7 @@ public final class CoursePlacementService {
                 {8, 0}
         };
         for (int[] hoop : hoopOffsets) {
-            BlockPos base = orientedOffset(courtCenter, side, back, hoop[0], hoop[1], 0);
+            BlockPos base = PlacementUtils.orientedOffset(courtCenter, side, back, hoop[0], hoop[1], 0);
             for (int y = 1; y <= 4; y++) {
                 placeInteriorBlock(world, base.up(y), Blocks.IRON_BARS.getDefaultState(), originalBlocks, protectedPositions);
             }
@@ -2308,9 +2278,9 @@ public final class CoursePlacementService {
 
         for (int u = -9; u <= 9; u++) {
             for (int v = -6; v <= 6; v++) {
-                BlockPos floor = orientedOffset(bathCenter, side, back, u, v, 0);
+                BlockPos floor = PlacementUtils.orientedOffset(bathCenter, side, back, u, v, 0);
                 if (!isProtected(protectedPositions, floor)) {
-                    setTrackedBlock(world, floor, Blocks.SMOOTH_QUARTZ.getDefaultState(), originalBlocks);
+                    PlacementUtils.setTrackedBlock(world, floor, Blocks.SMOOTH_QUARTZ.getDefaultState(), originalBlocks);
                 }
 
                 boolean wall = Math.abs(u) == 9 || Math.abs(v) == 6;
@@ -2318,7 +2288,7 @@ public final class CoursePlacementService {
                     for (int y = 1; y <= 4; y++) {
                         BlockPos wallPos = floor.up(y);
                         if (!isProtected(protectedPositions, wallPos)) {
-                            setTrackedBlock(world, wallPos, Blocks.QUARTZ_BRICKS.getDefaultState(), originalBlocks);
+                            PlacementUtils.setTrackedBlock(world, wallPos, Blocks.QUARTZ_BRICKS.getDefaultState(), originalBlocks);
                         }
                     }
                 }
@@ -2326,7 +2296,7 @@ public final class CoursePlacementService {
                 if (!wall) {
                     BlockPos roof = floor.up(5);
                     if (!isProtected(protectedPositions, roof)) {
-                        setTrackedBlock(world, roof, Blocks.SMOOTH_QUARTZ_SLAB.getDefaultState(), originalBlocks);
+                        PlacementUtils.setTrackedBlock(world, roof, Blocks.SMOOTH_QUARTZ_SLAB.getDefaultState(), originalBlocks);
                     }
                 }
             }
@@ -2334,30 +2304,30 @@ public final class CoursePlacementService {
 
         for (int u = -1; u <= 1; u++) {
             for (int y = 1; y <= 3; y++) {
-                BlockPos doorPos = orientedOffset(bathCenter, side, back, u, -6, y);
+                BlockPos doorPos = PlacementUtils.orientedOffset(bathCenter, side, back, u, -6, y);
                 if (!isProtected(protectedPositions, doorPos)) {
-                    setTrackedBlock(world, doorPos, Blocks.AIR.getDefaultState(), originalBlocks);
+                    PlacementUtils.setTrackedBlock(world, doorPos, Blocks.AIR.getDefaultState(), originalBlocks);
                 }
             }
         }
 
         // Toilet row.
         for (int i = -6; i <= 6; i += 4) {
-            BlockPos toilet = orientedOffset(bathCenter, side, back, i, -3, 1);
+            BlockPos toilet = PlacementUtils.orientedOffset(bathCenter, side, back, i, -3, 1);
             placeInteriorBlock(world, toilet, Blocks.QUARTZ_STAIRS.getDefaultState().with(Properties.HORIZONTAL_FACING, Direction.NORTH), originalBlocks, protectedPositions);
             placeInteriorBlock(world, toilet.up(), Blocks.OAK_TRAPDOOR.getDefaultState(), originalBlocks, protectedPositions);
         }
 
         // Sink row.
         for (int i = -6; i <= 6; i += 4) {
-            BlockPos sink = orientedOffset(bathCenter, side, back, i, 0, 1);
+            BlockPos sink = PlacementUtils.orientedOffset(bathCenter, side, back, i, 0, 1);
             placeInteriorBlock(world, sink, Blocks.CAULDRON.getDefaultState(), originalBlocks, protectedPositions);
             placeInteriorBlock(world, sink.up(), Blocks.IRON_TRAPDOOR.getDefaultState(), originalBlocks, protectedPositions);
         }
 
         // Shower bays.
         for (int i = -6; i <= 6; i += 4) {
-            BlockPos showerBase = orientedOffset(bathCenter, side, back, i, 3, 1);
+            BlockPos showerBase = PlacementUtils.orientedOffset(bathCenter, side, back, i, 3, 1);
             placeInteriorBlock(world, showerBase, Blocks.SMOOTH_QUARTZ.getDefaultState(), originalBlocks, protectedPositions);
             placeInteriorBlock(world, showerBase.up(3), Blocks.WATER.getDefaultState(), originalBlocks, protectedPositions);
             placeInteriorBlock(world, showerBase.up(2), Blocks.IRON_BARS.getDefaultState(), originalBlocks, protectedPositions);
@@ -2376,7 +2346,7 @@ public final class CoursePlacementService {
         if (isProtected(protectedPositions, pos)) {
             return;
         }
-        setTrackedBlock(world, pos, state, originalBlocks);
+        PlacementUtils.setTrackedBlock(world, pos, state, originalBlocks);
     }
 
     private static void placeFacilityLights(
@@ -2390,7 +2360,7 @@ public final class CoursePlacementService {
             Set<BlockPos> protectedPositions
     ) {
         for (int[] offset : offsets) {
-            BlockPos lightSeed = orientedOffset(center, side, back, offset[0], offset[1], 0);
+            BlockPos lightSeed = PlacementUtils.orientedOffset(center, side, back, offset[0], offset[1], 0);
             BlockPos lightGround = ensureLandIslandSurface(
                     world,
                     resolveSurfacePos(world, lightSeed.getX(), lightSeed.getZ()),
@@ -2403,30 +2373,8 @@ public final class CoursePlacementService {
         }
     }
 
-    private static Direction cardinalDirectionToward(BlockPos from, BlockPos to) {
-        int dx = to.getX() - from.getX();
-        int dz = to.getZ() - from.getZ();
-        if (Math.abs(dx) >= Math.abs(dz)) {
-            return dx >= 0 ? Direction.EAST : Direction.WEST;
-        }
-        return dz >= 0 ? Direction.SOUTH : Direction.NORTH;
-    }
 
-    private static int directionToSideStep(Direction direction) {
-        return switch (direction) {
-            case WEST -> -4;
-            case EAST -> 3;
-            default -> 0;
-        };
-    }
 
-    private static int directionToForwardStep(Direction direction) {
-        return switch (direction) {
-            case NORTH -> -4;
-            case SOUTH -> 3;
-            default -> 0;
-        };
-    }
 
     private static boolean hasNearbyCampSiteMarker(ServerWorld world, BlockPos center, int searchRadius) {
         for (int dx = -searchRadius; dx <= searchRadius; dx += CAMP_SITE_SCAN_STEP) {
@@ -2470,11 +2418,6 @@ public final class CoursePlacementService {
         return safePercent >= CAMP_SITE_MIN_SAFE_PERCENT;
     }
 
-    private static BlockPos orientedOffset(BlockPos origin, int[] side, int[] forward, int sideSteps, int forwardSteps, int yOffset) {
-        int x = origin.getX() + (side[0] * sideSteps) + (forward[0] * forwardSteps);
-        int z = origin.getZ() + (side[1] * sideSteps) + (forward[1] * forwardSteps);
-        return new BlockPos(x, origin.getY() + yOffset, z);
-    }
 
     private static void placeTeeHoleBanner(
             ServerWorld world,
@@ -2496,14 +2439,14 @@ public final class CoursePlacementService {
         BlockPos bannerGround = teeCenter.add(forward[0] + right[0], 0, forward[1] + right[1]);
 
         clearHeadroom(world, bannerGround, 1, 4, originalBlocks, null);
-        setTrackedBlock(world, bannerGround.up(1), Blocks.OAK_FENCE.getDefaultState(), originalBlocks);
+        PlacementUtils.setTrackedBlock(world, bannerGround.up(1), Blocks.OAK_FENCE.getDefaultState(), originalBlocks);
         BlockPos bannerPos = bannerGround.up(2);
-        setTrackedBlock(world, bannerPos, Blocks.WHITE_BANNER.getDefaultState(), originalBlocks);
+        PlacementUtils.setTrackedBlock(world, bannerPos, Blocks.WHITE_BANNER.getDefaultState(), originalBlocks);
         String hazardNote = teeHazardNote(world, teeCenter, basketSurface);
         String noteToShow = signatureName.isEmpty()
                 ? (routeNote.isEmpty() ? hazardNote : routeNote)
                 : "\u2605 " + signatureName;
-        placeTeeHoleSign(
+        SignTextGenerator.placeTeeHoleSign(
             world,
             signGround,
             -forward[0],
@@ -2526,38 +2469,6 @@ public final class CoursePlacementService {
         return new int[] { 0, Integer.compare(dz, 0) };
     }
 
-    private static void placeTeeHoleSign(
-            ServerWorld world,
-            BlockPos signGround,
-            int faceDirX,
-            int faceDirZ,
-            int holeNumber,
-            int par,
-            int distanceFeet,
-            boolean signatureHole,
-            String hazardNote,
-            Map<BlockPos, BlockState> originalBlocks
-    ) {
-        clearHeadroom(world, signGround, 0, 3, originalBlocks, null);
-        BlockPos signPos = signGround.up(1);
-        BlockState signState = Blocks.OAK_SIGN
-                .getDefaultState()
-            .with(Properties.ROTATION, standingSignRotationForCardinal(faceDirX, faceDirZ));
-        setTrackedBlock(world, signPos, signState, originalBlocks);
-
-        if (world.getBlockEntity(signPos) instanceof SignBlockEntity signBlockEntity) {
-            SignText front = signBlockEntity.getFrontText();
-            String holeLine = signatureHole ? ("SIG H" + holeNumber) : ("Hole " + holeNumber);
-            SignText updated = front
-                    .withMessage(0, Text.literal(holeLine))
-                    .withMessage(1, Text.literal("Par " + par))
-                    .withMessage(2, Text.literal(distanceFeet + " ft"))
-                    .withMessage(3, Text.literal(hazardNote));
-            signBlockEntity.setText(updated, true);
-            signBlockEntity.setText(updated, false);
-            signBlockEntity.markDirty();
-        }
-    }
 
     private static void placeSignatureBasketAccents(
             ServerWorld world,
@@ -2577,7 +2488,7 @@ public final class CoursePlacementService {
                 if (isProtected(protectedPositions, ringPos)) {
                     continue;
                 }
-                setTrackedBlock(world, ringPos, Blocks.YELLOW_CONCRETE.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, ringPos, Blocks.YELLOW_CONCRETE.getDefaultState(), originalBlocks);
                 addProtectedColumnArea(protectedPositions, ringPos, 0, 3);
             }
         }
@@ -2689,42 +2600,21 @@ public final class CoursePlacementService {
         return isTallVegetationObstacle(state);
     }
 
-    private static int standingSignRotationForCardinal(int dirX, int dirZ) {
-        if (dirX == 0 && dirZ == 0) {
-            return 0;
-        }
-
-        if (dirX == 0 && dirZ > 0) {
-            return 0; // south
-        }
-        if (dirX < 0 && dirZ == 0) {
-            return 4; // west
-        }
-        if (dirX == 0 && dirZ < 0) {
-            return 8; // north
-        }
-        if (dirX > 0 && dirZ == 0) {
-            return 12; // east
-        }
-
-        // Fallback for unexpected non-cardinal vectors.
-        return 0;
-    }
 
     private static int tunedPathRadius(ServerWorld world, BlockPos pos, int baseRadius) {
         RegistryEntry<Biome> biome = world.getBiome(pos);
-        String biomeId = biomeId(biome);
+        String biomeId = PlacementUtils.biomeId(biome);
 
         if (biome.isIn(BiomeTags.IS_MOUNTAIN) || biome.isIn(BiomeTags.IS_HILL)) {
             return Math.max(1, baseRadius - 1);
         }
-        if (isBiome(biomeId, "desert", "badlands", "eroded_badlands", "wooded_badlands")) {
+        if (PlacementUtils.isBiome(biomeId, "desert", "badlands", "eroded_badlands", "wooded_badlands")) {
             return Math.max(1, baseRadius + 1);
         }
         if (biome.isIn(BiomeTags.IS_FOREST) || biome.isIn(BiomeTags.IS_JUNGLE)) {
             return Math.max(1, baseRadius + 1);
         }
-        if (isBiome(biomeId, "savanna", "windswept_savanna", "plains", "sunflower_plains")) {
+        if (PlacementUtils.isBiome(biomeId, "savanna", "windswept_savanna", "plains", "sunflower_plains")) {
             return Math.max(1, baseRadius + 1);
         }
 
@@ -2733,18 +2623,18 @@ public final class CoursePlacementService {
 
     private static BlockState selectPathMaterial(ServerWorld world, BlockPos pos) {
         RegistryEntry<Biome> biome = world.getBiome(pos);
-        String biomeId = biomeId(biome);
+        String biomeId = PlacementUtils.biomeId(biome);
 
         if (biome.isIn(BiomeTags.IS_MOUNTAIN) || biome.isIn(BiomeTags.IS_HILL)) {
             return Blocks.GRAVEL.getDefaultState();
         }
-        if (isBiome(biomeId, "desert")) {
+        if (PlacementUtils.isBiome(biomeId, "desert")) {
             return Blocks.SANDSTONE.getDefaultState();
         }
-        if (isBiome(biomeId, "badlands", "eroded_badlands", "wooded_badlands")) {
+        if (PlacementUtils.isBiome(biomeId, "badlands", "eroded_badlands", "wooded_badlands")) {
             return Blocks.RED_SANDSTONE.getDefaultState();
         }
-        if (isBiome(
+        if (PlacementUtils.isBiome(
                 biomeId,
                 "snowy_plains",
                 "snowy_taiga",
@@ -2766,22 +2656,7 @@ public final class CoursePlacementService {
         return Blocks.DIRT_PATH.getDefaultState();
     }
 
-    private static String biomeId(RegistryEntry<Biome> biome) {
-        RegistryKey<Biome> key = biome.getKey().orElse(null);
-        if (key == null) {
-            return "";
-        }
-        return key.getValue().getPath();
-    }
 
-    private static boolean isBiome(String biomeId, String... names) {
-        for (String name : names) {
-            if (biomeId.equals(name)) {
-                return true;
-            }
-        }
-        return false;
-    }
 
     /**
      * Ensures the given position is on safe, walkable land.
@@ -2828,7 +2703,7 @@ public final class CoursePlacementService {
                     }
                     BlockState fillState = world.getBlockState(fillPos);
                     if (isFillReplaceable(fillState)) {
-                        setTrackedBlock(world, fillPos, Blocks.DIRT.getDefaultState(), originalBlocks);
+                        PlacementUtils.setTrackedBlock(world, fillPos, Blocks.DIRT.getDefaultState(), originalBlocks);
                     }
                 }
                 // Grass on top.
@@ -2838,7 +2713,7 @@ public final class CoursePlacementService {
                 }
                 BlockState topState = world.getBlockState(topPos);
                 if (isFillReplaceable(topState)) {
-                    setTrackedBlock(world, topPos, Blocks.GRASS_BLOCK.getDefaultState(), originalBlocks);
+                    PlacementUtils.setTrackedBlock(world, topPos, Blocks.GRASS_BLOCK.getDefaultState(), originalBlocks);
                 }
             }
         }
@@ -2879,7 +2754,7 @@ public final class CoursePlacementService {
                     }
                     BlockState fillState = world.getBlockState(fillPos);
                     if (isFillReplaceable(fillState)) {
-                        setTrackedBlock(world, fillPos, Blocks.DIRT.getDefaultState(), originalBlocks);
+                        PlacementUtils.setTrackedBlock(world, fillPos, Blocks.DIRT.getDefaultState(), originalBlocks);
                     }
                 }
 
@@ -2889,7 +2764,7 @@ public final class CoursePlacementService {
                 }
                 BlockState topState = world.getBlockState(topPos);
                 if (isFillReplaceable(topState)) {
-                    setTrackedBlock(world, topPos, Blocks.GRASS_BLOCK.getDefaultState(), originalBlocks);
+                    PlacementUtils.setTrackedBlock(world, topPos, Blocks.GRASS_BLOCK.getDefaultState(), originalBlocks);
                 }
             }
         }
@@ -2953,7 +2828,7 @@ public final class CoursePlacementService {
                     if (isProtected(protectedPositions, fillPos)) { continue; }
                     BlockState fillState = world.getBlockState(fillPos);
                     if (isFillReplaceable(fillState)) {
-                        setTrackedBlock(world, fillPos, Blocks.DIRT.getDefaultState(), originalBlocks);
+                        PlacementUtils.setTrackedBlock(world, fillPos, Blocks.DIRT.getDefaultState(), originalBlocks);
                     }
                 }
 
@@ -2962,7 +2837,7 @@ public final class CoursePlacementService {
                 BlockState surfaceState = world.getBlockState(surfacePos);
                 if (isFillReplaceable(surfaceState)) {
                     BlockState newSurface = isEdge ? Blocks.SAND.getDefaultState() : Blocks.GRASS_BLOCK.getDefaultState();
-                    setTrackedBlock(world, surfacePos, newSurface, originalBlocks);
+                    PlacementUtils.setTrackedBlock(world, surfacePos, newSurface, originalBlocks);
                 }
             }
         }
@@ -3613,11 +3488,11 @@ public final class CoursePlacementService {
                     ensureWaterLandingSurface(world, center, 1, originalBlocks, protectedPositions);
                 }
 
-                setTrackedBlock(world, center, Blocks.GRASS_BLOCK.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, center, Blocks.GRASS_BLOCK.getDefaultState(), originalBlocks);
 
                 BlockPos below = center.down();
                 if (!world.getBlockState(below).isSolidBlock(world, below) || !world.getBlockState(below).getFluidState().isEmpty()) {
-                    setTrackedBlock(world, below, Blocks.DIRT.getDefaultState(), originalBlocks);
+                    PlacementUtils.setTrackedBlock(world, below, Blocks.DIRT.getDefaultState(), originalBlocks);
                 }
 
                 int localSurfaceY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z) - 1;
@@ -3631,7 +3506,7 @@ public final class CoursePlacementService {
                     if (state.isAir() && state.getFluidState().isEmpty()) {
                         continue;
                     }
-                    setTrackedBlock(world, clearPos, Blocks.AIR.getDefaultState(), originalBlocks);
+                    PlacementUtils.setTrackedBlock(world, clearPos, Blocks.AIR.getDefaultState(), originalBlocks);
                 }
             }
         }
@@ -3859,7 +3734,7 @@ public final class CoursePlacementService {
     }
 
     private static boolean isWaterBiome(ServerWorld world, BlockPos pos) {
-        String id = biomeId(world.getBiome(pos));
+        String id = PlacementUtils.biomeId(world.getBiome(pos));
         return id.contains("ocean") || id.contains("river") || id.contains("beach");
     }
 
@@ -3962,7 +3837,7 @@ public final class CoursePlacementService {
         return state.getBlock() instanceof PlantBlock;
     }
 
-    private static void clearHeadroom(
+    static void clearHeadroom(
             ServerWorld world,
             BlockPos center,
             int radius,
@@ -3987,7 +3862,7 @@ public final class CoursePlacementService {
                     if (state.isAir() && state.getFluidState().isEmpty()) {
                         continue;
                     }
-                    setTrackedBlock(world, target, Blocks.AIR.getDefaultState(), originalBlocks);
+                    PlacementUtils.setTrackedBlock(world, target, Blocks.AIR.getDefaultState(), originalBlocks);
                 }
             }
         }
@@ -4036,7 +3911,7 @@ public final class CoursePlacementService {
                         }
                         BlockState obstruction = world.getBlockState(obstructionPos);
                         if (isTeeLaunchObstruction(obstruction)) {
-                            setTrackedBlock(world, obstructionPos, Blocks.AIR.getDefaultState(), originalBlocks);
+                            PlacementUtils.setTrackedBlock(world, obstructionPos, Blocks.AIR.getDefaultState(), originalBlocks);
                         }
                     }
                 }
@@ -4123,14 +3998,4 @@ public final class CoursePlacementService {
                 || state.isOf(Blocks.TWISTING_VINES_PLANT);
     }
 
-    private static void setTrackedBlock(ServerWorld world, BlockPos pos, BlockState newState, Map<BlockPos, BlockState> originalBlocks) {
-        BlockPos immutablePos = pos.toImmutable();
-        BlockState current = world.getBlockState(immutablePos);
-        if (current.equals(newState)) {
-            return;
-        }
-
-        originalBlocks.computeIfAbsent(immutablePos, p -> current);
-        world.setBlockState(immutablePos, newState, Block.NOTIFY_ALL);
-    }
 }
