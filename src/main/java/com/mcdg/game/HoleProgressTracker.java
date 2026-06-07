@@ -47,16 +47,11 @@ public final class HoleProgressTracker {
     private static final int BASKET_GREEN_RADIUS_BLOCKS = 7;
     private static final int BASKET_GREEN_HEIGHT_BLOCKS = 8;
     // Proximity make radius: flat putts within this distance that hit the basket column count as makes
-    private static final int TURN_TIMEOUT_TICKS = 20 * 120;
     // Temporary safety rollback: keep core throw/lie flow stable while strict landing penalties are reworked.
     private static final HudStateFormatter HUD_STATE_FORMATTER = new HudStateFormatter();
     private static final Map<UUID, Map<BlockPos, LieMarkerState>> LIE_MARKER_HISTORY = new HashMap<>();
     private static final Map<UUID, Map<Integer, Integer>> HOLE_SCORE_HISTORY = new HashMap<>();
-    private static final Map<UUID, Integer> HOLE_ONE_RANDOM_ORDER = new HashMap<>();
-    private static final Map<Integer, UUID> ACTIVE_TURN_PLAYER_BY_HOLE = new HashMap<>();
-    private static final Map<Integer, Long> ACTIVE_TURN_STARTED_AT_BY_HOLE = new HashMap<>();
-    private static final Map<Integer, Integer> ACTIVE_TURN_TOTAL_STROKES_BY_HOLE = new HashMap<>();
-    private static final Map<Integer, UUID> TURN_SKIP_ONCE_BY_HOLE = new HashMap<>();
+    static final Map<UUID, Integer> HOLE_ONE_RANDOM_ORDER = new HashMap<>();
     private static final Map<UUID, BlockPos> LAST_LIE_POSITION = new HashMap<>();
     private static final Map<UUID, BlockPos> LAST_BREADCRUMB_POSITION = new HashMap<>();
     private static final Map<UUID, Integer> CACHED_CORRIDOR_HALF_WIDTH = new HashMap<>();
@@ -81,10 +76,7 @@ public final class HoleProgressTracker {
                     ROUND_WAS_ACTIVE = false;
         ThrowResolver.reset();
                     HOLE_ONE_RANDOM_ORDER.clear();
-                    ACTIVE_TURN_PLAYER_BY_HOLE.clear();
-                    ACTIVE_TURN_STARTED_AT_BY_HOLE.clear();
-                    ACTIVE_TURN_TOTAL_STROKES_BY_HOLE.clear();
-                    TURN_SKIP_ONCE_BY_HOLE.clear();
+        TurnManager.reset();
                     LAST_LIE_POSITION.clear();
                     LAST_BREADCRUMB_POSITION.clear();
                     CACHED_CORRIDOR_HALF_WIDTH.clear();
@@ -109,7 +101,7 @@ public final class HoleProgressTracker {
 
             Map<UUID, PlayerRoundState> snapshot = roundStateManager.snapshotStates();
             ensureHoleOneRandomOrder(snapshot);
-            enforceTurnTimeouts(server, courseManager, roundStateManager, course, placed, snapshot);
+            TurnManager.enforceTurnTimeouts(server, courseManager, roundStateManager, course, placed, snapshot);
             maybeSendRunningScoreboard(server, courseManager, course, placed, roundStateManager, snapshot);
             for (Map.Entry<UUID, PlayerRoundState> entry : snapshot.entrySet()) {
                 ServerPlayerEntity player = server.getPlayerManager().getPlayer(entry.getKey());
@@ -233,7 +225,7 @@ public final class HoleProgressTracker {
                 }
 
                 if ((server.getTicks() % 20) == 0) {
-                    sendTurnActionBar(server, player, state.currentHole());
+                    TurnManager.sendTurnActionBar(server, player, state.currentHole());
                 }
 
                 // Score completion only from the resolved lie, so walking into the basket does not count.
@@ -319,7 +311,7 @@ public final class HoleProgressTracker {
 
         Map<UUID, PlayerRoundState> snapshot = roundStateManager.snapshotStates();
         ensureHoleOneRandomOrder(snapshot);
-        UUID expectedPlayer = determineExpectedTurnPlayer(
+        UUID expectedPlayer = TurnManager.determineExpectedTurnPlayer(
                 player.getServer(),
                 roundStateManager,
                 courseManager,
@@ -419,119 +411,8 @@ public final class HoleProgressTracker {
         return par;
     }
 
-    private static void sendTurnActionBar(MinecraftServer server, ServerPlayerEntity viewer, int hole) {
-        UUID activeTurnPlayerId = ACTIVE_TURN_PLAYER_BY_HOLE.get(hole);
-        if (activeTurnPlayerId == null) {
-            return;
-        }
 
-        long startedAt = ACTIVE_TURN_STARTED_AT_BY_HOLE.getOrDefault(hole, (long) server.getTicks());
-        long elapsedTicks = Math.max(0, server.getTicks() - startedAt);
-        long remainingTicks = Math.max(0, TURN_TIMEOUT_TICKS - elapsedTicks);
-        long remainingSeconds = (remainingTicks + 19) / 20;
 
-        ServerPlayerEntity activeTurnPlayer = server.getPlayerManager().getPlayer(activeTurnPlayerId);
-        String timer = formatTurnTimer(remainingSeconds);
-        if (activeTurnPlayerId.equals(viewer.getUuid())) {
-            viewer.sendMessage(Text.literal("Your turn | " + timer + " left"), true);
-            return;
-        }
-
-        String throwerName = activeTurnPlayer == null
-                ? "Player"
-                : activeTurnPlayer.getGameProfile().getName();
-        viewer.sendMessage(Text.literal("Turn: " + throwerName + " | " + timer + " left"), true);
-    }
-
-    private static String formatTurnTimer(long remainingSeconds) {
-        long clamped = Math.max(0, remainingSeconds);
-        long minutes = clamped / 60;
-        long seconds = clamped % 60;
-        return String.format("%d:%02d", minutes, seconds);
-    }
-
-    private static void enforceTurnTimeouts(
-            MinecraftServer server,
-            ActiveCourseManager courseManager,
-            RoundStateManager roundStateManager,
-            Course course,
-            PlacedCourseState placed,
-            Map<UUID, PlayerRoundState> snapshot
-    ) {
-        Map<Integer, UUID> updatedActiveByHole = new HashMap<>();
-        Map<Integer, Long> updatedStartedAtByHole = new HashMap<>();
-        Map<Integer, Integer> updatedTurnTotalByHole = new HashMap<>();
-
-        for (Map.Entry<UUID, PlayerRoundState> entry : snapshot.entrySet()) {
-            ServerPlayerEntity player = server.getPlayerManager().getPlayer(entry.getKey());
-            if (player == null || player.getWorld().getRegistryKey() != placed.worldKey()) {
-                continue;
-            }
-            int hole = entry.getValue().currentHole();
-            updatedActiveByHole.putIfAbsent(hole, null);
-        }
-
-        for (Integer hole : new ArrayList<>(updatedActiveByHole.keySet())) {
-            UUID expected = determineExpectedTurnPlayer(server, roundStateManager, courseManager, snapshot, hole, placed, TURN_SKIP_ONCE_BY_HOLE.get(hole));
-            if (expected == null) {
-                continue;
-            }
-
-            UUID active = ACTIVE_TURN_PLAYER_BY_HOLE.get(hole);
-            PlayerRoundState expectedState = snapshot.get(expected);
-            if (expectedState == null) {
-                continue;
-            }
-
-            int expectedTotal = expectedState.totalStrokes();
-            long now = server.getTicks();
-            long startedAt = ACTIVE_TURN_STARTED_AT_BY_HOLE.getOrDefault(hole, now);
-            int trackedTotal = ACTIVE_TURN_TOTAL_STROKES_BY_HOLE.getOrDefault(hole, expectedTotal);
-
-            if (!expected.equals(active)) {
-                startedAt = now;
-                trackedTotal = expectedTotal;
-            } else if (expectedTotal != trackedTotal) {
-                startedAt = now;
-                trackedTotal = expectedTotal;
-            }
-
-            if ((now - startedAt) >= TURN_TIMEOUT_TICKS) {
-                applyTurnTimeoutPenalty(server, roundStateManager, expected, expectedState, placed);
-                TURN_SKIP_ONCE_BY_HOLE.put(hole, expected);
-
-                Map<UUID, PlayerRoundState> refreshedSnapshot = roundStateManager.snapshotStates();
-                UUID nextExpected = determineExpectedTurnPlayer(server, roundStateManager, courseManager, refreshedSnapshot, hole, placed, expected);
-                if (nextExpected != null && !nextExpected.equals(expected)) {
-                    active = nextExpected;
-                    PlayerRoundState nextState = refreshedSnapshot.get(nextExpected);
-                    trackedTotal = nextState == null ? 0 : nextState.totalStrokes();
-                    startedAt = now;
-                    TURN_SKIP_ONCE_BY_HOLE.remove(hole);
-                } else {
-                    active = expected;
-                    PlayerRoundState refreshedExpected = refreshedSnapshot.get(expected);
-                    trackedTotal = refreshedExpected == null ? trackedTotal : refreshedExpected.totalStrokes();
-                    startedAt = now;
-                }
-            } else {
-                active = expected;
-            }
-
-            if (active != null) {
-                updatedActiveByHole.put(hole, active);
-                updatedStartedAtByHole.put(hole, startedAt);
-                updatedTurnTotalByHole.put(hole, trackedTotal);
-            }
-        }
-
-        ACTIVE_TURN_PLAYER_BY_HOLE.clear();
-        ACTIVE_TURN_PLAYER_BY_HOLE.putAll(updatedActiveByHole);
-        ACTIVE_TURN_STARTED_AT_BY_HOLE.clear();
-        ACTIVE_TURN_STARTED_AT_BY_HOLE.putAll(updatedStartedAtByHole);
-        ACTIVE_TURN_TOTAL_STROKES_BY_HOLE.clear();
-        ACTIVE_TURN_TOTAL_STROKES_BY_HOLE.putAll(updatedTurnTotalByHole);
-    }
 
     private static void maybeSendRunningScoreboard(
             MinecraftServer server,
@@ -686,114 +567,10 @@ public final class HoleProgressTracker {
         }
     }
 
-    private static void applyTurnTimeoutPenalty(
-            MinecraftServer server,
-            RoundStateManager roundStateManager,
-            UUID playerId,
-            PlayerRoundState state,
-            PlacedCourseState placed
-    ) {
-        roundStateManager.applyPenaltyStrokes(playerId, 1);
 
-        BlockPos tee = placed.holeTees().get(state.currentHole());
-        if (tee != null) {
-            ServerWorld world = server.getWorld(placed.worldKey());
-            if (world != null) {
-                BlockPos safeTee = resolveSafeFeetNear(world, tee);
-                roundStateManager.updateLie(playerId, safeTee);
-                ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
-                if (player != null && player.getWorld().getRegistryKey() == placed.worldKey()) {
-                    player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
-                    player.sendMessage(Text.literal("Turn timeout: +1 stroke. Reset to tee, turn passed."), true);
-                }
-            }
-        }
-    }
 
-    private static UUID determineExpectedTurnPlayer(
-            MinecraftServer server,
-            RoundStateManager roundStateManager,
-            ActiveCourseManager courseManager,
-            Map<UUID, PlayerRoundState> snapshot,
-            int hole,
-            PlacedCourseState placed,
-            UUID skipCandidate
-    ) {
-        BlockPos basket = placed.holeBaskets().get(hole);
-        if (basket == null) {
-            return null;
-        }
 
-        List<UUID> eligible = new ArrayList<>();
-        for (Map.Entry<UUID, PlayerRoundState> entry : snapshot.entrySet()) {
-            if (entry.getValue().currentHole() != hole) {
-                continue;
-            }
-            ServerPlayerEntity player = server.getPlayerManager().getPlayer(entry.getKey());
-            if (player == null || player.getWorld().getRegistryKey() != placed.worldKey()) {
-                continue;
-            }
-            if (!courseManager.getActiveParticipantIds().contains(entry.getKey())) {
-                continue;
-            }
-            eligible.add(entry.getKey());
-        }
-
-        if (eligible.isEmpty()) {
-            return null;
-        }
-
-        List<UUID> teePlayers = new ArrayList<>();
-        for (UUID playerId : eligible) {
-            PlayerRoundState state = snapshot.get(playerId);
-            if (state != null && state.holeStrokes() == 0) {
-                teePlayers.add(playerId);
-            }
-        }
-
-        List<UUID> ordered = new ArrayList<>();
-        if (!teePlayers.isEmpty()) {
-            ordered.addAll(teePlayers);
-            ordered.sort((a, b) -> compareTeeOrder(a, b, hole));
-        } else {
-            ordered.addAll(eligible);
-            ordered.sort((a, b) -> {
-                PlayerRoundState aState = snapshot.get(a);
-                PlayerRoundState bState = snapshot.get(b);
-                int aDistance = aState == null ? 0 : distanceMeters(aState.lie(), basket);
-                int bDistance = bState == null ? 0 : distanceMeters(bState.lie(), basket);
-                int distanceCompare = Integer.compare(bDistance, aDistance);
-                if (distanceCompare != 0) {
-                    return distanceCompare;
-                }
-                return compareTeeOrder(a, b, hole);
-            });
-        }
-
-        if (skipCandidate != null && ordered.size() > 1 && skipCandidate.equals(ordered.get(0))) {
-            return ordered.get(1);
-        }
-        return ordered.get(0);
-    }
-
-    private static int compareTeeOrder(UUID a, UUID b, int hole) {
-        for (int priorHole = hole - 1; priorHole >= 1; priorHole--) {
-            int aScore = scoreForHole(a, priorHole);
-            int bScore = scoreForHole(b, priorHole);
-            if (aScore != bScore) {
-                return Integer.compare(aScore, bScore);
-            }
-        }
-
-        int aHoleOneRank = HOLE_ONE_RANDOM_ORDER.getOrDefault(a, Integer.MAX_VALUE);
-        int bHoleOneRank = HOLE_ONE_RANDOM_ORDER.getOrDefault(b, Integer.MAX_VALUE);
-        if (aHoleOneRank != bHoleOneRank) {
-            return Integer.compare(aHoleOneRank, bHoleOneRank);
-        }
-        return a.compareTo(b);
-    }
-
-    private static int scoreForHole(UUID playerId, int hole) {
+    static int scoreForHole(UUID playerId, int hole) {
         Map<Integer, Integer> scoreByHole = HOLE_SCORE_HISTORY.get(playerId);
         if (scoreByHole == null) {
             return Integer.MAX_VALUE;
@@ -914,10 +691,7 @@ public final class HoleProgressTracker {
         ROUND_WAS_ACTIVE = false;
         ThrowResolver.reset();
         HOLE_ONE_RANDOM_ORDER.clear();
-        ACTIVE_TURN_PLAYER_BY_HOLE.clear();
-        ACTIVE_TURN_STARTED_AT_BY_HOLE.clear();
-        ACTIVE_TURN_TOTAL_STROKES_BY_HOLE.clear();
-        TURN_SKIP_ONCE_BY_HOLE.clear();
+        TurnManager.reset();
         LAST_LIE_POSITION.clear();
         LAST_BREADCRUMB_POSITION.clear();
         CACHED_CORRIDOR_HALF_WIDTH.clear();

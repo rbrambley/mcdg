@@ -31,6 +31,9 @@ public final class RegressionCheckRunner {
     private static final Path HOLE_PROGRESS_TRACKER_FILE = Paths.get(
         "src", "main", "java", "com", "mcdg", "game", "HoleProgressTracker.java"
     );
+    private static final Path TURN_MANAGER_FILE = Paths.get(
+        "src", "main", "java", "com", "mcdg", "game", "TurnManager.java"
+    );
     private static final Path ACE_CINEMATIC_SYNC_FILE = Paths.get(
         "src", "main", "java", "com", "mcdg", "net", "AceCinematicSync.java"
     );
@@ -302,26 +305,31 @@ public final class RegressionCheckRunner {
         if (!Files.exists(HOLE_PROGRESS_TRACKER_FILE)) {
             throw new RuntimeException("Gameplay flow regression file missing: " + HOLE_PROGRESS_TRACKER_FILE);
         }
+        if (!Files.exists(TURN_MANAGER_FILE)) {
+            throw new RuntimeException("Turn manager regression file missing: " + TURN_MANAGER_FILE);
+        }
 
         String source;
+        String turnSource;
         try {
             source = Files.readString(HOLE_PROGRESS_TRACKER_FILE, StandardCharsets.UTF_8);
+            turnSource = Files.readString(TURN_MANAGER_FILE, StandardCharsets.UTF_8);
         } catch (IOException ex) {
             throw new RuntimeException("Failed to read gameplay flow source for regression checks", ex);
         }
 
         assertContains(
-            source,
+            turnSource,
             "if ((now - startedAt) >= TURN_TIMEOUT_TICKS) {",
             "Turn-timeout regression: timeout condition was removed or changed unexpectedly."
         );
         assertContains(
-            source,
+            turnSource,
             "applyTurnTimeoutPenalty(server, roundStateManager, expected, expectedState, placed);",
             "Turn-timeout regression: timeout penalty application is missing."
         );
         assertContains(
-            source,
+            turnSource,
             "TURN_SKIP_ONCE_BY_HOLE.put(hole, expected);",
             "Turn-timeout regression: skip-once guard should remain in place after timeout penalty."
         );
