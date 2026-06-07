@@ -135,15 +135,8 @@ public final class McdgAdminCommands {
                                         ))))
                         .then(literal("autocourse").requires(McdgAdminCommands::canUseAdminCommands)
                                 .executes(context -> autoCourseService.executeAutoCoursePrompt(context.getSource()))
-                                .then(literal("start")
-                                        .then(argument("name", StringArgumentType.greedyString())
-                                                .executes(context -> autoCourseService.executeAutoCourse(
-                                                        context.getSource(),
-                                                        StringArgumentType.getString(context, "name"),
-                                                        ThreadLocalRandom.current().nextLong()
-                                                ))))
                                 .then(literal("cancel")
-                                        .executes(context -> autoCourseService.executeCancel(context.getSource()))))
+                                        .executes(context -> autoCourseService.executeCancel(context.getSource())))) 
                         .then(literal("startround").requires(McdgAdminCommands::canUseAdminCommands)
                                 .executes(context -> executeStartRound(
                                         context.getSource(),

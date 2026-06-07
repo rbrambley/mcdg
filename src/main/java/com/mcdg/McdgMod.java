@@ -37,6 +37,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
@@ -172,6 +173,9 @@ public final class McdgMod implements ModInitializer {
         );
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
             server.execute(() -> WaypointSync.clear(handler.player))
+        );
+        ServerMessageEvents.ALLOW_CHAT_MESSAGE.register((message, sender, params) ->
+            !AUTO_COURSE_SERVICE.handleChatMessage(sender, message.getContent().getString())
         );
         HoleProgressTracker.register(
             ACTIVE_COURSE_MANAGER,
