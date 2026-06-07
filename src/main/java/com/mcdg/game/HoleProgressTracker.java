@@ -69,11 +69,8 @@ public final class HoleProgressTracker {
     private static final Map<UUID, BlockPos> LAST_LIE_POSITION = new HashMap<>();
     private static final Map<UUID, BlockPos> LAST_BREADCRUMB_POSITION = new HashMap<>();
     private static final Map<UUID, Integer> CACHED_CORRIDOR_HALF_WIDTH = new HashMap<>();
-    private static final Map<UUID, Integer> LAST_MINIMAP_HOLE = new HashMap<>();
-    private static final Map<UUID, Integer> LAST_MINIMAP_PAYLOAD_HASH = new HashMap<>();
     private static final Map<UUID, Integer> LAST_THROW_DISTANCE_FEET = new HashMap<>();
     private static int LAST_RUNNING_SCOREBOARD_HASH = Integer.MIN_VALUE;
-    private static boolean MINIMAP_ACTIVE_SENT = false;
     private static int AUTOTEST_MARKER_TRAIL_REFCOUNT = 0;
     private static boolean ROUND_WAS_ACTIVE = false;
 
@@ -106,16 +103,12 @@ public final class HoleProgressTracker {
                     LAST_LIE_POSITION.clear();
                     LAST_BREADCRUMB_POSITION.clear();
                     CACHED_CORRIDOR_HALF_WIDTH.clear();
-                    LAST_MINIMAP_HOLE.clear();
-                    LAST_MINIMAP_PAYLOAD_HASH.clear();
+                    MiniMapSyncService.reset();
                     LAST_THROW_DISTANCE_FEET.clear();
                     if (LAST_RUNNING_SCOREBOARD_HASH != Integer.MIN_VALUE) {
                         sendRunningScoreboardInactive(server);
                     }
-                    if (MINIMAP_ACTIVE_SENT) {
-                        sendMiniMapInactive(server);
-                        MINIMAP_ACTIVE_SENT = false;
-                    }
+                    MiniMapSyncService.sendInactive(server);
                     LAST_RUNNING_SCOREBOARD_HASH = Integer.MIN_VALUE;
                     clearAllLieMarkers(server);
                     HoleTeeMapManager.clearAllRoundHoleMaps(server);
@@ -194,7 +187,7 @@ public final class HoleProgressTracker {
                 );
                 int cumulativeParDelta = state.totalStrokes() - runningExpectedThrows;
                 UUID playerId = player.getUuid();
-                Integer cachedHole = LAST_MINIMAP_HOLE.get(playerId);
+                Integer cachedHole = MiniMapSyncService.lastHoleForPlayer(playerId);
                 int corridorHalfWidth;
                 if (cachedHole == null || cachedHole != state.currentHole() || !CACHED_CORRIDOR_HALF_WIDTH.containsKey(playerId)) {
                     corridorHalfWidth = strictCorridorHalfWidth(
@@ -209,61 +202,23 @@ public final class HoleProgressTracker {
                     corridorHalfWidth = CACHED_CORRIDOR_HALF_WIDTH.get(playerId);
                 }
 
-                BlockPos mapFocus = player.getBlockPos();
-                int[] corridorEntry = tee != null ? nearestForwardCorridorEntry(state.lie(), tee, basket, alternateAnchor, corridorHalfWidth) : null;
-                int corridorEntryFeet = corridorEntry != null ? corridorEntry[0] : 0;
-                int corridorEntryBearing = corridorEntry != null ? corridorEntry[1] : 0;
-                HoleMiniMapSync.Payload miniMapPayload = buildMiniMapPayload(
-                    (ServerWorld) player.getWorld(),
-                    courseManager,
-                    course,
-                    placed,
-                        state.currentHole(),
-                        currentHole.par(),
-                        Math.max(1, state.holeStrokes() + 1),
-                        state.totalStrokes(),
-                        cumulativeParDelta,
-                        tee == null ? state.lie() : tee,
+                MiniMapSyncService.sync(
+                        server,
+                        player,
+                        courseManager,
+                        course,
+                        placed,
+                        state,
+                        currentHole,
+                        tee,
                         basket,
-                        state.lie(),
-                        mapFocus,
-                        rulesetManager.isStrict(),
-                        rulesetManager.getStrictSurfacePreset().ordinal(),
-                        corridorHalfWidth,
                         alternateAnchor,
+                        rulesetManager,
+                        corridorHalfWidth,
+                        cumulativeParDelta,
                         LAST_THROW_DISTANCE_FEET.getOrDefault(player.getUuid(), 0),
-                        corridorEntryFeet,
-                        corridorEntryBearing
+                        strictFlowDebug
                 );
-
-                if (strictFlowDebug && (server.getTicks() % 20) == 0) {
-                    HoleMiniMapSync.Payload payload = miniMapPayload;
-                    BlockPos playerFeet = player.getBlockPos();
-                    McdgMod.LOGGER.info(
-                        "MINIMAP DEBUG | player={} hole={} feet=({}, {}) lie=({}, {}) tee=({}, {}) basket=({}, {}) span={} dFeetLie=({}, {})",
-                            player.getGameProfile().getName(),
-                            state.currentHole(),
-                            playerFeet.getX(),
-                            playerFeet.getZ(),
-                            payload.lieX(),
-                            payload.lieZ(),
-                            payload.teeX(),
-                            payload.teeZ(),
-                            payload.basketX(),
-                            payload.basketZ(),
-                            payload.mapSpan(),
-                            playerFeet.getX() - payload.lieX(),
-                            playerFeet.getZ() - payload.lieZ()
-                    );
-                }
-
-                int miniMapHash = miniMapPayload.hashCode();
-                if (!LAST_MINIMAP_PAYLOAD_HASH.containsKey(playerId) || LAST_MINIMAP_PAYLOAD_HASH.get(playerId) != miniMapHash) {
-                    ServerPlayNetworking.send(player, miniMapPayload);
-                    LAST_MINIMAP_PAYLOAD_HASH.put(playerId, miniMapHash);
-                    LAST_MINIMAP_HOLE.put(playerId, state.currentHole());
-                }
-                MINIMAP_ACTIVE_SENT = true;
                 if (!suppressHud && hudScoringDebug && (server.getTicks() % 20) == 0) {
                     McdgMod.LOGGER.info(
                             "HUD score debug | player={} hole={} par={} holeDistFt={} lieDistMeters={} lieDistFeet={} holeStrokes={} totalStrokes={} expectedRunning={} holeDelta={} totalDelta={}",
@@ -747,13 +702,6 @@ public final class HoleProgressTracker {
         }
     }
 
-    private static void sendMiniMapInactive(MinecraftServer server) {
-        HoleMiniMapSync.Payload inactive = HoleMiniMapSync.Payload.inactive();
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            ServerPlayNetworking.send(player, inactive);
-        }
-    }
-
     private static void applyTurnTimeoutPenalty(
             MinecraftServer server,
             RoundStateManager roundStateManager,
@@ -993,168 +941,6 @@ public final class HoleProgressTracker {
         return Math.max(0, Math.round(distanceMeters(from, to) * 3.28084f));
     }
 
-    private static HoleMiniMapSync.Payload buildMiniMapPayload(
-            ServerWorld world,
-            ActiveCourseManager courseManager,
-            Course course,
-            PlacedCourseState placed,
-            int holeIndex,
-            int par,
-            int throwNumber,
-            int totalStrokes,
-            int cumulativeParDelta,
-            BlockPos tee,
-            BlockPos basket,
-            BlockPos lie,
-            BlockPos mapFocus,
-            boolean strictMode,
-                int strictSurfacePresetOrdinal,
-                int corridorHalfWidth,
-            BlockPos alternateAnchor,
-            int lastThrowDistanceFeet,
-            int corridorEntryFeet,
-            int corridorEntryBearing
-    ) {
-        // Compute water gap along the tee->basket line
-        int[] waterGap = findLongestWaterGap(world, tee, basket);
-        int waterGapStartFeet = waterGap[2] > 0 ? Math.round(waterGap[0] * 3.28084f) : 0;
-        int waterGapEndFeet = waterGap[2] > 0 ? Math.round(waterGap[1] * 3.28084f) : 0;
-        boolean hasWaterGap = waterGap[2] > 0;
-
-        int span;
-        int minX = Math.min(Math.min(tee.getX(), basket.getX()), mapFocus.getX());
-        int maxX = Math.max(Math.max(tee.getX(), basket.getX()), mapFocus.getX());
-        int minZ = Math.min(Math.min(tee.getZ(), basket.getZ()), mapFocus.getZ());
-        int maxZ = Math.max(Math.max(tee.getZ(), basket.getZ()), mapFocus.getZ());
-        if (alternateAnchor != null) {
-            minX = Math.min(minX, alternateAnchor.getX());
-            maxX = Math.max(maxX, alternateAnchor.getX());
-            minZ = Math.min(minZ, alternateAnchor.getZ());
-            maxZ = Math.max(maxZ, alternateAnchor.getZ());
-        }
-        int baseSpan = Math.max(Math.max(1, maxX - minX), Math.max(1, maxZ - minZ)) + 10;
-        int maxLieDelta = maxLieDelta(mapFocus, tee, basket, alternateAnchor);
-        int rawSpan = Math.max(baseSpan, (maxLieDelta * 2) + 24);
-        span = Math.max(120, Math.round(rawSpan * HoleMiniMapSync.MAP_OVERSCAN_FACTOR));
-
-        String courseWaypointName = resolveCourseWaypointName(courseManager, course);
-        BlockPos courseAnchor = resolveTournamentCentralAnchor(
-                placed.holeTees().get(1),
-                placed.holeBaskets().get(1),
-                tee,
-                basket
-        );
-        int courseWaypointX = courseAnchor.getX();
-        int courseWaypointZ = courseAnchor.getZ();
-
-        List<Integer> holeTeeXs = new ArrayList<>();
-        List<Integer> holeTeeZs = new ArrayList<>();
-        int totalHoles = course.holes().size();
-        for (int i = 1; i <= totalHoles; i++) {
-            BlockPos holeTee = placed.holeTees().get(i);
-            BlockPos holeBasket = placed.holeBaskets().get(i);
-            BlockPos holeAnchor = resolveWaypointAnchor(holeTee, holeBasket, tee, basket);
-            holeTeeXs.add(holeAnchor.getX());
-            holeTeeZs.add(holeAnchor.getZ());
-        }
-
-        return HoleMiniMapSync.Payload.active(
-                holeIndex,
-                tee.getX(),
-                tee.getZ(),
-                basket.getX(),
-                basket.getZ(),
-                lie.getX(),
-                lie.getZ(),
-            par,
-            throwNumber,
-            totalStrokes,
-            cumulativeParDelta,
-                strictMode,
-                strictSurfacePresetOrdinal,
-                corridorHalfWidth,
-                alternateAnchor != null,
-                alternateAnchor == null ? 0 : alternateAnchor.getX(),
-                alternateAnchor == null ? 0 : alternateAnchor.getZ(),
-                span,
-                courseWaypointName,
-                courseWaypointX,
-                courseWaypointZ,
-                totalHoles,
-                holeTeeXs,
-                holeTeeZs,
-                lastThrowDistanceFeet,
-                corridorEntryFeet,
-                corridorEntryBearing,
-                waterGapStartFeet,
-                waterGapEndFeet,
-                hasWaterGap
-            );
-    }
-
-    private static String resolveCourseWaypointName(ActiveCourseManager courseManager, Course course) {
-        return course.name() + " " + course.seed();
-    }
-
-    private static BlockPos resolveTournamentCentralAnchor(BlockPos preferredTee, BlockPos preferredBasket, BlockPos fallbackTee, BlockPos fallbackBasket) {
-        BlockPos teeAnchor = preferredTee == null ? fallbackTee : preferredTee;
-        if (teeAnchor == null) {
-            return fallbackBasket == null ? BlockPos.ORIGIN : fallbackBasket;
-        }
-
-        BlockPos basketAnchor = preferredBasket == null ? fallbackBasket : preferredBasket;
-        int[] back = resolveBackCardinal(teeAnchor, basketAnchor);
-        // Hub deck local bounds are u=-8..8, v=-3..8 around hubSurface; geometric center is at v=2.5.
-        // Choose the nearest block center (v=3), so anchor is 12 blocks behind tee along back direction.
-        return teeAnchor.add(back[0] * 12, 0, back[1] * 12);
-    }
-
-    private static BlockPos resolveWaypointAnchor(BlockPos preferredTee, BlockPos preferredBasket, BlockPos fallbackTee, BlockPos fallbackBasket) {
-        BlockPos teeAnchor = preferredTee == null ? fallbackTee : preferredTee;
-        if (teeAnchor == null) {
-            return fallbackBasket == null ? BlockPos.ORIGIN : fallbackBasket;
-        }
-
-        BlockPos basketAnchor = preferredBasket == null ? fallbackBasket : preferredBasket;
-        if (basketAnchor == null) {
-            return teeAnchor;
-        }
-
-        int[] back = resolveBackCardinal(teeAnchor, basketAnchor);
-        return teeAnchor.add(back[0], 0, back[1]);
-    }
-
-    private static int[] resolveBackCardinal(BlockPos teeAnchor, BlockPos basketAnchor) {
-        if (teeAnchor == null || basketAnchor == null) {
-            return new int[] { 0, -1 };
-        }
-
-        int dx = basketAnchor.getX() - teeAnchor.getX();
-        int dz = basketAnchor.getZ() - teeAnchor.getZ();
-        if (dx == 0 && dz == 0) {
-            return new int[] { 0, -1 };
-        }
-
-        if (Math.abs(dx) >= Math.abs(dz)) {
-            return new int[] { -Integer.compare(dx, 0), 0 };
-        }
-        return new int[] { 0, -Integer.compare(dz, 0) };
-    }
-
-    private static int maxLieDelta(BlockPos lie, BlockPos tee, BlockPos basket, BlockPos alternateAnchor) {
-        int maxDelta = Math.max(
-                Math.max(Math.abs(tee.getX() - lie.getX()), Math.abs(tee.getZ() - lie.getZ())),
-                Math.max(Math.abs(basket.getX() - lie.getX()), Math.abs(basket.getZ() - lie.getZ()))
-        );
-        if (alternateAnchor != null) {
-            maxDelta = Math.max(
-                    maxDelta,
-                    Math.max(Math.abs(alternateAnchor.getX() - lie.getX()), Math.abs(alternateAnchor.getZ() - lie.getZ()))
-            );
-        }
-        return maxDelta;
-    }
-
     private static void clearAllLieMarkers(MinecraftServer server) {
         for (Map<BlockPos, LieMarkerState> markerStates : LIE_MARKER_HISTORY.values()) {
             for (LieMarkerState markerState : markerStates.values()) {
@@ -1199,14 +985,10 @@ public final class HoleProgressTracker {
         LAST_LIE_POSITION.clear();
         LAST_BREADCRUMB_POSITION.clear();
         CACHED_CORRIDOR_HALF_WIDTH.clear();
-        LAST_MINIMAP_HOLE.clear();
-        LAST_MINIMAP_PAYLOAD_HASH.clear();
+        MiniMapSyncService.reset();
         LAST_THROW_DISTANCE_FEET.clear();
         AUTOTEST_MARKER_TRAIL_REFCOUNT = 0;
-        if (MINIMAP_ACTIVE_SENT) {
-            sendMiniMapInactive(server);
-            MINIMAP_ACTIVE_SENT = false;
-        }
+        MiniMapSyncService.sendInactive(server);
         if (LAST_RUNNING_SCOREBOARD_HASH != Integer.MIN_VALUE) {
             sendRunningScoreboardInactive(server);
         }
@@ -1782,7 +1564,7 @@ public final class HoleProgressTracker {
  * Returns int[3] = { startDistanceBlocks, endDistanceBlocks, maxGapLengthBlocks }
  * where distances are measured from the start position.
  */
-private static int[] findLongestWaterGap(ServerWorld world, BlockPos start, BlockPos end) {
+static int[] findLongestWaterGap(ServerWorld world, BlockPos start, BlockPos end) {
     int dx = end.getX() - start.getX();
     int dz = end.getZ() - start.getZ();
     int dominant = Math.max(Math.abs(dx), Math.abs(dz));
@@ -1940,7 +1722,7 @@ private static int computeLongestWaterCarryGap(ServerWorld world, BlockPos start
      * geographic bearing (0=N, 90=E, 180=S, 270=W), or null if the lie is already
      * inside the corridor (lateral distance <= corridorHalfWidth).
      */
-    private static int[] nearestForwardCorridorEntry(BlockPos lie, BlockPos tee, BlockPos basket, BlockPos alternateAnchor, int corridorHalfWidth) {
+    static int[] nearestForwardCorridorEntry(BlockPos lie, BlockPos tee, BlockPos basket, BlockPos alternateAnchor, int corridorHalfWidth) {
         // Choose the relevant segment: if there is an alternate anchor, use the leg
         // whose projected t-value places the lie further forward (closer to the basket).
         BlockPos segStart = tee;
