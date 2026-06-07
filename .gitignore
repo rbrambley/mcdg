@@ -19,3 +19,7 @@ bin/
 scripts/*.ps1
 water-gap-changes.patch
 net/
+
+# Auto-generated tester manifest
+releases/test-packs/MANIFEST.json
+
