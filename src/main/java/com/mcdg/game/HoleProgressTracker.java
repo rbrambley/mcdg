@@ -42,10 +42,12 @@ import net.minecraft.util.math.Box;
 import net.minecraft.world.Heightmap;
 
 public final class HoleProgressTracker {
-    private static final int BASKET_RADIUS_BLOCKS = 1;
-    private static final int BASKET_HEIGHT_TOLERANCE = 2;
+    private static final int BASKET_RADIUS_BLOCKS = 2;
+    private static final int BASKET_HEIGHT_TOLERANCE = 4;
     private static final int BASKET_GREEN_RADIUS_BLOCKS = 7;
     private static final int BASKET_GREEN_HEIGHT_BLOCKS = 8;
+    // Proximity make radius: flat putts within this distance that hit the basket column count as makes
+    private static final int PROXIMITY_MAKE_RADIUS_BLOCKS = 3;
     private static final int MAX_THROW_RESOLUTION_WAIT_TICKS = 320;
     private static final int THROW_RELEASE_GRACE_TICKS = 8;
     private static final int TURN_TIMEOUT_TICKS = 20 * 120;
@@ -929,6 +931,40 @@ public final class HoleProgressTracker {
         return liePos.getY() >= (basketPos.getY() + 2);
     }
 
+    private static boolean isDiscThroughBasket(BlockPos throwLie, BlockPos landingFeet, BlockPos basket) {
+        int targetX = basket.getX();
+        int targetZ = basket.getZ();
+        int targetY = basket.getY() + 1;
+        int distance = Math.max(1, manhattanDistance(throwLie, landingFeet));
+        int samples = Math.max(24, distance * 4);
+        for (int i = 1; i <= samples; i++) {
+            double t = i / (double) samples;
+            int x = (int) Math.floor((throwLie.getX() + 0.5) + ((landingFeet.getX() + 0.5 - (throwLie.getX() + 0.5)) * t));
+            int y = (int) Math.floor((throwLie.getY() + 0.5) + ((landingFeet.getY() + 0.5 - (throwLie.getY() + 0.5)) * t));
+            int z = (int) Math.floor((throwLie.getZ() + 0.5) + ((landingFeet.getZ() + 0.5 - (throwLie.getZ() + 0.5)) * t));
+            if (x == targetX && z == targetZ && y == targetY) {
+                return true;
+            }
+        }
+        return false;
+    }
+    /**
+     * Detects makes from short flat putts that don't arc through the hopper.
+     * When the player is very close to the basket and lands on the basket column, count it as a make.
+     */
+    private static boolean isCloseProximityMake(BlockPos throwLie, BlockPos landingFeet, BlockPos basket) {
+        // Must land on the basket column (same X/Z as basket)
+        if (landingFeet.getX() != basket.getX() || landingFeet.getZ() != basket.getZ()) {
+            return false;
+        }
+        // Check if throw started within proximity radius (horizontal distance only)
+        int dx = throwLie.getX() - basket.getX();
+        int dz = throwLie.getZ() - basket.getZ();
+        int horizontalDistSq = dx * dx + dz * dz;
+        int radiusSq = PROXIMITY_MAKE_RADIUS_BLOCKS * PROXIMITY_MAKE_RADIUS_BLOCKS;
+        return horizontalDistSq <= radiusSq;
+    }
+
     private static int manhattanDistance(BlockPos from, BlockPos to) {
         return Math.abs(from.getX() - to.getX()) + Math.abs(from.getY() - to.getY()) + Math.abs(from.getZ() - to.getZ());
     }
@@ -1514,17 +1550,29 @@ public final class HoleProgressTracker {
             state = roundStateManager.markLastThrowPenalty(player.getUuid(), false).orElse(state);
         }
 
+        // Made shot: pearl path passed through the hopper (Y+1) at the basket column.
+        // Made shot: pearl path passed through the hopper (Y+1) at the basket column,
+        // or flat putt from very close range that lands on the basket column.
+        boolean madeShot = isDiscThroughBasket(throwLie, currentFeet, basket)
+                || isCloseProximityMake(throwLie, currentFeet, basket);
+        if (madeShot) {
+            resultingLie = basket.up();
+            player.teleport(resultingLie.getX() + 0.5, resultingLie.getY() + 1.0, resultingLie.getZ() + 0.5);
+        }
+
         // Basket body hits (above the make-zone) should bounce to the ring with a CLANK cue.
-        if (shouldBounceOffBasketStructure(resultingLie, basket)) {
+        if (!madeShot && shouldBounceOffBasketStructure(resultingLie, basket)) {
             BlockPos bounced = basketBouncePosition(world, basket);
             resultingLie = bounced;
             player.teleport(resultingLie.getX() + 0.5, resultingLie.getY() + 1.0, resultingLie.getZ() + 0.5);
             sendClankTitle(player);
         }
 
-        resultingLie = findNearestStandableFeet(world, resultingLie);
-        if (!isStandableFeetBlock(world, resultingLie)) {
-            resultingLie = findNearestStandableFeet(world, throwLie);
+        if (!madeShot) {
+            resultingLie = findNearestStandableFeet(world, resultingLie);
+            if (!isStandableFeetBlock(world, resultingLie)) {
+                resultingLie = findNearestStandableFeet(world, throwLie);
+            }
         }
 
         roundStateManager.updateLie(player.getUuid(), resultingLie);
@@ -1636,6 +1684,16 @@ public final class HoleProgressTracker {
             TournamentRulesetManager rulesetManager,
             int corridorHalfWidth
     ) {
+        // Basket green is a fully safe zone — no penalties for any landing within it.
+        if (isBasketGreenSafe(feet, basket.down())) {
+            return StrictPenaltyType.NONE;
+        }
+
+        // Basket column (hopper, pole, lantern) is always safe.
+        if (feet.getX() == basket.getX() && feet.getZ() == basket.getZ()) {
+            return StrictPenaltyType.NONE;
+        }
+
         if (isFluidPenaltyZone(world, feet)) {
             return StrictPenaltyType.OB;
         }
@@ -1643,11 +1701,6 @@ public final class HoleProgressTracker {
         double lateral = distanceFromPlayableRouteXZ(feet, tee, basket, alternateAnchor);
         if (lateral > corridorHalfWidth) {
             return StrictPenaltyType.OB;
-        }
-
-        // Basket green: hazard-safe within the placed green, but still not OB-safe.
-        if (isBasketGreenSafe(feet, basket.down())) {
-            return StrictPenaltyType.NONE;
         }
 
         if (rulesetManager.strictEnableSlopeHazard() && isSteepSlopeHazard(world, feet, rulesetManager.strictSlopeHazardDeltaY())) {
