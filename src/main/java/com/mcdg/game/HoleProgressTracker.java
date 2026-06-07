@@ -83,6 +83,7 @@ public final class HoleProgressTracker {
             ActiveCourseManager courseManager,
             RoundStateManager roundStateManager,
             TournamentRulesetManager rulesetManager,
+            LeaderboardManager leaderboardManager,
             boolean hudScoringDebug,
             boolean strictFlowDebug
     ) {
@@ -305,6 +306,9 @@ public final class HoleProgressTracker {
                     removeRoundThrowItems(player);
 
                     roundStateManager.recordCompletedRound(player.getUuid(), state.totalStrokes());
+                    if (leaderboardManager != null) {
+                        leaderboardManager.recordScore(server, course.name(), player.getGameProfile().getName(), state.totalStrokes());
+                    }
                     roundStateManager.clearPlayer(player.getUuid());
 
                     if (firstTee != null) {

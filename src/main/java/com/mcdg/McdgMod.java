@@ -4,9 +4,12 @@ import com.mcdg.command.McdgAdminCommands;
 import com.mcdg.config.McdgConfig;
 import com.mcdg.game.ActiveCourseManager;
 import com.mcdg.game.HoleProgressTracker;
+import com.mcdg.game.LeaderboardManager;
 import com.mcdg.game.McdgItems;
 import com.mcdg.game.PlayerRoundState;
 import com.mcdg.game.PlayerRoundSessionStorage;
+import com.mcdg.data.Course;
+import com.mcdg.data.Hole;
 import com.mcdg.game.BuildCourseSessionManager;
 import com.mcdg.game.PracticeCourseStorage;
 import com.mcdg.game.RoundInventoryCleaner;
@@ -18,6 +21,8 @@ import com.mcdg.game.ScorecardManager;
 import com.mcdg.game.ThrowAutoTestService;
 import com.mcdg.net.AceCinematicSync;
 import com.mcdg.net.HoleMiniMapSync;
+import com.mcdg.net.LeaderboardRequest;
+import com.mcdg.net.LeaderboardResponse;
 import com.mcdg.net.WaypointSync;
 import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.MenuScreenSync;
@@ -30,6 +35,7 @@ import com.mcdg.world.PlacementAutoTestService;
 import com.mcdg.world.SeededCourseGenerator;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -38,10 +44,13 @@ import net.fabricmc.fabric.api.resource.ResourcePackActivationType;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.util.Identifier;
+import net.minecraft.block.entity.SignBlockEntity;
+import net.minecraft.block.entity.SignText;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
+import net.minecraft.util.ActionResult;
 import net.minecraft.util.math.BlockPos;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -68,6 +77,7 @@ public final class McdgMod implements ModInitializer {
     private static final CoursePlacementValidator COURSE_PLACEMENT_VALIDATOR = new CoursePlacementValidator();
     private static final RoundStateManager ROUND_STATE_MANAGER = new RoundStateManager();
     private static final TournamentRulesetManager TOURNAMENT_RULESET_MANAGER = new TournamentRulesetManager();
+    private static final LeaderboardManager LEADERBOARD_MANAGER = new LeaderboardManager();
     private static final RoundPresentationService ROUND_PRESENTATION_SERVICE = new RoundPresentationService();
     private static final PracticeCourseStorage PRACTICE_COURSE_STORAGE = new PracticeCourseStorage();
     private static final RoundSessionStorage ROUND_SESSION_STORAGE = new RoundSessionStorage();
@@ -101,11 +111,13 @@ public final class McdgMod implements ModInitializer {
     @Override
     public void onInitialize() {
         PayloadTypeRegistry.playC2S().register(WaypointSync.ID, WaypointSync.CODEC);
+        PayloadTypeRegistry.playC2S().register(LeaderboardRequest.ID, LeaderboardRequest.CODEC);
         PayloadTypeRegistry.playS2C().register(AceCinematicSync.ID, AceCinematicSync.CODEC);
         PayloadTypeRegistry.playS2C().register(HoleMiniMapSync.ID, HoleMiniMapSync.CODEC);
         PayloadTypeRegistry.playS2C().register(RoundRunningScoresSync.ID, RoundRunningScoresSync.CODEC);
         PayloadTypeRegistry.playS2C().register(RoundCompleteCinematicSync.ID, RoundCompleteCinematicSync.CODEC);
         PayloadTypeRegistry.playS2C().register(MenuScreenSync.ID, MenuScreenSync.CODEC);
+        PayloadTypeRegistry.playS2C().register(LeaderboardResponse.ID, LeaderboardResponse.CODEC);
 
         ResourceManagerHelper.registerBuiltinResourcePack(
                 new Identifier(MOD_ID, "mcdg-test-resources"),
@@ -115,6 +127,9 @@ public final class McdgMod implements ModInitializer {
         );
         ServerPlayNetworking.registerGlobalReceiver(WaypointSync.ID, (payload, context) ->
             context.server().execute(() -> WaypointSync.update(context.player(), payload.waypoints()))
+        );
+        ServerPlayNetworking.registerGlobalReceiver(LeaderboardRequest.ID, (payload, context) ->
+            context.server().execute(() -> handleLeaderboardRequest(context.player(), payload.courseName()))
         );
         McdgConfig config = McdgConfig.loadDefault();
         McdgItems.register(ACTIVE_COURSE_MANAGER, ROUND_STATE_MANAGER, TOURNAMENT_RULESET_MANAGER, config.enableStrictFlowDebug());
@@ -147,8 +162,10 @@ public final class McdgMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register(BUILD_COURSE_SESSION_MANAGER::load);
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::maybeStartHeadlessAutoTest);
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::maybeStartAutoStrictSetup);
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> LEADERBOARD_MANAGER.load(server));
         ServerLifecycleEvents.SERVER_STOPPING.register(McdgMod::flushRoundSessionOnShutdown);
         ServerLifecycleEvents.SERVER_STOPPING.register(BUILD_COURSE_SESSION_MANAGER::save);
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> LEADERBOARD_MANAGER.save(server));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
             server.execute(() -> restoreRoundParticipantOnJoin(handler.player, server))
         );
@@ -159,6 +176,7 @@ public final class McdgMod implements ModInitializer {
             ACTIVE_COURSE_MANAGER,
             ROUND_STATE_MANAGER,
             TOURNAMENT_RULESET_MANAGER,
+            LEADERBOARD_MANAGER,
             config.enableHudScoringDebug(),
             config.enableStrictFlowDebug()
         );
@@ -168,6 +186,22 @@ public final class McdgMod implements ModInitializer {
             TOURNAMENT_RULESET_MANAGER,
             config.respawnPenaltyStrokes()
         );
+        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+            if (!(player instanceof ServerPlayerEntity serverPlayer)) {
+                return ActionResult.PASS;
+            }
+            if (world.getBlockEntity(hitResult.getBlockPos()) instanceof SignBlockEntity sign) {
+                SignText front = sign.getFrontText();
+                Text line0 = front.getMessage(0, false);
+                Text line1 = front.getMessage(1, false);
+                if (line0 != null && line0.getString().equals("[Leaderboard]") && line1 != null) {
+                    String courseName = line1.getString();
+                    handleLeaderboardRequest(serverPlayer, courseName);
+                    return ActionResult.SUCCESS;
+                }
+            }
+            return ActionResult.PASS;
+        });
 
         LOGGER.info("Initialized {} (defaultHoles={}, protection={}, debug={}, hudScoringDebug={}, strictFlowDebug={}, skipRoundPresentation={}, rulesetDefault={}, strictRespawnPenaltyStrokes={})",
                 MOD_ID,
@@ -509,6 +543,29 @@ public final class McdgMod implements ModInitializer {
         int hole = currentState == null ? 1 : currentState.currentHole();
         player.sendMessage(Text.literal("Rejoined active round at hole " + hole + "."), true);
         HoleProgressTracker.sendRunningScoreboardToPlayer(player, ACTIVE_COURSE_MANAGER, ROUND_STATE_MANAGER);
+    }
+
+    public static void handleLeaderboardRequest(ServerPlayerEntity player, String courseName) {
+        if (player == null || courseName == null || courseName.isBlank()) {
+            return;
+        }
+
+        int totalPar = 0;
+        Course activeCourse = ACTIVE_COURSE_MANAGER.getActiveCourse().orElse(null);
+        if (activeCourse != null && activeCourse.name().equalsIgnoreCase(courseName)) {
+            totalPar = 0;
+            for (Hole hole : activeCourse.holes()) {
+                totalPar += hole.par();
+            }
+        }
+
+        List<LeaderboardManager.LeaderboardEntry> topEntries = LEADERBOARD_MANAGER.getTopScores(courseName, 5);
+        List<LeaderboardResponse.Entry> responseEntries = new ArrayList<>();
+        for (LeaderboardManager.LeaderboardEntry entry : topEntries) {
+            responseEntries.add(new LeaderboardResponse.Entry(entry.playerName(), entry.score()));
+        }
+
+        ServerPlayNetworking.send(player, LeaderboardResponse.Payload.active(courseName, totalPar, responseEntries));
     }
 
     private static BlockPos resolveSafeFeetNear(ServerWorld world, BlockPos preferredFeet) {

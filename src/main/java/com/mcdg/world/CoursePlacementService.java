@@ -44,6 +44,8 @@ public final class CoursePlacementService {
     private static final int WATER_LANDING_PATCH_INTERVAL = CoursePlacementConfig.WaterLanding.PATCH_INTERVAL;
     private static final int WATER_LANDING_PATCH_RADIUS = CoursePlacementConfig.WaterLanding.PATCH_RADIUS;
     private static final int WATER_LANDING_PATCH_MAX_CARRY = CoursePlacementConfig.WaterLanding.PATCH_MAX_CARRY;
+    private static final int SAFE_FAIRWAY_HALF_WIDTH = CoursePlacementConfig.WaterLanding.SAFE_FAIRWAY_HALF_WIDTH;
+    private static final int SAFE_FAIRWAY_MIN_LENGTH = CoursePlacementConfig.WaterLanding.SAFE_FAIRWAY_MIN_LENGTH;
     private static final int WATER_LANDING_ENFORCE_SCAN_RADIUS = CoursePlacementConfig.WaterLanding.ENFORCE_SCAN_RADIUS;
     private static final int WATER_LANDING_ENFORCE_MAX_GAP = CoursePlacementConfig.WaterLanding.ENFORCE_MAX_GAP;
     private static final int WATER_ADJACENT_BASKET_GREEN_RADIUS = CoursePlacementConfig.WaterLanding.ADJACENT_BASKET_GREEN_RADIUS;
@@ -440,6 +442,14 @@ public final class CoursePlacementService {
                     protectedPositions,
                     false
                 );
+                // Create safe landing zone at alternate anchor for long water carries
+                createSafeFairwayLandingZone(
+                    world,
+                    alternateAnchor,
+                    basketSurface,
+                    originalBlocks,
+                    protectedPositions
+                );
                 } else {
                 carveFairway(
                     world,
@@ -492,7 +502,7 @@ public final class CoursePlacementService {
                 originalBlocks
             );
             if (hole.index() == startingHoleIndex && startingHoleIndex == 1) {
-                placeCourseCentralHub(world, teeSurface, basketSurface, originalBlocks, protectedPositions);
+                placeCourseCentralHub(world, teeSurface, basketSurface, course.name(), originalBlocks, protectedPositions);
                 // Hub construction can overlap the starting hole footprint; enforce the tee pad shape afterwards.
                 placeTeePad(world, teeSurface, originalBlocks);
             }
@@ -1132,6 +1142,23 @@ public final class CoursePlacementService {
         return best;
     }
 
+    private static BlockPos findArcHubPosition(ServerWorld world, BlockPos playerPos, float playerYaw, int maxRadius) {
+        double yawRad = Math.toRadians(playerYaw);
+        int[] arcAngles = {0, 22, -22, 45, -45, 67, -67, 90, -90};
+        for (int r = 3; r <= maxRadius; r += 2) {
+            for (int angleOffset : arcAngles) {
+                double angle = yawRad + Math.toRadians(angleOffset);
+                int x = playerPos.getX() + (int) Math.round(-Math.sin(angle) * r);
+                int z = playerPos.getZ() + (int) Math.round(Math.cos(angle) * r);
+                BlockPos pos = resolveSurfacePos(world, x, z);
+                if (isStableGround(world, pos) && hasPlayableHeadspace(world, pos)) {
+                    return pos;
+                }
+            }
+        }
+        return resolveSurfacePos(world, playerPos.getX(), playerPos.getZ());
+    }
+
     private static BlockPos resolveSurfacePos(ServerWorld world, int x, int z) {
         // Force chunk generation/loading so heightmap values are valid.
         ChunkPos chunkPos = new ChunkPos(x >> 4, z >> 4);
@@ -1632,10 +1659,16 @@ public final class CoursePlacementService {
         setTrackedBlock(world, ground.up(height + 1), Blocks.LANTERN.getDefaultState(), originalBlocks);
     }
 
-    private static void placeCourseCentralHub(
+    /**
+     * LEGACY: Original central hub with deck, registration desk, and merch canopy.
+     * Kept for reference - can be restored by calling this instead of placeCourseCentralHub().
+     */
+    @SuppressWarnings("unused")
+    private static void placeCourseCentralHubLegacy(
             ServerWorld world,
             BlockPos teeCenter,
             BlockPos basketSurface,
+            String courseName,
             Map<BlockPos, BlockState> originalBlocks,
             Set<BlockPos> protectedPositions
     ) {
@@ -1654,8 +1687,197 @@ public final class CoursePlacementService {
         placeRegistrationDesk(world, hubSurface, side, back, originalBlocks, protectedPositions);
         placeMerchCanopy(world, hubSurface, side, back, originalBlocks, protectedPositions);
         placePracticeBaskets(world, hubSurface, side, back, originalBlocks, protectedPositions);
+        placeLeaderboardSign(world, hubSurface, side, back, courseName, originalBlocks, protectedPositions);
 
         addProtectedColumnArea(protectedPositions, hubSurface, 9, 7);
+    }
+
+    /**
+     * Modern camper-style central hub. Replaces the legacy deck/merch structure
+     * with a mobile home on wheels inspired by modern tiny-home aesthetics.
+     */
+    private static void placeCourseCentralHub(
+            ServerWorld world,
+            BlockPos teeCenter,
+            BlockPos basketSurface,
+            String courseName,
+            Map<BlockPos, BlockState> originalBlocks,
+            Set<BlockPos> protectedPositions
+    ) {
+        int[] forward = teeForwardUnit(teeCenter, basketSurface);
+        int[] back = new int[] { -forward[0], -forward[1] };
+        int[] side = new int[] { -forward[1], forward[0] };
+
+        // Position camper behind the tee
+        BlockPos hubSeed = teeCenter.add(back[0] * 10, 0, back[1] * 10);
+        BlockPos hubSurface = normalizePlayableSurface(
+            world,
+            findPreferredSurfacePos(world, hubSeed.getX(), hubSeed.getZ(), true, 16)
+        );
+
+        // Build the modern camper
+        buildModernCamperHub(world, hubSurface, side, back, originalBlocks, protectedPositions);
+
+        // Keep practice baskets and leaderboard nearby
+        placePracticeBaskets(world, hubSurface, side, back, originalBlocks, protectedPositions);
+        placeLeaderboardSign(world, hubSurface, side, back, courseName, originalBlocks, protectedPositions);
+
+        addProtectedColumnArea(protectedPositions, hubSurface, 10, 8);
+    }
+
+    private static void buildModernCamperHub(
+            ServerWorld world,
+            BlockPos hubSurface,
+            int[] side,
+            int[] back,
+            Map<BlockPos, BlockState> originalBlocks,
+            Set<BlockPos> protectedPositions
+    ) {
+        // Camper dimensions: 5 wide x 8 long x 4 tall (plus roof)
+        // Oriented with the back of camper facing toward tee (so door is at rear)
+
+        // Clear ground and headroom
+        for (int u = -3; u <= 3; u++) {
+            for (int v = -2; v <= 10; v++) {
+                BlockPos ground = orientedOffset(hubSurface, side, back, u, v, 0);
+                if (!isProtected(protectedPositions, ground)) {
+                    setTrackedBlock(world, ground, Blocks.GRASS_BLOCK.getDefaultState(), originalBlocks);
+                }
+                for (int y = 1; y <= 6; y++) {
+                    BlockPos airPos = ground.up(y);
+                    if (!isProtected(protectedPositions, airPos)) {
+                        setTrackedBlock(world, airPos, Blocks.AIR.getDefaultState(), originalBlocks);
+                    }
+                }
+            }
+        }
+
+        // Build chassis (black concrete base) - 5 wide x 8 long
+        for (int u = -2; u <= 2; u++) {
+            for (int v = 0; v <= 7; v++) {
+                BlockPos chassis = orientedOffset(hubSurface, side, back, u, v, 1);
+                if (!isProtected(protectedPositions, chassis)) {
+                    setTrackedBlock(world, chassis, Blocks.BLACK_CONCRETE.getDefaultState(), originalBlocks);
+                }
+            }
+        }
+
+        // Add wheels at corners
+        int[][] wheelOffsets = { {-2, 1}, {2, 1}, {-2, 6}, {2, 6} };
+        for (int[] wheel : wheelOffsets) {
+            BlockPos wheelPos = orientedOffset(hubSurface, side, back, wheel[0], wheel[1], 0);
+            if (!isProtected(protectedPositions, wheelPos)) {
+                setTrackedBlock(world, wheelPos, Blocks.BLACK_CONCRETE.getDefaultState(), originalBlocks);
+                BlockPos wheelSide = orientedOffset(hubSurface, side, back, wheel[0] + (wheel[0] < 0 ? -1 : 1), wheel[1], 1);
+                if (!isProtected(protectedPositions, wheelSide)) {
+                    setTrackedBlock(world, wheelSide, Blocks.STONE_BUTTON.getDefaultState(), originalBlocks);
+                }
+            }
+        }
+
+        // Build main body walls
+        for (int y = 2; y <= 4; y++) {
+            for (int u = -2; u <= 2; u++) {
+                for (int v = 0; v <= 7; v++) {
+                    BlockPos wall = orientedOffset(hubSurface, side, back, u, v, y);
+                    if (isProtected(protectedPositions, wall)) continue;
+                    boolean isEdge = (u == -2 || u == 2 || v == 0 || v == 7);
+                    boolean isWindow = (y == 3) && ((u == -2 || u == 2) && (v >= 2 && v <= 5));
+                    boolean isDoor = (v == 7 && u == 0 && y <= 3);
+
+                    if (isDoor) {
+                        if (y == 3) {
+                            setTrackedBlock(world, wall, Blocks.IRON_DOOR.getDefaultState(), originalBlocks);
+                        } else {
+                            setTrackedBlock(world, wall, Blocks.AIR.getDefaultState(), originalBlocks);
+                        }
+                    } else if (isWindow) {
+                        setTrackedBlock(world, wall, Blocks.GLASS_PANE.getDefaultState(), originalBlocks);
+                    } else if (isEdge) {
+                        setTrackedBlock(world, wall, Blocks.BLACK_CONCRETE.getDefaultState(), originalBlocks);
+                    } else {
+                        setTrackedBlock(world, wall, Blocks.OAK_PLANKS.getDefaultState(), originalBlocks);
+                    }
+                }
+            }
+        }
+
+        // Build roof
+        for (int u = -2; u <= 2; u++) {
+            for (int v = 0; v <= 7; v++) {
+                BlockPos roof = orientedOffset(hubSurface, side, back, u, v, 5);
+                if (!isProtected(protectedPositions, roof)) {
+                    setTrackedBlock(world, roof, Blocks.QUARTZ_BLOCK.getDefaultState(), originalBlocks);
+                }
+            }
+        }
+
+        // Add striped awning
+        int awningSide = -1;
+        for (int v = 2; v <= 5; v++) {
+            if (v == 2 || v == 5) {
+                for (int y = 1; y <= 3; y++) {
+                    BlockPos post = orientedOffset(hubSurface, side, back, awningSide - 2, v, y);
+                    if (!isProtected(protectedPositions, post)) {
+                        setTrackedBlock(world, post, Blocks.OAK_FENCE.getDefaultState(), originalBlocks);
+                    }
+                }
+            }
+            for (int uOffset = 0; uOffset <= 2; uOffset++) {
+                BlockPos awning = orientedOffset(hubSurface, side, back, awningSide - 2 + uOffset, v, 3);
+                if (!isProtected(protectedPositions, awning)) {
+                    boolean isRed = (v % 2 == 0);
+                    setTrackedBlock(world, awning, isRed ? Blocks.RED_WOOL.getDefaultState() : Blocks.WHITE_WOOL.getDefaultState(), originalBlocks);
+                }
+            }
+        }
+
+        // Interior
+        for (int u = -1; u <= 1; u++) {
+            for (int v = 1; v <= 6; v++) {
+                BlockPos floor = orientedOffset(hubSurface, side, back, u, v, 1);
+                if (!isProtected(protectedPositions, floor)) {
+                    setTrackedBlock(world, floor, Blocks.SPRUCE_PLANKS.getDefaultState(), originalBlocks);
+                }
+            }
+        }
+
+        BlockPos bedPos = orientedOffset(hubSurface, side, back, 0, 1, 2);
+        if (!isProtected(protectedPositions, bedPos)) {
+            setTrackedBlock(world, bedPos, Blocks.WHITE_BED.getDefaultState(), originalBlocks);
+        }
+
+        BlockPos craftPos = orientedOffset(hubSurface, side, back, -1, 3, 2);
+        if (!isProtected(protectedPositions, craftPos)) {
+            setTrackedBlock(world, craftPos, Blocks.CRAFTING_TABLE.getDefaultState(), originalBlocks);
+        }
+
+        BlockPos lanternPos = orientedOffset(hubSurface, side, back, 0, 4, 3);
+        if (!isProtected(protectedPositions, lanternPos)) {
+            setTrackedBlock(world, lanternPos, Blocks.LANTERN.getDefaultState().with(Properties.HANGING, true), originalBlocks);
+        }
+
+        BlockPos barrelPos = orientedOffset(hubSurface, side, back, 1, 5, 2);
+        if (!isProtected(protectedPositions, barrelPos)) {
+            setTrackedBlock(world, barrelPos, Blocks.BARREL.getDefaultState(), originalBlocks);
+        }
+
+        // Window lighting
+        for (int v = 2; v <= 5; v++) {
+            BlockPos leftGlow = orientedOffset(hubSurface, side, back, -1, v, 3);
+            if (!isProtected(protectedPositions, leftGlow)) {
+                setTrackedBlock(world, leftGlow, Blocks.GLOWSTONE.getDefaultState(), originalBlocks);
+            }
+            BlockPos rightGlow = orientedOffset(hubSurface, side, back, 1, v, 3);
+            if (!isProtected(protectedPositions, rightGlow)) {
+                setTrackedBlock(world, rightGlow, Blocks.GLOWSTONE.getDefaultState(), originalBlocks);
+            }
+        }
+
+        BlockPos stepPos = orientedOffset(hubSurface, side, back, 0, 8, 0);
+        if (!isProtected(protectedPositions, stepPos)) {
+            setTrackedBlock(world, stepPos, Blocks.OAK_STAIRS.getDefaultState(), originalBlocks);
+        }
     }
 
     private static void buildCourseCentralDeck(
@@ -1795,6 +2017,33 @@ public final class CoursePlacementService {
         placeBasketMarker(world, rightSurface, originalBlocks, 2);
         addProtectedColumnArea(protectedPositions, leftSurface, 1, 6);
         addProtectedColumnArea(protectedPositions, rightSurface, 1, 6);
+    }
+
+    private static void placeLeaderboardSign(
+            ServerWorld world,
+            BlockPos hubSurface,
+            int[] side,
+            int[] back,
+            String courseName,
+            Map<BlockPos, BlockState> originalBlocks,
+            Set<BlockPos> protectedPositions
+    ) {
+        BlockPos signGround = orientedOffset(hubSurface, side, back, 0, 8, 0);
+        clearHeadroom(world, signGround, 1, 3, originalBlocks, protectedPositions);
+        BlockPos signPos = signGround.up(1);
+        BlockState signState = Blocks.OAK_SIGN.getDefaultState();
+        setTrackedBlock(world, signPos, signState, originalBlocks);
+
+        if (world.getBlockEntity(signPos) instanceof SignBlockEntity signBlockEntity) {
+            SignText front = signBlockEntity.getFrontText();
+            String nameLine = courseName.length() > 15 ? courseName.substring(0, 15) : courseName;
+            SignText updated = front
+                    .withMessage(0, Text.literal("[Leaderboard]"))
+                    .withMessage(1, Text.literal(nameLine));
+            signBlockEntity.setText(updated, true);
+            signBlockEntity.setText(updated, false);
+            signBlockEntity.markDirty();
+        }
     }
 
     private static void placePermanentLodgingSite(
@@ -2828,6 +3077,80 @@ public final class CoursePlacementService {
         }
 
         return new BlockPos(center.getX(), islandY, center.getZ());
+    }
+
+        
+    /**
+     * Creates an elongated island-style safe fairway landing zone at the given anchor point.
+     * This is used at alternate anchors on holes with long water carries to give players a
+     * reliable lay-up target that is 7 blocks wide and at least 20 blocks long.
+     *
+     * The fairway has sand edges with grass interior and extends towards the basket.
+     */
+    private static void createSafeFairwayLandingZone(
+            ServerWorld world,
+            BlockPos anchor,
+            BlockPos basketSurface,
+            Map<BlockPos, BlockState> originalBlocks,
+            Set<BlockPos> protectedPositions
+    ) {
+        int halfWidth = SAFE_FAIRWAY_HALF_WIDTH;
+        int minLength = SAFE_FAIRWAY_MIN_LENGTH;
+        int sandThickness = 1;
+
+        int dx = basketSurface.getX() - anchor.getX();
+        int dz = basketSurface.getZ() - anchor.getZ();
+        double distance = Math.sqrt(dx * dx + dz * dz);
+
+        if (distance < 1) { return; }
+
+        double dirX = dx / distance;
+        double dirZ = dz / distance;
+        double perpX = -dirZ;
+        double perpZ = dirX;
+
+        int actualLength = (int) Math.min(minLength, distance);
+        int surfaceY = resolveSurfacePos(world, anchor.getX(), anchor.getZ()).getY();
+        int platformY = Math.max(surfaceY, world.getSeaLevel());
+
+        for (int step = -halfWidth; step <= actualLength + halfWidth; step++) {
+            int centerX = (int) Math.round(anchor.getX() + dirX * step);
+            int centerZ = (int) Math.round(anchor.getZ() + dirZ * step);
+
+            for (int w = -halfWidth; w <= halfWidth; w++) {
+                int wx = (int) Math.round(centerX + perpX * w);
+                int wz = (int) Math.round(centerZ + perpZ * w);
+
+                boolean isEdge = (Math.abs(w) >= halfWidth - sandThickness) || (step < 0) || (step > actualLength);
+
+                int seabedY = Math.max(world.getBottomY() + 1, world.getTopY(Heightmap.Type.OCEAN_FLOOR, wx, wz) - 1);
+
+                for (int y = seabedY; y < platformY; y++) {
+                    BlockPos fillPos = new BlockPos(wx, y, wz);
+                    if (isProtected(protectedPositions, fillPos)) { continue; }
+                    BlockState fillState = world.getBlockState(fillPos);
+                    if (isFillReplaceable(fillState)) {
+                        setTrackedBlock(world, fillPos, Blocks.DIRT.getDefaultState(), originalBlocks);
+                    }
+                }
+
+                BlockPos surfacePos = new BlockPos(wx, platformY, wz);
+                if (isProtected(protectedPositions, surfacePos)) { continue; }
+                BlockState surfaceState = world.getBlockState(surfacePos);
+                if (isFillReplaceable(surfaceState)) {
+                    BlockState newSurface = isEdge ? Blocks.SAND.getDefaultState() : Blocks.GRASS_BLOCK.getDefaultState();
+                    setTrackedBlock(world, surfacePos, newSurface, originalBlocks);
+                }
+            }
+        }
+
+        BlockPos fairwayCenter = new BlockPos(
+                (int) Math.round(anchor.getX() + dirX * (actualLength / 2.0)),
+                platformY,
+                (int) Math.round(anchor.getZ() + dirZ * (actualLength / 2.0)));
+        int clearRadius = halfWidth + 2;
+        clearHeadroom(world, fairwayCenter, clearRadius, 8, originalBlocks, protectedPositions);
+        addProtectedColumnArea(protectedPositions, fairwayCenter, clearRadius, 8);
     }
 
         private static BlockPos expandBasketGreenIfWaterNearby(

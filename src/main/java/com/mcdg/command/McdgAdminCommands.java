@@ -17,6 +17,7 @@ import com.mcdg.game.RoundSessionStorage;
 import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.ScorecardManager;
 import com.mcdg.game.ThrowAutoTestService;
+import com.mcdg.McdgMod;
 import com.mcdg.game.AutoCourseService;
 import com.mcdg.game.BuildCourseSessionManager;
 import com.mcdg.net.MenuScreenSync;
@@ -623,7 +624,20 @@ public final class McdgAdminCommands {
                                                 )))))
                         .then(literal("cancelthrowtest").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
-                                .executes(context -> executeCancelThrowTest(context.getSource(), throwAutoTestService)))));
+                                .executes(context -> executeCancelThrowTest(context.getSource(), throwAutoTestService)))
+                        .then(literal("leaderboard")
+                                .executes(context -> {
+                                    ServerPlayerEntity player = context.getSource().getPlayerOrThrow();
+                                    String courseName = courseManager.getActiveCourse()
+                                            .map(Course::name)
+                                            .orElse("");
+                                    if (courseName.isEmpty()) {
+                                        player.sendMessage(Text.literal("No active course."), false);
+                                        return 0;
+                                    }
+                                    McdgMod.handleLeaderboardRequest(player, courseName);
+                                    return 1;
+                                }))));
     }
 
         private static boolean canUseAdminCommands(ServerCommandSource source) {
@@ -732,7 +746,8 @@ public final class McdgAdminCommands {
         int holeCount = 9;
 
         try {
-            Course generated = generator.generate(seed, holeCount);
+            float facingYaw = source.getPlayer() != null ? source.getPlayer().getYaw() : 0.0f;
+            Course generated = generator.generate(seed, holeCount, facingYaw);
             Course course = ensureSingleSignatureHole(generated);
             courseManager.setActiveCourse(course);
             courseManager.setActiveCourseCatalogIndex(null);

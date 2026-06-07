@@ -18,8 +18,9 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.render.LightmapTextureManager;
-import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.render.VertexConsumer;
+// TODO: re-add when beam rendering is fixed
+// import net.minecraft.client.render.RenderLayer;
+// import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -27,9 +28,10 @@ import net.minecraft.util.StringHelper;
 import net.minecraft.util.WorldSavePath;
 
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.hit.HitResult;
+// TODO: re-add when beam rendering is fixed
+// import net.minecraft.util.hit.HitResult;
 import net.minecraft.world.Heightmap;
-import net.minecraft.world.RaycastContext;
+// import net.minecraft.world.RaycastContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,8 +42,9 @@ public final class WaypointManager {
     private static final int WAYPOINT_EDGE_ARROW_ENTER_BLOCKS = 120;
     private static final int WAYPOINT_FLOAT_LABEL_MAX_BLOCKS = 160;
     private static final int WAYPOINT_EDGE_ARROW_MAX_BLOCKS = 320;
-    private static final int WAYPOINT_BEAM_HEIGHT_BLOCKS = 64;
-    private static final float WAYPOINT_BEAM_ALPHA = 0.60f;
+    // TODO: re-add when beam rendering is fixed
+    // private static final int WAYPOINT_BEAM_HEIGHT_BLOCKS = 64;
+    // private static final float WAYPOINT_BEAM_ALPHA = 0.60f;
     private static final int UNKNOWN_WAYPOINT_Y = Integer.MIN_VALUE;
     private static final int WAYPOINT_COURSE_COLOR = 0xFF66CC66;
     private static final int WAYPOINT_HOLE_TEMP_COLOR = 0xFFFFFFFF;
@@ -487,15 +490,17 @@ public final class WaypointManager {
         if (visibleWaypoints.isEmpty()) return;
         Vec3d cameraPos = context.camera().getPos();
         VertexConsumerProvider.Immediate consumers = client.getBufferBuilders().getEntityVertexConsumers();
-        VertexConsumer beamConsumer = consumers.getBuffer(RenderLayer.getDebugLineStrip(2.0));
+        // TODO: re-enable beam rendering with correct vertex format (currently crashes)
+        // VertexConsumer beamConsumer = consumers.getBuffer(RenderLayer.getDebugLineStrip(2.0));
         for (ClientWaypoint waypoint : visibleWaypoints) {
             double distanceBlocks = Math.hypot(waypoint.x() - client.player.getX(), waypoint.z() - client.player.getZ());
             WaypointRenderMode mode = resolveWaypointRenderMode(waypoint, distanceBlocks);
             if (mode != WaypointRenderMode.FLOATING_LABEL || distanceBlocks > WAYPOINT_FLOAT_LABEL_MAX_BLOCKS) continue;
             int surfaceY = client.world.getTopY(Heightmap.Type.WORLD_SURFACE, waypoint.x(), waypoint.z());
-            if (isWaypointBeamVisible(client, cameraPos, waypoint, surfaceY)) {
-                drawWaypointBeamColumn(context, beamConsumer, cameraPos, waypoint, surfaceY);
-            }
+            // TODO: re-enable beam rendering
+            // if (isWaypointBeamVisible(client, cameraPos, waypoint, surfaceY)) {
+            //     drawWaypointBeamColumn(context, beamConsumer, cameraPos, waypoint, surfaceY);
+            // }
             double wx = waypoint.x() + 0.5d;
             double wy = surfaceY + 2.3d;
             double wz = waypoint.z() + 0.5d;
@@ -513,25 +518,27 @@ public final class WaypointManager {
         consumers.draw();
     }
 
-    private static boolean isWaypointBeamVisible(MinecraftClient client, Vec3d cameraPos, ClientWaypoint waypoint, int surfaceY) {
-        if (client == null || client.world == null || client.player == null) return false;
-        Vec3d target = new Vec3d(waypoint.x() + 0.5d, surfaceY + 1.0d, waypoint.z() + 0.5d);
-        HitResult hit = client.world.raycast(new RaycastContext(cameraPos, target, RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.NONE, client.player));
-        return hit.getType() == HitResult.Type.MISS || hit.getPos().squaredDistanceTo(target) <= 1.25d;
-    }
+    // TODO: re-enable when beam rendering vertex format is fixed
+    // private static boolean isWaypointBeamVisible(MinecraftClient client, Vec3d cameraPos, ClientWaypoint waypoint, int surfaceY) {
+    //     if (client == null || client.world == null || client.player == null) return false;
+    //     Vec3d target = new Vec3d(waypoint.x() + 0.5d, surfaceY + 1.0d, waypoint.z() + 0.5d);
+    //     HitResult hit = client.world.raycast(new RaycastContext(cameraPos, target, RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.NONE, client.player));
+    //     return hit.getType() == HitResult.Type.MISS || hit.getPos().squaredDistanceTo(target) <= 1.25d;
+    // }
 
-    private static void drawWaypointBeamColumn(WorldRenderContext context, VertexConsumer beamConsumer, Vec3d cameraPos, ClientWaypoint waypoint, int surfaceY) {
-        float r = ((waypoint.color() >> 16) & 0xFF) / 255.0f;
-        float g = ((waypoint.color() >> 8) & 0xFF) / 255.0f;
-        float b = (waypoint.color() & 0xFF) / 255.0f;
-        float a = WAYPOINT_BEAM_ALPHA;
-        float cx = (float) ((waypoint.x() + 0.5d) - cameraPos.x);
-        float cz = (float) ((waypoint.z() + 0.5d) - cameraPos.z);
-        float y1 = (float) ((surfaceY + 0.05d) - cameraPos.y);
-        float y2 = (float) ((surfaceY + WAYPOINT_BEAM_HEIGHT_BLOCKS) - cameraPos.y);
-        beamConsumer.vertex(cx, y1, cz).color(r, g, b, a).next();
-        beamConsumer.vertex(cx, y2, cz).color(r, g, b, a).next();
-    }
+    // TODO: re-enable when beam rendering vertex format is fixed
+    // private static void drawWaypointBeamColumn(WorldRenderContext context, VertexConsumer beamConsumer, Vec3d cameraPos, ClientWaypoint waypoint, int surfaceY) {
+    //     float r = ((waypoint.color() >> 16) & 0xFF) / 255.0f;
+    //     float g = ((waypoint.color() >> 8) & 0xFF) / 255.0f;
+    //     float b = (waypoint.color() & 0xFF) / 255.0f;
+    //     float a = WAYPOINT_BEAM_ALPHA;
+    //     float cx = (float) ((waypoint.x() + 0.5d) - cameraPos.x);
+    //     float cz = (float) ((waypoint.z() + 0.5d) - cameraPos.z);
+    //     float y1 = (float) ((surfaceY + 0.05d) - cameraPos.y);
+    //     float y2 = (float) ((surfaceY + WAYPOINT_BEAM_HEIGHT_BLOCKS) - cameraPos.y);
+    //     beamConsumer.vertex(cx, y1, cz).color(r, g, b, a).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).next();
+    //     beamConsumer.vertex(cx, y2, cz).color(r, g, b, a).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).next();
+    // }
 
     private enum WaypointPromptStage { NONE, WAITING_NAME, WAITING_COLOR }
 

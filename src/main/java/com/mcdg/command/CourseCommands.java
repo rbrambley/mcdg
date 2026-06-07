@@ -32,7 +32,8 @@ public final class CourseCommands {
         int holeCount = 9;
 
         try {
-            Course generated = generator.generate(seed, holeCount);
+            float facingYaw = source.getPlayer() != null ? source.getPlayer().getYaw() : 0.0f;
+            Course generated = generator.generate(seed, holeCount, facingYaw);
             Course course = ensureSingleSignatureHole(generated);
             courseManager.setActiveCourse(course);
             courseManager.setActiveCourseCatalogIndex(null);

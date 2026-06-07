@@ -28,10 +28,10 @@ public final class CoursePlacementConfig {
         public static final int ANCHOR = 120;
         
         /** Radius to search for alternate fairway anchor */
-        public static final int ALT_FAIRWAY_ANCHOR = 112;
+        public static final int ALT_FAIRWAY_ANCHOR = 91;
         
         /** Radius to search for emergency alternate fairway anchor */
-        public static final int ALT_FAIRWAY_EMERGENCY_ANCHOR = 196;
+        public static final int ALT_FAIRWAY_EMERGENCY_ANCHOR = 91;
         
         /** Radius to search for camp site markers */
         public static final int CAMP_SITE_MARKER = 192;
@@ -90,6 +90,12 @@ public final class CoursePlacementConfig {
         
         /** Maximum water carry distance (about 300 ft) */
         public static final int MAX_CARRY_BLOCKS = 91;
+
+        /** Minimum safe fairway width at alternate anchors (7 blocks wide) */
+        public static final int SAFE_FAIRWAY_HALF_WIDTH = 3;
+
+        /** Minimum safe fairway length towards hole at alternate anchors */
+        public static final int SAFE_FAIRWAY_MIN_LENGTH = 20;
     }
 
     /**
@@ -275,10 +281,10 @@ public final class CoursePlacementConfig {
         public static final int MIN_ADVANCE = 8;
         
         /** Maximum first leg length for alternate fairway */
-        public static final int MAX_FIRST_LEG = 144;
+        public static final int MAX_FIRST_LEG = 91;
         
         /** Emergency maximum first leg length for alternate fairway */
-        public static final int EMERGENCY_MAX_FIRST_LEG = 240;
+        public static final int EMERGENCY_MAX_FIRST_LEG = 91;
     }
 
     /**

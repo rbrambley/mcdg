@@ -3,6 +3,7 @@ package com.mcdg.client;
 import com.mcdg.game.ChargedDiscItem;
 import com.mcdg.game.McdgItems;
 import com.mcdg.net.HoleMiniMapSync;
+import com.mcdg.net.LeaderboardResponse;
 import com.mcdg.net.RoundRunningScoresSync;
 import java.util.ArrayList;
 import java.util.List;
@@ -197,6 +198,13 @@ public final class McdgClientMod implements ClientModInitializer {
             rows.add(new RunningRoundScoreRow(row.playerName(), row.online(), row.holeScores(), row.runningTotal()));
         }
         runningRoundScoreState = new RunningRoundScoreState(payload.totalHoles(), payload.focusHole(), payload.courseName(), rows);
+    }
+
+    public static void onLeaderboardResponse(LeaderboardResponse.Payload payload, MinecraftClient client) {
+        if (!payload.active()) {
+            return;
+        }
+        LeaderboardScreen.open(payload.courseName(), payload.totalPar(), payload.entries());
     }
 
 }

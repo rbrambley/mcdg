@@ -2,6 +2,7 @@ package com.mcdg.client;
 
 import com.mcdg.net.AceCinematicSync;
 import com.mcdg.net.HoleMiniMapSync;
+import com.mcdg.net.LeaderboardResponse;
 import com.mcdg.net.MenuScreenSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
 import com.mcdg.net.RoundRunningScoresSync;
@@ -52,6 +53,9 @@ public final class ClientNetworking {
         );
         ClientPlayNetworking.registerGlobalReceiver(RoundRunningScoresSync.ID, (payload, context) ->
             context.client().execute(() -> McdgClientMod.onRoundRunningScoresSync(payload, context.client()))
+        );
+        ClientPlayNetworking.registerGlobalReceiver(LeaderboardResponse.ID, (payload, context) ->
+            context.client().execute(() -> McdgClientMod.onLeaderboardResponse(payload, context.client()))
         );
     }
 }
