@@ -867,7 +867,7 @@ public final class McdgAdminCommands {
                                 return 0;
                         }
 
-                        // Course is placed — clear the center-screen progress title.
+                        // Course is placed â€” clear the center-screen progress title.
                         for (var barPlayer : source.getServer().getPlayerManager().getPlayerList()) {
                                 if (barPlayer.getWorld().getRegistryKey().equals(world.getRegistryKey())) {
                                         clearCourseBuildProgressOverlay(barPlayer);
@@ -896,6 +896,10 @@ public final class McdgAdminCommands {
                         }
                         for (ServerPlayerEntity player : participants) {
                                 BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
+                                if (safeTee == null) {
+                                    player.sendMessage(Text.literal("Failed to find safe tee position. Skipping."), false);
+                                    continue;
+                                }
                                 roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
                                 player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
                                 ensureSingleRoundThrowItem(player);

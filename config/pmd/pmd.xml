@@ -10,6 +10,15 @@
         <exclude name="AtLeastOneConstructor"/>
         <exclude name="OnlyOneReturn"/>
         <exclude name="LongVariable"/>
+        <exclude name="LocalVariableCouldBeFinal"/>
+        <exclude name="MethodArgumentCouldBeFinal"/>
+        <exclude name="ShortVariable"/>
+        <exclude name="CommentDefaultAccessModifier"/>
+        <exclude name="FieldDeclarationsShouldBeAtStartOfClass"/>
+        <exclude name="UseExplicitTypes"/>
+        <exclude name="UseUnderscoresInNumericLiterals"/>
+        <exclude name="ControlStatementBraces"/>
+        <exclude name="FieldNamingConventions"/>
     </rule>
 
     <rule ref="category/java/design.xml">

@@ -158,6 +158,9 @@ public final class HoleMiniMapSync {
             buf.writeVarInt(lastThrowDistanceFeet);
             buf.writeVarInt(corridorEntryFeet);
             buf.writeVarInt(corridorEntryBearing);
+            buf.writeVarInt(waterGapStartFeet);
+            buf.writeVarInt(waterGapEndFeet);
+            buf.writeBoolean(hasWaterGap);
         }
 
         public static Payload inactive() {
@@ -237,3 +240,4 @@ public final class HoleMiniMapSync {
         }
     }
 }
+

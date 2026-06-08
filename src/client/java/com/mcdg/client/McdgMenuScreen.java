@@ -1,6 +1,8 @@
 package com.mcdg.client;
 
+import com.mcdg.net.LeaderboardRequest;
 import com.mcdg.net.MenuScreenSync;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.MinecraftClient;
@@ -185,7 +187,8 @@ public final class McdgMenuScreen extends Screen {
         int playW = 42;
         int removeW = 16;
         int gap = 3;
-        int totalBtnsW = tpW + playW + removeW + (gap * 2);
+        int scoresW = 20;
+        int totalBtnsW = tpW + scoresW + playW + removeW + (gap * 3);
         int visibleRows = Math.min(ROWS_VISIBLE, courses.size());
         int maxOffset = Math.max(0, courses.size() - visibleRows);
         playScrollOffset = Math.max(0, Math.min(playScrollOffset, maxOffset));
@@ -205,6 +208,15 @@ public final class McdgMenuScreen extends Screen {
             x += labelW + gap;
             addBtn("[TP]", "/mcdg gotocoursebyindex " + idx, x, y, tpW, TEXT_WHITE, BTN_TINT_NONE);
             x += tpW + gap;
+            String scoresCourseName = entry.name();
+            ButtonWidget scoresBtn = ButtonWidget.builder(Text.literal("[S]"), b -> {
+                close();
+                ClientPlayNetworking.send(new LeaderboardRequest.Payload(scoresCourseName));
+            }).dimensions(x, y, scoresW, BTN_H).build();
+            contentButtons.add(scoresBtn);
+            buttonTints.add(new int[]{x, y, scoresW, BTN_H, BTN_TINT_NONE});
+            addDrawableChild(scoresBtn);
+            x += scoresW + gap;
             if (state.roundActive() && isActive) {
                 addBtn("[PLAY]", null, x, y, playW, TEXT_MUTED, BTN_TINT_MUTED);
             } else {

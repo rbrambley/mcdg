@@ -135,7 +135,8 @@ public final class AutoCourseService {
         long seed = java.util.concurrent.ThreadLocalRandom.current().nextLong();
         java.util.Random random = new java.util.Random(seed);
         int signatureHoleIndex = random.nextInt(HOLE_COUNT) + 1;
-        List<HoleSpec> holeSpecs = generateHoleSpecsFromOrigin(seed, origin);
+        float facingYaw = player.getYaw();
+        List<HoleSpec> holeSpecs = generateHoleSpecsFromOrigin(seed, origin, facingYaw);
         state = new AutoBuildState(playerId, trimmed, seed, holeSpecs, player.getServerWorld());
         state.signatureHoleIndex = signatureHoleIndex;
         final String name = trimmed;
@@ -168,7 +169,8 @@ public final class AutoCourseService {
 
         java.util.Random random = new java.util.Random(seed);
         int signatureHoleIndex = random.nextInt(HOLE_COUNT) + 1;
-        List<HoleSpec> holeSpecs = generateHoleSpecsFromOrigin(seed, player.getBlockPos());
+        float facingYaw = player.getYaw();
+        List<HoleSpec> holeSpecs = generateHoleSpecsFromOrigin(seed, player.getBlockPos(), facingYaw);
         state = new AutoBuildState(player.getUuid(), trimmed, seed, holeSpecs, player.getServerWorld());
         state.signatureHoleIndex = signatureHoleIndex;
 
@@ -359,7 +361,8 @@ public final class AutoCourseService {
     public AutoCourseScenarioResult runSynchronousScenario(ServerWorld world, BlockPos origin, long seed, String courseName) {
         java.util.Random random = new java.util.Random(seed);
         int signatureHoleIndex = random.nextInt(HOLE_COUNT) + 1;
-        List<HoleSpec> holeSpecs = generateHoleSpecsFromOrigin(seed, origin);
+        float defaultFacingYaw = 0.0f;
+        List<HoleSpec> holeSpecs = generateHoleSpecsFromOrigin(seed, origin, defaultFacingYaw);
 
         List<Hole> builtHoles = new ArrayList<>();
         Map<BlockPos, net.minecraft.block.BlockState> mergedOriginals = new HashMap<>();
@@ -421,19 +424,25 @@ public final class AutoCourseService {
         return new AutoCourseScenarioResult(course, mergedState);
     }
 
-    List<HoleSpec> generateHoleSpecsFromOrigin(long seed, BlockPos origin) {
+    List<HoleSpec> generateHoleSpecsFromOrigin(long seed, BlockPos origin, float facingYaw) {
         java.util.Random random = new java.util.Random(seed);
         List<HoleSpec> specs = new ArrayList<>();
 
         int hubX = origin.getX();
         int hubZ = origin.getZ();
 
-        double angleStepRad = (2.0 * Math.PI) / HOLE_COUNT;
+        // Half-circle (180°) layout in front of player
+        // facingYaw: 0=south, 90=west, 180=north, -90=east
+        // Convert to standard math angle and center the half-circle arc
+        float normalizedYaw = ((facingYaw % 360f) + 360f) % 360f;
+        double baseAngleRad = Math.toRadians(normalizedYaw - 90.0);
+        double angleStepRad = Math.PI / (HOLE_COUNT - 1); // 180° spread across 9 holes
 
         for (int i = 1; i <= HOLE_COUNT; i++) {
-            double baseAngle = (i - 1) * angleStepRad;
+            // Spread holes across 180° arc in front of player (hole 1 on left, hole 9 on right)
+            double holeAngleOffset = (i - 1) * angleStepRad;
             double jitterRad = Math.toRadians((random.nextDouble() * 2.0 - 1.0) * ANGLE_JITTER_DEG);
-            double teeAngle = baseAngle + jitterRad;
+            double teeAngle = baseAngleRad + holeAngleOffset + jitterRad;
 
             int teeRadius = COURSE_RADIUS_MIN + random.nextInt(COURSE_RADIUS_MAX - COURSE_RADIUS_MIN + 1);
             int teeX = hubX + (int) Math.round(Math.cos(teeAngle) * teeRadius);
@@ -448,7 +457,8 @@ public final class AutoCourseService {
                 basketZ = hubZ + (int) Math.round(Math.sin(returnAngle) * returnDist);
             } else {
                 // Basket fires outward and slightly toward next tee angle
-                double nextAngle = i * angleStepRad;
+                double nextHoleOffset = i * angleStepRad;
+                double nextAngle = baseAngleRad + nextHoleOffset;
                 double basketAngle = teeAngle + (nextAngle - teeAngle) * 0.5 + jitterRad * 0.5;
                 int distBlocks = HOLE_DIST_MIN_BLOCKS + random.nextInt(HOLE_DIST_MAX_BLOCKS - HOLE_DIST_MIN_BLOCKS + 1);
                 basketX = teeX + (int) Math.round(Math.cos(basketAngle) * distBlocks);
