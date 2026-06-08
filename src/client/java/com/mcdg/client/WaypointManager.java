@@ -440,6 +440,8 @@ public final class WaypointManager {
             lines.add("nextIndex=" + nextWaypointIndex);
             lines.add("labelsVisible=" + waypointLabelsVisible);
             for (ClientWaypoint waypoint : clientWaypoints) {
+                // Never persist course waypoints — they are transient (re-sent by server on join)
+                if (waypoint.color() == WAYPOINT_COURSE_COLOR) continue;
                 String safeName = waypoint.name().replace("\t", " ").replace("\n", " ").trim();
                 lines.add("wp=" + safeName + "\t" + waypoint.x() + "\t" + waypoint.y() + "\t" + waypoint.z() + "\t" + String.format("%08X", waypoint.color()) + "\t" + waypoint.dimensionId());
             }
