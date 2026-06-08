@@ -50,6 +50,8 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.ClickEvent;
 import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Text;
+import com.mcdg.net.CourseRemovedSync;
+import net.minecraft.server.MinecraftServer;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
@@ -1275,11 +1277,14 @@ public final class McdgAdminCommands {
                         PracticeCourseStorage practiceCourseStorage,
                         int oneBasedIndex
         ) {
+                Optional<PracticeCourseStorage.LoadedPracticeCourse> courseToRemove = practiceCourseStorage.loadReusableByIndex(source.getServer(), oneBasedIndex);
+                String removedCourseName = courseToRemove.map(c -> c.course().name()).orElse(null);
                 int removed = practiceCourseStorage.pruneReusableByIndices(source.getServer(), Set.of(oneBasedIndex));
                 if (removed <= 0) {
                         source.sendError(Text.literal("Reusable course #" + oneBasedIndex + " was not found."));
                         return 0;
                 }
+                if (removedCourseName != null) { broadcastCourseWaypointRemoval(source.getServer(), removedCourseName); }
 
                 // Always clear the active round when any course is removed - the removed course may
                 // not be the one whose catalog index is tracked, but an active round referencing a
@@ -1725,6 +1730,7 @@ public final class McdgAdminCommands {
                 }
                 HoleProgressTracker.resetAllState(source.getServer());
 
+                broadcastCourseWaypointRemoval(source.getServer(), loaded.get().course().name());
                 practiceCourseStorage.pruneReusableByIndices(source.getServer(), Set.of(oneBasedIndex));
 
                 source.sendFeedback(() -> Text.literal("Course #" + oneBasedIndex + " cleaned up and removed from catalog."), true);
@@ -1936,6 +1942,14 @@ public final class McdgAdminCommands {
         private static void removeRoundThrowItemsFromPlayers(Collection<ServerPlayerEntity> players) {
                 for (ServerPlayerEntity player : players) {
                         removeRoundThrowItems(player);
+                }
+        }
+
+        private static void broadcastCourseWaypointRemoval(MinecraftServer server, String courseName) {
+                if (courseName == null || courseName.isBlank()) return;
+                CourseRemovedSync.Payload packet = new CourseRemovedSync.Payload(courseName);
+                for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                        ServerPlayNetworking.send(player, packet);
                 }
         }
 

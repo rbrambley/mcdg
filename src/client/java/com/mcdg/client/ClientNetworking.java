@@ -1,6 +1,7 @@
 package com.mcdg.client;
 
 import com.mcdg.net.AceCinematicSync;
+import com.mcdg.net.CourseRemovedSync;
 import com.mcdg.net.HoleMiniMapSync;
 import com.mcdg.net.LeaderboardResponse;
 import com.mcdg.net.MenuScreenSync;
@@ -56,6 +57,9 @@ public final class ClientNetworking {
         );
         ClientPlayNetworking.registerGlobalReceiver(LeaderboardResponse.ID, (payload, context) ->
             context.client().execute(() -> McdgClientMod.onLeaderboardResponse(payload, context.client()))
+        );
+        ClientPlayNetworking.registerGlobalReceiver(CourseRemovedSync.ID, (payload, context) ->
+            context.client().execute(() -> WaypointManager.removePermanentCourseWaypoint(context.client(), payload.courseName()))
         );
     }
 }
