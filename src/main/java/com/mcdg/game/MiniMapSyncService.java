@@ -149,7 +149,7 @@ public final class MiniMapSyncService {
             int corridorEntryFeet,
             int corridorEntryBearing
     ) {
-        int[] waterGap = HoleProgressTracker.findLongestWaterGap(world, tee, basket);
+        int[] waterGap = HoleProgressTracker.findLongestWaterGap(world, lie, basket);
         int waterGapStartFeet = waterGap[2] > 0 ? Math.round(waterGap[0] * 3.28084f) : 0;
         int waterGapEndFeet = waterGap[2] > 0 ? Math.round(waterGap[1] * 3.28084f) : 0;
         boolean hasWaterGap = waterGap[2] > 0;
