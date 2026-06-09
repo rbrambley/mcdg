@@ -103,7 +103,6 @@ public final class RoundStateManager {
 
     public void clearPlayer(UUID playerId) {
         stateByPlayer.remove(playerId);
-        completedTotalByPlayer.remove(playerId);
     }
 
     public void clearPlayers(Collection<UUID> playerIds) {
