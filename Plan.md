@@ -1422,6 +1422,46 @@ Primary automation workflows:
 
 ---
 
+## Disc Flight Simulator — Glide & Fade Physics (Pending — 2026-06-09)
+
+**Goal:** Replace pure ballistic ender pearl flight with aerodynamic disc golf flight: flat glide phase proportional to charge power, then a natural left fade at the end. Target distances 400–600 ft at full power with flat/horizontal aim.
+
+### New class: `DiscFlightSimulator` (`com.mcdg.game`)
+
+- Static state: `Map<UUID, FlightState>` per player
+- `FlightState` fields: `pearlUUID`, `launchTick`, `launchYawDegrees`, `charge` (0.0–1.0)
+- Public API:
+  - `registerThrow(UUID playerId, UUID pearlId, long launchTick, float yawDegrees, float charge)`
+  - `tick(MinecraftServer server)` — called every tick to apply velocity adjustments
+  - `reset()` — clear all state (call alongside `ThrowResolver.reset()`)
+
+### Per-tick physics
+
+**Glide phase** (tick 0 → `glideTicks`):
+- Apply upward Y impulse of `+0.03` each tick to counteract vanilla gravity (~-0.03/tick)
+- Net effect: nearly flat horizontal flight
+
+**Glide taper** (final 20% of glide phase):
+- Linearly reduce upward impulse from full to zero; pearl naturally arcs down
+
+**Fade phase** (last ~20 ticks of glide):
+- Apply small leftward horizontal nudge relative to launch yaw (yaw + 90°)
+- Nudge magnitude: ~0.01–0.02 m/tick, increasing toward end
+
+**Glide duration:** `glideTicks = 10 + (charge * 70)` → 10 ticks (min) to 80 ticks (full power)
+
+### Files to create/modify
+- **Create:** `src/main/java/com/mcdg/game/DiscFlightSimulator.java`
+- **Modify:** `ChargedDiscItem.onStoppedUsing()` — add `registerThrow` call
+- **Modify:** `McdgMod.onInitialize()` — register `DiscFlightSimulator::tick` via `ServerTickEvents.END_SERVER_TICK`
+- **Modify:** `HoleProgressTracker.register()` — call `DiscFlightSimulator.reset()` with `ThrowResolver.reset()`
+
+### What does NOT change
+- `ThrowResolver` landing detection, `ThrowAutoTestService`, client rendering
+- `MAX_THROW_RESOLUTION_WAIT_TICKS` (320 ticks > 80 glide ticks, no issue)
+
+---
+
 ## Done Definition (Current Project)
 
 Project can be considered release-ready for current scope when:

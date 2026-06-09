@@ -21,17 +21,46 @@ import net.minecraft.util.math.BlockPos;
  * Tracks per-player payload hashes to avoid redundant network sends.
  */
 public final class MiniMapSyncService {
+    private static final int HUD_LINGER_TICKS = 600;
     private static final Map<UUID, Integer> LAST_MINIMAP_HOLE = new HashMap<>();
     private static final Map<UUID, Integer> LAST_MINIMAP_PAYLOAD_HASH = new HashMap<>();
+    private static final Map<UUID, Long> PENDING_INACTIVE_TICK = new HashMap<>();
     private static boolean ACTIVE_SENT = false;
 
     private MiniMapSyncService() {
     }
 
+    public static int hudLingerTicks() {
+        return HUD_LINGER_TICKS;
+    }
+
     public static void reset() {
         LAST_MINIMAP_HOLE.clear();
         LAST_MINIMAP_PAYLOAD_HASH.clear();
+        PENDING_INACTIVE_TICK.clear();
         ACTIVE_SENT = false;
+    }
+
+    public static void scheduleInactiveForPlayer(UUID playerId, long atTick) {
+        PENDING_INACTIVE_TICK.put(playerId, atTick);
+    }
+
+    public static void tickPendingInactive(MinecraftServer server) {
+        if (PENDING_INACTIVE_TICK.isEmpty()) {
+            return;
+        }
+        long now = server.getOverworld().getTime();
+        HoleMiniMapSync.Payload inactive = HoleMiniMapSync.Payload.inactive();
+        PENDING_INACTIVE_TICK.entrySet().removeIf(entry -> {
+            if (now < entry.getValue()) {
+                return false;
+            }
+            ServerPlayerEntity player = server.getPlayerManager().getPlayer(entry.getKey());
+            if (player != null) {
+                ServerPlayNetworking.send(player, inactive);
+            }
+            return true;
+        });
     }
 
     public static void sendInactive(MinecraftServer server) {
@@ -124,6 +153,60 @@ public final class MiniMapSyncService {
             LAST_MINIMAP_PAYLOAD_HASH.put(playerId, miniMapHash);
             LAST_MINIMAP_HOLE.put(playerId, state.currentHole());
         }
+        ACTIVE_SENT = true;
+    }
+
+    public static void forceSync(
+            MinecraftServer server,
+            ServerPlayerEntity player,
+            ActiveCourseManager courseManager,
+            Course course,
+            PlacedCourseState placed,
+            PlayerRoundState state,
+            Hole currentHole,
+            BlockPos tee,
+            BlockPos basket,
+            BlockPos alternateAnchor,
+            TournamentRulesetManager rulesetManager,
+            int corridorHalfWidth,
+            int cumulativeParDelta,
+            int lastThrowDistanceFeet,
+            boolean strictFlowDebug
+    ) {
+        UUID playerId = player.getUuid();
+        BlockPos mapFocus = player.getBlockPos();
+        int[] corridorEntry = tee != null
+                ? HoleProgressTracker.nearestForwardCorridorEntry(state.lie(), tee, basket, alternateAnchor, corridorHalfWidth)
+                : null;
+        int corridorEntryFeet = corridorEntry != null ? corridorEntry[0] : 0;
+        int corridorEntryBearing = corridorEntry != null ? corridorEntry[1] : 0;
+
+        HoleMiniMapSync.Payload miniMapPayload = buildMiniMapPayload(
+                (ServerWorld) player.getWorld(),
+                courseManager,
+                course,
+                placed,
+                state.currentHole(),
+                currentHole.par(),
+                state.holeStrokes(),
+                state.totalStrokes(),
+                cumulativeParDelta,
+                tee == null ? state.lie() : tee,
+                basket,
+                state.lie(),
+                mapFocus,
+                rulesetManager.isStrict(),
+                rulesetManager.getStrictSurfacePreset().ordinal(),
+                corridorHalfWidth,
+                alternateAnchor,
+                lastThrowDistanceFeet,
+                corridorEntryFeet,
+                corridorEntryBearing
+        );
+
+        ServerPlayNetworking.send(player, miniMapPayload);
+        LAST_MINIMAP_PAYLOAD_HASH.put(playerId, miniMapPayload.hashCode());
+        LAST_MINIMAP_HOLE.put(playerId, state.currentHole());
         ACTIVE_SENT = true;
     }
 
