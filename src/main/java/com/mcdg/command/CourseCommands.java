@@ -3,6 +3,7 @@ package com.mcdg.command;
 import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import com.mcdg.game.ActiveCourseManager;
+import com.mcdg.game.CourseFireProtection;
 import com.mcdg.game.PlacedCourseState;
 import com.mcdg.game.PracticeCourseStorage;
 import com.mcdg.game.RoundStateManager;
@@ -184,6 +185,7 @@ public final class CourseCommands {
         }
 
         placementService.resetPlacedCourse(world, placed);
+        CourseFireProtection.remove(world);
         courseManager.clearPlacedCourseState();
         courseManager.setRoundActive(false);
         roundStateManager.clearAll();

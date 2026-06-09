@@ -14,6 +14,7 @@ import com.mcdg.game.BuildCourseSessionManager;
 import com.mcdg.game.PracticeCourseStorage;
 import com.mcdg.game.RoundInventoryCleaner;
 import com.mcdg.game.RoundPresentationService;
+import com.mcdg.game.CourseFireProtection;
 import com.mcdg.game.RoundRespawnHandler;
 import com.mcdg.game.RoundSessionStorage;
 import com.mcdg.game.RoundStateManager;
@@ -193,6 +194,7 @@ public final class McdgMod implements ModInitializer {
             TOURNAMENT_RULESET_MANAGER,
             config.respawnPenaltyStrokes()
         );
+        CourseFireProtection.registerDamageHandler(ACTIVE_COURSE_MANAGER);
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
             if (!(player instanceof ServerPlayerEntity serverPlayer)) {
                 return ActionResult.PASS;
@@ -352,6 +354,11 @@ public final class McdgMod implements ModInitializer {
             ACTIVE_COURSE_MANAGER.setPersistentPlacedCourse(true);
             ACTIVE_COURSE_MANAGER.setLegacyPracticeSnapshot(snapshot.legacyFormat());
             ACTIVE_COURSE_MANAGER.setRoundActive(false);
+
+            ServerWorld courseWorld = server.getWorld(snapshot.placedCourseState().worldKey());
+            if (courseWorld != null) {
+                CourseFireProtection.apply(courseWorld);
+            }
 
             LOGGER.info(
                     "Loaded persisted practice course '{}' with {} holes.",

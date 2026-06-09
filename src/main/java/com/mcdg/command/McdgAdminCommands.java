@@ -7,6 +7,7 @@ import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import com.mcdg.data.SignatureHoleType;
 import com.mcdg.game.ActiveCourseManager;
+import com.mcdg.game.CourseFireProtection;
 import com.mcdg.game.HoleProgressTracker;
 import com.mcdg.game.PlayerRoundSessionStorage;
 import com.mcdg.game.PlacedCourseState;
@@ -769,6 +770,7 @@ public final class McdgAdminCommands {
 
                 // Clean up any previously placed course edits so repeated test runs start from a fresh world state.
                 PlacedCourseState existingPlaced = courseManager.getPlacedCourseState().orElse(null);
+                net.minecraft.registry.RegistryKey<net.minecraft.world.World> existingWorldKey = existingPlaced != null ? existingPlaced.worldKey() : null;
                 if (existingPlaced != null) {
                         ServerWorld existingWorld = source.getServer().getWorld(existingPlaced.worldKey());
                         if (existingWorld != null) {
@@ -918,6 +920,13 @@ public final class McdgAdminCommands {
 
                         courseManager.setActiveCourse(course);
                         courseManager.setPlacedCourseState(placed);
+                        if (existingWorldKey != null && !existingWorldKey.equals(placed.worldKey())) {
+                                ServerWorld oldWorld = source.getServer().getWorld(existingWorldKey);
+                                if (oldWorld != null) {
+                                        CourseFireProtection.remove(oldWorld);
+                                }
+                        }
+                        CourseFireProtection.apply(world);
                         courseManager.setPersistentPlacedCourse(persistentCourse);
                         courseManager.setLegacyPracticeSnapshot(false);
                         courseManager.setActiveCourseCatalogIndex(null);
@@ -1014,6 +1023,7 @@ public final class McdgAdminCommands {
                         source.sendError(Text.literal("Placed course world is unavailable."));
                         return 0;
                 }
+                CourseFireProtection.apply(world);
 
                 if (courseManager.isLegacyPracticeSnapshot()) {
                         source.sendFeedback(() -> Text.literal(
@@ -1151,7 +1161,8 @@ public final class McdgAdminCommands {
                 }
 
                 PracticeCourseStorage.LoadedPracticeCourse loaded = selected.get();
-                if (source.getServer().getWorld(loaded.placedCourseState().worldKey()) == null) {
+                ServerWorld world = source.getServer().getWorld(loaded.placedCourseState().worldKey());
+                if (world == null) {
                         source.sendError(Text.literal("Reusable course #" + oneBasedIndex + " points to an unavailable world."));
                         return 0;
                 }
@@ -1162,6 +1173,7 @@ public final class McdgAdminCommands {
                 courseManager.setActiveCourse(ensureSingleSignatureHole(loaded.course()));
                 courseManager.setActiveCourseCatalogIndex(oneBasedIndex);
                 courseManager.setPlacedCourseState(loaded.placedCourseState());
+                CourseFireProtection.apply(world);
                 courseManager.setPersistentPlacedCourse(true);
                 courseManager.setLegacyPracticeSnapshot(loaded.legacyFormat());
                 courseManager.setRoundActive(false);
@@ -1291,6 +1303,7 @@ public final class McdgAdminCommands {
                 // deleted course must not persist (it would re-save a broken session on next autosave).
                 Integer activeCatalogIndex = courseManager.getActiveCourseCatalogIndex().orElse(null);
                 boolean wasActiveMatch = activeCatalogIndex != null && activeCatalogIndex == oneBasedIndex;
+                PlacedCourseState activePlaced = courseManager.getPlacedCourseState().orElse(null);
                 if (wasActiveMatch || courseManager.isRoundActive()) {
                         courseManager.setActiveCourse(null);
                         courseManager.clearPlacedCourseState();
@@ -1298,6 +1311,12 @@ public final class McdgAdminCommands {
                         courseManager.setRoundActive(false);
                         clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
                         practiceCourseStorage.clear(source.getServer());
+                        if (activePlaced != null) {
+                                ServerWorld activeWorld = source.getServer().getWorld(activePlaced.worldKey());
+                                if (activeWorld != null) {
+                                        CourseFireProtection.remove(activeWorld);
+                                }
+                        }
                 }
                 HoleProgressTracker.resetAllState(source.getServer());
 
@@ -1489,6 +1508,7 @@ public final class McdgAdminCommands {
 
                 evacuatePlayersBeforeCleanup(source, world, placed);
                 placementService.resetPlacedCourse(world, placed);
+                CourseFireProtection.remove(world);
                 removeJunkDropsNearCourse(world, placed);
                 removeRoundThrowItemsFromCourseWorldPlayers(source, courseManager);
 
@@ -1721,12 +1741,19 @@ public final class McdgAdminCommands {
 
                 // If cleaning up the active course, clear the active state
                 Integer activeCatalogIndex = courseManager.getActiveCourseCatalogIndex().orElse(null);
-                if (activeCatalogIndex != null && activeCatalogIndex == oneBasedIndex) {
+                boolean clearingActive = activeCatalogIndex != null && activeCatalogIndex == oneBasedIndex;
+                boolean activeInSameWorld = !clearingActive && courseManager.getPlacedCourseState()
+                        .map(p -> p.worldKey().equals(placed.worldKey()))
+                        .orElse(false);
+                if (clearingActive) {
                         courseManager.clearPlacedCourseState();
                         courseManager.setActiveCourseCatalogIndex(null);
                         courseManager.setRoundActive(false);
                         clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
                         practiceCourseStorage.clear(source.getServer());
+                }
+                if (!activeInSameWorld) {
+                        CourseFireProtection.remove(world);
                 }
                 HoleProgressTracker.resetAllState(source.getServer());
 
