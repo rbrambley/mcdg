@@ -1394,6 +1394,34 @@ Primary automation workflows:
 
 ---
 
+## Smoke Test Reliability (Pending — 2026-06-09)
+
+**Problem:** Headless lifecycle smoke (`run-headless-autotest.ps1`) consistently fails because the persistent `run/` world spawns in a `mushroom_fields` biome with 96% water coverage. The autotest keeps retrying placement from that fixed origin.
+
+**Proposed approach (combine #1 + #2):**
+
+1. **Expand biome exclusions** in `PlacementAutoTestService.isExcludedSurfaceAutotestBiome()`:
+   - Add `mushroom_fields` (and potentially `mangrove_swamp`, `frozen_ocean`)
+   - These biomes are structurally unsuitable for course placement regardless of local variation
+
+2. **Tighten anchor quality check** in `isPoorAutotestAnchor()`:
+   - The current coarse probe may miss water just below the surface
+   - Consider probing at or one block below surface Y, or increasing sample density
+   - Could also integrate `projectedWaterRatio` from route planning as a post-anchor veto
+
+3. **Optional long-term:** Evaluate fixed `level-seed` in `server.properties` for the smoke test
+   - Gives a deterministic, known-good spawn biome
+   - Trade-off: loses natural biome diversity in automated testing
+
+**Rejected:** Tolerance-based deploy gating (#5) — too risky; real regressions could slip through.
+
+**Files involved:**
+- `src/main/java/com/mcdg/world/PlacementAutoTestService.java`
+- `scripts/run-headless-autotest.ps1`
+- `run/server.properties`
+
+---
+
 ## Done Definition (Current Project)
 
 Project can be considered release-ready for current scope when:
