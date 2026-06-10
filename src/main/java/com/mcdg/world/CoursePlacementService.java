@@ -201,6 +201,8 @@ public final class CoursePlacementService {
         Map<Integer, BlockPos> holeAlternateAnchors = new HashMap<>();
         Map<Integer, Integer> holeEffectivePars = new HashMap<>();
         Map<Integer, String> holeRoutingNotes = new HashMap<>();
+        BlockPos hole1Tee = null;
+        BlockPos hole1Basket = null;
         Set<BlockPos> protectedPositions = externalProtectedPositions != null ? externalProtectedPositions : new HashSet<>();
         int startingHoleIndex = course.holes().isEmpty() ? 1 : course.holes().get(0).index();
 
@@ -489,9 +491,8 @@ public final class CoursePlacementService {
                 originalBlocks
             );
             if (hole.index() == startingHoleIndex && startingHoleIndex == 1) {
-                placeCourseCentralHub(world, teeSurface, basketSurface, course.name(), originalBlocks, protectedPositions);
-                // Hub construction can overlap the starting hole footprint; enforce the tee pad shape afterwards.
-                placeTeePad(world, teeSurface, originalBlocks);
+                hole1Tee = teeSurface;
+                hole1Basket = basketSurface;
             }
             placeBasketMarker(world, basketSurface, originalBlocks, hole.basket().basketHeight());
             if (hole.isSignature()) {
@@ -499,6 +500,12 @@ public final class CoursePlacementService {
             }
 
             progressCallback.accept(hole.index());
+        }
+
+        if (hole1Tee != null && hole1Basket != null) {
+            placeCourseCentralHub(world, hole1Tee, hole1Basket, course.name(), originalBlocks, protectedPositions);
+            // Hub construction can overlap the starting hole footprint; enforce the tee pad shape afterwards.
+            placeTeePad(world, hole1Tee, originalBlocks);
         }
 
         // Phase 4 intentionally disabled for now (fairway lantern pass) to avoid long generation stalls.
@@ -1010,7 +1017,7 @@ public final class CoursePlacementService {
         PlacementUtils.setTrackedBlock(world, ground.up(height + 1), Blocks.LANTERN.getDefaultState(), originalBlocks);
     }
 
-    private static void placeCourseCentralHub(
+    public static void placeCourseCentralHub(
             ServerWorld world,
             BlockPos teeCenter,
             BlockPos basketSurface,
