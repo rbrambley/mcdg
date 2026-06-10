@@ -108,7 +108,7 @@ public final class WaypointManager {
     }
 
     public static void onClientDisconnect(MinecraftClient client) {
-        removePermanentCourseWaypoint(client, activeRoundCourseWaypointName);
+        removeWaypoint(activeRoundCourseWaypointName);
         clearRoundState();
     }
 
@@ -420,14 +420,6 @@ public final class WaypointManager {
         waypointsDirty = true;
     }
 
-    public static void removePermanentCourseWaypoint(MinecraftClient client, String name) {
-        if (client == null || name == null || name.isBlank()) return;
-        ensureWaypointContextLoaded(client);
-        String dimensionKey = currentWaypointDimensionKey(client);
-        clientWaypoints.removeIf(wp -> wp.name().equals(name) && wp.dimensionId().equals(dimensionKey) && wp.color() == WAYPOINT_COURSE_COLOR);
-        saveWaypointStore(client);
-        waypointsDirty = true;
-    }
 
     public static void syncRoundHoleWaypointsFromPayload(HoleMiniMapSync.Payload payload) {
         roundHoleWaypoints.clear();

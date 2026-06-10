@@ -57,7 +57,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.ClickEvent;
 import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Text;
-import com.mcdg.net.CourseRemovedSync;
+
 import net.minecraft.server.MinecraftServer;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.util.Formatting;
@@ -1934,7 +1934,7 @@ public final class McdgAdminCommands {
 
         private static void broadcastCourseWaypointRemoval(MinecraftServer server, String courseName) {
                 if (courseName == null || courseName.isBlank()) return;
-                CourseRemovedSync.Payload packet = new CourseRemovedSync.Payload(courseName);
+                WaypointRemovedSync.Payload packet = new WaypointRemovedSync.Payload(courseName);
                 for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
                         ServerPlayNetworking.send(player, packet);
                 }

@@ -166,7 +166,7 @@ public final class McdgClientMod implements ClientModInitializer {
             MiniMapRenderer.setMiniMapState(null);
             MiniMapRenderer.setMiniMapReceivedAtMs(0L);
             WaypointManager.setActiveRoundCourseWaypointName("");
-            WaypointManager.removePermanentCourseWaypoint(client, courseToRemove);
+            WaypointManager.removeWaypoint(courseToRemove);
             MiniMapRenderer.setHudVisibleSinceMsFromSync(0L);
             MiniMapRenderer.setMiniMapJoinWarmupPending(true);
             MiniMapRenderer.setMiniMapJoinPrimeTicksRemaining(MiniMapRenderer.MINIMAP_JOIN_PRIME_TICKS);
@@ -218,7 +218,7 @@ public final class McdgClientMod implements ClientModInitializer {
 
     public static void onRoundRunningScoresSync(RoundRunningScoresSync.Payload payload, MinecraftClient client) {
         if (!payload.active()) {
-            WaypointManager.removePermanentCourseWaypoint(client, WaypointManager.getActiveRoundCourseWaypointName());
+            WaypointManager.removeWaypoint(WaypointManager.getActiveRoundCourseWaypointName());
             runningRoundScoreState = null;
             WaypointManager.setActiveRoundCourseWaypointName("");
             return;

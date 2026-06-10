@@ -21,7 +21,7 @@ import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.ScorecardManager;
 import com.mcdg.game.ThrowAutoTestService;
 import com.mcdg.net.AceCinematicSync;
-import com.mcdg.net.CourseRemovedSync;
+
 import com.mcdg.net.HoleMiniMapSync;
 import com.mcdg.net.LeaderboardRequest;
 import com.mcdg.net.LeaderboardResponse;
@@ -125,7 +125,7 @@ public final class McdgMod implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(RoundCompleteCinematicSync.ID, RoundCompleteCinematicSync.CODEC);
         PayloadTypeRegistry.playS2C().register(MenuScreenSync.ID, MenuScreenSync.CODEC);
         PayloadTypeRegistry.playS2C().register(LeaderboardResponse.ID, LeaderboardResponse.CODEC);
-        PayloadTypeRegistry.playS2C().register(CourseRemovedSync.ID, CourseRemovedSync.CODEC);
+
         PayloadTypeRegistry.playS2C().register(WaypointSync.ID, WaypointSync.CODEC);
         PayloadTypeRegistry.playS2C().register(WaypointRemovedSync.ID, WaypointRemovedSync.CODEC);
 
