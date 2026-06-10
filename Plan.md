@@ -30,7 +30,6 @@ Branch merged: `feature/minimap-improvements` → `master` (fast-forward).
 
 Open / next:
 
-- Book GUI menu (`/mcdg` opens a Written Book with persistent clickable pages).
 - Multiplayer live validation (2-player full round still pending).
 - `practicecourse` deprecation phases (still open from prior plan).
 
