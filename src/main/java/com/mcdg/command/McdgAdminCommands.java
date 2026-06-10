@@ -503,12 +503,6 @@ public final class McdgAdminCommands {
                                         courseManager,
                                         placementValidator
                                 )))
-                        .then(literal("buildcamp").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
-                                .executes(context -> executeBuildCamp(
-                                        context.getSource(),
-                                        placementService
-                                )))
                         .then(literal("autotestplacement").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .then(argument("runs", IntegerArgumentType.integer(1, 200))
@@ -1239,26 +1233,6 @@ public final class McdgAdminCommands {
                         par += hole.par();
                 }
                 return par;
-        }
-
-        private static int executeBuildCamp(
-                        ServerCommandSource source,
-                        CoursePlacementService placementService
-        ) {
-                ServerWorld world = source.getWorld();
-                BlockPos requestedOrigin = BlockPos.ofFloored(source.getPosition());
-                CoursePlacementService.LodgingBuildResult result = placementService.tryBuildPermanentLodgingSite(world, requestedOrigin);
-                if (!result.success()) {
-                        source.sendError(Text.literal(result.message()));
-                        return 0;
-                }
-
-                BlockPos center = result.center();
-                source.sendFeedback(() -> Text.literal(
-                                "Permanent lodging site built at X=" + center.getX() + " Y=" + center.getY() + " Z=" + center.getZ()
-                                        + ". This camp is separate from course central and created only on command."
-                ), true);
-                return 1;
         }
 
         private static void sendCourseBuildProgressOverlay(

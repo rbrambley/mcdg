@@ -508,7 +508,7 @@ Advanced commands (hidden by default):
 - `resumecourse`, `usecourse <index>`, `prunecourses [keep]`
 - `resetcourse`, `gotocourse`, `roundstatus`
 - `ruleset surface <preset>`
-- `debugperms`, `validateplacement`, `buildcamp`
+- `debugperms`, `validateplacement`
 - `autotestplacement`, `autotestplacementseed`, `autotestshadow`, `cancelautotest`
 - `autotestthrows`, `quickthrowtest`, `cancelthrowtest`
 
@@ -529,14 +529,6 @@ Behavior notes:
 - `listcourses` shows reusable saved entries (newest first).
 - `playcourse <index>` is the preferred saved-course command for normal operators.
 - `autotestplacement` runs repeat placement validation loops and writes a report under `run/logs`.
-- `buildcamp` creates a separate permanent lodging site only when explicitly requested by the player.
-
-Camp build notes:
-- Camp is separate from course-start tournament central and is never auto-built.
-- Includes 6 yurts (8x8 minimum footprint) in a circular formation, each with unique interior accents.
-- Includes central campfires plus nearby pool, tennis court, basketball court, and bathhouse.
-- Basketball rims use hoppers.
-- Pool, tennis, and basketball include perimeter lighting.
 - Terrain-adaptive placement keeps structures near natural surface heights; each structure uses local footprint clearing rather than large camp-wide flattening.
 
 ## Project Status Snapshot (2026-05-30)

@@ -97,17 +97,11 @@ public final class CoursePlacementService {
     private static final int BASKET_APPROACH_ENFORCE_DISTANCE = CoursePlacementConfig.Basket.APPROACH_ENFORCE_DISTANCE;
     private static final int BASKET_APPROACH_MIN_WIDTH = CoursePlacementConfig.Basket.APPROACH_MIN_WIDTH;
     private static final String ALT_ROUTE_DIAG_ENV = CoursePlacementConfig.EnvVars.ALT_ROUTE_DIAG;
-    private static final int CAMP_SITE_RADIUS = CoursePlacementConfig.CampSite.RADIUS;
     private static final int CAMP_SITE_SCAN_STEP = CoursePlacementConfig.CampSite.SCAN_STEP;
-    private static final int CAMP_SITE_MAX_Y_DELTA = CoursePlacementConfig.CampSite.MAX_Y_DELTA;
-    private static final int CAMP_SITE_MIN_SAFE_PERCENT = CoursePlacementConfig.CampSite.MIN_SAFE_PERCENT;
     private static final int CAMP_SITE_MARKER_SEARCH_RADIUS = CoursePlacementConfig.SearchRadii.CAMP_SITE_MARKER;
     private static final BlockState CAMP_SITE_MARKER_BLOCK = CoursePlacementConfig.CampSite.MARKER_BLOCK;
     private boolean enforceHeightmapSurfaceRule;
     private boolean useFixedAnchor;
-
-    public record LodgingBuildResult(boolean success, String message, BlockPos center) {
-    }
 
     public PlacedCourseState placeCourseWithHeightmapSurfaceRule(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback) {
         boolean previous = enforceHeightmapSurfaceRule;
@@ -688,26 +682,6 @@ public final class CoursePlacementService {
         }
     }
 
-    public LodgingBuildResult tryBuildPermanentLodgingSite(ServerWorld world, BlockPos preferredOrigin) {
-        BlockPos campCenter = SurfaceResolver.findPreferredSurfacePos(world, preferredOrigin.getX(), preferredOrigin.getZ(), true, ANCHOR_SEARCH_RADIUS);
-        if (hasNearbyCampSiteMarker(world, campCenter, CAMP_SITE_MARKER_SEARCH_RADIUS)) {
-            return new LodgingBuildResult(false, "A lodging site already exists nearby. Find a unique location farther away.", campCenter);
-        }
-        if (!isSuitableCampSite(world, campCenter)) {
-            return new LodgingBuildResult(false, "This area is not suitable for a full camp footprint. Pick a flatter, safer site.", campCenter);
-        }
-
-        Map<BlockPos, BlockState> originalBlocks = new HashMap<>();
-        Set<BlockPos> protectedPositions = new HashSet<>();
-        int[] side = new int[] { 1, 0 };
-        int[] back = new int[] { 0, 1 };
-        CampBuilder.placePermanentLodgingSite(world, campCenter, side, back, originalBlocks, protectedPositions);
-
-        BlockPos markerPos = campCenter.down();
-        PlacementUtils.setTrackedBlock(world, markerPos, CAMP_SITE_MARKER_BLOCK, originalBlocks);
-        return new LodgingBuildResult(true, "Permanent lodging site built.", campCenter);
-    }
-
     private static CourseBounds findCourseBounds(Course course) {
         int minX = Integer.MAX_VALUE;
         int minZ = Integer.MAX_VALUE;
@@ -1229,36 +1203,6 @@ public final class CoursePlacementService {
         }
         return false;
     }
-
-    static boolean isSuitableCampSite(ServerWorld world, BlockPos center) {
-        int safeColumns = 0;
-        int totalColumns = 0;
-
-        for (int dx = -CAMP_SITE_RADIUS; dx <= CAMP_SITE_RADIUS; dx += CAMP_SITE_SCAN_STEP) {
-            for (int dz = -CAMP_SITE_RADIUS; dz <= CAMP_SITE_RADIUS; dz += CAMP_SITE_SCAN_STEP) {
-                if ((dx * dx) + (dz * dz) > (CAMP_SITE_RADIUS * CAMP_SITE_RADIUS)) {
-                    continue;
-                }
-
-                totalColumns++;
-                BlockPos sample = SurfaceResolver.resolveSurfacePos(world, center.getX() + dx, center.getZ() + dz);
-                if (Math.abs(sample.getY() - center.getY()) > CAMP_SITE_MAX_Y_DELTA) {
-                    continue;
-                }
-                if (isUnsafeSurface(world, sample)) {
-                    continue;
-                }
-                safeColumns++;
-            }
-        }
-
-        if (totalColumns <= 0) {
-            return false;
-        }
-        int safePercent = (safeColumns * 100) / totalColumns;
-        return safePercent >= CAMP_SITE_MIN_SAFE_PERCENT;
-    }
-
 
     static void placeTeeHoleBanner(
             ServerWorld world,
