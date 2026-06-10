@@ -45,6 +45,7 @@ public final class AutoCourseService {
     private static final int HOLE_DIST_MIN_BLOCKS = 60;
     private static final int HOLE_DIST_MAX_BLOCKS = 200;
     private static final int FINAL_HOLE_RETURN_RADIUS = 40;
+    private static final int FINAL_HOLE_HUB_CLEARANCE = 25;
     private static final int ANGLE_JITTER_DEG = 18;
 
     private final CoursePlacementService placementService;
@@ -430,6 +431,9 @@ public final class AutoCourseService {
 
         double angleStepRad = (2.0 * Math.PI) / HOLE_COUNT;
 
+        int hole1TeeX = hubX;
+        int hole1TeeZ = hubZ;
+
         for (int i = 1; i <= HOLE_COUNT; i++) {
             double baseAngle = (i - 1) * angleStepRad;
             double jitterRad = Math.toRadians((random.nextDouble() * 2.0 - 1.0) * ANGLE_JITTER_DEG);
@@ -439,13 +443,33 @@ public final class AutoCourseService {
             int teeX = hubX + (int) Math.round(Math.cos(teeAngle) * teeRadius);
             int teeZ = hubZ + (int) Math.round(Math.sin(teeAngle) * teeRadius);
 
+            if (i == 1) {
+                hole1TeeX = teeX;
+                hole1TeeZ = teeZ;
+            }
+
             int basketX, basketZ;
             if (i == HOLE_COUNT) {
-                // Hole 9 basket returns close to hub (near hole 1 tee)
-                double returnAngle = teeAngle + Math.PI + Math.toRadians(random.nextInt(40) - 20);
-                int returnDist = FINAL_HOLE_RETURN_RADIUS / 2 + random.nextInt(FINAL_HOLE_RETURN_RADIUS / 2);
-                basketX = hubX + (int) Math.round(Math.cos(returnAngle) * returnDist);
-                basketZ = hubZ + (int) Math.round(Math.sin(returnAngle) * returnDist);
+                // Hole 9 basket returns close to hub — retry until clear of hub and hole 1 tee
+                int candidateBasketX = hubX;
+                int candidateBasketZ = hubZ;
+                for (int attempt = 0; attempt < 20; attempt++) {
+                    double returnAngle = teeAngle + Math.PI + Math.toRadians(random.nextInt(40) - 20);
+                    int returnDist = FINAL_HOLE_RETURN_RADIUS / 2 + random.nextInt(FINAL_HOLE_RETURN_RADIUS / 2);
+                    candidateBasketX = hubX + (int) Math.round(Math.cos(returnAngle) * returnDist);
+                    candidateBasketZ = hubZ + (int) Math.round(Math.sin(returnAngle) * returnDist);
+                    int dxHub = candidateBasketX - hubX;
+                    int dzHub = candidateBasketZ - hubZ;
+                    int dxTee1 = candidateBasketX - hole1TeeX;
+                    int dzTee1 = candidateBasketZ - hole1TeeZ;
+                    boolean clearOfHub = (dxHub * dxHub + dzHub * dzHub) >= (FINAL_HOLE_HUB_CLEARANCE * FINAL_HOLE_HUB_CLEARANCE);
+                    boolean clearOfTee1 = (dxTee1 * dxTee1 + dzTee1 * dzTee1) >= (FINAL_HOLE_HUB_CLEARANCE * FINAL_HOLE_HUB_CLEARANCE);
+                    if (clearOfHub && clearOfTee1) {
+                        break;
+                    }
+                }
+                basketX = candidateBasketX;
+                basketZ = candidateBasketZ;
             } else {
                 // Basket fires outward and slightly toward next tee angle
                 double nextAngle = i * angleStepRad;
