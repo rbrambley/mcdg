@@ -10,6 +10,7 @@ import org.lwjgl.glfw.GLFW;
  * Keeps GLFW/KeyBinding boilerplate out of {@link McdgClientMod}.
  */
 public final class ClientKeybinds {
+    private static KeyBinding openMenuKey;
     private static KeyBinding increaseMiniMapSizeKey;
     private static KeyBinding decreaseMiniMapSizeKey;
     private static KeyBinding addWaypointKey;
@@ -20,6 +21,12 @@ public final class ClientKeybinds {
     }
 
     public static void register() {
+        openMenuKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.mcdg.open_menu",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_G,
+                "category.mcdg"
+        ));
         increaseMiniMapSizeKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.mcdg.minimap_size_up",
                 InputUtil.Type.KEYSYM,
@@ -50,6 +57,12 @@ public final class ClientKeybinds {
                 GLFW.GLFW_KEY_L,
                 "category.mcdg"
         ));
+    }
+
+    public static void forEachOpenMenuPress(Runnable action) {
+        while (openMenuKey.wasPressed()) {
+            action.run();
+        }
     }
 
     public static void forEachMinimapSizeUpPress(Runnable action) {

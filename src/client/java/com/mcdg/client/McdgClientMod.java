@@ -47,6 +47,11 @@ public final class McdgClientMod implements ClientModInitializer {
             client.options.write();
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            ClientKeybinds.forEachOpenMenuPress(() -> {
+                if (client.player != null && client.getNetworkHandler() != null && client.currentScreen == null) {
+                    client.getNetworkHandler().sendChatCommand("mcdg");
+                }
+            });
             WaypointManager.tick(client);
             AutoConnect.tick(client);
             MiniMapRenderer.handleMiniMapHotkeys(client);
