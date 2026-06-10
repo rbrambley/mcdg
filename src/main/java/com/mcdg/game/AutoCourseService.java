@@ -44,8 +44,8 @@ public final class AutoCourseService {
     private static final int COURSE_RADIUS_MAX = 160;
     private static final int HOLE_DIST_MIN_BLOCKS = 60;
     private static final int HOLE_DIST_MAX_BLOCKS = 200;
-    private static final int FINAL_HOLE_RETURN_RADIUS = 40;
-    private static final int FINAL_HOLE_HUB_CLEARANCE = 25;
+    private static final int FINAL_HOLE_HUB_CLEARANCE = 40;
+    private static final int FINAL_HOLE_CORNER_DIAGONAL = 50;
     private static final int ANGLE_JITTER_DEG = 18;
 
     private final CoursePlacementService placementService;
@@ -450,23 +450,63 @@ public final class AutoCourseService {
 
             int basketX, basketZ;
             if (i == HOLE_COUNT) {
-                // Hole 9 basket returns close to hub — retry until clear of hub and hole 1 tee
-                int candidateBasketX = hubX;
-                int candidateBasketZ = hubZ;
-                for (int attempt = 0; attempt < 20; attempt++) {
-                    double returnAngle = teeAngle + Math.PI + Math.toRadians(random.nextInt(40) - 20);
-                    int returnDist = FINAL_HOLE_RETURN_RADIUS / 2 + random.nextInt(FINAL_HOLE_RETURN_RADIUS / 2);
-                    candidateBasketX = hubX + (int) Math.round(Math.cos(returnAngle) * returnDist);
-                    candidateBasketZ = hubZ + (int) Math.round(Math.sin(returnAngle) * returnDist);
-                    int dxHub = candidateBasketX - hubX;
-                    int dzHub = candidateBasketZ - hubZ;
-                    int dxTee1 = candidateBasketX - hole1TeeX;
-                    int dzTee1 = candidateBasketZ - hole1TeeZ;
-                    boolean clearOfHub = (dxHub * dxHub + dzHub * dzHub) >= (FINAL_HOLE_HUB_CLEARANCE * FINAL_HOLE_HUB_CLEARANCE);
-                    boolean clearOfTee1 = (dxTee1 * dxTee1 + dzTee1 * dzTee1) >= (FINAL_HOLE_HUB_CLEARANCE * FINAL_HOLE_HUB_CLEARANCE);
-                    if (clearOfHub && clearOfTee1) {
-                        break;
+                // Hole 9 basket: find the hub's oriented axes from the hub->hole1tee direction,
+                // pick the hub deck corner closest to hole 9 tee, shoot 50 blocks diagonally outward.
+                double h1dx = hole1TeeX - hubX;
+                double h1dz = hole1TeeZ - hubZ;
+                double h1len = Math.sqrt(h1dx * h1dx + h1dz * h1dz);
+                // back = unit vector from hub toward hole 1 tee
+                double backX = h1len > 0 ? h1dx / h1len : 1.0;
+                double backZ = h1len > 0 ? h1dz / h1len : 0.0;
+                // side = perpendicular to back (rotate 90 degrees)
+                double sideX = -backZ;
+                double sideZ = backX;
+
+                // Hub deck corners: side ±8, back -3 to +8 (4 corners)
+                double[][] corners = {
+                    { hubX + sideX * 8 + backX * 8,  hubZ + sideZ * 8 + backZ * 8  },
+                    { hubX - sideX * 8 + backX * 8,  hubZ - sideZ * 8 + backZ * 8  },
+                    { hubX + sideX * 8 - backX * 3,  hubZ + sideZ * 8 - backZ * 3  },
+                    { hubX - sideX * 8 - backX * 3,  hubZ - sideZ * 8 - backZ * 3  }
+                };
+                // Outward diagonal direction for each corner (bisects the corner away from hub)
+                double[][] diagonals = {
+                    {  sideX + backX,  sideZ + backZ  },
+                    { -sideX + backX, -sideZ + backZ  },
+                    {  sideX - backX,  sideZ - backZ  },
+                    { -sideX - backX, -sideZ - backZ  }
+                };
+
+                // Pick the corner closest to hole 9 tee
+                int bestCorner = 0;
+                double bestDist = Double.MAX_VALUE;
+                for (int c = 0; c < 4; c++) {
+                    double ddx = corners[c][0] - teeX;
+                    double ddz = corners[c][1] - teeZ;
+                    double dd = ddx * ddx + ddz * ddz;
+                    if (dd < bestDist) {
+                        bestDist = dd;
+                        bestCorner = c;
                     }
+                }
+
+                // Normalize the diagonal and shoot 50 blocks from the chosen corner
+                double diagX = diagonals[bestCorner][0];
+                double diagZ = diagonals[bestCorner][1];
+                double diagLen = Math.sqrt(diagX * diagX + diagZ * diagZ);
+                if (diagLen > 0) {
+                    diagX /= diagLen;
+                    diagZ /= diagLen;
+                }
+                int candidateBasketX = (int) Math.round(corners[bestCorner][0] + diagX * FINAL_HOLE_CORNER_DIAGONAL);
+                int candidateBasketZ = (int) Math.round(corners[bestCorner][1] + diagZ * FINAL_HOLE_CORNER_DIAGONAL);
+
+                // Safety check: if still within clearance, nudge further along the same diagonal
+                int dxHub = candidateBasketX - hubX;
+                int dzHub = candidateBasketZ - hubZ;
+                if ((dxHub * dxHub + dzHub * dzHub) < (FINAL_HOLE_HUB_CLEARANCE * FINAL_HOLE_HUB_CLEARANCE)) {
+                    candidateBasketX = (int) Math.round(corners[bestCorner][0] + diagX * (FINAL_HOLE_CORNER_DIAGONAL + FINAL_HOLE_HUB_CLEARANCE));
+                    candidateBasketZ = (int) Math.round(corners[bestCorner][1] + diagZ * (FINAL_HOLE_CORNER_DIAGONAL + FINAL_HOLE_HUB_CLEARANCE));
                 }
                 basketX = candidateBasketX;
                 basketZ = candidateBasketZ;
