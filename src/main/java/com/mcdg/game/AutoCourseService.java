@@ -19,7 +19,6 @@ import java.util.Set;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.block.Block;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
@@ -54,7 +53,6 @@ public final class AutoCourseService {
     private final HoleLayoutValidator layoutValidator = new HoleLayoutValidator();
 
     private AutoBuildState state;
-    private final ConcurrentHashMap<UUID, BlockPos> pendingNameRequests = new ConcurrentHashMap<>();
 
     public AutoCourseService(
             CoursePlacementService placementService,
@@ -70,7 +68,15 @@ public final class AutoCourseService {
         return state != null;
     }
 
-    public int executeAutoCoursePrompt(ServerCommandSource source) {
+    private static Text cancelButton() {
+        return Text.literal("[CANCEL BUILD]").styled(style -> style
+                .withColor(Formatting.RED)
+                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/mcdg autocourse cancel"))
+                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Run: /mcdg autocourse cancel")))
+        );
+    }
+
+    public int executeAutoCourseNamed(ServerCommandSource source, String courseName) {
         ServerPlayerEntity player = source.getPlayer();
         if (player == null) {
             source.sendError(Text.literal("autocourse must be run by a player."));
@@ -81,58 +87,18 @@ public final class AutoCourseService {
             source.sendFeedback(() -> cancelButton(), false);
             return 1;
         }
+        String trimmed = courseName == null ? "" : courseName.trim();
+        if (trimmed.isBlank()) {
+            source.sendError(Text.literal("Course name is required. Use: /mcdg autocourse <name>"));
+            return 0;
+        }
+        Optional<String> duplicate = findDuplicateName(source.getServer(), trimmed);
+        if (duplicate.isPresent()) {
+            source.sendError(Text.literal("A course named '" + duplicate.get() + "' already exists. Choose a different name."));
+            return 0;
+        }
         UUID playerId = player.getUuid();
         BlockPos origin = player.getBlockPos();
-        pendingNameRequests.put(playerId, origin);
-        source.sendFeedback(() -> Text.literal("Type a name for your course in chat and press Enter.").formatted(Formatting.GREEN), false);
-        source.sendFeedback(() -> cancelNamePromptButton(), false);
-        return 1;
-    }
-    private static Text cancelButton() {
-        return Text.literal("[CANCEL BUILD]").styled(style -> style
-                .withColor(Formatting.RED)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/mcdg autocourse cancel"))
-                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Run: /mcdg autocourse cancel")))
-        );
-    }
-
-    private static Text cancelNamePromptButton() {
-        return Text.literal("[CANCEL]").styled(style -> style
-                .withColor(Formatting.RED)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/mcdg autocourse cancel"))
-                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Cancel naming")))
-        );
-    }
-
-    /**
-     * Called by the server chat event handler. If this player has a pending name request,
-     * consumes the chat message as the course name and starts the build.
-     * Returns true if the message was consumed (suppress normal chat broadcast).
-     */
-    public boolean handleChatMessage(ServerPlayerEntity player, String message) {
-        UUID playerId = player.getUuid();
-        BlockPos origin = pendingNameRequests.remove(playerId);
-        if (origin == null) {
-            return false;
-        }
-        String trimmed = message == null ? "" : message.trim();
-        if (trimmed.isBlank()) {
-            player.sendMessage(Text.literal("Course name cannot be blank. Type a name and press Enter, or click [CANCEL].").formatted(Formatting.RED), false);
-            pendingNameRequests.put(playerId, origin);
-            player.sendMessage(cancelNamePromptButton(), false);
-            return true;
-        }
-        Optional<String> duplicate = findDuplicateName(player.getServer(), trimmed);
-        if (duplicate.isPresent()) {
-            player.sendMessage(Text.literal("A course named '" + duplicate.get() + "' already exists. Try a different name.").formatted(Formatting.RED), false);
-            pendingNameRequests.put(playerId, origin);
-            player.sendMessage(cancelNamePromptButton(), false);
-            return true;
-        }
-        if (state != null) {
-            player.sendMessage(Text.literal("A build is already in progress. Wait for it to finish or use /mcdg autocourse cancel.").formatted(Formatting.RED), false);
-            return true;
-        }
         long seed = java.util.concurrent.ThreadLocalRandom.current().nextLong();
         java.util.Random random = new java.util.Random(seed);
         int signatureHoleIndex = random.nextInt(HOLE_COUNT) + 1;
@@ -140,9 +106,9 @@ public final class AutoCourseService {
         state = new AutoBuildState(playerId, trimmed, seed, holeSpecs, player.getServerWorld());
         state.signatureHoleIndex = signatureHoleIndex;
         final String name = trimmed;
-        player.sendMessage(Text.literal("Auto-building course '" + name + "' (" + HOLE_COUNT + " holes) starting at your position...").formatted(Formatting.GREEN), false);
-        player.sendMessage(Text.literal("Building hole 1/" + HOLE_COUNT + "...").formatted(Formatting.YELLOW), false);
-        return true;
+        source.sendFeedback(() -> Text.literal("Auto-building course '" + name + "' (" + HOLE_COUNT + " holes) starting at your position...").formatted(Formatting.GREEN), false);
+        source.sendFeedback(() -> Text.literal("Building hole 1/" + HOLE_COUNT + "...").formatted(Formatting.YELLOW), false);
+        return 1;
     }
     public int executeAutoCourse(ServerCommandSource source, String courseName, long seed) {
         ServerPlayerEntity player = source.getPlayer();
@@ -179,17 +145,9 @@ public final class AutoCourseService {
     }
 
     public int executeCancel(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
-        if (player != null) {
-            pendingNameRequests.remove(player.getUuid());
-        }
         if (state == null) {
-            if (player == null || !pendingNameRequests.containsKey(player.getUuid())) {
-                source.sendError(Text.literal("No autocourse build in progress."));
-                return 0;
-            }
-            source.sendFeedback(() -> Text.literal("Canceled.").formatted(Formatting.GRAY), false);
-            return 1;
+            source.sendError(Text.literal("No autocourse build in progress."));
+            return 0;
         }
         rollbackAll(source.getServer());
         state = null;

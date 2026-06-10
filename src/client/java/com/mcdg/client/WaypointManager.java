@@ -48,11 +48,6 @@ public final class WaypointManager {
     private static final int UNKNOWN_WAYPOINT_Y = Integer.MIN_VALUE;
     private static final int WAYPOINT_COURSE_COLOR = 0xFF66CC66;
     private static final int WAYPOINT_HOLE_TEMP_COLOR = 0xFFFFFFFF;
-    private static final int[] WAYPOINT_COLORS = {
-            0xFFFF4D4D, 0xFF57D163, 0xFF4D9DFF, 0xFFFFD247, 0xFFC76CFF, 0xFFF2F5FF
-    };
-    private static final String[] WAYPOINT_COLOR_NAMES = { "Red", "Green", "Blue", "Yellow", "Purple", "White" };
-
     private static int nextWaypointIndex = 1;
     private static boolean waypointLabelsVisible = true;
     private static boolean waypointsDirty = false;
@@ -60,12 +55,6 @@ public final class WaypointManager {
     private static String loadedWaypointContextKey = "";
     private static String lastSentWaypointSyncSignature = "";
     private static String loadedWaypointDimensionKey = "";
-    private static WaypointPromptStage waypointPromptStage = WaypointPromptStage.NONE;
-    private static String pendingWaypointName;
-    private static String pendingWaypointContextKey;
-    private static int pendingWaypointX;
-    private static int pendingWaypointY;
-    private static int pendingWaypointZ;
     private static final List<ClientWaypoint> clientWaypoints = new ArrayList<>();
     private static final List<ClientWaypoint> roundHoleWaypoints = new ArrayList<>();
     private static final Map<String, WaypointRenderMode> waypointRenderModes = new HashMap<>();
@@ -101,10 +90,6 @@ public final class WaypointManager {
     public static void onClientDisconnect(MinecraftClient client) {
         removePermanentCourseWaypoint(client, activeRoundCourseWaypointName);
         clearRoundState();
-    }
-
-    public static boolean handleChatInput(String message) {
-        return handleWaypointPromptInput(message);
     }
 
     public static boolean isWaypointLabelsVisible() { return waypointLabelsVisible; }
@@ -227,84 +212,29 @@ public final class WaypointManager {
     private static void beginWaypointPrompt(MinecraftClient client) {
         if (client.player == null) return;
         ensureWaypointContextLoaded(client);
-        pendingWaypointX = net.minecraft.util.math.MathHelper.floor(client.player.getX());
-        pendingWaypointY = net.minecraft.util.math.MathHelper.floor(client.player.getY());
-        pendingWaypointZ = net.minecraft.util.math.MathHelper.floor(client.player.getZ());
-        pendingWaypointContextKey = loadedWaypointContextKey;
-        pendingWaypointName = null;
-        waypointPromptStage = WaypointPromptStage.WAITING_NAME;
-        client.player.sendMessage(Text.literal("Waypoint name? Type it in chat and press Enter.").formatted(Formatting.LIGHT_PURPLE), false);
-    }
-
-    private static boolean handleWaypointPromptInput(String message) {
-        if (waypointPromptStage == WaypointPromptStage.NONE) return true;
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.player == null) {
-            waypointPromptStage = WaypointPromptStage.NONE;
-            return true;
-        }
-        String trimmed = message == null ? "" : message.trim();
-        if (trimmed.equalsIgnoreCase("cancel")) {
-            waypointPromptStage = WaypointPromptStage.NONE;
-            pendingWaypointName = null;
-            pendingWaypointContextKey = null;
-            client.player.sendMessage(Text.literal("Waypoint add canceled.").formatted(Formatting.GRAY), false);
-            return false;
-        }
-        if (waypointPromptStage == WaypointPromptStage.WAITING_NAME) {
-            String name = trimmed.isEmpty() ? ("WP" + nextWaypointIndex) : trimmed;
-            pendingWaypointName = StringHelper.truncate(name, 24, false);
-            waypointPromptStage = WaypointPromptStage.WAITING_COLOR;
-            client.player.sendMessage(Text.literal("Color? 1-Red 2-Green 3-Blue 4-Yellow 5-Purple 6-White").formatted(Formatting.AQUA), false);
-            return false;
-        }
-        int colorIndex = parseWaypointColorIndex(trimmed);
-        if (colorIndex < 0) {
-            client.player.sendMessage(Text.literal("Choose color by number/name: Red, Green, Blue, Yellow, Purple, White").formatted(Formatting.RED), false);
-            return false;
-        }
-        ensureWaypointContextLoaded(client);
-        if (pendingWaypointContextKey != null && !pendingWaypointContextKey.equals(loadedWaypointContextKey)) {
-            client.player.sendMessage(Text.literal("World changed while adding waypoint; try again.").formatted(Formatting.RED), false);
-            waypointPromptStage = WaypointPromptStage.NONE;
-            pendingWaypointName = null;
-            pendingWaypointContextKey = null;
-            return false;
-        }
-        String name = pendingWaypointName == null || pendingWaypointName.isBlank() ? ("WP" + nextWaypointIndex) : pendingWaypointName;
-        nextWaypointIndex++;
-        int color = WAYPOINT_COLORS[colorIndex];
-        clientWaypoints.add(new ClientWaypoint(name, pendingWaypointX, pendingWaypointY, pendingWaypointZ, color, currentWaypointDimensionKey(client)));
-        saveWaypointStore(client);
-        waypointsDirty = true;
-        client.player.sendMessage(Text.literal("Waypoint added: " + name + " (" + pendingWaypointX + ", " + pendingWaypointY + ", " + pendingWaypointZ + ") " + WAYPOINT_COLOR_NAMES[colorIndex]).formatted(Formatting.LIGHT_PURPLE), false);
-        waypointPromptStage = WaypointPromptStage.NONE;
-        pendingWaypointName = null;
-        pendingWaypointContextKey = null;
-        return false;
-    }
-
-    private static int parseWaypointColorIndex(String value) {
-        if (value == null) return -1;
-        String normalized = value.trim().toLowerCase(java.util.Locale.ROOT);
-        if (normalized.isEmpty()) return -1;
-        try {
-            int numeric = Integer.parseInt(normalized);
-            if (numeric >= 1 && numeric <= WAYPOINT_COLORS.length) return numeric - 1;
-        } catch (NumberFormatException ignored) {}
-        for (int i = 0; i < WAYPOINT_COLOR_NAMES.length; i++) {
-            if (WAYPOINT_COLOR_NAMES[i].toLowerCase(java.util.Locale.ROOT).equals(normalized)) return i;
-        }
-        return -1;
+        int x = net.minecraft.util.math.MathHelper.floor(client.player.getX());
+        int y = net.minecraft.util.math.MathHelper.floor(client.player.getY());
+        int z = net.minecraft.util.math.MathHelper.floor(client.player.getZ());
+        String dimensionId = currentWaypointDimensionKey(client);
+        client.setScreen(new WaypointAddScreen(x, y, z, dimensionId,
+                (name, color, wx, wy, wz, dim) -> {
+                    String safeName = StringHelper.truncate(name.isBlank() ? ("WP" + nextWaypointIndex) : name, 24, false);
+                    nextWaypointIndex++;
+                    clientWaypoints.add(new ClientWaypoint(safeName, wx, wy, wz, color, dim));
+                    saveWaypointStore(MinecraftClient.getInstance());
+                    waypointsDirty = true;
+                    if (client.player != null) {
+                        client.player.sendMessage(Text.literal("Waypoint added: " + safeName).formatted(Formatting.LIGHT_PURPLE), true);
+                    }
+                },
+                () -> {}
+        ));
     }
 
     public static void ensureWaypointContextLoaded(MinecraftClient client) {
         String contextKey = currentWaypointContextKey(client);
         if (Objects.equals(contextKey, loadedWaypointContextKey)) return;
         loadedWaypointContextKey = contextKey;
-        waypointPromptStage = WaypointPromptStage.NONE;
-        pendingWaypointName = null;
-        pendingWaypointContextKey = null;
         loadWaypointStore(client);
     }
 
@@ -545,8 +475,6 @@ public final class WaypointManager {
     //     beamConsumer.vertex(cx, y1, cz).color(r, g, b, a).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).next();
     //     beamConsumer.vertex(cx, y2, cz).color(r, g, b, a).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).next();
     // }
-
-    private enum WaypointPromptStage { NONE, WAITING_NAME, WAITING_COLOR }
 
     private enum WaypointRenderMode { FLOATING_LABEL, MINIMAP_EDGE_ARROW }
 

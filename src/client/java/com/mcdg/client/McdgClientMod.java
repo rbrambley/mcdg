@@ -10,7 +10,6 @@ import java.util.List;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
@@ -77,7 +76,6 @@ public final class McdgClientMod implements ClientModInitializer {
             MiniMapRenderer.setMiniMapReceivedAtMs(0L);
             MiniMapRenderer.clearMiniMapRenderCache(client);
         });
-        ClientSendMessageEvents.ALLOW_CHAT.register(message -> WaypointManager.handleChatInput(message));
         ClientNetworking.registerReceivers();
         HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {
             RoundInfoOverlay.updateTweens(MiniMapRenderer.getMiniMapState());

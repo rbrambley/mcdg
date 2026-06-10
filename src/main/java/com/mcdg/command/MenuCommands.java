@@ -56,7 +56,7 @@ public final class MenuCommands {
             source.sendFeedback(() -> menuButton("End Round", "/mcdg endround", Formatting.GOLD, true), false);
             source.sendFeedback(() -> menuButton("Go to Lie", "/mcdg gotolie", Formatting.AQUA, true), false);
             source.sendFeedback(() -> menuButton("Save & Leave Round", "/mcdg savesession", Formatting.GRAY, true), false);
-            source.sendFeedback(() -> menuButton("Waypoints", "/mcdg waypoint tp", Formatting.LIGHT_PURPLE, true), false);
+            if (isAdmin) source.sendFeedback(() -> menuButton("Waypoints", "/mcdg waypoint tp", Formatting.LIGHT_PURPLE, true), false);
         } else {
             source.sendFeedback(() -> Text.literal("─ Play ─").formatted(Formatting.GREEN), false);
             source.sendFeedback(() -> menuButton("List Courses", "/mcdg listcourses", Formatting.AQUA, true), false);
@@ -65,10 +65,13 @@ public final class MenuCommands {
 
         if (isAdmin && !roundActive) {
             source.sendFeedback(() -> Text.literal("─ Build ─").formatted(Formatting.YELLOW), false);
-            source.sendFeedback(() -> menuButton("Auto Build Course", "/mcdg autocourse", Formatting.YELLOW, true), false);
+            source.sendFeedback(() -> menuButton("Auto Build Course", "/mcdg autocourse ", Formatting.YELLOW, false), false);
             source.sendFeedback(() -> menuButton("Manual Build Course", "/mcdg buildcourse", Formatting.YELLOW, true), false);
         }
 
+        if (courseLoaded) {
+            source.sendFeedback(() -> menuButton("Leaderboard", "/mcdg leaderboard", Formatting.GOLD, true), false);
+        }
         if (isAdmin) {
             source.sendFeedback(() -> menuButton("Rules", "/mcdg menu rules", Formatting.BLUE, true), false);
             source.sendFeedback(() -> menuButton("Admin", "/mcdg menu admin", Formatting.RED, true), false);
@@ -105,7 +108,7 @@ public final class MenuCommands {
 
     public static int executeMenuRound(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
         source.sendFeedback(() -> Text.literal("Round").formatted(Formatting.GREEN, Formatting.BOLD), false);
-        source.sendFeedback(() -> menuButton("Auto Build Course", "/mcdg autocourse", Formatting.YELLOW, true), false);
+        source.sendFeedback(() -> menuButton("Auto Build Course", "/mcdg autocourse ", Formatting.YELLOW, false), false);
         source.sendFeedback(() -> menuButton("List Courses", "/mcdg listcourses", Formatting.AQUA, true), false);
         source.sendFeedback(() -> menuButton("Join Round", "/mcdg joinround", Formatting.GREEN, true), false);
         source.sendFeedback(() -> menuButton("End Round", "/mcdg endround", Formatting.GOLD, true), false);
@@ -115,7 +118,7 @@ public final class MenuCommands {
 
     public static int executeMenuCourses(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
         source.sendFeedback(() -> Text.literal("Courses").formatted(Formatting.GOLD, Formatting.BOLD), false);
-        source.sendFeedback(() -> menuButton("Auto Build Course", "/mcdg autocourse", Formatting.YELLOW, true), false);
+        source.sendFeedback(() -> menuButton("Auto Build Course", "/mcdg autocourse ", Formatting.YELLOW, false), false);
         source.sendFeedback(() -> menuButton("Manual Build Course", "/mcdg buildcourse", Formatting.GREEN, true), false);
         source.sendFeedback(() -> menuButton("List Courses", "/mcdg listcourses", Formatting.AQUA, true), false);
         sendBackToMenu(source);
@@ -131,11 +134,16 @@ public final class MenuCommands {
     }
 
     public static int executeMenuRules(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
+        TournamentRulesetManager.Ruleset ruleset = rulesetManager.getActiveRuleset();
+        TournamentRulesetManager.StrictSurfacePreset preset = rulesetManager.getStrictSurfacePreset();
         source.sendFeedback(() -> Text.literal("Rules").formatted(Formatting.BLUE, Formatting.BOLD), false);
-        source.sendFeedback(() -> menuButton("Show Ruleset", "/mcdg ruleset", Formatting.BLUE, true), false);
+        source.sendFeedback(() -> Text.literal("Current: " + ruleset.name().toLowerCase() + " / " + preset.name().toLowerCase()).formatted(Formatting.DARK_GRAY), false);
         source.sendFeedback(() -> menuButton("Set Casual", "/mcdg ruleset casual", Formatting.GREEN, true), false);
         source.sendFeedback(() -> menuButton("Set Strict", "/mcdg ruleset strict", Formatting.GOLD, true), false);
-        source.sendFeedback(() -> menuButton("Strict Surface Preset", "/mcdg ruleset surface", Formatting.AQUA, true), false);
+        source.sendFeedback(() -> Text.literal("─ Strict Surface ─").formatted(Formatting.DARK_GRAY), false);
+        source.sendFeedback(() -> menuButton("Fast (forgiving)", "/mcdg ruleset surface fast", Formatting.GREEN, true), false);
+        source.sendFeedback(() -> menuButton("Balanced (default)", "/mcdg ruleset surface balanced", Formatting.YELLOW, true), false);
+        source.sendFeedback(() -> menuButton("Tournament (hardest)", "/mcdg ruleset surface tournament", Formatting.RED, true), false);
         sendBackToMenu(source);
         return 1;
     }
