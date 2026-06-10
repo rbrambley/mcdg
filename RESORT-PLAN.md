@@ -95,10 +95,10 @@ On first player spawn in a fresh world:
 
 ## Phased Implementation
 
-### Phase 1: Resort Builder Core
+### Phase 1: Resort Builder Core — DONE
 
-- Implement `ResortBuilder` with basic room layout (lobby, courtyard, housing).
-- Test: manual `/mcdg buildresort` builds a resort at current position.
+- [x] Implement `ResortBuilder` with basic room layout (lobby, courtyard, housing, fountain, perimeter wall, lighting).
+- [x] Test: manual `/mcdg buildresort` builds a resort at current position.
 
 ### Phase 2: New World Auto-Build
 
@@ -109,10 +109,12 @@ On first player spawn in a fresh world:
 
 ### Phase 3: Admin Command + Overwrite Flow
 
-- Add `/mcdg buildresort` with location arg.
-- Implement existing-resort detection and prompt flow.
-- Ask about world spawn update on overwrite.
-- Deprecate `/mcdg buildcamp` with redirect message.
+- [x] `/mcdg buildresort` works at current player position.
+
+- [ ] Add `/mcdg buildresort <x> <z>` location arg.
+- [ ] Implement existing-resort detection and prompt flow.
+- [ ] Ask about world spawn update on overwrite.
+- [ ] Deprecate `/mcdg buildcamp` with redirect message.
 
 ### Phase 4: Polish
 
