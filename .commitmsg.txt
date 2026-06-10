@@ -1,10 +1,11 @@
-Step 2: Add skipHub parameter to placement methods
+Step 3: Add placeCourseIncrementally to AutoCourseService
 
-- Add skipHub boolean to placeCourse and placeCourseAtFixedOrigin overloads
-- Overload methods default skipHub=false for backward compatibility
-- Conditionally skip hub placement in hole loop when skipHub=true
-- Update AutoCourseService to pass skipHub=true (single-hole courses don't need hubs)
-- BuildCourseSessionManager remains unchanged (manual buildcourse still builds hub)
+- New method accepts a full Course object and a hub origin BlockPos
+- Places each hole independently using placeCourseAtFixedOrigin with skipHub=true
+- Each hole gets its own terrain resolution (like autocourse)
+- Uses Course design from SeededCourseGenerator (signature holes, fairways)
+- Returns rebuilt Course with actual placed coordinates and merged PlacedCourseState
+- Rollback on failure: resets placed blocks and throws
 
 Generated with [Devin](https://cli.devin.ai/docs)
 

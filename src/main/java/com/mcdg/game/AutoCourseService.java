@@ -380,6 +380,83 @@ public final class AutoCourseService {
         return new AutoCourseScenarioResult(course, mergedState);
     }
 
+    /**
+     * Places a full Course incrementally, one hole at a time, using independent terrain resolution.
+     * Each hole is placed at its computed absolute position relative to the hub origin.
+     * No central hub is built (skipHub=true for all holes).
+     */
+    public AutoCourseScenarioResult placeCourseIncrementally(ServerWorld world, BlockPos hubOrigin, Course course) {
+        List<Hole> builtHoles = new ArrayList<>();
+        Map<BlockPos, net.minecraft.block.BlockState> mergedOriginals = new HashMap<>();
+        Set<BlockPos> globalProtectedPositions = new HashSet<>();
+        Map<Integer, BlockPos> tees = new HashMap<>();
+        Map<Integer, BlockPos> baskets = new HashMap<>();
+        Map<Integer, BlockPos> alternates = new HashMap<>();
+        Map<Integer, Integer> effectivePars = new HashMap<>();
+
+        int hubX = hubOrigin.getX();
+        int hubZ = hubOrigin.getZ();
+
+        for (Hole hole : course.holes()) {
+            int absTeeX = hubX + hole.tee().x();
+            int absTeeZ = hubZ + hole.tee().z();
+            int absBasketX = hubX + hole.basket().x();
+            int absBasketZ = hubZ + hole.basket().z();
+
+            int localBasketX = absBasketX - absTeeX;
+            int localBasketZ = absBasketZ - absTeeZ;
+
+            BlockPos center = new BlockPos(absTeeX, 64, absTeeZ);
+            Hole candidate = new Hole(
+                    hole.index(), hole.par(), hole.distanceFeet(),
+                    new TeePoint(0, 64, 0),
+                    new BasketPoint(localBasketX, 64, localBasketZ, hole.basket().basketHeight()),
+                    List.of(new FairwaySegment(0, 0, localBasketX, localBasketZ,
+                            hole.fairwaySegments().isEmpty() ? 4 : hole.fairwaySegments().get(0).width())),
+                    hole.signatureType()
+            );
+            Course tempCourse = new Course(course.seed(), course.name() + "-hole-" + hole.index(), List.of(candidate));
+            PlacedCourseState placed = placementService.placeCourseAtFixedOrigin(world, center, tempCourse, ignored -> {}, globalProtectedPositions, true);
+
+            BlockPos actualTee = placed.holeTees().get(hole.index());
+            BlockPos actualBasket = placed.holeBaskets().get(hole.index());
+            if (actualTee == null || actualBasket == null) {
+                placementService.resetPlacedCourse(world, placed);
+                for (Map.Entry<BlockPos, net.minecraft.block.BlockState> entry : mergedOriginals.entrySet()) {
+                    world.setBlockState(entry.getKey(), entry.getValue(), Block.NOTIFY_ALL);
+                }
+                throw new RuntimeException("Incremental placement hole " + hole.index() + " produced no tee/basket");
+            }
+
+            int actualFeet = layoutValidator.distanceFeetFromBlocks(actualTee.getX(), actualTee.getZ(), actualBasket.getX(), actualBasket.getZ());
+            int effectivePar = placed.effectiveHolePars().getOrDefault(hole.index(), computePar(actualFeet));
+            Hole actualHole = new Hole(
+                    hole.index(), effectivePar, actualFeet,
+                    new TeePoint(actualTee.getX(), actualTee.getY(), actualTee.getZ()),
+                    new BasketPoint(actualBasket.getX(), actualBasket.getY(), actualBasket.getZ(), hole.basket().basketHeight()),
+                    List.of(new FairwaySegment(actualTee.getX(), actualTee.getZ(), actualBasket.getX(), actualBasket.getZ(),
+                            hole.fairwaySegments().isEmpty() ? 4 : hole.fairwaySegments().get(0).width())),
+                    hole.signatureType()
+            );
+            builtHoles.add(actualHole);
+
+            for (Map.Entry<BlockPos, net.minecraft.block.BlockState> entry : placed.originalBlocks().entrySet()) {
+                mergedOriginals.putIfAbsent(entry.getKey(), entry.getValue());
+            }
+            tees.putAll(placed.holeTees());
+            baskets.putAll(placed.holeBaskets());
+            alternates.putAll(placed.holeAlternateAnchors());
+            effectivePars.putAll(placed.effectiveHolePars());
+
+            CoursePlacementService.addProtectedColumnArea(globalProtectedPositions, actualTee, 2, 6);
+            CoursePlacementService.addProtectedColumnArea(globalProtectedPositions, actualBasket.down(), 2, 8);
+        }
+
+        Course builtCourse = new Course(course.seed(), course.name(), builtHoles);
+        PlacedCourseState mergedState = new PlacedCourseState(world.getRegistryKey(), mergedOriginals, tees, baskets, alternates, effectivePars);
+        return new AutoCourseScenarioResult(builtCourse, mergedState);
+    }
+
     List<HoleSpec> generateHoleSpecsFromOrigin(long seed, BlockPos origin) {
         java.util.Random random = new java.util.Random(seed);
         List<HoleSpec> specs = new ArrayList<>();
