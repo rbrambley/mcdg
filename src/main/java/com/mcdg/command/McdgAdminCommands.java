@@ -39,6 +39,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import java.util.ArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -583,6 +584,13 @@ public final class McdgAdminCommands {
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeResetResort(
                                         context.getSource()
+                                )))
+                        .then(literal("removesurroundcourses").requires(McdgAdminCommands::canUseAdminCommands)
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                                .executes(context -> executeRemoveSurroundCourses(
+                                        context.getSource(),
+                                        placementService,
+                                        practiceCourseStorage
                                 )))
                         .then(literal("leaderboard")
                                 .executes(context -> {
@@ -1345,6 +1353,59 @@ public final class McdgAdminCommands {
                 return 1;
         }
 
+
+        private static int executeRemoveSurroundCourses(
+                        ServerCommandSource source,
+                        CoursePlacementService placementService,
+                        PracticeCourseStorage practiceCourseStorage
+        ) {
+                List<PracticeCourseStorage.ReusableCourseEntry> allCourses = practiceCourseStorage.listReusable(source.getServer());
+                List<PracticeCourseStorage.ReusableCourseEntry> surroundCourses = new ArrayList<>();
+                for (PracticeCourseStorage.ReusableCourseEntry entry : allCourses) {
+                    if ("resort-surround".equals(entry.sourceTag())) {
+                        surroundCourses.add(entry);
+                    }
+                }
+
+                if (surroundCourses.isEmpty()) {
+                    source.sendFeedback(() -> Text.literal("No resort surround courses found in catalog."), false);
+                    return 1;
+                }
+
+                int resetCount = 0;
+                int failCount = 0;
+                Set<Integer> indicesToRemove = new HashSet<>();
+
+                for (PracticeCourseStorage.ReusableCourseEntry entry : surroundCourses) {
+                    int idx = entry.index();
+                    var loaded = practiceCourseStorage.loadReusableByIndex(source.getServer(), idx);
+                    if (loaded.isEmpty()) {
+                        failCount++;
+                        indicesToRemove.add(idx);
+                        continue;
+                    }
+                    var courseData = loaded.get();
+                    ServerWorld courseWorld = source.getServer().getWorld(courseData.placedCourseState().worldKey());
+                    if (courseWorld != null) {
+                        placementService.resetPlacedCourse(courseWorld, courseData.placedCourseState());
+                    }
+                    broadcastCourseWaypointRemoval(source.getServer(), courseData.course().name());
+                    indicesToRemove.add(idx);
+                    resetCount++;
+                }
+
+                if (!indicesToRemove.isEmpty()) {
+                    practiceCourseStorage.pruneReusableByIndices(source.getServer(), indicesToRemove);
+                }
+
+                int finalResetCount = resetCount;
+                int finalFailCount = failCount;
+                source.sendFeedback(() -> Text.literal(
+                    "Removed " + finalResetCount + " resort surround course(s)" +
+                    (finalFailCount > 0 ? " (" + finalFailCount + " failed to reset)" : "") + "."
+                ), true);
+                return 1;
+        }
         private static int totalCoursePar(Course course) {
                 int par = 0;
                 for (var hole : course.holes()) {

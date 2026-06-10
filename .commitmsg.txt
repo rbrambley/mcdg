@@ -1,0 +1,11 @@
+Step 5: Add removesurroundcourses command
+
+- New admin command /mcdg removesurroundcourses
+- Scans PracticeCourseStorage catalog for courses tagged "resort-surround"
+- For each matching course: resets placed blocks, broadcasts waypoint removal, prunes from catalog
+- Reports count of successfully removed vs failed courses
+- resetresort remains unchanged (only clears resort compound, not courses)
+
+Generated with [Devin](https://cli.devin.ai/docs)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
