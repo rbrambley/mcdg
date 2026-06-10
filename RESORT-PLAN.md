@@ -102,10 +102,11 @@ On first player spawn in a fresh world:
 
 ### Phase 2: New World Auto-Build
 
-- Implement `WorldSpawnHandler` using `ServerPlayerEvents.AFTER_RESPAWN` or world load event.
-- Detect fresh world (no resort marker, no prior player data).
-- Trigger resort build on first spawn.
-- Set world spawn to resort lobby.
+- [ ] Implement `WorldSpawnHandler` using `ServerLifecycleEvents.SERVER_STARTED`.
+- [ ] Detect fresh world (no resort marker, no prior player data).
+- [ ] Trigger resort build when new world starts (not on first player join).
+- [ ] Set world spawn to resort lobby.
+- Resort waypoint is synced to players on join only (already implemented via `ResortWaypointManager.broadcastToPlayer`).
 
 ### Phase 3: Admin Command + Overwrite Flow
 
@@ -135,8 +136,8 @@ On first player spawn in a fresh world:
 
 ## Acceptance Criteria
 
-- [ ] Fresh single-player world auto-builds resort on first spawn.
-- [ ] Fresh server world auto-builds resort on first player join.
+- [ ] Fresh single-player world auto-builds resort on world start.
+- [ ] Fresh server world auto-builds resort on world start.
 - [ ] `/mcdg buildresort` builds at current position on existing worlds.
 - [ ] `/mcdg buildresort <x> <z>` builds at specified coordinates.
 - [ ] Rebuilding at existing resort shows prompt with overwrite / new location / cancel options.
