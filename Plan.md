@@ -103,6 +103,11 @@ Command + generation model update (2026-06-02):
   - Simple curved flight on existing EnderPearlEntity via server tick steering.
   - Disc mode switching (Putter / Mid / Driver), release angle (hyzer/flat/anhyzer).
   - Post-release initiative after multiplayer validation and compact course layout.
+- Resort / world spawn (see `RESORT-PLAN.md` for full plan).
+  - Auto-build resort with 3 surrounding courses on new worlds.
+  - Admin command `/mcdg buildresort` for existing worlds with overwrite/relocate flow.
+  - Deprecates `/mcdg buildcamp`.
+  - Post-release initiative alongside or after multiplayer validation.
 - Tournament system (see `TOURNAMENT-PLAN.md` for full plan).
   - Stroke play across 1–4 admin-selected catalog courses.
   - Solo and multiplayer support, live spectator leaderboard, archival history.
