@@ -536,7 +536,6 @@ public final class McdgAdminCommands {
                                 .then(literal("strict")
                                         .executes(context -> RulesetCommands.executeSetRuleset(context.getSource(), rulesetManager, TournamentRulesetManager.Ruleset.STRICT)))
                                 .then(literal("surface")
-                                        .requires(McdgAdminCommands::canUseAdvancedCommands)
                                         .executes(context -> RulesetCommands.executeShowStrictSurfacePreset(context.getSource(), rulesetManager))
                                         .then(argument("preset", StringArgumentType.word())
                                                 .suggests((context, builder) -> {
