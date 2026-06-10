@@ -8,6 +8,7 @@ import com.mcdg.net.MenuScreenSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
 import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.WaypointSync;
+import com.mcdg.net.WaypointRemovedSync;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 /**
@@ -64,6 +65,9 @@ public final class ClientNetworking {
         );
         ClientPlayNetworking.registerGlobalReceiver(WaypointSync.ID, (payload, context) ->
             context.client().execute(() -> WaypointManager.mergeWaypoints(payload.waypoints()))
+        );
+        ClientPlayNetworking.registerGlobalReceiver(WaypointRemovedSync.ID, (payload, context) ->
+            context.client().execute(() -> WaypointManager.removeWaypoint(payload.name()))
         );
     }
 }

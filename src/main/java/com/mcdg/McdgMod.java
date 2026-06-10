@@ -30,6 +30,7 @@ import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.MenuScreenSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
 import com.mcdg.net.WaypointTeleportSync;
+import com.mcdg.net.WaypointRemovedSync;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
@@ -126,6 +127,7 @@ public final class McdgMod implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(LeaderboardResponse.ID, LeaderboardResponse.CODEC);
         PayloadTypeRegistry.playS2C().register(CourseRemovedSync.ID, CourseRemovedSync.CODEC);
         PayloadTypeRegistry.playS2C().register(WaypointSync.ID, WaypointSync.CODEC);
+        PayloadTypeRegistry.playS2C().register(WaypointRemovedSync.ID, WaypointRemovedSync.CODEC);
 
         ResourceManagerHelper.registerBuiltinResourcePack(
                 new Identifier(MOD_ID, "mcdg-test-resources"),

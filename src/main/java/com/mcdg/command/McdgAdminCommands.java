@@ -28,6 +28,8 @@ import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.CourseGenerator;
 import com.mcdg.world.ResortBuilder;
+import com.mcdg.world.ResortWaypointManager;
+import com.mcdg.net.WaypointRemovedSync;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -1288,6 +1290,12 @@ public final class McdgAdminCommands {
                         ), entity -> true);
                 for (var item : entities) {
                         item.discard();
+                }
+
+                // Clear resort waypoint and notify all online players
+                ResortWaypointManager.clearResortWaypoint();
+                for (var player : world.getPlayers()) {
+                    net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, new WaypointRemovedSync.Payload("MCDG Resort"));
                 }
 
                 int itemsRemoved = entities.size();
