@@ -27,6 +27,8 @@ import com.mcdg.world.PlacementAutoTestService;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.CourseGenerator;
+import com.mcdg.world.ResortBuilder;
+import net.minecraft.block.BlockState;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -565,6 +567,11 @@ public final class McdgAdminCommands {
                         .then(literal("cancelthrowtest").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> DebugCommands.executeCancelThrowTest(context.getSource(), throwAutoTestService)))
+                        .then(literal("buildresort").requires(McdgAdminCommands::canUseAdminCommands)
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                                .executes(context -> executeBuildResort(
+                                        context.getSource()
+                                )))
                         .then(literal("leaderboard")
                                 .executes(context -> {
                                     ServerPlayerEntity player = context.getSource().getPlayerOrThrow();
@@ -1224,6 +1231,24 @@ public final class McdgAdminCommands {
                 HoleProgressTracker.resetAllState(source.getServer());
 
                 source.sendFeedback(() -> Text.literal("Removed reusable course #" + oneBasedIndex + "."), true);
+                return 1;
+        }
+
+        private static int executeBuildResort(ServerCommandSource source) {
+                ServerWorld world = source.getWorld();
+                BlockPos center = BlockPos.ofFloored(source.getPosition());
+
+                java.util.Map<BlockPos, BlockState> originalBlocks = new java.util.HashMap<>();
+                java.util.Set<BlockPos> protectedPositions = new java.util.HashSet<>();
+
+                ResortBuilder.placeResort(world, center, originalBlocks, protectedPositions);
+
+                BlockPos lobbyPos = center.east(23);
+                source.sendFeedback(() -> Text.literal(
+                        "Resort built at X=" + center.getX() + " Z=" + center.getZ() +
+                        ". Lobby at X=" + lobbyPos.getX() + " Z=" + lobbyPos.getZ() +
+                        ". Use the courtyard paths to explore."
+                ), true);
                 return 1;
         }
 
