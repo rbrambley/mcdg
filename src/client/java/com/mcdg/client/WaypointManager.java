@@ -77,6 +77,16 @@ public final class WaypointManager {
     }
 
 
+    public static void mergeWaypoints(List<WaypointSync.WaypointEntry> entries) {
+        if (entries == null || entries.isEmpty()) return;
+        for (WaypointSync.WaypointEntry entry : entries) {
+            if (entry == null) continue;
+            clientWaypoints.removeIf(wp -> wp.name().equals(entry.name()));
+            clientWaypoints.add(new ClientWaypoint(entry.name(), entry.x(), entry.y(), entry.z(), entry.color(), entry.dimensionId()));
+        }
+        waypointsDirty = true;
+    }
+
     public static void clearRoundState() {
         activeRoundCourseWaypointName = "";
         lastSentWaypointSyncSignature = "";

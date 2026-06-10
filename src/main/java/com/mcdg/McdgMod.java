@@ -125,6 +125,7 @@ public final class McdgMod implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(MenuScreenSync.ID, MenuScreenSync.CODEC);
         PayloadTypeRegistry.playS2C().register(LeaderboardResponse.ID, LeaderboardResponse.CODEC);
         PayloadTypeRegistry.playS2C().register(CourseRemovedSync.ID, CourseRemovedSync.CODEC);
+        PayloadTypeRegistry.playS2C().register(WaypointSync.ID, WaypointSync.CODEC);
 
         ResourceManagerHelper.registerBuiltinResourcePack(
                 new Identifier(MOD_ID, "mcdg-test-resources"),

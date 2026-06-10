@@ -38,6 +38,7 @@ public final class ResortWaypointManager {
             updated.removeIf(e -> e.name().equals(RESORT_WAYPOINT_NAME));
             updated.add(new WaypointSync.WaypointEntry(wp.name, wp.x, wp.y, wp.z, wp.color, wp.dimensionId));
             WaypointSync.update(player, updated);
+            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, new WaypointSync.Payload(updated));
         });
     }
 
