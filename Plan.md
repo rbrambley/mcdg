@@ -99,6 +99,10 @@ Command + generation model update (2026-06-02):
 
 ## Possible Additions Later
 
+- Disc glide physics (see `DISC-GLIDE-PHYSICS.md` for full plan).
+  - Simple curved flight on existing EnderPearlEntity via server tick steering.
+  - Disc mode switching (Putter / Mid / Driver), release angle (hyzer/flat/anhyzer).
+  - Post-release initiative after multiplayer validation and compact course layout.
 - Multidimension course persistence refactor for the new buildcourse flow.
   - Goal: preserve per-hole dimension data so mixed-dimension builder sessions
     can save, load, and replay correctly in `listcourses`/`playcourse`.
