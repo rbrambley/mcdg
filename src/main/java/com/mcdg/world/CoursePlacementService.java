@@ -118,24 +118,28 @@ public final class CoursePlacementService {
      * Use this for buildcourse hole placement so the result matches the preview position.
      */
     public PlacedCourseState placeCourseAtFixedOrigin(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback) {
-        return placeCourseAtFixedOrigin(world, origin, course, progressCallback, null);
+        return placeCourseAtFixedOrigin(world, origin, course, progressCallback, null, false);
     }
 
     public PlacedCourseState placeCourseAtFixedOrigin(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback, Set<BlockPos> externalProtectedPositions) {
+        return placeCourseAtFixedOrigin(world, origin, course, progressCallback, externalProtectedPositions, false);
+    }
+
+    public PlacedCourseState placeCourseAtFixedOrigin(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback, Set<BlockPos> externalProtectedPositions, boolean skipHub) {
         boolean previous = useFixedAnchor;
         useFixedAnchor = true;
         try {
-            return placeCourse(world, origin, course, progressCallback, externalProtectedPositions);
+            return placeCourse(world, origin, course, progressCallback, externalProtectedPositions, skipHub);
         } finally {
             useFixedAnchor = previous;
         }
     }
 
     public PlacedCourseState placeCourse(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback) {
-        return placeCourse(world, origin, course, progressCallback, null);
+        return placeCourse(world, origin, course, progressCallback, null, false);
     }
 
-    private PlacedCourseState placeCourse(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback, Set<BlockPos> externalProtectedPositions) {
+    private PlacedCourseState placeCourse(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback, Set<BlockPos> externalProtectedPositions, boolean skipHub) {
         // Current MVP behavior: place relative to the player's surface location.
         CourseBounds courseBounds = findCourseBounds(course);
         Set<Long> rejectedAnchorKeys = new HashSet<>();
@@ -502,7 +506,7 @@ public final class CoursePlacementService {
             progressCallback.accept(hole.index());
         }
 
-        if (hole1Tee != null && hole1Basket != null) {
+        if (!skipHub && hole1Tee != null && hole1Basket != null) {
             placeCourseCentralHub(world, hole1Tee, hole1Basket, course.name(), originalBlocks, protectedPositions);
             // Hub construction can overlap the starting hole footprint; enforce the tee pad shape afterwards.
             placeTeePad(world, hole1Tee, originalBlocks);

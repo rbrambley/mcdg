@@ -1,0 +1,11 @@
+Step 2: Add skipHub parameter to placement methods
+
+- Add skipHub boolean to placeCourse and placeCourseAtFixedOrigin overloads
+- Overload methods default skipHub=false for backward compatibility
+- Conditionally skip hub placement in hole loop when skipHub=true
+- Update AutoCourseService to pass skipHub=true (single-hole courses don't need hubs)
+- BuildCourseSessionManager remains unchanged (manual buildcourse still builds hub)
+
+Generated with [Devin](https://cli.devin.ai/docs)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

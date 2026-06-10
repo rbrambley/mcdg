@@ -191,7 +191,7 @@ public final class AutoCourseService {
             );
 
             Course tempCourse = new Course(spec.seed, "auto-hole-" + spec.holeIndex, List.of(candidate));
-            PlacedCourseState placed = placementService.placeCourseAtFixedOrigin(world, center, tempCourse, ignored -> {}, state.globalProtectedPositions);
+            PlacedCourseState placed = placementService.placeCourseAtFixedOrigin(world, center, tempCourse, ignored -> {}, state.globalProtectedPositions, true);
 
             BlockPos actualTee = placed.holeTees().get(spec.holeIndex);
             BlockPos actualBasket = placed.holeBaskets().get(spec.holeIndex);
@@ -340,7 +340,7 @@ public final class AutoCourseService {
                     spec.holeIndex == signatureHoleIndex ? SignatureHoleType.ISLAND_GREEN : SignatureHoleType.NONE
             );
             Course tempCourse = new Course(spec.seed, courseName + "-hole-" + spec.holeIndex, List.of(candidate));
-            PlacedCourseState placed = placementService.placeCourseAtFixedOrigin(world, center, tempCourse, ignored -> {}, globalProtectedPositions);
+            PlacedCourseState placed = placementService.placeCourseAtFixedOrigin(world, center, tempCourse, ignored -> {}, globalProtectedPositions, true);
 
             BlockPos actualTee = placed.holeTees().get(spec.holeIndex);
             BlockPos actualBasket = placed.holeBaskets().get(spec.holeIndex);
