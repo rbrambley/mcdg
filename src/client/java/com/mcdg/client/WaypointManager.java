@@ -66,6 +66,16 @@ public final class WaypointManager {
     }
 
     public static String getActiveRoundCourseWaypointName() { return activeRoundCourseWaypointName; }
+    public static List<ClientWaypoint> getWaypoints() {
+        return List.copyOf(clientWaypoints);
+    }
+
+    public static void removeWaypoint(String name) {
+        clientWaypoints.removeIf(wp -> wp.name().equals(name));
+        waypointsDirty = true;
+        saveWaypointStore(MinecraftClient.getInstance());
+    }
+
 
     public static void clearRoundState() {
         activeRoundCourseWaypointName = "";

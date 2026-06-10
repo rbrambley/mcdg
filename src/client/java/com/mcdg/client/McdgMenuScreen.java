@@ -137,7 +137,7 @@ public final class McdgMenuScreen extends Screen {
             } else {
                 addBtn("⛳ Go to Lie", "/mcdg gotolie", cx, y, bw, TEXT_GREEN, BTN_TINT_GREEN); y += BTN_H + BTN_GAP;
             }
-            addBtn("Waypoints",          "/mcdg waypoint tp", cx, y, bw, TEXT_WHITE, BTN_TINT_NONE);  y += BTN_H + BTN_GAP;
+            addWaypointListBtn("Waypoints", cx, y, bw, TEXT_WHITE, BTN_TINT_NONE);  y += BTN_H + BTN_GAP;
             addBtn("Join Round",         "/mcdg joinround",   cx, y, bw, TEXT_WHITE, BTN_TINT_NONE);  y += BTN_H + BTN_GAP;
             addBtn("End Round",          "/mcdg endround",    cx, y, bw, TEXT_GOLD,  BTN_TINT_GOLD);  y += BTN_H + BTN_GAP;
             addBtn("Save & Leave Round", "/mcdg savesession", cx, y, bw, TEXT_MUTED, BTN_TINT_MUTED);
@@ -148,6 +148,7 @@ public final class McdgMenuScreen extends Screen {
                 addBtn("▶ Resume: " + state.savedCourseName() + "  H" + state.savedHole() + "  (" + state.savedStrokes() + " strokes)",
                         "/mcdg resumesession", cx, y, bw, TEXT_GREEN, BTN_TINT_GREEN); y += BTN_H + BTN_GAP;
             }
+            addWaypointListBtn("Waypoints", cx, y, bw, TEXT_WHITE, BTN_TINT_NONE);  y += BTN_H + BTN_GAP;
             addPageSwitchBtn("Manage Courses →", Page.COURSES, cx, y, bw, TEXT_MUTED, BTN_TINT_NONE);
 
         } else {
@@ -160,8 +161,20 @@ public final class McdgMenuScreen extends Screen {
             if (state.isAdmin()) {
                 addBtn("Build New Course", "/mcdg autocourse", cx, y, bw, TEXT_GOLD, BTN_TINT_GOLD); y += BTN_H + BTN_GAP;
             }
+            addWaypointListBtn("Waypoints", cx, y, bw, TEXT_WHITE, BTN_TINT_NONE);  y += BTN_H + BTN_GAP;
             addPageSwitchBtn("Browse Saved Courses →", Page.COURSES, cx, y, bw, TEXT_WHITE, BTN_TINT_NONE);
         }
+    }
+
+    private void addWaypointListBtn(String label, int x, int y, int w, int textColor, int tint) {
+        ButtonWidget btn = ButtonWidget.builder(Text.literal(label), b -> {
+            if (client != null) {
+                client.setScreen(new WaypointListScreen(this));
+            }
+        }).dimensions(x, y, w, BTN_H).build();
+        contentButtons.add(btn);
+        buttonTints.add(new int[]{x, y, w, BTN_H, tint});
+        addDrawableChild(btn);
     }
 
     private void addPageSwitchBtn(String label, Page page, int x, int y, int w, int textColor, int tint) {

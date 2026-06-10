@@ -86,6 +86,12 @@ public final class ResortBuilder {
                 originalBlocks, protectedPositions);
         buildModernPerimeterWall(world, flatCenter, originalBlocks, protectedPositions);
         buildPlazaFeatures(world, flatCenter, originalBlocks, protectedPositions);
+
+        // Register and broadcast resort waypoint
+        BlockPos fountainCenter = new BlockPos(center.getX(), baseY + 1, center.getZ());
+        String dimensionId = world.getRegistryKey().getValue().toString();
+        ResortWaypointManager.setResortWaypoint(fountainCenter, dimensionId);
+        ResortWaypointManager.broadcastToAllPlayers(world);
     }
 
     private static void flattenTerrain(ServerWorld world, BlockPos center,
