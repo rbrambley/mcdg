@@ -72,6 +72,7 @@ public final class HoleProgressTracker {
     ) {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             MiniMapSyncService.tickPendingInactive(server);
+            AceCompanionService.tick(server);
             if (!courseManager.isRoundActive()) {
                 if (ROUND_WAS_ACTIVE) {
                     ROUND_WAS_ACTIVE = false;
@@ -81,6 +82,7 @@ public final class HoleProgressTracker {
                     LAST_LIE_POSITION.clear();
                     LAST_BREADCRUMB_POSITION.clear();
                     CACHED_CORRIDOR_HALF_WIDTH.clear();
+                    AceCompanionService.reset();
                     MiniMapSyncService.reset();
                     if (LAST_RUNNING_SCOREBOARD_HASH != Integer.MIN_VALUE) {
                         sendRunningScoreboardInactive(server);
@@ -244,6 +246,11 @@ public final class HoleProgressTracker {
                         player.teleport(firstTee.getX() + 0.5, firstTee.getY() + 1.0, firstTee.getZ() + 0.5);
                     }
 
+                    if (state.holeStrokes() == 1) {
+                        ServerPlayNetworking.send(player, AceCinematicSync.Payload.active(state.currentHole(), currentHole.distanceFeet()));
+                        AceCompanionService.scheduleForPlayer(player.getUuid(), server.getOverworld().getTime());
+                    }
+
                     removeRoundThrowItems(player);
 
                     roundStateManager.recordCompletedRound(player.getUuid(), state.totalStrokes());
@@ -316,6 +323,7 @@ public final class HoleProgressTracker {
                 updateLieMarker(player, safeNextTee);
                 if (state.holeStrokes() == 1) {
                     ServerPlayNetworking.send(player, AceCinematicSync.Payload.active(state.currentHole(), currentHole.distanceFeet()));
+                    AceCompanionService.scheduleForPlayer(player.getUuid(), server.getOverworld().getTime());
                 }
                 sendHoleFinishTitle(player, state.holeStrokes(), completedHolePar);
             }
