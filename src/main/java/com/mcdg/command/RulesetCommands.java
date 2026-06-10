@@ -3,7 +3,6 @@ package com.mcdg.command;
 import com.mcdg.rules.TournamentRulesetManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 
 public final class RulesetCommands {
     private RulesetCommands() {
@@ -65,8 +64,6 @@ public final class RulesetCommands {
     }
 
     private static int completePlayerFacingLegacyCommand(ServerCommandSource source, String submenu) {
-        source.sendFeedback(() -> Text.literal("Tip: use /mcdg menu for clickable controls. Opening " + submenu + " menu...")
-                .formatted(Formatting.DARK_GRAY), false);
         source.getServer().getCommandManager().executeWithPrefix(source, "/mcdg menu " + submenu);
         return 1;
     }

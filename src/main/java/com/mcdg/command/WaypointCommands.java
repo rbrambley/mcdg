@@ -57,7 +57,6 @@ public final class WaypointCommands {
                     false
             );
         }
-        source.sendFeedback(() -> Text.literal("Use /mcdg waypoint tp <target or number>. Examples: /mcdg waypoint tp 2, /mcdg waypoint tp central, /mcdg waypoint tp hole 3"), false);
         return completePlayerFacingLegacyCommand(source, "waypoints");
     }
 
@@ -93,7 +92,6 @@ public final class WaypointCommands {
                     false
             );
         }
-        source.sendFeedback(() -> Text.literal("Pick one: /mcdg waypoint tp <number> (example: /mcdg waypoint tp 2)"), false);
         return completePlayerFacingLegacyCommand(source, "waypoints");
     }
 
