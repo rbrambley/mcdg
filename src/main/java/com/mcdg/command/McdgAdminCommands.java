@@ -1261,37 +1261,10 @@ public final class McdgAdminCommands {
 
         private static int executeResetResort(ServerCommandSource source) {
                 ServerWorld world = source.getWorld();
-                BlockPos searchCenter = BlockPos.ofFloored(source.getPosition());
-                int searchRadius = 100; // Increased from 50 for better detection
-
-                // Search for the resort beacon marker
-                final BlockPos[] resortCenterHolder = {null};
-                for (int dx = -searchRadius; dx <= searchRadius && resortCenterHolder[0] == null; dx++) {
-                        for (int dy = -10; dy <= 25 && resortCenterHolder[0] == null; dy++) {
-                                for (int dz = -searchRadius; dz <= searchRadius; dz++) {
-                                        BlockPos checkPos = searchCenter.add(dx, dy, dz);
-                                        if (world.getBlockState(checkPos).isOf(Blocks.BEACON)) {
-                                                // Found beacon - this is the resort center (beacon is placed 1 below surface)
-                                                resortCenterHolder[0] = checkPos.up(1);
-                                                break;
-                                        }
-                                }
-                        }
-                }
-
-                if (resortCenterHolder[0] == null) {
-                        source.sendError(Text.literal(
-                                "No resort beacon found within 100 blocks. " +
-                                "Stand inside the resort courtyard near the center fountain and try again."
-                        ));
-                        return 0;
-                }
-
-                final BlockPos resortCenter = resortCenterHolder[0];
-
-                // Clear the resort area (100x100 to ensure full coverage for 80x80 compound)
-                int clearRadius = 50; // Covers 80x80 compound with margin for building overhangs
-                int baseY = resortCenter.getY();
+                BlockPos resortCenter = BlockPos.ofFloored(source.getPosition());
+                // Clear area larger than the 80x80 compound so player can stand anywhere nearby
+                int clearRadius = 45; // COMPOUND_SIZE/2 + 5
+                int baseY = resortCenter.getY() - 1; // player stands 1 block above surface
 
                 for (int dx = -clearRadius; dx <= clearRadius; dx++) {
                         for (int dz = -clearRadius; dz <= clearRadius; dz++) {

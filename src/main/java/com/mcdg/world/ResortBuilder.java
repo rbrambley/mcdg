@@ -56,12 +56,6 @@ public final class ResortBuilder {
         BlockPos flatCenter = new BlockPos(center.getX(), baseY, center.getZ());
 
         flattenTerrain(world, flatCenter, originalBlocks, protectedPositions);
-        
-        // Beacon marker so /mcdg resetresort can find the resort center
-        BlockPos beaconPos = flatCenter.down();
-        PlacementUtils.setTrackedBlock(world, beaconPos, Blocks.BEACON.getDefaultState(), originalBlocks);
-        protectedPositions.add(beaconPos);
-        
         buildPlazaGround(world, flatCenter, originalBlocks, protectedPositions);
         buildModernFountain(world, flatCenter, originalBlocks, protectedPositions);
 
@@ -265,6 +259,19 @@ public final class ResortBuilder {
             protectedPositions.add(awningPos);
         }
         
+        // Interior ceiling corner end rods (hang down from roof)
+        int[][] ceilingCorners = {
+            {halfW - 1, halfD - 1}, {-(halfW - 1), halfD - 1},
+            {halfW - 1, -(halfD - 1)}, {-(halfW - 1), -(halfD - 1)}
+        };
+        for (int[] corner : ceilingCorners) {
+            BlockPos rodPos = center.add(corner[0], wallHeight, corner[1]);
+            if (!protectedPositions.contains(rodPos)) {
+                PlacementUtils.setTrackedBlock(world, rodPos, END_ROD, originalBlocks);
+                protectedPositions.add(rodPos);
+            }
+        }
+        
         // Interior lighting
         BlockPos lightPos = center.up(wallHeight);
         PlacementUtils.setTrackedBlock(world, lightPos, END_ROD, originalBlocks);
@@ -405,6 +412,43 @@ public final class ResortBuilder {
                         protectedPositions.add(pos);
                     }
                 }
+            }
+        }
+        
+        // End rods on wall top corners
+        int[][] wallCorners = {{r, r}, {r, -r}, {-r, r}, {-r, -r}};
+        for (int[] wc : wallCorners) {
+            BlockPos cornerRod = center.add(wc[0], WALL_HEIGHT, wc[1]);
+            if (!protectedPositions.contains(cornerRod)) {
+                PlacementUtils.setTrackedBlock(world, cornerRod, END_ROD, originalBlocks);
+                protectedPositions.add(cornerRod);
+            }
+        }
+        
+        // End rods every 5 blocks on top of wall
+        for (int i = -r; i <= r; i += 5) {
+            if (Math.abs(i) == r) continue; // skip corners (handled above)
+            if (Math.abs(i) <= GATEWAY_WIDTH / 2) continue; // skip gateway openings
+            
+            BlockPos nRod = center.add(i, WALL_HEIGHT, -r);
+            if (!protectedPositions.contains(nRod)) {
+                PlacementUtils.setTrackedBlock(world, nRod, END_ROD, originalBlocks);
+                protectedPositions.add(nRod);
+            }
+            BlockPos sRod = center.add(i, WALL_HEIGHT, r);
+            if (!protectedPositions.contains(sRod)) {
+                PlacementUtils.setTrackedBlock(world, sRod, END_ROD, originalBlocks);
+                protectedPositions.add(sRod);
+            }
+            BlockPos eRod = center.add(r, WALL_HEIGHT, i);
+            if (!protectedPositions.contains(eRod)) {
+                PlacementUtils.setTrackedBlock(world, eRod, END_ROD, originalBlocks);
+                protectedPositions.add(eRod);
+            }
+            BlockPos wRod = center.add(-r, WALL_HEIGHT, i);
+            if (!protectedPositions.contains(wRod)) {
+                PlacementUtils.setTrackedBlock(world, wRod, END_ROD, originalBlocks);
+                protectedPositions.add(wRod);
             }
         }
         
