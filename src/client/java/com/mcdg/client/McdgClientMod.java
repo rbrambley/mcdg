@@ -72,6 +72,22 @@ public final class McdgClientMod implements ClientModInitializer {
             MiniMapRenderer.setLastMiniMapRenderAtMs(0L);
             MiniMapRenderer.clearMiniMapRenderCache(client);
             WaypointManager.onClientJoin(client);
+            if (client.player != null) {
+                client.player.sendMessage(
+                    net.minecraft.text.Text.literal("Welcome to MCDG! Press ")
+                        .formatted(net.minecraft.util.Formatting.GRAY)
+                        .append(ClientKeybinds.getOpenMenuKeyText().copy().formatted(net.minecraft.util.Formatting.AQUA, net.minecraft.util.Formatting.BOLD))
+                        .append(net.minecraft.text.Text.literal(" or type ").formatted(net.minecraft.util.Formatting.GRAY))
+                        .append(net.minecraft.text.Text.literal("/mcdg")
+                            .styled(s -> s
+                                .withColor(net.minecraft.util.Formatting.AQUA)
+                                .withClickEvent(new net.minecraft.text.ClickEvent(net.minecraft.text.ClickEvent.Action.RUN_COMMAND, "/mcdg"))
+                                .withHoverEvent(new net.minecraft.text.HoverEvent(net.minecraft.text.HoverEvent.Action.SHOW_TEXT, net.minecraft.text.Text.literal("Open the MCDG menu")))
+                            ))
+                        .append(net.minecraft.text.Text.literal(" to open the menu.").formatted(net.minecraft.util.Formatting.GRAY)),
+                    false
+                );
+            }
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             WaypointManager.onClientDisconnect(client);

@@ -52,7 +52,6 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.math.BlockPos;
 import java.util.ArrayList;
@@ -172,23 +171,7 @@ public final class McdgMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPING.register(BUILD_COURSE_SESSION_MANAGER::save);
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> LEADERBOARD_MANAGER.save(server));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
-            server.execute(() -> {
-                restoreRoundParticipantOnJoin(handler.player, server);
-                handler.player.sendMessage(
-                    Text.literal("Welcome to MCDG! Press ")
-                        .formatted(Formatting.GRAY)
-                        .append(Text.literal("G").formatted(Formatting.AQUA, Formatting.BOLD))
-                        .append(Text.literal(" or type ").formatted(Formatting.GRAY))
-                        .append(Text.literal("/mcdg")
-                            .styled(s -> s
-                                .withColor(Formatting.AQUA)
-                                .withClickEvent(new net.minecraft.text.ClickEvent(net.minecraft.text.ClickEvent.Action.RUN_COMMAND, "/mcdg"))
-                                .withHoverEvent(new net.minecraft.text.HoverEvent(net.minecraft.text.HoverEvent.Action.SHOW_TEXT, Text.literal("Open the MCDG menu")))
-                            ))
-                        .append(Text.literal(" to open the menu.").formatted(Formatting.GRAY)),
-                    false
-                );
-            })
+            server.execute(() -> restoreRoundParticipantOnJoin(handler.player, server))
         );
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
             server.execute(() -> WaypointSync.clear(handler.player))

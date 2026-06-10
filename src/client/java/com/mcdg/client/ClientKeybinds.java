@@ -59,6 +59,10 @@ public final class ClientKeybinds {
         ));
     }
 
+    public static net.minecraft.text.Text getOpenMenuKeyText() {
+        return openMenuKey.getBoundKeyLocalizedText();
+    }
+
     public static void forEachOpenMenuPress(Runnable action) {
         while (openMenuKey.wasPressed()) {
             action.run();
