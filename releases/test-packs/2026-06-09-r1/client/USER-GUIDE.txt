@@ -1,0 +1,68 @@
+﻿MCDG Multiplayer Tester User Guide
+
+Release: 2026-06-09-r1
+Generated: 2026-06-09 21:42:30 -04:00
+Source instance: C:\Users\rich\AppData\Roaming\ATLauncher\instances\Minecraft1206withFabric
+
+Requirements
+- Minecraft 1.20.6
+- Fabric Loader 0.16.10
+- Java 21
+
+Install Summary
+- Client: merge pack files into your test client instance.
+- Server host: merge server pack files into server folder while server is stopped.
+- All testers must use the same release ID and matching mod files.
+
+Resource Pack
+- If included, enable resourcepacks/MCDG-Test-Resources in-game:
+  Options -> Resource Packs -> Selected.
+- Keep the same resource-pack state across all testers for consistent visuals.
+
+Core Commands (use in chat)
+- /mcdg help
+- /mcdg createcourse <seed>
+- /mcdg startround
+- /mcdg startround strict
+- /mcdg listcourses
+- /mcdg playcourse <index>
+- /mcdg joinround [players]
+- /mcdg endround
+- /mcdg cleanupcourse
+- /mcdg gotolie
+- /mcdg ruleset
+- /mcdg ruleset casual
+- /mcdg ruleset strict
+
+Advanced Commands
+- Some commands are intentionally hidden unless advanced mode is enabled.
+- Enable advanced commands by setting:
+  - env var: MCDG_SHOW_ADVANCED_COMMANDS=true
+  - or JVM property: -Dmcdg.showAdvancedCommands=true
+- Typical advanced commands include: practicecourse, resumecourse, usecourse,
+  prunecourses, gotocourse, roundstatus, validateplacement, buildcamp, autotests.
+
+Recommended Tester Flow
+1. Host starts world/server with this release.
+2. Admin creates and starts a course:
+   - /mcdg createcourse <seed>
+   - /mcdg startround
+3. Testers join active round if needed:
+   - /mcdg joinround
+4. During play, if a player desyncs from lie marker:
+   - /mcdg gotolie
+5. End and clean up after test cycle:
+   - /mcdg endround
+   - /mcdg cleanupcourse
+
+Troubleshooting Quick Checks
+- Confirm release ID and VERSION.txt match across all participants.
+- Confirm Fabric loader version and Java version match requirements.
+- If resource pack visuals differ, re-enable MCDG-Test-Resources and relaunch.
+- If command permission fails on dedicated server, ensure OP level >= 2.
+
+Bug Reports
+- Use BUG-REPORT-TEMPLATE.txt.
+- Include exact command sequence, seed, hole number, expected vs actual behavior,
+  and log snippets/screenshots where possible.
+

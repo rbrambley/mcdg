@@ -1,0 +1,11 @@
+﻿Release ID: 2026-06-09-r1
+Generated At: 2026-06-09 21:42:30 -04:00
+Minecraft: 1.20.6
+Fabric Loader: 0.16.10
+Java: 21
+
+Server mod snapshot:
+fabric-api-0.100.8+1.20.6.jar
+ferritecore-6.1.1-fabric.jar
+lithium-fabric-mc1.20.6-0.12.5.jar
+mcdg-0.1.0.jar
