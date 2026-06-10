@@ -17,7 +17,7 @@ public final class RulesetCommands {
                         + " | strict surface preset: " + preset.name().toLowerCase()),
                 false
         );
-        return completePlayerFacingLegacyCommand(source, "rules");
+        return 1;
     }
 
     public static int executeSetRuleset(ServerCommandSource source, TournamentRulesetManager rulesetManager, TournamentRulesetManager.Ruleset ruleset) {
@@ -34,7 +34,7 @@ public final class RulesetCommands {
                 false
         );
         source.sendFeedback(() -> Text.literal("Options: fast (forgiving), balanced (default), tournament (hardest)."), false);
-        return completePlayerFacingLegacyCommand(source, "rules");
+        return 1;
     }
 
     public static int executeSetStrictSurfacePreset(ServerCommandSource source, TournamentRulesetManager rulesetManager, String presetName) {
@@ -63,8 +63,4 @@ public final class RulesetCommands {
         };
     }
 
-    private static int completePlayerFacingLegacyCommand(ServerCommandSource source, String submenu) {
-        source.getServer().getCommandManager().executeWithPrefix(source, "/mcdg menu " + submenu);
-        return 1;
-    }
 }

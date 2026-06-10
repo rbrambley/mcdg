@@ -653,11 +653,6 @@ public final class McdgAdminCommands {
         }
 
 
-        private static int completePlayerFacingLegacyCommand(ServerCommandSource source, String submenu) {
-                source.getServer().getCommandManager().executeWithPrefix(source, "/mcdg menu " + submenu);
-                return 1;
-        }
-
         private static int executeHelp(ServerCommandSource source) {
                 source.sendFeedback(() -> Text.literal("MCDG quick help:"), false);
                 source.sendFeedback(() -> Text.literal("- New course: /mcdg createcourse <seed> -> /mcdg startround (or /mcdg startround strict)."), false);
@@ -1777,7 +1772,7 @@ public final class McdgAdminCommands {
                                         .formatted(Formatting.GREEN),
                                 true
                         );
-                        return completePlayerFacingLegacyCommand(source, "round");
+                        return 1;
                 } catch (Exception ex) {
                         source.sendError(Text.literal("This command must be run by a player."));
                         return 0;
@@ -1798,7 +1793,7 @@ public final class McdgAdminCommands {
                 courseManager.setRoundActive(false);
                 clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
                 source.sendFeedback(() -> Text.literal("Round ended. Use /mcdg resetcourse to restore terrain edits."), true);
-                return completePlayerFacingLegacyCommand(source, "round");
+                return 1;
         }
 
         private static int executeJoinRound(
@@ -1868,10 +1863,7 @@ public final class McdgAdminCommands {
                 source.sendFeedback(() -> Text.literal(
                         "Join round complete. Added=" + finalJoinedCount + ", already active=" + finalAlreadyJoinedCount + "."
                 ), true);
-                if (finalJoinedCount > 0) {
-                        return completePlayerFacingLegacyCommand(source, "round");
-                }
-                return 0;
+                return finalJoinedCount > 0 ? 1 : 0;
         }
 
         private static int executeRoundStatus(
@@ -1938,7 +1930,7 @@ public final class McdgAdminCommands {
                         final int remaining = participantIds.size() - listed;
                         source.sendFeedback(() -> Text.literal(" - ... and " + remaining + " more participant(s)."), false);
                 }
-                return completePlayerFacingLegacyCommand(source, "round");
+                return 1;
         }
 
         private static void removeRoundThrowItemsFromCourseWorldPlayers(ServerCommandSource source, ActiveCourseManager courseManager) {
