@@ -10,6 +10,11 @@
 - **Resort** is a distinct large structure built at world spawn on new worlds.
 - Includes: lobby, player housing, central courtyard.
 - `buildcamp` is deprecated in favor of the resort.
+- **3 auto-generated courses** are built as part of `buildresort`.
+  - Built one at a time after the resort is placed.
+  - Kept at least 30 blocks from the outside of the resort wall.
+  - 3 sides chosen dynamically based on terrain.
+  - Courses must not intersect each other or the resort.
 - **Admin command** `/mcdg buildresort` for existing worlds or relocation.
   - Accepts optional `[x] [z]` location argument.
   - Updates world spawn to the resort interior.
@@ -74,9 +79,15 @@ On first player spawn in a fresh world:
 3. **Build resort.**
    - Use `ResortBuilder` (new class, modeled after `CampBuilder` but with distinct layout).
    - Place `RESORT_MARKER_BLOCK` at center.
-4. **Update world spawn** (if requested).
+4. **Build 3 surrounding courses.**
+   - Compute 3 anchor points, one at a time, at least 30 blocks from the outside of the resort wall.
+   - Dynamically choose sides based on terrain (avoid water, steep slopes, obstructed areas).
+   - Validate no overlap with resort or each other.
+   - Generate and place each course using the seeded generator with deterministic seeds.
+   - Save each to `PracticeCourseStorage` catalog.
+5. **Update world spawn** (if requested).
    - Set to resort lobby interior.
-5. **Feedback.**
+6. **Feedback.**
    - "Resort built at (X, Y, Z)."
 
 ---
@@ -86,6 +97,7 @@ On first player spawn in a fresh world:
 | File | Action | Purpose |
 |------|--------|---------|
 | `ResortBuilder.java` | Create | Resort structure placement, room layout, marker block |
+| `ResortCoursePlacement.java` | Create | Compute 3 course anchors around resort, terrain-aware side selection, overlap validation |
 | `WorldSpawnHandler.java` | Create | Detect first spawn, trigger auto-build on new worlds |
 | `McdgAdminCommands.java` | Modify | Add `/mcdg buildresort` subcommand, deprecate `/mcdg buildcamp` |
 | `Plan.md` | Modify | Add to backlog or note buildcamp deprecation |
@@ -111,6 +123,7 @@ On first player spawn in a fresh world:
 ### Phase 3: Admin Command + Overwrite Flow
 
 - [x] `/mcdg buildresort` works at current player position.
+- [ ] `buildresort` generates 3 surrounding courses after resort placement (one at a time, 30+ blocks from wall, terrain-aware sides, no overlap).
 
 - [ ] Add `/mcdg buildresort <x> <z>` location arg.
 - [ ] Implement existing-resort detection and prompt flow.
@@ -139,6 +152,7 @@ On first player spawn in a fresh world:
 - [ ] Fresh single-player world auto-builds resort on world start.
 - [ ] Fresh server world auto-builds resort on world start.
 - [ ] `/mcdg buildresort` builds at current position on existing worlds.
+- [ ] `/mcdg buildresort` generates 3 courses around the resort (one at a time, 30+ blocks from wall, no overlap).
 - [ ] `/mcdg buildresort <x> <z>` builds at specified coordinates.
 - [ ] Rebuilding at existing resort shows prompt with overwrite / new location / cancel options.
 - [ ] World spawn is updated to resort lobby when requested.
