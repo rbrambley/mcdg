@@ -673,14 +673,29 @@ public final class McdgMod implements ModInitializer {
         return !belowShape.isEmpty();
     }
     private static void handleWaypointTeleport(ServerPlayerEntity player, WaypointTeleportSync payload) {
-        ResortWaypointManager.getResortWaypoint().ifPresent(wp -> {
-            if (wp.name().equals(payload.name())) {
-                BlockPos target = new BlockPos(wp.x(), wp.y(), wp.z()).south(4);
+        String name = payload.name();
+        if (name == null || name.isBlank()) return;
+
+        // Resort waypoint
+        var resort = ResortWaypointManager.getResortWaypoint().orElse(null);
+        if (resort != null && resort.name().equals(name)) {
+            BlockPos target = new BlockPos(resort.x(), resort.y(), resort.z()).south(4);
+            BlockPos safe = resolveSafeFeetNearWithin(player.getServerWorld(), target, 2);
+            player.teleport(player.getServerWorld(), safe.getX() + 0.5, safe.getY(), safe.getZ() + 0.5, Set.of(), player.getYaw(), player.getPitch());
+            player.sendMessage(Text.literal("Teleported to MCDG Resort!"), false);
+            return;
+        }
+
+        // Player-created waypoint
+        for (WaypointSync.WaypointEntry entry : WaypointSync.getWaypoints(player)) {
+            if (entry != null && entry.name().equals(name)) {
+                BlockPos target = new BlockPos(entry.x(), entry.y(), entry.z());
                 BlockPos safe = resolveSafeFeetNearWithin(player.getServerWorld(), target, 2);
                 player.teleport(player.getServerWorld(), safe.getX() + 0.5, safe.getY(), safe.getZ() + 0.5, Set.of(), player.getYaw(), player.getPitch());
-                player.sendMessage(Text.literal("Teleported to MCDG Resort!"), false);
+                player.sendMessage(Text.literal("Teleported to " + name + "!"), false);
+                return;
             }
-        });
+        }
     }
 
 }
