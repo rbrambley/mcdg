@@ -23,6 +23,7 @@ This sheet targets multiplayer scenarios that are still open or recently changed
 2. Host can run admin commands.
 3. Use a fresh world or known-clean test world.
 4. If using e4mc, capture the exact hosted domain shown in chat.
+5. Press G (default) or type /mcdg to open the MCDG menu. All admin actions are available via the menu or via chat commands — both are valid for testing.
 
 ## Evidence to Capture
 
@@ -48,8 +49,8 @@ N/A = not run.
 Priority: High
 
 Steps:
-1. Run /mcdg createcourse 123456789
-2. Run /mcdg startround <players> with only a subset selected.
+1. Run /mcdg createcourse 123456789 (or Menu -> Auto Build Course)
+2. Run /mcdg startround <players> with only a subset selected (or Menu -> Admin -> Start Round)
 3. Observe selected and non-selected players.
 
 Expected:

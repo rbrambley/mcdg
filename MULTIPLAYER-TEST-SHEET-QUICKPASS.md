@@ -10,6 +10,10 @@ Mode: LAN / e4mc / Dedicated
 
 Run a high-signal multiplayer verification in one sitting (about 45-75 minutes).
 
+## Menu Access
+
+Press G (default) or type /mcdg to open the MCDG menu. All admin actions below can be run via chat commands or the menu — both are valid.
+
 ## Pass Criteria
 
 - All Critical tests pass.
@@ -29,8 +33,8 @@ Run a high-signal multiplayer verification in one sitting (about 45-75 minutes).
 Priority: Critical
 
 Steps:
-1. /mcdg createcourse 123456789
-2. /mcdg startround <players> (select exact participants)
+1. /mcdg createcourse 123456789  (or Menu -> Auto Build Course)
+2. /mcdg startround <players>  (or Menu -> Admin -> Start Round)
 
 Expected:
 - Only selected players are enrolled/staged.
