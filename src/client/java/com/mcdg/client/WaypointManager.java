@@ -39,9 +39,9 @@ public final class WaypointManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("mcdg-waypoints");
 
     private static final int WAYPOINT_FLOAT_LABEL_ENTER_BLOCKS = 160;
-    private static final int WAYPOINT_EDGE_ARROW_ENTER_BLOCKS = 120;
+    private static final int WAYPOINT_EDGE_ARROW_ENTER_BLOCKS = 160;
     private static final int WAYPOINT_FLOAT_LABEL_MAX_BLOCKS = 160;
-    private static final int WAYPOINT_EDGE_ARROW_MAX_BLOCKS = 320;
+    private static final int WAYPOINT_EDGE_ARROW_MAX_BLOCKS = 800;
     // TODO: re-add when beam rendering is fixed
     // private static final int WAYPOINT_BEAM_HEIGHT_BLOCKS = 64;
     // private static final float WAYPOINT_BEAM_ALPHA = 0.60f;
@@ -135,14 +135,14 @@ public final class WaypointManager {
 
     private static WaypointRenderMode resolveWaypointRenderMode(ClientWaypoint waypoint, double distanceBlocks) {
         String key = waypointRenderModeKey(waypoint);
-        WaypointRenderMode previous = waypointRenderModes.getOrDefault(key, WaypointRenderMode.FLOATING_LABEL);
+        // Hysteresis removed — direct distance thresholds now
         WaypointRenderMode resolved;
         if (distanceBlocks <= WAYPOINT_FLOAT_LABEL_ENTER_BLOCKS) {
             resolved = WaypointRenderMode.FLOATING_LABEL;
-        } else if (distanceBlocks >= WAYPOINT_EDGE_ARROW_ENTER_BLOCKS && distanceBlocks <= WAYPOINT_EDGE_ARROW_MAX_BLOCKS) {
+        } else if (distanceBlocks <= WAYPOINT_EDGE_ARROW_MAX_BLOCKS) {
             resolved = WaypointRenderMode.MINIMAP_EDGE_ARROW;
         } else {
-            resolved = previous;
+            resolved = WaypointRenderMode.FLOATING_LABEL;
         }
         waypointRenderModes.put(key, resolved);
         return resolved;
