@@ -31,7 +31,6 @@ Branch merged: `feature/minimap-improvements` → `master` (fast-forward).
 Open / next:
 
 - Multiplayer live validation (2-player full round still pending).
-- `practicecourse` deprecation phases (still open from prior plan).
 
 ---
 
@@ -105,55 +104,6 @@ Command + generation model update (2026-06-02):
     can save, load, and replay correctly in `listcourses`/`playcourse`.
   - Follow-up: expand the course snapshot/storage model once the single-dimension
     Phase 1 flow is validated.
-
----
-
-## Practicecourse Deprecation Plan (Phased)
-
-Phase 0: Freeze + baseline
-
-- Keep `practicecourse` behavior unchanged while reusable-course flow
-  stabilizes.
-- Track operator usage of `practicecourse`, `resumecourse`, and `usecourse`.
-- Confirm reusable fallback and catalog commands are reliable in live sessions.
-
-Phase 1: Soft deprecation
-
-- Keep `practicecourse` functional.
-- Add a lightweight deprecation notice on command use.
-- Update help/docs to prioritize unified flow (`createcourse` + `startround` +
-  reusable commands).
-
-Phase 2: Behavioral convergence
-
-- Route `practicecourse` through the same lifecycle internals as `startround`.
-- Remove command-specific branch differences where possible.
-- Keep persistence/snapshot outputs identical between both command paths.
-
-Phase 3: Alias mode
-
-- Convert `practicecourse` into a thin alias/forwarder to unified flow.
-- Preserve compatibility for existing scripts/macros.
-- Keep deprecation notice active.
-
-Phase 4: Removal window
-
-- Announce target removal release (after alias phase proves stable).
-- Keep one release with stronger warning before removal.
-- Remove parser/registration entry after migration window closes.
-
-Phase 5: Cleanup
-
-- Remove legacy flags/branches kept only for `practicecourse` terminology.
-- Retain snapshot compatibility loaders as needed for older saves.
-- Keep reusable catalog commands as the primary management path.
-
-Rollback safety
-
-- If regressions appear in phases 2-4, restore alias behavior immediately.
-- Avoid deleting storage/schema compatibility in the same release as command
-  removal.
-- Keep `resumecourse` stable through the entire transition.
 
 ---
 
@@ -235,7 +185,7 @@ Open:
   - current blocker: no second player available for live two-client validation.
 - Strict/resume closeout runs:
   - one clean manual strict 9-hole round,
-  - `practicecourse` -> restart -> `resumecourse` verification.
+  - restart -> `resumecourse` verification.
 - Release-readiness docs and UX completion:
   - compatibility/performance matrix,
   - in-game help/admin lifecycle docs,
@@ -1177,7 +1127,7 @@ Tasks:
 
 - Run one clean manual strict 9-hole round (`balanced` preset).
 - Validate strict penalties and lie/throw progression on real throw events.
-- Re-run persistent safety path: `practicecourse` -> restart -> `resumecourse`.
+- Re-run persistent safety path: restart -> `resumecourse`.
 
 Exit criteria:
 
@@ -1354,7 +1304,7 @@ Minimum green state before any major feature expansion:
 2. `gradle quickRegression smokeRegression`
 3. lifecycle smoke/deploy gate passes
 4. one manual strict 9-hole validation run
-5. one `practicecourse` -> restart -> `resumecourse` validation run
+5. one restart -> `resumecourse` validation run
 
 ---
 
@@ -1364,7 +1314,6 @@ Primary lifecycle commands:
 
 - `/mcdg createcourse <seed>`
 - `/mcdg startround`
-- `/mcdg practicecourse`
 - `/mcdg resumecourse`
 - `/mcdg endround`
 - `/mcdg resetcourse`

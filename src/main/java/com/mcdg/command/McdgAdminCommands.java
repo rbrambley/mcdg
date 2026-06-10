@@ -197,59 +197,6 @@ public final class McdgAdminCommands {
                                                         true,
                                                         EntityArgumentType.getPlayers(context, "players")
                                                 )))))
-                        .then(literal("practicecourse").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
-                                .executes(context -> executePracticeCourseDeprecated(
-                                        context.getSource(),
-                                        courseManager,
-                                        placementService,
-                                        placementValidator,
-                                        roundStateManager,
-                                        roundPresentationService,
-                                        skipRoundPresentation,
-                                        practiceCourseStorage,
-                                        true,
-                                        null
-                                ))
-                                .then(argument("players", EntityArgumentType.players())
-                                        .executes(context -> executePracticeCourseDeprecated(
-                                                context.getSource(),
-                                                courseManager,
-                                                placementService,
-                                                placementValidator,
-                                                roundStateManager,
-                                                roundPresentationService,
-                                                skipRoundPresentation,
-                                                practiceCourseStorage,
-                                                true,
-                                                EntityArgumentType.getPlayers(context, "players")
-                                        )))
-                                .then(literal("strict")
-                                        .executes(context -> executePracticeCourseDeprecated(
-                                                context.getSource(),
-                                                courseManager,
-                                                placementService,
-                                                placementValidator,
-                                                roundStateManager,
-                                                roundPresentationService,
-                                                skipRoundPresentation,
-                                                practiceCourseStorage,
-                                                true,
-                                                null
-                                        ))
-                                        .then(argument("players", EntityArgumentType.players())
-                                                .executes(context -> executePracticeCourseDeprecated(
-                                                        context.getSource(),
-                                                        courseManager,
-                                                        placementService,
-                                                        placementValidator,
-                                                        roundStateManager,
-                                                        roundPresentationService,
-                                                        skipRoundPresentation,
-                                                        practiceCourseStorage,
-                                                        true,
-                                                        EntityArgumentType.getPlayers(context, "players")
-                                                )))))
                         .then(literal("resumecourse").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeResumeCourse(
@@ -668,37 +615,6 @@ public final class McdgAdminCommands {
                         source.sendFeedback(() -> Text.literal("- Advanced commands are hidden by default; set MCDG_SHOW_ADVANCED_COMMANDS=true to expose them."), false);
                 }
                 return 1;
-        }
-
-    private static int executePracticeCourseDeprecated(
-                        ServerCommandSource source,
-                        ActiveCourseManager courseManager,
-                        CoursePlacementService placementService,
-                        CoursePlacementValidator placementValidator,
-                        RoundStateManager roundStateManager,
-                        RoundPresentationService roundPresentationService,
-                        boolean skipRoundPresentation,
-                        PracticeCourseStorage practiceCourseStorage,
-                        boolean allowReusableFallback,
-                        Collection<ServerPlayerEntity> selectedPlayers
-        ) {
-                source.sendFeedback(() -> Text.literal(
-                        "practicecourse is deprecated. Use /mcdg startround for new generation or /mcdg playcourse <index> for saved courses."
-                ), false);
-
-                return executeStartRound(
-                        source,
-                        courseManager,
-                        placementService,
-                        placementValidator,
-                        roundStateManager,
-                        roundPresentationService,
-                        skipRoundPresentation,
-                        practiceCourseStorage,
-                        true,
-                        allowReusableFallback,
-                        selectedPlayers
-                );
         }
 
     private static int executeCreateCourse(
