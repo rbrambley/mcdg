@@ -1,0 +1,4 @@
+# MCDG waypoint store
+nextIndex=2
+labelsVisible=true
+wp=test	360	143	-1091	FF57D163	minecraft:overworld

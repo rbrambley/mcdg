@@ -1,13 +1,13 @@
-MCDG Multiplayer Tester User Guide
+﻿MCDG Multiplayer Tester User Guide
 
-Release: {{RELEASE_ID}}
-Generated: {{GENERATED_AT}}
-Source instance: {{INSTANCE_PATH}}
+Release: 2026-06-09-r1
+Generated: 2026-06-09 21:45:09 -04:00
+Source instance: C:\Users\rich\AppData\Roaming\ATLauncher\instances\Minecraft1206withFabric
 
 Requirements
-- Minecraft {{MINECRAFT_VERSION}}
-- Fabric Loader {{FABRIC_LOADER_VERSION}}
-- Java {{JAVA_VERSION}}
+- Minecraft 1.20.6
+- Fabric Loader 0.16.10
+- Java 21
 
 Install Summary
 - Client: merge pack files into your test client instance.
@@ -22,17 +22,17 @@ Resource Pack
 Opening the Menu
 - Press G (default) to open the MCDG menu from anywhere in-game.
 - Or type /mcdg in chat (clickable link shown on join).
-- All actions are available via the menu — no need to memorize commands.
+- All actions are available via the menu â€” no need to memorize commands.
 - Keybind can be rebound in Options -> Controls -> MCDG.
 
 Other Keybinds (all rebindable)
-- M  — Add waypoint at current position (opens name/color screen)
-- N  — Remove nearest waypoint
-- L  — Toggle waypoint labels
-- +/-  — Minimap size up/down
+- M  â€” Add waypoint at current position (opens name/color screen)
+- N  â€” Remove nearest waypoint
+- L  â€” Toggle waypoint labels
+- +/-  â€” Minimap size up/down
 
 Admin Tester Flow
-1. Join the world/server — press G to open the menu.
+1. Join the world/server â€” press G to open the menu.
 2. Build a course:
    Menu -> Auto Build Course -> type a name and press Enter.
    (or: Menu -> Manual Build Course for seed-based generation)
@@ -52,9 +52,9 @@ Rules / Surface Preset
 - Strict surface presets: Fast (forgiving), Balanced (default), Tournament (hardest).
 
 Player Tester Flow
-1. Join the world/server — press G to open the menu.
+1. Join the world/server â€” press G to open the menu.
 2. Join an active round: Menu -> Join Round.
-3. Play holes normally — throw your disc, walk to it, repeat.
+3. Play holes normally â€” throw your disc, walk to it, repeat.
 4. Use Menu -> Go to Lie if you need to teleport to your lie.
 5. Save progress if leaving early: Menu -> Save & Leave Round.
 
@@ -77,3 +77,4 @@ Bug Reports
 - Use BUG-REPORT-TEMPLATE.txt.
 - Include exact steps (menu path or command), seed, hole number, expected vs
   actual behavior, and log snippets/screenshots where possible.
+

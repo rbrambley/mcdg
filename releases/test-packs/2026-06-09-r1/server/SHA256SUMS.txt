@@ -1,0 +1,14 @@
+﻿181946021a7e9056a318653686b088a4c0a76013453526f717ea38fb036d7627 *acks/2026-06-09-r1/server/BUG-REPORT-TEMPLATE.txt
+83be16df88e00e31041e507cfbb1dedf7d07231a385a8d44f6054755548be4f3 *acks/2026-06-09-r1/server/config/fabric/indigo-renderer.properties
+a2091a291309db8920c8a80e913ed31c24c29687d8cd25ac18076ad85a90ddb8 *acks/2026-06-09-r1/server/config/ferritecore.mixin.properties
+5986efada30e7f010293f88598f1d36c6011fc270172fdae52c69c91f34ef34b *acks/2026-06-09-r1/server/config/immediatelyfast.json
+76765e8e5ff8e927d80beb0739aababcf36e7babfd94262f2afece256cc5cd2e *acks/2026-06-09-r1/server/config/lithium.properties
+11f515793c4a566199ad9563ade175aad99f83f9cbaba18269cd92ec363170f1 *acks/2026-06-09-r1/server/config/mcdg-waypoints/save_..txt
+9abc312f73da38f01c0661fe22333fec64dbf6412a2b960bcff4eeb71b496040 *acks/2026-06-09-r1/server/config/modernfix-mixins.properties
+ef0da4eca8aa731469dde63dbee451bc6b0d5814bc140c747a7029b9bb2a8cef *acks/2026-06-09-r1/server/mods/fabric-api-0.100.8+1.20.6.jar
+d7333d787da22db0789fe6fc6ea868449b892e68da474809c97f111a9c9e96b6 *acks/2026-06-09-r1/server/mods/ferritecore-6.1.1-fabric.jar
+c9013317fb46674f9065f35f5d5d1756187738fa8014d352ed4f25c3fc6963fc *acks/2026-06-09-r1/server/mods/lithium-fabric-mc1.20.6-0.12.5.jar
+32a6856ae51f34cf53b5a0d31314667047644b9b6c0758c2df4c6850094646fe *acks/2026-06-09-r1/server/mods/mcdg-0.1.0.jar
+0fef01ca722c8cd642ef1c42916bf3f57aada553a6ae0e0c5dc414876e3f7a6b *acks/2026-06-09-r1/server/README-SERVER.txt
+3a026747d43dec99a4ce63f9de12bd2cc7eb0c6fb7b3888d93fe0beb8467aab8 *acks/2026-06-09-r1/server/USER-GUIDE.txt
+58b42fcd8325270b65537d4eb3a81bb4fce47be949ab7beac3f181daf60ffbb8 *acks/2026-06-09-r1/server/VERSION.txt
