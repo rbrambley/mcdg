@@ -574,7 +574,10 @@ public final class McdgAdminCommands {
                         .then(literal("buildresort").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeBuildResort(
-                                        context.getSource()
+                                        context.getSource(),
+                                        generator,
+                                        autoCourseService,
+                                        practiceCourseStorage
                                 )))
                         .then(literal("resetresort").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
@@ -1243,7 +1246,12 @@ public final class McdgAdminCommands {
                 return 1;
         }
 
-        private static int executeBuildResort(ServerCommandSource source) {
+        private static int executeBuildResort(
+                        ServerCommandSource source,
+                        CourseGenerator generator,
+                        AutoCourseService autoCourseService,
+                        PracticeCourseStorage practiceCourseStorage
+        ) {
                 ServerWorld world = source.getWorld();
                 BlockPos center = BlockPos.ofFloored(source.getPosition());
 
@@ -1252,11 +1260,41 @@ public final class McdgAdminCommands {
 
                 ResortBuilder.placeResort(world, center, originalBlocks, protectedPositions);
 
+                // Build 3 surrounding courses
+                int courseCount = 3;
+                int minDistance = 100; // blocks from resort center
+                int maxDistance = 160;
+                java.util.Random random = new java.util.Random(world.getSeed());
+                int builtCourses = 0;
+
+                for (int c = 0; c < courseCount; c++) {
+                    double angle = (2.0 * Math.PI * c) / courseCount + (random.nextDouble() * 0.4 - 0.2);
+                    int distance = minDistance + random.nextInt(maxDistance - minDistance + 1);
+                    int hubX = center.getX() + (int) Math.round(Math.cos(angle) * distance);
+                    int hubZ = center.getZ() + (int) Math.round(Math.sin(angle) * distance);
+                    BlockPos hubOrigin = new BlockPos(hubX, 64, hubZ);
+
+                    long seed = random.nextLong();
+                    float facingYaw = (float) Math.toDegrees(angle);
+                    Course course = generator.generate(seed, 9, facingYaw);
+
+                    try {
+                        AutoCourseService.AutoCourseScenarioResult result = autoCourseService.placeCourseIncrementally(world, hubOrigin, course);
+                        int catalogIndex = practiceCourseStorage.saveReusable(source.getServer(), result.course(), result.placedState(), "resort-surround", false);
+                        builtCourses++;
+                        McdgMod.LOGGER.info("Resort surround course {} placed at ({}, {}), saved as catalog #{}", builtCourses, hubX, hubZ, catalogIndex);
+                    } catch (Exception ex) {
+                        McdgMod.LOGGER.warn("Resort surround course {} failed at ({}, {}): {}", c + 1, hubX, hubZ, ex.getMessage());
+                    }
+                }
+
                 BlockPos lobbyPos = center.east(23);
+                int finalBuiltCourses = builtCourses;
                 source.sendFeedback(() -> Text.literal(
                         "Resort built at X=" + center.getX() + " Z=" + center.getZ() +
                         ". Lobby at X=" + lobbyPos.getX() + " Z=" + lobbyPos.getZ() +
-                        ". Use the courtyard paths to explore."
+                        ". " + finalBuiltCourses + " surround course(s) generated." +
+                        " Use the courtyard paths to explore."
                 ), true);
                 return 1;
         }
