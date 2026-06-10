@@ -28,7 +28,9 @@ import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.CourseGenerator;
 import com.mcdg.world.ResortBuilder;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -570,6 +572,11 @@ public final class McdgAdminCommands {
                         .then(literal("buildresort").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeBuildResort(
+                                        context.getSource()
+                                )))
+                        .then(literal("resetresort").requires(McdgAdminCommands::canUseAdminCommands)
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                                .executes(context -> executeResetResort(
                                         context.getSource()
                                 )))
                         .then(literal("leaderboard")
@@ -1248,6 +1255,73 @@ public final class McdgAdminCommands {
                         "Resort built at X=" + center.getX() + " Z=" + center.getZ() +
                         ". Lobby at X=" + lobbyPos.getX() + " Z=" + lobbyPos.getZ() +
                         ". Use the courtyard paths to explore."
+                ), true);
+                return 1;
+        }
+
+        private static int executeResetResort(ServerCommandSource source) {
+                ServerWorld world = source.getWorld();
+                BlockPos searchCenter = BlockPos.ofFloored(source.getPosition());
+                int searchRadius = 100; // Increased from 50 for better detection
+
+                // Search for the resort beacon marker
+                final BlockPos[] resortCenterHolder = {null};
+                for (int dx = -searchRadius; dx <= searchRadius && resortCenterHolder[0] == null; dx++) {
+                        for (int dy = -10; dy <= 25 && resortCenterHolder[0] == null; dy++) {
+                                for (int dz = -searchRadius; dz <= searchRadius; dz++) {
+                                        BlockPos checkPos = searchCenter.add(dx, dy, dz);
+                                        if (world.getBlockState(checkPos).isOf(Blocks.BEACON)) {
+                                                // Found beacon - this is the resort center (beacon is placed 1 below surface)
+                                                resortCenterHolder[0] = checkPos.up(1);
+                                                break;
+                                        }
+                                }
+                        }
+                }
+
+                if (resortCenterHolder[0] == null) {
+                        source.sendError(Text.literal(
+                                "No resort beacon found within 100 blocks. " +
+                                "Stand inside the resort courtyard near the center fountain and try again."
+                        ));
+                        return 0;
+                }
+
+                final BlockPos resortCenter = resortCenterHolder[0];
+
+                // Clear the resort area (100x100 to ensure full coverage for 80x80 compound)
+                int clearRadius = 50; // Covers 80x80 compound with margin for building overhangs
+                int baseY = resortCenter.getY();
+
+                for (int dx = -clearRadius; dx <= clearRadius; dx++) {
+                        for (int dz = -clearRadius; dz <= clearRadius; dz++) {
+                                // Clear from surface up to max building height
+                                for (int y = baseY; y <= baseY + 15; y++) {
+                                        BlockPos clearPos = new BlockPos(resortCenter.getX() + dx, y, resortCenter.getZ() + dz);
+                                        world.setBlockState(clearPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                                }
+                                // Restore grass at surface level
+                                BlockPos surfacePos = new BlockPos(resortCenter.getX() + dx, baseY, resortCenter.getZ() + dz);
+                                world.setBlockState(surfacePos, Blocks.GRASS_BLOCK.getDefaultState(), Block.NOTIFY_ALL);
+                        }
+                }
+
+                // Remove all dropped items in the area
+                int itemRemovalRadius = clearRadius;
+                var entities = world.getEntitiesByClass(net.minecraft.entity.ItemEntity.class,
+                        new net.minecraft.util.math.Box(
+                                resortCenter.getX() - itemRemovalRadius, baseY, resortCenter.getZ() - itemRemovalRadius,
+                                resortCenter.getX() + itemRemovalRadius, baseY + 20, resortCenter.getZ() + itemRemovalRadius
+                        ), entity -> true);
+                for (var item : entities) {
+                        item.discard();
+                }
+
+                int itemsRemoved = entities.size();
+                String itemMsg = itemsRemoved > 0 ? " (" + itemsRemoved + " dropped items cleared)" : "";
+                source.sendFeedback(() -> Text.literal(
+                        "Resort cleared at X=" + resortCenter.getX() + " Z=" + resortCenter.getZ() +
+                        ". Area is ready for rebuilding." + itemMsg
                 ), true);
                 return 1;
         }

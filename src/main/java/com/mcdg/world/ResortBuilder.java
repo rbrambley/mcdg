@@ -6,477 +6,502 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 /**
- * Builds the MCDG resort structure — a central hub with lobby, pro shop,
- * scoreboard hall, player housing, and a 3-hole practice green.
+ * Modern Resort Spawn Compound Builder.
+ * Clean geometry, flat roofs, large glass surfaces, horizontal emphasis.
  */
 public final class ResortBuilder {
 
-    // Overall compound dimensions
-    private static final int COMPOUND_RADIUS = 30; // 60x60 total
-    private static final int COURTYARD_RADIUS = 15; // 30x30 inner
-
-    // Building dimensions (interior footprint)
-    private static final int LOBBY_WIDTH = 12;
-    private static final int LOBBY_DEPTH = 16;
-    private static final int PROSHOP_SIZE = 10;
-    private static final int SCOREBOARD_WIDTH = 16;
-    private static final int SCOREBOARD_DEPTH = 10;
-    private static final int HOUSING_WIDTH = 20;
-    private static final int HOUSING_DEPTH = 12;
+    // Compound dimensions
+    private static final int COMPOUND_SIZE = 80;
+    private static final int PLAZA_SIZE = 20;
     private static final int WALL_HEIGHT = 4;
-    private static final int ROOF_PEAK = 3; // additional height for peak
+    private static final int GATEWAY_WIDTH = 5;
+    private static final int GATEWAY_HEIGHT = 4;
 
-    // Materials
-    private static final BlockState WALL_BLOCK = Blocks.OAK_PLANKS.getDefaultState();
-    private static final BlockState FLOOR_BLOCK = Blocks.POLISHED_ANDESITE.getDefaultState();
-    private static final BlockState ROOF_BLOCK = Blocks.SPRUCE_PLANKS.getDefaultState();
-    private static final BlockState ROOF_STAIR = Blocks.SPRUCE_STAIRS.getDefaultState();
-    private static final BlockState PATH_BLOCK = Blocks.COBBLESTONE.getDefaultState();
-    private static final BlockState FOUNTAIN_RIM = Blocks.STONE_BRICKS.getDefaultState();
-    private static final BlockState FOUNTAIN_WATER = Blocks.WATER.getDefaultState();
-    private static final BlockState WINDOW_BLOCK = Blocks.GLASS_PANE.getDefaultState();
-    private static final BlockState DOOR_BLOCK = Blocks.OAK_DOOR.getDefaultState();
-    private static final BlockState LIGHT_BLOCK = Blocks.LANTERN.getDefaultState();
-    private static final BlockState MARKER_BLOCK = Blocks.BEACON.getDefaultState();
-
-    // Tee/basket for practice green
-    private static final BlockState TEE_BLOCK = Blocks.SMOOTH_STONE.getDefaultState();
-    private static final BlockState BASKET_POLE = Blocks.OAK_FENCE.getDefaultState();
-    private static final BlockState BASKET_HOPPER = Blocks.HOPPER.getDefaultState();
+    // Modern palette
+    private static final BlockState WHITE_CONCRETE = Blocks.WHITE_CONCRETE.getDefaultState();
+    private static final BlockState STONE_BRICK_WALL = Blocks.STONE_BRICK_WALL.getDefaultState();
+    private static final BlockState LIGHT_GRAY_CONCRETE = Blocks.LIGHT_GRAY_CONCRETE.getDefaultState();
+    private static final BlockState SMOOTH_QUARTZ = Blocks.SMOOTH_QUARTZ.getDefaultState();
+    private static final BlockState POLISHED_DEEPSLATE = Blocks.POLISHED_DEEPSLATE.getDefaultState();
+    private static final BlockState BLACKSTONE = Blocks.BLACKSTONE.getDefaultState();
+    private static final BlockState DARK_OAK_PLANKS = Blocks.DARK_OAK_PLANKS.getDefaultState();
+    private static final BlockState SPRUCE_PLANKS = Blocks.SPRUCE_PLANKS.getDefaultState();
+    private static final BlockState COPPER_BLOCK = Blocks.COPPER_BLOCK.getDefaultState();
+    private static final BlockState TINTED_GLASS = Blocks.TINTED_GLASS.getDefaultState();
+    private static final BlockState GLASS_PANE = Blocks.GLASS_PANE.getDefaultState();
+    private static final BlockState STRIPPED_SPRUCE = Blocks.STRIPPED_SPRUCE_WOOD.getDefaultState();
+    private static final BlockState POLISHED_ANDESITE = Blocks.POLISHED_ANDESITE.getDefaultState();
+    private static final BlockState POLISHED_DIORITE = Blocks.POLISHED_DIORITE.getDefaultState();
+    private static final BlockState GLOWSTONE = Blocks.GLOWSTONE.getDefaultState();
+    private static final BlockState SOUL_LANTERN = Blocks.SOUL_LANTERN.getDefaultState();
+    private static final BlockState LANTERN = Blocks.LANTERN.getDefaultState();
+    private static final BlockState END_ROD = Blocks.END_ROD.getDefaultState();
+    private static final BlockState WATER = Blocks.WATER.getDefaultState();
+    private static final BlockState SLAB_SMOOTH_QUARTZ = Blocks.SMOOTH_QUARTZ_SLAB.getDefaultState();
+    private static final BlockState TRAPDOOR_DARK_OAK = Blocks.DARK_OAK_TRAPDOOR.getDefaultState();
+    private static final BlockState AZALEA_LEAVES = Blocks.AZALEA_LEAVES.getDefaultState();
+    private static final BlockState BAMBOO = Blocks.BAMBOO.getDefaultState();
+    private static final BlockState GLOW_LICHEN = Blocks.GLOW_LICHEN.getDefaultState();
 
     private ResortBuilder() {}
 
-    /**
-     * Places the full resort structure centered at the given position.
-     */
-    public static void placeResort(
-            ServerWorld world,
-            BlockPos center,
-            Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
-    ) {
-        // Clear and prepare area
-        clearCompoundArea(world, center, originalBlocks, protectedPositions);
+    public static void placeResort(ServerWorld world, BlockPos center,
+            Map<BlockPos, BlockState> originalBlocks, Set<BlockPos> protectedPositions) {
+        BlockPos surfaceCenter = SurfaceResolver.resolveSurfacePos(world, center.getX(), center.getZ());
+        int baseY = surfaceCenter.getY();
+        BlockPos flatCenter = new BlockPos(center.getX(), baseY, center.getZ());
 
-        // Build courtyard ground
-        buildCourtyardGround(world, center, originalBlocks, protectedPositions);
+        flattenTerrain(world, flatCenter, originalBlocks, protectedPositions);
+        
+        // Beacon marker so /mcdg resetresort can find the resort center
+        BlockPos beaconPos = flatCenter.down();
+        PlacementUtils.setTrackedBlock(world, beaconPos, Blocks.BEACON.getDefaultState(), originalBlocks);
+        protectedPositions.add(beaconPos);
+        
+        buildPlazaGround(world, flatCenter, originalBlocks, protectedPositions);
+        buildModernFountain(world, flatCenter, originalBlocks, protectedPositions);
 
-        // Central fountain
-        buildFountain(world, center, originalBlocks, protectedPositions);
+        // Four modern buildings in cardinal directions - facing courtyard
+        int buildingDist = PLAZA_SIZE / 2 + 10; // 5 blocks closer to center
+        
+        // Lobby faces west (toward center)
+        BlockPos lobbyCenter = flatCenter.east(buildingDist);
+        buildModernBuildingOriented(world, lobbyCenter, 16, 12, Direction.WEST, originalBlocks, protectedPositions);
+        addLobbyInterior(world, lobbyCenter, originalBlocks, protectedPositions);
 
-        // Place marker at center (for future detection)
-        BlockPos markerPos = center.down();
-        PlacementUtils.setTrackedBlock(world, markerPos, MARKER_BLOCK, originalBlocks);
-        protectedPositions.add(markerPos);
+        // Housing faces east (toward center)
+        BlockPos housingCenter = flatCenter.west(buildingDist);
+        buildModernBuildingOriented(world, housingCenter, 18, 14, Direction.EAST, originalBlocks, protectedPositions);
+        addHousingInterior(world, housingCenter, originalBlocks, protectedPositions);
 
-        // Buildings around courtyard (clockwise from east/lobby)
-        // East: Lobby (facing west into courtyard)
-        BlockPos lobbyCenter = center.east(COURTYARD_RADIUS + LOBBY_DEPTH / 2);
-        buildLobby(world, lobbyCenter, center, originalBlocks, protectedPositions);
+        // ProShop faces south (toward center)
+        BlockPos shopCenter = flatCenter.north(buildingDist);
+        buildModernBuildingOriented(world, shopCenter, 12, 12, Direction.SOUTH, originalBlocks, protectedPositions);
+        addShopInterior(world, shopCenter, originalBlocks, protectedPositions);
 
-        // North: Scoreboard Hall (facing south into courtyard)
-        BlockPos scoreboardCenter = center.north(COURTYARD_RADIUS + SCOREBOARD_DEPTH / 2);
-        buildScoreboardHall(world, scoreboardCenter, center, originalBlocks, protectedPositions);
+        // Lounge faces north (toward center)
+        BlockPos loungeCenter = flatCenter.south(buildingDist);
+        buildModernBuildingOriented(world, loungeCenter, 14, 12, Direction.NORTH, originalBlocks, protectedPositions);
+        addLoungeInterior(world, loungeCenter, originalBlocks, protectedPositions);
 
-        // West: Pro Shop (facing east into courtyard)
-        BlockPos proShopCenter = center.west(COURTYARD_RADIUS + PROSHOP_SIZE / 2);
-        buildProShop(world, proShopCenter, center, originalBlocks, protectedPositions);
-
-        // South: Player Housing (facing north into courtyard)
-        BlockPos housingCenter = center.south(COURTYARD_RADIUS + HOUSING_DEPTH / 2);
-        buildPlayerHousing(world, housingCenter, center, originalBlocks, protectedPositions);
-
-        // Practice green in southeast quadrant of courtyard
-        BlockPos practiceOrigin = center.east(8).south(8);
-        buildPracticeGreen(world, practiceOrigin, originalBlocks, protectedPositions);
-
-        // Paths connecting buildings to courtyard center
-        buildPaths(world, center, lobbyCenter, scoreboardCenter, proShopCenter, housingCenter,
+        buildModernPaths(world, flatCenter, lobbyCenter, housingCenter, shopCenter, loungeCenter,
                 originalBlocks, protectedPositions);
-
-        // Perimeter wall (low decorative wall around compound)
-        buildPerimeterWall(world, center, originalBlocks, protectedPositions);
+        buildModernPerimeterWall(world, flatCenter, originalBlocks, protectedPositions);
+        buildPlazaFeatures(world, flatCenter, originalBlocks, protectedPositions);
     }
 
-    private static void clearCompoundArea(
-            ServerWorld world,
-            BlockPos center,
-            Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
-    ) {
-        int r = COMPOUND_RADIUS + 2;
+    private static void flattenTerrain(ServerWorld world, BlockPos center,
+            Map<BlockPos, BlockState> originalBlocks, Set<BlockPos> protectedPositions) {
+        int r = COMPOUND_SIZE / 2 + 2;
+        int baseY = center.getY();
         for (int dx = -r; dx <= r; dx++) {
             for (int dz = -r; dz <= r; dz++) {
-                BlockPos ground = SurfaceResolver.resolveSurfacePos(world, center.getX() + dx, center.getZ() + dz);
-                // Clear air above ground for building height
-                for (int dy = 1; dy <= WALL_HEIGHT + ROOF_PEAK + 3; dy++) {
-                    BlockPos airPos = ground.up(dy);
-                    if (!protectedPositions.contains(airPos)) {
-                        PlacementUtils.setTrackedBlock(world, airPos, Blocks.AIR.getDefaultState(), originalBlocks);
+                int x = center.getX() + dx, z = center.getZ() + dz;
+                BlockPos surface = SurfaceResolver.resolveSurfacePos(world, x, z);
+                int sy = surface.getY();
+                int diff = sy - baseY;
+                if (diff > 0) {
+                    for (int y = baseY + 1; y <= sy; y++) {
+                        BlockPos clearPos = new BlockPos(x, y, z);
+                        if (!protectedPositions.contains(clearPos)) {
+                            PlacementUtils.setTrackedBlock(world, clearPos, Blocks.AIR.getDefaultState(), originalBlocks);
+                        }
+                    }
+                } else if (diff < 0) {
+                    for (int y = sy + 1; y <= baseY; y++) {
+                        BlockPos fillPos = new BlockPos(x, y, z);
+                        if (!protectedPositions.contains(fillPos)) {
+                            PlacementUtils.setTrackedBlock(world, fillPos, Blocks.DIRT.getDefaultState(), originalBlocks);
+                        }
                     }
                 }
             }
         }
     }
 
-    private static void buildCourtyardGround(
-            ServerWorld world,
-            BlockPos center,
-            Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
-    ) {
-        for (int dx = -COURTYARD_RADIUS; dx <= COURTYARD_RADIUS; dx++) {
-            for (int dz = -COURTYARD_RADIUS; dz <= COURTYARD_RADIUS; dz++) {
+    private static void buildPlazaGround(ServerWorld world, BlockPos center,
+            Map<BlockPos, BlockState> originalBlocks, Set<BlockPos> protectedPositions) {
+        int r = PLAZA_SIZE / 2;
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dz = -r; dz <= r; dz++) {
                 BlockPos pos = center.add(dx, 0, dz);
-                pos = SurfaceResolver.resolveSurfacePos(world, pos.getX(), pos.getZ());
-                // Use grass for courtyard, with stone paths added later
-                if (Math.abs(dx) <= 1 || Math.abs(dz) <= 1) {
-                    // Cross paths
-                    PlacementUtils.setTrackedBlock(world, pos, PATH_BLOCK, originalBlocks);
+                if (!protectedPositions.contains(pos)) {
+                    PlacementUtils.setTrackedBlock(world, pos, POLISHED_ANDESITE, originalBlocks);
+                    protectedPositions.add(pos);
+                }
+                if ((Math.abs(dx) + Math.abs(dz)) % 2 == 0) {
+                    BlockPos accent = center.add(dx, -1, dz);
+                    if (!protectedPositions.contains(accent)) {
+                        PlacementUtils.setTrackedBlock(world, accent, POLISHED_DIORITE, originalBlocks);
+                    }
+                }
+            }
+        }
+    }
+
+    private static void buildModernFountain(ServerWorld world, BlockPos center,
+            Map<BlockPos, BlockState> originalBlocks, Set<BlockPos> protectedPositions) {
+        // Square geometric fountain
+        int size = 4;
+        for (int dx = -size; dx <= size; dx++) {
+            for (int dz = -size; dz <= size; dz++) {
+                boolean edge = Math.abs(dx) == size || Math.abs(dz) == size;
+                BlockPos pos = center.add(dx, 0, dz);
+                if (edge) {
+                    PlacementUtils.setTrackedBlock(world, pos, SMOOTH_QUARTZ, originalBlocks);
                 } else {
-                    PlacementUtils.setTrackedBlock(world, pos, Blocks.GRASS_BLOCK.getDefaultState(), originalBlocks);
+                    PlacementUtils.setTrackedBlock(world, pos, WATER, originalBlocks);
                 }
                 protectedPositions.add(pos);
+                protectedPositions.add(pos.down());
             }
         }
-    }
-
-    private static void buildFountain(
-            ServerWorld world,
-            BlockPos center,
-            Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
-    ) {
-        // 3x3 fountain with water center
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                BlockPos rim = center.add(dx, -1, dz); // at ground level
-                BlockPos water = center.add(dx, 0, dz); // above ground
-
-                PlacementUtils.setTrackedBlock(world, rim, FOUNTAIN_RIM, originalBlocks);
-                protectedPositions.add(rim);
-
-                if (dx == 0 && dz == 0) {
-                    PlacementUtils.setTrackedBlock(world, water, FOUNTAIN_WATER, originalBlocks);
-                } else {
-                    PlacementUtils.setTrackedBlock(world, water, FOUNTAIN_RIM, originalBlocks);
-                }
-                protectedPositions.add(water);
-            }
+        // Center pillar
+        for (int y = 0; y < 3; y++) {
+            BlockPos pillar = center.up(y);
+            PlacementUtils.setTrackedBlock(world, pillar, COPPER_BLOCK, originalBlocks);
+            protectedPositions.add(pillar);
         }
+        // Water spout
+        PlacementUtils.setTrackedBlock(world, center.up(3), WATER, originalBlocks);
+        protectedPositions.add(center.up(3));
+        
+        // Hidden lighting under water
+        BlockPos lightPos = center.down();
+        PlacementUtils.setTrackedBlock(world, lightPos, GLOWSTONE, originalBlocks);
+        protectedPositions.add(lightPos);
     }
 
-    private static void buildLobby(
-            ServerWorld world,
-            BlockPos center,
-            BlockPos courtyardCenter,
-            Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
-    ) {
-        // Facing west (toward courtyard)
-        int[] facing = {-1, 0}; // west
-        buildRectangularBuilding(world, center, LOBBY_WIDTH, LOBBY_DEPTH, WALL_HEIGHT,
-                facing, "Lobby", originalBlocks, protectedPositions);
-
-        // Add interior details
-        BlockPos interiorCenter = center.up(1).west(2);
-        // Reception desk
-        PlacementUtils.setTrackedBlock(world, interiorCenter.east(2), Blocks.OAK_SLAB.getDefaultState(), originalBlocks);
-        // Info signs
-        placeSign(world, interiorCenter.north(2), "Welcome to MCDG", originalBlocks);
-        placeSign(world, interiorCenter.north(2).down(1), "Menu: Press G", originalBlocks);
-    }
-
-    private static void buildScoreboardHall(
-            ServerWorld world,
-            BlockPos center,
-            BlockPos courtyardCenter,
-            Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
-    ) {
-        // Facing south (toward courtyard)
-        int[] facing = {0, 1}; // south
-        buildRectangularBuilding(world, center, SCOREBOARD_WIDTH, SCOREBOARD_DEPTH, WALL_HEIGHT,
-                facing, "Scoreboard Hall", originalBlocks, protectedPositions);
-
-        // Interior - podium
-        BlockPos podium = center.up(1).south(2);
-        PlacementUtils.setTrackedBlock(world, podium, Blocks.LECTERN.getDefaultState(), originalBlocks);
-
-        // Wall signs for results (blank for now)
-        for (int i = -3; i <= 3; i++) {
-            BlockPos signPos = center.west(i).up(2).south(SCOREBOARD_DEPTH / 2 - 1);
-            placeSign(world, signPos, "Tournament Results", originalBlocks);
-        }
-    }
-
-    private static void buildProShop(
-            ServerWorld world,
-            BlockPos center,
-            BlockPos courtyardCenter,
-            Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
-    ) {
-        // Facing east (toward courtyard)
-        int[] facing = {1, 0}; // east
-        buildSquareBuilding(world, center, PROSHOP_SIZE, WALL_HEIGHT,
-                facing, "Pro Shop", originalBlocks, protectedPositions);
-
-        // Interior - shop counter
-        BlockPos counter = center.up(1).east(2);
-        PlacementUtils.setTrackedBlock(world, counter, Blocks.OAK_SLAB.getDefaultState(), originalBlocks);
-
-        placeSign(world, counter.north(1), "Equipment", originalBlocks);
-        placeSign(world, counter.south(1), "Coming Soon", originalBlocks);
-    }
-
-    private static void buildPlayerHousing(
-            ServerWorld world,
-            BlockPos center,
-            BlockPos courtyardCenter,
-            Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
-    ) {
-        // Facing north (toward courtyard)
-        int[] facing = {0, -1}; // north
-        buildRectangularBuilding(world, center, HOUSING_WIDTH, HOUSING_DEPTH, WALL_HEIGHT,
-                facing, "Player Housing", originalBlocks, protectedPositions);
-
-        // 4 individual rooms along the south wall
-        int roomSpacing = HOUSING_WIDTH / 4;
-        for (int i = 0; i < 4; i++) {
-            int offsetX = (i - 1) * roomSpacing;
-            BlockPos roomCenter = center.add(offsetX, 1, 2);
-
-            // Door
-            BlockPos doorPos = center.add(offsetX, 1, HOUSING_DEPTH / 2 - 1);
-            PlacementUtils.setTrackedBlock(world, doorPos, DOOR_BLOCK, originalBlocks);
-
-            // Bed
-            PlacementUtils.setTrackedBlock(world, roomCenter.west(1), Blocks.WHITE_BED.getDefaultState(), originalBlocks);
-
-            // Chest
-            PlacementUtils.setTrackedBlock(world, roomCenter.east(1), Blocks.CHEST.getDefaultState(), originalBlocks);
-
-            // Window
-            BlockPos windowPos = roomCenter.south(2).up(1);
-            PlacementUtils.setTrackedBlock(world, windowPos, WINDOW_BLOCK, originalBlocks);
-        }
-
-        // Shared hallway lanterns
-        for (int x = -HOUSING_WIDTH / 2 + 2; x <= HOUSING_WIDTH / 2 - 2; x += 4) {
-            BlockPos lanternPos = center.add(x, 3, 0);
-            PlacementUtils.setTrackedBlock(world, lanternPos, LIGHT_BLOCK, originalBlocks);
-        }
-    }
-
-    private static void buildPracticeGreen(
-            ServerWorld world,
-            BlockPos origin,
-            Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
-    ) {
-        // 3 short holes in southeast courtyard area
-        int[][] holeOffsets = {{2, 2}, {6, 4}, {4, 8}}; // relative tee positions
-
-        for (int i = 0; i < 3; i++) {
-            BlockPos teePos = origin.add(holeOffsets[i][0], 0, holeOffsets[i][1]);
-            teePos = SurfaceResolver.resolveSurfacePos(world, teePos.getX(), teePos.getZ());
-
-            // Tee pad
-            PlacementUtils.setTrackedBlock(world, teePos, TEE_BLOCK, originalBlocks);
-            protectedPositions.add(teePos);
-
-            // Basket 5-8 blocks away toward southeast
-            BlockPos basketPos = teePos.east(3 + i).south(2 + i);
-            basketPos = SurfaceResolver.resolveSurfacePos(world, basketPos.getX(), basketPos.getZ());
-
-            // Pole + hopper
-            PlacementUtils.setTrackedBlock(world, basketPos, BASKET_POLE, originalBlocks);
-            PlacementUtils.setTrackedBlock(world, basketPos.up(1), BASKET_HOPPER, originalBlocks);
-            protectedPositions.add(basketPos);
-            protectedPositions.add(basketPos.up(1));
-
-            // Putt path as short grass strip
-            int steps = 5;
-            for (int s = 1; s < steps; s++) {
-                BlockPos pathPos = teePos.east((3 + i) * s / steps).south((2 + i) * s / steps);
-                pathPos = SurfaceResolver.resolveSurfacePos(world, pathPos.getX(), pathPos.getZ());
-                PlacementUtils.setTrackedBlock(world, pathPos, Blocks.SHORT_GRASS.getDefaultState(), originalBlocks);
-            }
-        }
-    }
-
-    private static void buildRectangularBuilding(
-            ServerWorld world,
-            BlockPos center,
-            int width,
-            int depth,
-            int wallHeight,
-            int[] facing,
-            String label,
-            Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
-    ) {
-        int halfW = width / 2;
-        int halfD = depth / 2;
-
-        // Walls
+    private static void buildModernBuildingOriented(ServerWorld world, BlockPos center, int width, int depth,
+            Direction facing, Map<BlockPos, BlockState> originalBlocks, Set<BlockPos> protectedPositions) {
+        int halfW = width / 2, halfD = depth / 2;
+        int wallHeight = 5;
+        
+        // Foundation and floor
         for (int dx = -halfW; dx <= halfW; dx++) {
             for (int dz = -halfD; dz <= halfD; dz++) {
-                // Only build perimeter
-                if (Math.abs(dx) == halfW || Math.abs(dz) == halfD) {
-                    for (int dy = 0; dy < wallHeight; dy++) {
-                        BlockPos pos = center.add(dx, dy, dz);
-                        PlacementUtils.setTrackedBlock(world, pos, WALL_BLOCK, originalBlocks);
+                for (int y = -2; y <= 0; y++) {
+                    BlockPos pos = center.add(dx, y, dz);
+                    if (!protectedPositions.contains(pos)) {
+                        if (y == 0) {
+                            PlacementUtils.setTrackedBlock(world, pos, STRIPPED_SPRUCE, originalBlocks);
+                        } else {
+                            PlacementUtils.setTrackedBlock(world, pos, WHITE_CONCRETE, originalBlocks);
+                        }
                         protectedPositions.add(pos);
                     }
                 }
             }
         }
-
-        // Floor
-        for (int dx = -halfW + 1; dx < halfW; dx++) {
-            for (int dz = -halfD + 1; dz < halfD; dz++) {
-                BlockPos pos = center.add(dx, -1, dz);
-                PlacementUtils.setTrackedBlock(world, pos, FLOOR_BLOCK, originalBlocks);
-                protectedPositions.add(pos);
-            }
-        }
-
-        // Door on facing side
-        if (facing[0] != 0) { // east/west facing
-            int doorX = facing[0] > 0 ? halfW : -halfW;
-            BlockPos doorPos = center.add(doorX, 0, 0);
-            PlacementUtils.setTrackedBlock(world, doorPos, DOOR_BLOCK, originalBlocks);
-            PlacementUtils.setTrackedBlock(world, doorPos.up(1), DOOR_BLOCK, originalBlocks);
-        } else { // north/south facing
-            int doorZ = facing[1] > 0 ? halfD : -halfD;
-            BlockPos doorPos = center.add(0, 0, doorZ);
-            PlacementUtils.setTrackedBlock(world, doorPos, DOOR_BLOCK, originalBlocks);
-            PlacementUtils.setTrackedBlock(world, doorPos.up(1), DOOR_BLOCK, originalBlocks);
-        }
-
-        // Peaked roof (A-frame along the longer axis)
-        boolean widthIsLonger = width >= depth;
-        int longSide = widthIsLonger ? width : depth;
-        int shortSide = widthIsLonger ? depth : width;
-        int longHalf = longSide / 2 + 1; // overhang
-
-        for (int peak = 0; peak <= ROOF_PEAK; peak++) {
-            int span = longHalf - peak;
-            for (int along = -shortSide / 2; along <= shortSide / 2; along++) {
-                for (int across = -span; across <= span; across++) {
-                    int rx = widthIsLonger ? across : along;
-                    int rz = widthIsLonger ? along : across;
-                    BlockPos roofPos = center.add(rx, wallHeight + peak, rz);
-
-                    // Use stairs on edges, planks in middle
-                    BlockState roofState = (Math.abs(across) == span && peak < ROOF_PEAK)
-                            ? ROOF_STAIR
-                            : ROOF_BLOCK;
-                    PlacementUtils.setTrackedBlock(world, roofPos, roofState, originalBlocks);
-                    protectedPositions.add(roofPos);
-                }
-            }
-        }
-
-        // Lanterns at door
-        if (facing[0] != 0) {
-            int lanternX = facing[0] > 0 ? halfW + 1 : -halfW - 1;
-            PlacementUtils.setTrackedBlock(world, center.add(lanternX, 2, 1), LIGHT_BLOCK, originalBlocks);
-            PlacementUtils.setTrackedBlock(world, center.add(lanternX, 2, -1), LIGHT_BLOCK, originalBlocks);
-        } else {
-            int lanternZ = facing[1] > 0 ? halfD + 1 : -halfD - 1;
-            PlacementUtils.setTrackedBlock(world, center.add(1, 2, lanternZ), LIGHT_BLOCK, originalBlocks);
-            PlacementUtils.setTrackedBlock(world, center.add(-1, 2, lanternZ), LIGHT_BLOCK, originalBlocks);
-        }
-    }
-
-    private static void buildSquareBuilding(
-            ServerWorld world,
-            BlockPos center,
-            int size,
-            int wallHeight,
-            int[] facing,
-            String label,
-            Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
-    ) {
-        buildRectangularBuilding(world, center, size, size, wallHeight, facing, label,
-                originalBlocks, protectedPositions);
-    }
-
-    private static void buildPaths(
-            ServerWorld world,
-            BlockPos courtyardCenter,
-            BlockPos lobby,
-            BlockPos scoreboard,
-            BlockPos proShop,
-            BlockPos housing,
-            Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
-    ) {
-        // Simple straight paths from each building door to courtyard center
-        buildPathSegment(world, courtyardCenter, lobby, originalBlocks, protectedPositions);
-        buildPathSegment(world, courtyardCenter, scoreboard, originalBlocks, protectedPositions);
-        buildPathSegment(world, courtyardCenter, proShop, originalBlocks, protectedPositions);
-        buildPathSegment(world, courtyardCenter, housing, originalBlocks, protectedPositions);
-    }
-
-    private static void buildPathSegment(
-            ServerWorld world,
-            BlockPos from,
-            BlockPos to,
-            Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
-    ) {
-        // Simple linear path
-        int steps = Math.max(Math.abs(to.getX() - from.getX()), Math.abs(to.getZ() - from.getZ()));
-        if (steps == 0) return;
-
-        for (int i = 0; i <= steps; i++) {
-            int x = from.getX() + (to.getX() - from.getX()) * i / steps;
-            int z = from.getZ() + (to.getZ() - from.getZ()) * i / steps;
-            BlockPos pos = SurfaceResolver.resolveSurfacePos(world, x, z);
-            PlacementUtils.setTrackedBlock(world, pos, PATH_BLOCK, originalBlocks);
-        }
-    }
-
-    private static void buildPerimeterWall(
-            ServerWorld world,
-            BlockPos center,
-            Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
-    ) {
-        // Low stone brick wall around the compound edge
-        int r = COMPOUND_RADIUS;
-        BlockState wallBlock = Blocks.STONE_BRICK_WALL.getDefaultState();
-
-        for (int dx = -r; dx <= r; dx++) {
-            for (int dz = -r; dz <= r; dz++) {
-                if (Math.abs(dx) == r || Math.abs(dz) == r) {
-                    BlockPos pos = SurfaceResolver.resolveSurfacePos(world, center.getX() + dx, center.getZ() + dz);
-                    // Only place if there's space above
-                    if (world.getBlockState(pos.up(1)).isAir()) {
-                        PlacementUtils.setTrackedBlock(world, pos.up(1), wallBlock, originalBlocks);
-                        protectedPositions.add(pos.up(1));
+        
+        // Entrance is on the wall matching the facing direction
+        boolean entranceWest = (facing == Direction.WEST);
+        boolean entranceEast = (facing == Direction.EAST);
+        boolean entranceNorth = (facing == Direction.NORTH);
+        boolean entranceSouth = (facing == Direction.SOUTH);
+        
+        // Walls with large glass windows
+        for (int dx = -halfW; dx <= halfW; dx++) {
+            for (int dz = -halfD; dz <= halfD; dz++) {
+                boolean isEdge = (Math.abs(dx) == halfW || Math.abs(dz) == halfD);
+                if (!isEdge) continue;
+                
+                boolean isEntranceWall = (entranceEast && dx == halfW) || 
+                                        (entranceWest && dx == -halfW) ||
+                                        (entranceSouth && dz == halfD) ||
+                                        (entranceNorth && dz == -halfD);
+                
+                for (int dy = 1; dy <= wallHeight; dy++) {
+                    BlockPos pos = center.add(dx, dy, dz);
+                    boolean isCorner = (Math.abs(dx) == halfW && Math.abs(dz) == halfD);
+                    boolean isDoor = isEntranceWall && dy <= 2 && 
+                                     ((entranceEast || entranceWest) ? Math.abs(dz) <= 0 : Math.abs(dx) <= 0);
+                    
+                    if (isCorner) {
+                        PlacementUtils.setTrackedBlock(world, pos, WHITE_CONCRETE, originalBlocks);
+                        protectedPositions.add(pos);
+                    } else if (isDoor) {
+                        // Open doorway - leave completely empty
+                        protectedPositions.add(pos);
+                    } else if (dy >= 2 && dy <= 4 && (Math.abs(dx) % 3 == 0 || Math.abs(dz) % 3 == 0)) {
+                        PlacementUtils.setTrackedBlock(world, pos, TINTED_GLASS, originalBlocks);
+                        protectedPositions.add(pos);
+                    } else {
+                        PlacementUtils.setTrackedBlock(world, pos, WHITE_CONCRETE, originalBlocks);
+                        protectedPositions.add(pos);
                     }
                 }
             }
         }
+        
+        // Flat roof with overhang
+        for (int dx = -halfW - 1; dx <= halfW + 1; dx++) {
+            for (int dz = -halfD - 1; dz <= halfD + 1; dz++) {
+                BlockPos roofPos = center.add(dx, wallHeight + 1, dz);
+                boolean isOverhang = Math.abs(dx) > halfW || Math.abs(dz) > halfD;
+                if (isOverhang) {
+                    PlacementUtils.setTrackedBlock(world, roofPos, SLAB_SMOOTH_QUARTZ, originalBlocks);
+                } else {
+                    PlacementUtils.setTrackedBlock(world, roofPos, SMOOTH_QUARTZ, originalBlocks);
+                }
+                protectedPositions.add(roofPos);
+            }
+        }
+        
+        // Entrance awning based on facing
+        int awningX = 0, awningZ = 0;
+        if (entranceEast) awningX = halfW + 1;
+        else if (entranceWest) awningX = -halfW - 1;
+        else if (entranceSouth) awningZ = halfD + 1;
+        else if (entranceNorth) awningZ = -halfD - 1;
+        
+        for (int i = -1; i <= 1; i++) {
+            BlockPos awningPos = center.add(awningX == 0 ? i : awningX, 3, awningZ == 0 ? i : awningZ);
+            PlacementUtils.setTrackedBlock(world, awningPos, TRAPDOOR_DARK_OAK, originalBlocks);
+            protectedPositions.add(awningPos);
+        }
+        
+        // Interior lighting
+        BlockPos lightPos = center.up(wallHeight);
+        PlacementUtils.setTrackedBlock(world, lightPos, END_ROD, originalBlocks);
+        protectedPositions.add(lightPos);
     }
 
-    private static void placeSign(
-            ServerWorld world,
-            BlockPos pos,
-            String text,
-            Map<BlockPos, BlockState> originalBlocks
-    ) {
-        // Place a sign - text setting would require sign block entity access
-        // For now, just place the sign block
-        PlacementUtils.setTrackedBlock(world, pos, Blocks.OAK_SIGN.getDefaultState(), originalBlocks);
+    private static void addLobbyInterior(ServerWorld world, BlockPos center,
+            Map<BlockPos, BlockState> originalBlocks, Set<BlockPos> protectedPositions) {
+        // Reception desk
+        for (int dx = -3; dx <= 3; dx++) {
+            BlockPos deskPos = center.add(dx, 1, -2);
+            PlacementUtils.setTrackedBlock(world, deskPos, DARK_OAK_PLANKS, originalBlocks);
+            protectedPositions.add(deskPos);
+        }
+        
+        // Sign
+        BlockPos signPos = center.up(4).north(5);
+        PlacementUtils.setTrackedBlock(world, signPos, LANTERN, originalBlocks);
+        protectedPositions.add(signPos);
+    }
+
+    private static void addHousingInterior(ServerWorld world, BlockPos center,
+            Map<BlockPos, BlockState> originalBlocks, Set<BlockPos> protectedPositions) {
+        // Room dividers with beds
+        int roomWidth = 4;
+        for (int i = -1; i <= 1; i++) {
+            int offsetX = i * roomWidth;
+            BlockPos bedPos = center.add(offsetX, 1, 2);
+            PlacementUtils.setTrackedBlock(world, bedPos, Blocks.WHITE_BED.getDefaultState(), originalBlocks);
+            BlockPos chestPos = center.add(offsetX + 1, 1, 2);
+            PlacementUtils.setTrackedBlock(world, chestPos, Blocks.CHEST.getDefaultState(), originalBlocks);
+            protectedPositions.add(bedPos);
+            protectedPositions.add(chestPos);
+        }
+    }
+
+    private static void addShopInterior(ServerWorld world, BlockPos center,
+            Map<BlockPos, BlockState> originalBlocks, Set<BlockPos> protectedPositions) {
+        // Display cases
+        for (int dx = -2; dx <= 2; dx += 2) {
+            for (int dz = -2; dz <= 2; dz += 2) {
+                BlockPos casePos = center.add(dx, 1, dz);
+                PlacementUtils.setTrackedBlock(world, casePos, GLASS_PANE, originalBlocks);
+                protectedPositions.add(casePos);
+            }
+        }
+    }
+
+    private static void addLoungeInterior(ServerWorld world, BlockPos center,
+            Map<BlockPos, BlockState> originalBlocks, Set<BlockPos> protectedPositions) {
+        // Lounge seating
+        int[][] seatOffsets = {{-3, 0}, {0, 0}, {3, 0}};
+        for (int[] offset : seatOffsets) {
+            BlockPos seatPos = center.add(offset[0], 1, offset[1]);
+            PlacementUtils.setTrackedBlock(world, seatPos, SPRUCE_PLANKS, originalBlocks);
+            protectedPositions.add(seatPos);
+        }
+    }
+
+    private static void buildModernPaths(ServerWorld world, BlockPos courtyardCenter,
+            BlockPos lobby, BlockPos housing, BlockPos shop, BlockPos lounge,
+            Map<BlockPos, BlockState> originalBlocks, Set<BlockPos> protectedPositions) {
+        // Cross-shaped paths - skip plaza center
+        int plazaEdge = PLAZA_SIZE / 2 + 1; // Start path outside plaza
+        int wallEdge = COMPOUND_SIZE / 2 - 2;
+        
+        // North path (from plaza edge to wall)
+        for (int dz = -wallEdge; dz <= -plazaEdge; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                BlockPos pos = courtyardCenter.add(dx, 0, dz);
+                if (!protectedPositions.contains(pos)) {
+                    PlacementUtils.setTrackedBlock(world, pos, POLISHED_DEEPSLATE, originalBlocks);
+                    protectedPositions.add(pos);
+                }
+            }
+        }
+        
+        // South path
+        for (int dz = plazaEdge; dz <= wallEdge; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                BlockPos pos = courtyardCenter.add(dx, 0, dz);
+                if (!protectedPositions.contains(pos)) {
+                    PlacementUtils.setTrackedBlock(world, pos, POLISHED_DEEPSLATE, originalBlocks);
+                    protectedPositions.add(pos);
+                }
+            }
+        }
+        
+        // East path
+        for (int dx = plazaEdge; dx <= wallEdge; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                BlockPos pos = courtyardCenter.add(dx, 0, dz);
+                if (!protectedPositions.contains(pos)) {
+                    PlacementUtils.setTrackedBlock(world, pos, POLISHED_DEEPSLATE, originalBlocks);
+                    protectedPositions.add(pos);
+                }
+            }
+        }
+        
+        // West path
+        for (int dx = -wallEdge; dx <= -plazaEdge; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                BlockPos pos = courtyardCenter.add(dx, 0, dz);
+                if (!protectedPositions.contains(pos)) {
+                    PlacementUtils.setTrackedBlock(world, pos, POLISHED_DEEPSLATE, originalBlocks);
+                    protectedPositions.add(pos);
+                }
+            }
+        }
+    }
+
+    private static void buildModernPerimeterWall(ServerWorld world, BlockPos center,
+            Map<BlockPos, BlockState> originalBlocks, Set<BlockPos> protectedPositions) {
+        int r = COMPOUND_SIZE / 2;
+        int height = WALL_HEIGHT;
+        
+        // Wall perimeter
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dz = -r; dz <= r; dz++) {
+                boolean isEdge = (Math.abs(dx) == r || Math.abs(dz) == r);
+                if (!isEdge) continue;
+                
+                // Check for gateway openings
+                boolean isGateway = (Math.abs(dx) <= GATEWAY_WIDTH / 2 && Math.abs(dz) == r) ||
+                                   (Math.abs(dz) <= GATEWAY_WIDTH / 2 && Math.abs(dx) == r);
+                
+                for (int dy = 0; dy < height; dy++) {
+                    BlockPos pos = center.add(dx, dy, dz);
+                    if (isGateway && dy < GATEWAY_HEIGHT) continue; // Open gateway
+                    
+                    if (!protectedPositions.contains(pos)) {
+                        // Alternating smooth quartz and deepslate for modern look
+                        if (dy == height - 1 || dy == 0) {
+                            PlacementUtils.setTrackedBlock(world, pos, POLISHED_DEEPSLATE, originalBlocks);
+                        } else {
+                            PlacementUtils.setTrackedBlock(world, pos, SMOOTH_QUARTZ, originalBlocks);
+                        }
+                        protectedPositions.add(pos);
+                    }
+                }
+            }
+        }
+        
+        // Gateway horizontal lintels and side pillars
+        int[][] gatewayCenters = {{0, r}, {0, -r}, {r, 0}, {-r, 0}};
+        for (int[] gw : gatewayCenters) {
+            boolean isNorthSouth = (gw[1] == r || gw[1] == -r); // entrance on north/south wall
+            
+            // Horizontal lintel across top
+            for (int i = -GATEWAY_WIDTH / 2; i <= GATEWAY_WIDTH / 2; i++) {
+                BlockPos lintelPos = isNorthSouth
+                    ? center.add(i, GATEWAY_HEIGHT, gw[1])
+                    : center.add(gw[0], GATEWAY_HEIGHT, i);
+                if (!protectedPositions.contains(lintelPos)) {
+                    PlacementUtils.setTrackedBlock(world, lintelPos, POLISHED_DEEPSLATE, originalBlocks);
+                    protectedPositions.add(lintelPos);
+                }
+            }
+            
+            // Side pillars
+            int pillarLeft = -GATEWAY_WIDTH / 2;
+            int pillarRight = GATEWAY_WIDTH / 2;
+            for (int dy = 0; dy <= GATEWAY_HEIGHT; dy++) {
+                // Left pillar
+                BlockPos leftPillar = isNorthSouth
+                    ? center.add(pillarLeft, dy, gw[1])
+                    : center.add(gw[0], dy, pillarLeft);
+                if (!protectedPositions.contains(leftPillar)) {
+                    PlacementUtils.setTrackedBlock(world, leftPillar, SMOOTH_QUARTZ, originalBlocks);
+                    protectedPositions.add(leftPillar);
+                }
+                // Right pillar
+                BlockPos rightPillar = isNorthSouth
+                    ? center.add(pillarRight, dy, gw[1])
+                    : center.add(gw[0], dy, pillarRight);
+                if (!protectedPositions.contains(rightPillar)) {
+                    PlacementUtils.setTrackedBlock(world, rightPillar, SMOOTH_QUARTZ, originalBlocks);
+                    protectedPositions.add(rightPillar);
+                }
+            }
+            
+            // Threshold at bottom
+            for (int i = -GATEWAY_WIDTH / 2 + 1; i <= GATEWAY_WIDTH / 2 - 1; i++) {
+                BlockPos threshPos = isNorthSouth
+                    ? center.add(i, 0, gw[1])
+                    : center.add(gw[0], 0, i);
+                if (!protectedPositions.contains(threshPos)) {
+                    PlacementUtils.setTrackedBlock(world, threshPos, POLISHED_DEEPSLATE, originalBlocks);
+                    protectedPositions.add(threshPos);
+                }
+            }
+            
+            // Recessed lighting inside lintel
+            for (int i = -GATEWAY_WIDTH / 2 + 1; i <= GATEWAY_WIDTH / 2 - 1; i++) {
+                BlockPos lightPos = isNorthSouth
+                    ? center.add(i, GATEWAY_HEIGHT - 1, gw[1] == r ? gw[1] - 1 : gw[1] + 1)
+                    : center.add(gw[0] == r ? gw[0] - 1 : gw[0] + 1, GATEWAY_HEIGHT - 1, i);
+                if (!protectedPositions.contains(lightPos)) {
+                    PlacementUtils.setTrackedBlock(world, lightPos, END_ROD, originalBlocks);
+                    protectedPositions.add(lightPos);
+                }
+            }
+        }
+    }
+
+    private static void buildPlazaFeatures(ServerWorld world, BlockPos center,
+            Map<BlockPos, BlockState> originalBlocks, Set<BlockPos> protectedPositions) {
+        // Modern benches around fountain
+        int benchDist = 7;
+        int[][] benchOffsets = {{benchDist, 0}, {-benchDist, 0}, {0, benchDist}, {0, -benchDist}};
+        for (int[] offset : benchOffsets) {
+            BlockPos benchPos = center.add(offset[0], 0, offset[1]);
+            PlacementUtils.setTrackedBlock(world, benchPos, SLAB_SMOOTH_QUARTZ, originalBlocks);
+            protectedPositions.add(benchPos);
+            
+            // Lantern post support
+            BlockPos postPos = benchPos.up();
+            PlacementUtils.setTrackedBlock(world, postPos, STONE_BRICK_WALL, originalBlocks);
+            protectedPositions.add(postPos);
+            
+            // Lantern on top of post
+            BlockPos lanternPos = benchPos.up(2);
+            PlacementUtils.setTrackedBlock(world, lanternPos, LANTERN, originalBlocks);
+            protectedPositions.add(lanternPos);
+        }
+        
+        // Planters at corners
+        int planterDist = PLAZA_SIZE / 2 - 2;
+        int[][] planterOffsets = {{planterDist, planterDist}, {planterDist, -planterDist},
+                                 {-planterDist, planterDist}, {-planterDist, -planterDist}};
+        for (int[] offset : planterOffsets) {
+            BlockPos planterPos = center.add(offset[0], 0, offset[1]);
+            PlacementUtils.setTrackedBlock(world, planterPos, WHITE_CONCRETE, originalBlocks);
+            BlockPos plantPos = planterPos.up();
+            PlacementUtils.setTrackedBlock(world, plantPos, AZALEA_LEAVES, originalBlocks);
+            protectedPositions.add(planterPos);
+            protectedPositions.add(plantPos);
+        }
     }
 }
