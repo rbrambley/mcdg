@@ -103,6 +103,10 @@ Command + generation model update (2026-06-02):
   - Simple curved flight on existing EnderPearlEntity via server tick steering.
   - Disc mode switching (Putter / Mid / Driver), release angle (hyzer/flat/anhyzer).
   - Post-release initiative after multiplayer validation and compact course layout.
+- Tournament system (see `TOURNAMENT-PLAN.md` for full plan).
+  - Stroke play across 1–4 admin-selected catalog courses.
+  - Solo and multiplayer support, live spectator leaderboard, archival history.
+  - Post-release initiative alongside or after disc glide physics.
 - Multidimension course persistence refactor for the new buildcourse flow.
   - Goal: preserve per-hole dimension data so mixed-dimension builder sessions
     can save, load, and replay correctly in `listcourses`/`playcourse`.
