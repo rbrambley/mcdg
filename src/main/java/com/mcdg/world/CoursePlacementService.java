@@ -1059,7 +1059,6 @@ public final class CoursePlacementService {
         placeRegistrationDesk(world, hubSurface, side, back, originalBlocks, protectedPositions);
         placeMerchCanopy(world, hubSurface, side, back, originalBlocks, protectedPositions);
         placePracticeBaskets(world, hubSurface, side, back, originalBlocks, protectedPositions);
-        SignTextGenerator.placeLeaderboardSign(world, hubSurface, side, back, courseName, originalBlocks, protectedPositions);
 
         addProtectedColumnArea(protectedPositions, hubSurface, 9, 7);
     }

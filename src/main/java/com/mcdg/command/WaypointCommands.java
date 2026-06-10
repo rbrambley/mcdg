@@ -57,8 +57,7 @@ public final class WaypointCommands {
                     false
             );
         }
-        source.sendFeedback(() -> Text.literal("Use /mcdg waypoint tp <target or number>. Examples: /mcdg waypoint tp 2, /mcdg waypoint tp central, /mcdg waypoint tp hole 3"), false);
-        return completePlayerFacingLegacyCommand(source, "waypoints");
+        return 1;
     }
 
     public static int executeWaypointTeleportPrompt(
@@ -93,8 +92,7 @@ public final class WaypointCommands {
                     false
             );
         }
-        source.sendFeedback(() -> Text.literal("Pick one: /mcdg waypoint tp <number> (example: /mcdg waypoint tp 2)"), false);
-        return completePlayerFacingLegacyCommand(source, "waypoints");
+        return 1;
     }
 
     public static int executeWaypointTeleport(
@@ -127,16 +125,11 @@ public final class WaypointCommands {
             BlockPos safe = resolveSafeFeetNear(world, anchor);
             player.teleport(safe.getX() + 0.5, safe.getY() + 1.0, safe.getZ() + 0.5);
             source.sendFeedback(() -> Text.literal("Teleported to " + selected.name() + "."), false);
-            return completePlayerFacingLegacyCommand(source, "waypoints");
+            return 1;
         } catch (Exception ex) {
             source.sendError(Text.literal("This command must be run by a player."));
             return 0;
         }
-    }
-
-    private static int completePlayerFacingLegacyCommand(ServerCommandSource source, String submenu) {
-        MenuCommands.sendBackToMenu(source);
-        return 1;
     }
 
     private static List<WaypointTarget> collectWaypointTargets(ServerCommandSource source, PlacedCourseState placed, boolean includeHoleWaypoints) {

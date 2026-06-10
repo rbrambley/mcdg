@@ -2,6 +2,7 @@ package com.mcdg.command;
 
 import com.mcdg.data.Course;
 import com.mcdg.game.ActiveCourseManager;
+import com.mcdg.game.CourseFireProtection;
 import com.mcdg.game.PlayerRoundSessionStorage;
 import com.mcdg.game.PlayerRoundState;
 import com.mcdg.game.PlacedCourseState;
@@ -308,6 +309,13 @@ public final class SessionCommands {
     ) {
         // Clear in-memory round state first so the autosave tick doesn't immediately recreate the file.
         if (courseManager.isRoundActive() || courseManager.getActiveCourse().isPresent()) {
+            PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
+            if (placed != null) {
+                ServerWorld world = source.getServer().getWorld(placed.worldKey());
+                if (world != null) {
+                    CourseFireProtection.remove(world);
+                }
+            }
             courseManager.setActiveCourse(null);
             courseManager.clearPlacedCourseState();
             courseManager.setActiveCourseCatalogIndex(null);

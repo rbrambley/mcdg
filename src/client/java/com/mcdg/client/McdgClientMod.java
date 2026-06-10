@@ -10,7 +10,6 @@ import java.util.List;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
@@ -48,6 +47,11 @@ public final class McdgClientMod implements ClientModInitializer {
             client.options.write();
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            ClientKeybinds.forEachOpenMenuPress(() -> {
+                if (client.player != null && client.getNetworkHandler() != null && client.currentScreen == null) {
+                    client.getNetworkHandler().sendChatCommand("mcdg");
+                }
+            });
             WaypointManager.tick(client);
             AutoConnect.tick(client);
             MiniMapRenderer.handleMiniMapHotkeys(client);
@@ -68,6 +72,22 @@ public final class McdgClientMod implements ClientModInitializer {
             MiniMapRenderer.setLastMiniMapRenderAtMs(0L);
             MiniMapRenderer.clearMiniMapRenderCache(client);
             WaypointManager.onClientJoin(client);
+            if (client.player != null) {
+                client.player.sendMessage(
+                    net.minecraft.text.Text.literal("Welcome to MCDG! Press ")
+                        .formatted(net.minecraft.util.Formatting.GRAY)
+                        .append(ClientKeybinds.getOpenMenuKeyText().copy().formatted(net.minecraft.util.Formatting.AQUA, net.minecraft.util.Formatting.BOLD))
+                        .append(net.minecraft.text.Text.literal(" or type ").formatted(net.minecraft.util.Formatting.GRAY))
+                        .append(net.minecraft.text.Text.literal("/mcdg")
+                            .styled(s -> s
+                                .withColor(net.minecraft.util.Formatting.AQUA)
+                                .withClickEvent(new net.minecraft.text.ClickEvent(net.minecraft.text.ClickEvent.Action.RUN_COMMAND, "/mcdg"))
+                                .withHoverEvent(new net.minecraft.text.HoverEvent(net.minecraft.text.HoverEvent.Action.SHOW_TEXT, net.minecraft.text.Text.literal("Open the MCDG menu")))
+                            ))
+                        .append(net.minecraft.text.Text.literal(" to open the menu.").formatted(net.minecraft.util.Formatting.GRAY)),
+                    false
+                );
+            }
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             WaypointManager.onClientDisconnect(client);
@@ -77,7 +97,6 @@ public final class McdgClientMod implements ClientModInitializer {
             MiniMapRenderer.setMiniMapReceivedAtMs(0L);
             MiniMapRenderer.clearMiniMapRenderCache(client);
         });
-        ClientSendMessageEvents.ALLOW_CHAT.register(message -> WaypointManager.handleChatInput(message));
         ClientNetworking.registerReceivers();
         HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {
             RoundInfoOverlay.updateTweens(MiniMapRenderer.getMiniMapState());

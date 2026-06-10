@@ -71,6 +71,8 @@ public final class HoleProgressTracker {
             boolean strictFlowDebug
     ) {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
+            MiniMapSyncService.tickPendingInactive(server);
+            AceCompanionService.tick(server);
             if (!courseManager.isRoundActive()) {
                 if (ROUND_WAS_ACTIVE) {
                     ROUND_WAS_ACTIVE = false;
@@ -80,6 +82,7 @@ public final class HoleProgressTracker {
                     LAST_LIE_POSITION.clear();
                     LAST_BREADCRUMB_POSITION.clear();
                     CACHED_CORRIDOR_HALF_WIDTH.clear();
+                    AceCompanionService.reset();
                     MiniMapSyncService.reset();
                     if (LAST_RUNNING_SCOREBOARD_HASH != Integer.MIN_VALUE) {
                         sendRunningScoreboardInactive(server);
@@ -243,12 +246,44 @@ public final class HoleProgressTracker {
                         player.teleport(firstTee.getX() + 0.5, firstTee.getY() + 1.0, firstTee.getZ() + 0.5);
                     }
 
+                    if (state.holeStrokes() == 1) {
+                        ServerPlayNetworking.send(player, AceCinematicSync.Payload.active(state.currentHole(), currentHole.distanceFeet()));
+                        AceCompanionService.scheduleForPlayer(player.getUuid(), server.getOverworld().getTime());
+                    }
+
                     removeRoundThrowItems(player);
 
                     roundStateManager.recordCompletedRound(player.getUuid(), state.totalStrokes());
                     if (leaderboardManager != null) {
                         leaderboardManager.recordScore(server, course.name(), player.getGameProfile().getName(), state.totalStrokes());
                     }
+
+                    int finalCompletedPar = cumulativeParThroughHole(course, state.currentHole() - 1);
+                    int finalRunningExpected = finalCompletedPar + state.holeStrokes();
+                    int finalCumulativeDelta = state.totalStrokes() - finalRunningExpected;
+                    int finalCorridorHalfWidth = CACHED_CORRIDOR_HALF_WIDTH.getOrDefault(player.getUuid(), 24);
+                    MiniMapSyncService.forceSync(
+                            server,
+                            player,
+                            courseManager,
+                            course,
+                            placed,
+                            state,
+                            currentHole,
+                            tee,
+                            basket,
+                            alternateAnchor,
+                            rulesetManager,
+                            finalCorridorHalfWidth,
+                            finalCumulativeDelta,
+                            ThrowResolver.lastThrowDistanceFeetForPlayer(player.getUuid()),
+                            strictFlowDebug
+                    );
+                    MiniMapSyncService.scheduleInactiveForPlayer(
+                            player.getUuid(),
+                            server.getOverworld().getTime() + MiniMapSyncService.hudLingerTicks()
+                    );
+
                     roundStateManager.clearPlayer(player.getUuid());
 
                     if (firstTee != null) {
@@ -264,6 +299,10 @@ public final class HoleProgressTracker {
                     if (roundEnded) {
                         sendRoundCompleteCinematic(server, placed.worldKey(), roundStateManager, totalPar);
                         courseManager.setRoundActive(false);
+                        ServerWorld courseWorld = server.getWorld(placed.worldKey());
+                        if (courseWorld != null) {
+                            CourseFireProtection.remove(courseWorld);
+                        }
                         courseManager.clearPlacedCourseState();
                     }
                     continue;
@@ -284,6 +323,7 @@ public final class HoleProgressTracker {
                 updateLieMarker(player, safeNextTee);
                 if (state.holeStrokes() == 1) {
                     ServerPlayNetworking.send(player, AceCinematicSync.Payload.active(state.currentHole(), currentHole.distanceFeet()));
+                    AceCompanionService.scheduleForPlayer(player.getUuid(), server.getOverworld().getTime());
                 }
                 sendHoleFinishTitle(player, state.holeStrokes(), completedHolePar);
             }

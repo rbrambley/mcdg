@@ -7,6 +7,7 @@ import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import com.mcdg.data.SignatureHoleType;
 import com.mcdg.game.ActiveCourseManager;
+import com.mcdg.game.CourseFireProtection;
 import com.mcdg.game.HoleProgressTracker;
 import com.mcdg.game.PlayerRoundSessionStorage;
 import com.mcdg.game.PlacedCourseState;
@@ -136,7 +137,8 @@ public final class McdgAdminCommands {
                                                 LongArgumentType.getLong(context, "seed")
                                         ))))
                         .then(literal("autocourse").requires(McdgAdminCommands::canUseAdminCommands)
-                                .executes(context -> autoCourseService.executeAutoCoursePrompt(context.getSource()))
+                                .then(argument("name", StringArgumentType.greedyString())
+                                        .executes(context -> autoCourseService.executeAutoCourseNamed(context.getSource(), StringArgumentType.getString(context, "name"))))
                                 .then(literal("cancel")
                                         .executes(context -> autoCourseService.executeCancel(context.getSource())))) 
                         .then(literal("startround").requires(McdgAdminCommands::canUseAdminCommands)
@@ -535,7 +537,6 @@ public final class McdgAdminCommands {
                                 .then(literal("strict")
                                         .executes(context -> RulesetCommands.executeSetRuleset(context.getSource(), rulesetManager, TournamentRulesetManager.Ruleset.STRICT)))
                                 .then(literal("surface")
-                                        .requires(McdgAdminCommands::canUseAdvancedCommands)
                                         .executes(context -> RulesetCommands.executeShowStrictSurfacePreset(context.getSource(), rulesetManager))
                                         .then(argument("preset", StringArgumentType.word())
                                                 .suggests((context, builder) -> {
@@ -652,13 +653,6 @@ public final class McdgAdminCommands {
         }
 
 
-        private static int completePlayerFacingLegacyCommand(ServerCommandSource source, String submenu) {
-                source.sendFeedback(() -> Text.literal("Tip: use /mcdg menu for clickable controls. Opening " + submenu + " menu...")
-                        .formatted(Formatting.DARK_GRAY), false);
-                source.getServer().getCommandManager().executeWithPrefix(source, "/mcdg menu " + submenu);
-                return 1;
-        }
-
         private static int executeHelp(ServerCommandSource source) {
                 source.sendFeedback(() -> Text.literal("MCDG quick help:"), false);
                 source.sendFeedback(() -> Text.literal("- New course: /mcdg createcourse <seed> -> /mcdg startround (or /mcdg startround strict)."), false);
@@ -769,6 +763,7 @@ public final class McdgAdminCommands {
 
                 // Clean up any previously placed course edits so repeated test runs start from a fresh world state.
                 PlacedCourseState existingPlaced = courseManager.getPlacedCourseState().orElse(null);
+                net.minecraft.registry.RegistryKey<net.minecraft.world.World> existingWorldKey = existingPlaced != null ? existingPlaced.worldKey() : null;
                 if (existingPlaced != null) {
                         ServerWorld existingWorld = source.getServer().getWorld(existingPlaced.worldKey());
                         if (existingWorld != null) {
@@ -918,6 +913,13 @@ public final class McdgAdminCommands {
 
                         courseManager.setActiveCourse(course);
                         courseManager.setPlacedCourseState(placed);
+                        if (existingWorldKey != null && !existingWorldKey.equals(placed.worldKey())) {
+                                ServerWorld oldWorld = source.getServer().getWorld(existingWorldKey);
+                                if (oldWorld != null) {
+                                        CourseFireProtection.remove(oldWorld);
+                                }
+                        }
+                        CourseFireProtection.apply(world);
                         courseManager.setPersistentPlacedCourse(persistentCourse);
                         courseManager.setLegacyPracticeSnapshot(false);
                         courseManager.setActiveCourseCatalogIndex(null);
@@ -1014,6 +1016,7 @@ public final class McdgAdminCommands {
                         source.sendError(Text.literal("Placed course world is unavailable."));
                         return 0;
                 }
+                CourseFireProtection.apply(world);
 
                 if (courseManager.isLegacyPracticeSnapshot()) {
                         source.sendFeedback(() -> Text.literal(
@@ -1151,7 +1154,8 @@ public final class McdgAdminCommands {
                 }
 
                 PracticeCourseStorage.LoadedPracticeCourse loaded = selected.get();
-                if (source.getServer().getWorld(loaded.placedCourseState().worldKey()) == null) {
+                ServerWorld world = source.getServer().getWorld(loaded.placedCourseState().worldKey());
+                if (world == null) {
                         source.sendError(Text.literal("Reusable course #" + oneBasedIndex + " points to an unavailable world."));
                         return 0;
                 }
@@ -1162,6 +1166,7 @@ public final class McdgAdminCommands {
                 courseManager.setActiveCourse(ensureSingleSignatureHole(loaded.course()));
                 courseManager.setActiveCourseCatalogIndex(oneBasedIndex);
                 courseManager.setPlacedCourseState(loaded.placedCourseState());
+                CourseFireProtection.apply(world);
                 courseManager.setPersistentPlacedCourse(true);
                 courseManager.setLegacyPracticeSnapshot(loaded.legacyFormat());
                 courseManager.setRoundActive(false);
@@ -1291,6 +1296,7 @@ public final class McdgAdminCommands {
                 // deleted course must not persist (it would re-save a broken session on next autosave).
                 Integer activeCatalogIndex = courseManager.getActiveCourseCatalogIndex().orElse(null);
                 boolean wasActiveMatch = activeCatalogIndex != null && activeCatalogIndex == oneBasedIndex;
+                PlacedCourseState activePlaced = courseManager.getPlacedCourseState().orElse(null);
                 if (wasActiveMatch || courseManager.isRoundActive()) {
                         courseManager.setActiveCourse(null);
                         courseManager.clearPlacedCourseState();
@@ -1298,6 +1304,12 @@ public final class McdgAdminCommands {
                         courseManager.setRoundActive(false);
                         clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
                         practiceCourseStorage.clear(source.getServer());
+                        if (activePlaced != null) {
+                                ServerWorld activeWorld = source.getServer().getWorld(activePlaced.worldKey());
+                                if (activeWorld != null) {
+                                        CourseFireProtection.remove(activeWorld);
+                                }
+                        }
                 }
                 HoleProgressTracker.resetAllState(source.getServer());
 
@@ -1489,6 +1501,7 @@ public final class McdgAdminCommands {
 
                 evacuatePlayersBeforeCleanup(source, world, placed);
                 placementService.resetPlacedCourse(world, placed);
+                CourseFireProtection.remove(world);
                 removeJunkDropsNearCourse(world, placed);
                 removeRoundThrowItemsFromCourseWorldPlayers(source, courseManager);
 
@@ -1721,12 +1734,19 @@ public final class McdgAdminCommands {
 
                 // If cleaning up the active course, clear the active state
                 Integer activeCatalogIndex = courseManager.getActiveCourseCatalogIndex().orElse(null);
-                if (activeCatalogIndex != null && activeCatalogIndex == oneBasedIndex) {
+                boolean clearingActive = activeCatalogIndex != null && activeCatalogIndex == oneBasedIndex;
+                boolean activeInSameWorld = !clearingActive && courseManager.getPlacedCourseState()
+                        .map(p -> p.worldKey().equals(placed.worldKey()))
+                        .orElse(false);
+                if (clearingActive) {
                         courseManager.clearPlacedCourseState();
                         courseManager.setActiveCourseCatalogIndex(null);
                         courseManager.setRoundActive(false);
                         clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
                         practiceCourseStorage.clear(source.getServer());
+                }
+                if (!activeInSameWorld) {
+                        CourseFireProtection.remove(world);
                 }
                 HoleProgressTracker.resetAllState(source.getServer());
 
@@ -1752,7 +1772,7 @@ public final class McdgAdminCommands {
                                         .formatted(Formatting.GREEN),
                                 true
                         );
-                        return completePlayerFacingLegacyCommand(source, "round");
+                        return 1;
                 } catch (Exception ex) {
                         source.sendError(Text.literal("This command must be run by a player."));
                         return 0;
@@ -1773,7 +1793,7 @@ public final class McdgAdminCommands {
                 courseManager.setRoundActive(false);
                 clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
                 source.sendFeedback(() -> Text.literal("Round ended. Use /mcdg resetcourse to restore terrain edits."), true);
-                return completePlayerFacingLegacyCommand(source, "round");
+                return 1;
         }
 
         private static int executeJoinRound(
@@ -1843,10 +1863,7 @@ public final class McdgAdminCommands {
                 source.sendFeedback(() -> Text.literal(
                         "Join round complete. Added=" + finalJoinedCount + ", already active=" + finalAlreadyJoinedCount + "."
                 ), true);
-                if (finalJoinedCount > 0) {
-                        return completePlayerFacingLegacyCommand(source, "round");
-                }
-                return 0;
+                return finalJoinedCount > 0 ? 1 : 0;
         }
 
         private static int executeRoundStatus(
@@ -1913,7 +1930,7 @@ public final class McdgAdminCommands {
                         final int remaining = participantIds.size() - listed;
                         source.sendFeedback(() -> Text.literal(" - ... and " + remaining + " more participant(s)."), false);
                 }
-                return completePlayerFacingLegacyCommand(source, "round");
+                return 1;
         }
 
         private static void removeRoundThrowItemsFromCourseWorldPlayers(ServerCommandSource source, ActiveCourseManager courseManager) {

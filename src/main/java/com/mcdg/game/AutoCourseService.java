@@ -19,7 +19,6 @@ import java.util.Set;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.block.Block;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
@@ -44,7 +43,8 @@ public final class AutoCourseService {
     private static final int COURSE_RADIUS_MAX = 160;
     private static final int HOLE_DIST_MIN_BLOCKS = 60;
     private static final int HOLE_DIST_MAX_BLOCKS = 200;
-    private static final int FINAL_HOLE_RETURN_RADIUS = 40;
+    private static final int FINAL_HOLE_HUB_CLEARANCE = 40;
+    private static final int FINAL_HOLE_CORNER_DIAGONAL = 50;
     private static final int ANGLE_JITTER_DEG = 18;
 
     private final CoursePlacementService placementService;
@@ -53,7 +53,6 @@ public final class AutoCourseService {
     private final HoleLayoutValidator layoutValidator = new HoleLayoutValidator();
 
     private AutoBuildState state;
-    private final ConcurrentHashMap<UUID, BlockPos> pendingNameRequests = new ConcurrentHashMap<>();
 
     public AutoCourseService(
             CoursePlacementService placementService,
@@ -69,7 +68,15 @@ public final class AutoCourseService {
         return state != null;
     }
 
-    public int executeAutoCoursePrompt(ServerCommandSource source) {
+    private static Text cancelButton() {
+        return Text.literal("[CANCEL BUILD]").styled(style -> style
+                .withColor(Formatting.RED)
+                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/mcdg autocourse cancel"))
+                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Run: /mcdg autocourse cancel")))
+        );
+    }
+
+    public int executeAutoCourseNamed(ServerCommandSource source, String courseName) {
         ServerPlayerEntity player = source.getPlayer();
         if (player == null) {
             source.sendError(Text.literal("autocourse must be run by a player."));
@@ -80,58 +87,18 @@ public final class AutoCourseService {
             source.sendFeedback(() -> cancelButton(), false);
             return 1;
         }
+        String trimmed = courseName == null ? "" : courseName.trim();
+        if (trimmed.isBlank()) {
+            source.sendError(Text.literal("Course name is required. Use: /mcdg autocourse <name>"));
+            return 0;
+        }
+        Optional<String> duplicate = findDuplicateName(source.getServer(), trimmed);
+        if (duplicate.isPresent()) {
+            source.sendError(Text.literal("A course named '" + duplicate.get() + "' already exists. Choose a different name."));
+            return 0;
+        }
         UUID playerId = player.getUuid();
         BlockPos origin = player.getBlockPos();
-        pendingNameRequests.put(playerId, origin);
-        source.sendFeedback(() -> Text.literal("Type a name for your course in chat and press Enter.").formatted(Formatting.GREEN), false);
-        source.sendFeedback(() -> cancelNamePromptButton(), false);
-        return 1;
-    }
-    private static Text cancelButton() {
-        return Text.literal("[CANCEL BUILD]").styled(style -> style
-                .withColor(Formatting.RED)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/mcdg autocourse cancel"))
-                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Run: /mcdg autocourse cancel")))
-        );
-    }
-
-    private static Text cancelNamePromptButton() {
-        return Text.literal("[CANCEL]").styled(style -> style
-                .withColor(Formatting.RED)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/mcdg autocourse cancel"))
-                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Cancel naming")))
-        );
-    }
-
-    /**
-     * Called by the server chat event handler. If this player has a pending name request,
-     * consumes the chat message as the course name and starts the build.
-     * Returns true if the message was consumed (suppress normal chat broadcast).
-     */
-    public boolean handleChatMessage(ServerPlayerEntity player, String message) {
-        UUID playerId = player.getUuid();
-        BlockPos origin = pendingNameRequests.remove(playerId);
-        if (origin == null) {
-            return false;
-        }
-        String trimmed = message == null ? "" : message.trim();
-        if (trimmed.isBlank()) {
-            player.sendMessage(Text.literal("Course name cannot be blank. Type a name and press Enter, or click [CANCEL].").formatted(Formatting.RED), false);
-            pendingNameRequests.put(playerId, origin);
-            player.sendMessage(cancelNamePromptButton(), false);
-            return true;
-        }
-        Optional<String> duplicate = findDuplicateName(player.getServer(), trimmed);
-        if (duplicate.isPresent()) {
-            player.sendMessage(Text.literal("A course named '" + duplicate.get() + "' already exists. Try a different name.").formatted(Formatting.RED), false);
-            pendingNameRequests.put(playerId, origin);
-            player.sendMessage(cancelNamePromptButton(), false);
-            return true;
-        }
-        if (state != null) {
-            player.sendMessage(Text.literal("A build is already in progress. Wait for it to finish or use /mcdg autocourse cancel.").formatted(Formatting.RED), false);
-            return true;
-        }
         long seed = java.util.concurrent.ThreadLocalRandom.current().nextLong();
         java.util.Random random = new java.util.Random(seed);
         int signatureHoleIndex = random.nextInt(HOLE_COUNT) + 1;
@@ -139,9 +106,9 @@ public final class AutoCourseService {
         state = new AutoBuildState(playerId, trimmed, seed, holeSpecs, player.getServerWorld());
         state.signatureHoleIndex = signatureHoleIndex;
         final String name = trimmed;
-        player.sendMessage(Text.literal("Auto-building course '" + name + "' (" + HOLE_COUNT + " holes) starting at your position...").formatted(Formatting.GREEN), false);
-        player.sendMessage(Text.literal("Building hole 1/" + HOLE_COUNT + "...").formatted(Formatting.YELLOW), false);
-        return true;
+        source.sendFeedback(() -> Text.literal("Auto-building course '" + name + "' (" + HOLE_COUNT + " holes) starting at your position...").formatted(Formatting.GREEN), false);
+        source.sendFeedback(() -> Text.literal("Building hole 1/" + HOLE_COUNT + "...").formatted(Formatting.YELLOW), false);
+        return 1;
     }
     public int executeAutoCourse(ServerCommandSource source, String courseName, long seed) {
         ServerPlayerEntity player = source.getPlayer();
@@ -178,17 +145,9 @@ public final class AutoCourseService {
     }
 
     public int executeCancel(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
-        if (player != null) {
-            pendingNameRequests.remove(player.getUuid());
-        }
         if (state == null) {
-            if (player == null || !pendingNameRequests.containsKey(player.getUuid())) {
-                source.sendError(Text.literal("No autocourse build in progress."));
-                return 0;
-            }
-            source.sendFeedback(() -> Text.literal("Canceled.").formatted(Formatting.GRAY), false);
-            return 1;
+            source.sendError(Text.literal("No autocourse build in progress."));
+            return 0;
         }
         rollbackAll(source.getServer());
         state = null;
@@ -430,6 +389,9 @@ public final class AutoCourseService {
 
         double angleStepRad = (2.0 * Math.PI) / HOLE_COUNT;
 
+        int hole1TeeX = hubX;
+        int hole1TeeZ = hubZ;
+
         for (int i = 1; i <= HOLE_COUNT; i++) {
             double baseAngle = (i - 1) * angleStepRad;
             double jitterRad = Math.toRadians((random.nextDouble() * 2.0 - 1.0) * ANGLE_JITTER_DEG);
@@ -439,13 +401,73 @@ public final class AutoCourseService {
             int teeX = hubX + (int) Math.round(Math.cos(teeAngle) * teeRadius);
             int teeZ = hubZ + (int) Math.round(Math.sin(teeAngle) * teeRadius);
 
+            if (i == 1) {
+                hole1TeeX = teeX;
+                hole1TeeZ = teeZ;
+            }
+
             int basketX, basketZ;
             if (i == HOLE_COUNT) {
-                // Hole 9 basket returns close to hub (near hole 1 tee)
-                double returnAngle = teeAngle + Math.PI + Math.toRadians(random.nextInt(40) - 20);
-                int returnDist = FINAL_HOLE_RETURN_RADIUS / 2 + random.nextInt(FINAL_HOLE_RETURN_RADIUS / 2);
-                basketX = hubX + (int) Math.round(Math.cos(returnAngle) * returnDist);
-                basketZ = hubZ + (int) Math.round(Math.sin(returnAngle) * returnDist);
+                // Hole 9 basket: find the hub's oriented axes from the hub->hole1tee direction,
+                // pick the hub deck corner closest to hole 9 tee, shoot 50 blocks diagonally outward.
+                double h1dx = hole1TeeX - hubX;
+                double h1dz = hole1TeeZ - hubZ;
+                double h1len = Math.sqrt(h1dx * h1dx + h1dz * h1dz);
+                // back = unit vector from hub toward hole 1 tee
+                double backX = h1len > 0 ? h1dx / h1len : 1.0;
+                double backZ = h1len > 0 ? h1dz / h1len : 0.0;
+                // side = perpendicular to back (rotate 90 degrees)
+                double sideX = -backZ;
+                double sideZ = backX;
+
+                // Hub deck corners: side ±8, back -3 to +8 (4 corners)
+                double[][] corners = {
+                    { hubX + sideX * 8 + backX * 8,  hubZ + sideZ * 8 + backZ * 8  },
+                    { hubX - sideX * 8 + backX * 8,  hubZ - sideZ * 8 + backZ * 8  },
+                    { hubX + sideX * 8 - backX * 3,  hubZ + sideZ * 8 - backZ * 3  },
+                    { hubX - sideX * 8 - backX * 3,  hubZ - sideZ * 8 - backZ * 3  }
+                };
+                // Outward diagonal direction for each corner (bisects the corner away from hub)
+                double[][] diagonals = {
+                    {  sideX + backX,  sideZ + backZ  },
+                    { -sideX + backX, -sideZ + backZ  },
+                    {  sideX - backX,  sideZ - backZ  },
+                    { -sideX - backX, -sideZ - backZ  }
+                };
+
+                // Pick the corner closest to hole 9 tee
+                int bestCorner = 0;
+                double bestDist = Double.MAX_VALUE;
+                for (int c = 0; c < 4; c++) {
+                    double ddx = corners[c][0] - teeX;
+                    double ddz = corners[c][1] - teeZ;
+                    double dd = ddx * ddx + ddz * ddz;
+                    if (dd < bestDist) {
+                        bestDist = dd;
+                        bestCorner = c;
+                    }
+                }
+
+                // Normalize the diagonal and shoot 50 blocks from the chosen corner
+                double diagX = diagonals[bestCorner][0];
+                double diagZ = diagonals[bestCorner][1];
+                double diagLen = Math.sqrt(diagX * diagX + diagZ * diagZ);
+                if (diagLen > 0) {
+                    diagX /= diagLen;
+                    diagZ /= diagLen;
+                }
+                int candidateBasketX = (int) Math.round(corners[bestCorner][0] + diagX * FINAL_HOLE_CORNER_DIAGONAL);
+                int candidateBasketZ = (int) Math.round(corners[bestCorner][1] + diagZ * FINAL_HOLE_CORNER_DIAGONAL);
+
+                // Safety check: if still within clearance, nudge further along the same diagonal
+                int dxHub = candidateBasketX - hubX;
+                int dzHub = candidateBasketZ - hubZ;
+                if ((dxHub * dxHub + dzHub * dzHub) < (FINAL_HOLE_HUB_CLEARANCE * FINAL_HOLE_HUB_CLEARANCE)) {
+                    candidateBasketX = (int) Math.round(corners[bestCorner][0] + diagX * (FINAL_HOLE_CORNER_DIAGONAL + FINAL_HOLE_HUB_CLEARANCE));
+                    candidateBasketZ = (int) Math.round(corners[bestCorner][1] + diagZ * (FINAL_HOLE_CORNER_DIAGONAL + FINAL_HOLE_HUB_CLEARANCE));
+                }
+                basketX = candidateBasketX;
+                basketZ = candidateBasketZ;
             } else {
                 // Basket fires outward and slightly toward next tee angle
                 double nextAngle = i * angleStepRad;
