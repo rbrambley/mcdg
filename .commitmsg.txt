@@ -1,0 +1,10 @@
+Hide [REMOVE] button for resort-surround courses in listcourses
+
+- Resort-surround courses now show [RESORT] label (green, non-clickable)
+- Hover tooltip on [RESORT] suggests using /mcdg removesurroundcourses
+- Regular courses still show [REMOVE] button as before
+- Prevents accidental orphaning of resort course blocks via removecourse
+
+Generated with [Devin](https://cli.devin.ai/docs)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

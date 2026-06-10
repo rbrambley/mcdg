@@ -1043,29 +1043,41 @@ public final class McdgAdminCommands {
                         String command = "/mcdg playcourse " + entry.index();
                         String strictCommand = "/mcdg playcourse " + entry.index() + " strict";
                         String removeCommand = "/mcdg removecourse " + entry.index();
-                        source.sendFeedback(() -> Text.literal(
-                                "#" + entry.index()
-                                        + " " + entry.name()
-                                        + " seed=" + entry.seed()
-                                        + " holes=" + entry.holeCount()
-                                        + " world=" + entry.worldKey()
-                                        + " source=" + entry.sourceTag()
-                                        + " compact=" + (entry.compactPreferred() ? "yes" : "no")
-                        ).styled(style -> style
-                                .withColor(Formatting.AQUA)
-                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command))
-                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Click to run: " + command)))
-                        ).append(Text.literal("  [STRICT]")
-                                .styled(style -> style
-                                        .withColor(Formatting.GOLD)
-                                        .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, strictCommand))
-                                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Click to run: " + strictCommand)))
-                                )).append(Text.literal("  [REMOVE]")
-                                .styled(style -> style
-                                        .withColor(Formatting.RED)
-                                        .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, removeCommand))
-                                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Delete from catalog: " + removeCommand + "\nThis does not cleanup world blocks.")))
-                                )), false);
+                        source.sendFeedback(() -> {
+                            var line = Text.literal(
+                                    "#" + entry.index()
+                                            + " " + entry.name()
+                                            + " seed=" + entry.seed()
+                                            + " holes=" + entry.holeCount()
+                                            + " world=" + entry.worldKey()
+                                            + " source=" + entry.sourceTag()
+                                            + " compact=" + (entry.compactPreferred() ? "yes" : "no")
+                            ).styled(style -> style
+                                    .withColor(Formatting.AQUA)
+                                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, command))
+                                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Click to run: " + command)))
+                            ).append(Text.literal("  [STRICT]")
+                                    .styled(style -> style
+                                            .withColor(Formatting.GOLD)
+                                            .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, strictCommand))
+                                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Click to run: " + strictCommand)))
+                                    ));
+                            if ("resort-surround".equals(entry.sourceTag())) {
+                                line = line.append(Text.literal("  [RESORT]")
+                                        .styled(style -> style
+                                                .withColor(Formatting.GREEN)
+                                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Use /mcdg removesurroundcourses to cleanup")))
+                                        ));
+                            } else {
+                                line = line.append(Text.literal("  [REMOVE]")
+                                        .styled(style -> style
+                                                .withColor(Formatting.RED)
+                                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, removeCommand))
+                                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Delete from catalog: " + removeCommand + "\nThis does not cleanup world blocks.")))
+                                        ));
+                            }
+                            return line;
+                        }, false);
                 }
                 MenuCommands.sendBackToMenu(source);
                 return 1;
