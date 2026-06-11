@@ -1302,10 +1302,10 @@ public final class McdgAdminCommands {
 
                     long seed = random.nextLong();
                     float facingYaw = (float) Math.toDegrees(angle);
-                    Course course = generator.generate(seed, 9, facingYaw);
+                    Course course = autoCourseService.generateOutwardConeCourse(seed, center, facingYaw, distance, 80);
 
                     try {
-                        AutoCourseService.AutoCourseScenarioResult result = autoCourseService.placeCourseIncrementally(world, hubOrigin, course);
+                        AutoCourseService.AutoCourseScenarioResult result = autoCourseService.placeCourseIncrementally(world, hubOrigin, course, true);
                         int catalogIndex = practiceCourseStorage.saveReusable(source.getServer(), result.course(), result.placedState(), "resort-surround", false);
                         builtCourses++;
                         McdgMod.LOGGER.info("Resort surround course {} placed at ({}, {}), saved as catalog #{}", builtCourses, hubX, hubZ, catalogIndex);
