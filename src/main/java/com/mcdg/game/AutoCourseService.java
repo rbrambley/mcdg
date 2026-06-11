@@ -9,6 +9,7 @@ import com.mcdg.data.SignatureHoleType;
 import com.mcdg.data.TeePoint;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
+import com.mcdg.world.CourseGenerator;
 import com.mcdg.world.HoleLayoutValidator;
 import com.mcdg.game.PlacedCourseState;
 import java.util.ArrayList;
@@ -50,6 +51,7 @@ public final class AutoCourseService {
     private final CoursePlacementService placementService;
     private final CoursePlacementValidator placementValidator;
     private final PracticeCourseStorage practiceCourseStorage;
+    private final CourseGenerator courseGenerator;
     private final HoleLayoutValidator layoutValidator = new HoleLayoutValidator();
 
     private AutoBuildState state;
@@ -57,10 +59,12 @@ public final class AutoCourseService {
     public AutoCourseService(
             CoursePlacementService placementService,
             CoursePlacementValidator placementValidator,
+            CourseGenerator courseGenerator,
             PracticeCourseStorage practiceCourseStorage
     ) {
         this.placementService = placementService;
         this.placementValidator = placementValidator;
+        this.courseGenerator = courseGenerator;
         this.practiceCourseStorage = practiceCourseStorage;
     }
 
@@ -100,11 +104,9 @@ public final class AutoCourseService {
         UUID playerId = player.getUuid();
         BlockPos origin = player.getBlockPos();
         long seed = java.util.concurrent.ThreadLocalRandom.current().nextLong();
-        java.util.Random random = new java.util.Random(seed);
-        int signatureHoleIndex = random.nextInt(HOLE_COUNT) + 1;
-        List<HoleSpec> holeSpecs = generateHoleSpecsFromOrigin(seed, origin);
-        state = new AutoBuildState(playerId, trimmed, seed, holeSpecs, player.getServerWorld());
-        state.signatureHoleIndex = signatureHoleIndex;
+        Course course = courseGenerator.generate(seed, HOLE_COUNT, player.getYaw());
+        state = new AutoBuildState(playerId, trimmed, seed, course, origin, player.getServerWorld());
+
         final String name = trimmed;
         source.sendFeedback(() -> Text.literal("Auto-building course '" + name + "' (" + HOLE_COUNT + " holes) starting at your position...").formatted(Formatting.GREEN), false);
         source.sendFeedback(() -> Text.literal("Building hole 1/" + HOLE_COUNT + "...").formatted(Formatting.YELLOW), false);
@@ -134,10 +136,8 @@ public final class AutoCourseService {
         }
 
         java.util.Random random = new java.util.Random(seed);
-        int signatureHoleIndex = random.nextInt(HOLE_COUNT) + 1;
-        List<HoleSpec> holeSpecs = generateHoleSpecsFromOrigin(seed, player.getBlockPos());
-        state = new AutoBuildState(player.getUuid(), trimmed, seed, holeSpecs, player.getServerWorld());
-        state.signatureHoleIndex = signatureHoleIndex;
+        Course course = courseGenerator.generate(seed, HOLE_COUNT, player.getYaw());
+
 
         source.sendFeedback(() -> Text.literal("Auto-building course '" + trimmed + "' (" + HOLE_COUNT + " holes) starting at your position...").formatted(Formatting.GREEN), false);
         source.sendFeedback(() -> Text.literal("Building hole 1/" + HOLE_COUNT + "...").formatted(Formatting.YELLOW), false);
@@ -166,104 +166,19 @@ public final class AutoCourseService {
         }
         state.ticksWaited = 0;
 
-        if (state.nextHoleIndex > state.holeSpecs.size()) {
-            finalizeCourse(server);
-            return;
-        }
-
-        HoleSpec spec = state.holeSpecs.get(state.nextHoleIndex - 1);
         ServerWorld world = state.world;
-
         try {
-            BlockPos center = new BlockPos(spec.teeX, 64, spec.teeZ);
-            int localTeeX = 0;
-            int localTeeZ = 0;
-            int localBasketX = spec.basketX - spec.teeX;
-            int localBasketZ = spec.basketZ - spec.teeZ;
-            Hole candidate = new Hole(
-                    spec.holeIndex,
-                    spec.par,
-                    spec.distanceFeet,
-                    new TeePoint(localTeeX, 64, localTeeZ),
-                    new BasketPoint(localBasketX, 64, localBasketZ, spec.basketHeight),
-                    List.of(new FairwaySegment(localTeeX, localTeeZ, localBasketX, localBasketZ, spec.fairwayWidth)),
-                    SignatureHoleType.NONE
-            );
-
-            Course tempCourse = new Course(spec.seed, "auto-hole-" + spec.holeIndex, List.of(candidate));
-            PlacedCourseState placed = placementService.placeCourseAtFixedOrigin(world, center, tempCourse, ignored -> {}, state.globalProtectedPositions, true);
-
-            BlockPos actualTee = placed.holeTees().get(spec.holeIndex);
-            BlockPos actualBasket = placed.holeBaskets().get(spec.holeIndex);
-            if (actualTee == null || actualBasket == null) {
-                placementService.resetPlacedCourse(world, placed);
-                broadcastError(server, "Hole " + spec.holeIndex + " failed: no tee/basket placed. Canceling.");
-                rollbackAll(server);
-                state = null;
-                return;
-            }
-
-            int actualDistanceFeet = layoutValidator.distanceFeetFromBlocks(actualTee.getX(), actualTee.getZ(), actualBasket.getX(), actualBasket.getZ());
-            int effectivePar = placed.effectiveHolePars().getOrDefault(spec.holeIndex, computePar(actualDistanceFeet));
-            Hole actualHole = new Hole(
-                    spec.holeIndex,
-                    effectivePar,
-                    actualDistanceFeet,
-                    new TeePoint(actualTee.getX(), actualTee.getY(), actualTee.getZ()),
-                    new BasketPoint(actualBasket.getX(), actualBasket.getY(), actualBasket.getZ(), spec.basketHeight),
-                    List.of(new FairwaySegment(actualTee.getX(), actualTee.getZ(), actualBasket.getX(), actualBasket.getZ(), spec.fairwayWidth)),
-                    spec.holeIndex == state.signatureHoleIndex ? SignatureHoleType.ISLAND_GREEN : SignatureHoleType.NONE
-            );
-
-            boolean isFirstHole = state.builtHoles.isEmpty();
-            state.builtHoles.add(actualHole);
-            for (Map.Entry<BlockPos, net.minecraft.block.BlockState> entry : placed.originalBlocks().entrySet()) {
-                state.mergedOriginals.putIfAbsent(entry.getKey(), entry.getValue());
-            }
-            state.tees.putAll(placed.holeTees());
-            state.baskets.putAll(placed.holeBaskets());
-            state.alternates.putAll(placed.holeAlternateAnchors());
-            state.effectivePars.putAll(placed.effectiveHolePars());
-
-            BlockPos placedTee = placed.holeTees().get(spec.holeIndex);
-            BlockPos placedBasket = placed.holeBaskets().get(spec.holeIndex);
-            if (placedTee != null && placedBasket != null) {
-                CoursePlacementService.addProtectedColumnArea(state.globalProtectedPositions, placedTee, 2, 6);
-                CoursePlacementService.addProtectedColumnArea(state.globalProtectedPositions, placedBasket.down(), 2, 8);
-                int dx = placedBasket.getX() - placedTee.getX();
-                int dz = placedBasket.getZ() - placedTee.getZ();
-                int[] forward;
-                if (Math.abs(dx) >= Math.abs(dz)) {
-                    forward = new int[] { Integer.compare(dx, 0), 0 };
-                } else {
-                    forward = new int[] { 0, Integer.compare(dz, 0) };
-                }
-                BlockPos teeLamp = placedTee.add(-forward[0], 0, -forward[1]);
-                CoursePlacementService.addProtectedColumnArea(state.globalProtectedPositions, teeLamp, 1, 6);
-                if (isFirstHole) {
-                    int[] back = new int[] { -forward[0], -forward[1] };
-                    BlockPos hubApprox = placedTee.add(back[0] * 9, 0, back[1] * 9);
-                    CoursePlacementService.addProtectedColumnArea(state.globalProtectedPositions, hubApprox, 9, 7);
-                }
-            }
-
-            int builtIndex = state.nextHoleIndex;
-            state.nextHoleIndex++;
-
-            if (state.nextHoleIndex <= state.holeSpecs.size()) {
-                broadcastProgress(server, "Built hole " + builtIndex + "/" + HOLE_COUNT + ". Building hole " + state.nextHoleIndex + "...");
-            } else {
-                broadcastProgress(server, "Built hole " + builtIndex + "/" + HOLE_COUNT + ". Finalizing...");
-            }
-
+            AutoCourseScenarioResult result = placeCourseIncrementally(world, state.origin, state.course, false);
+            int catalogIndex = practiceCourseStorage.saveReusable(server, result.course(), result.placedState(), "autocourse", false);
+            broadcastSuccess(server, "Course '" + state.courseName + "' built and saved as #" + catalogIndex + ". Use [LIST COURSES] to start a round.");
+            broadcastListCoursesButton(server);
         } catch (Exception ex) {
-            broadcastError(server, "Hole " + state.nextHoleIndex + " failed: " + ex.getMessage() + ". Canceling.");
-            McdgMod.LOGGER.error("AutoCourseService hole {} failed", state.nextHoleIndex, ex);
+            broadcastError(server, "Course build failed: " + ex.getMessage());
+            McdgMod.LOGGER.error("AutoCourseService build failed", ex);
             rollbackAll(server);
-            state = null;
         }
+        state = null;
     }
-
     private void finalizeCourse(MinecraftServer server) {
         if (state == null || state.builtHoles.isEmpty()) {
             state = null;
@@ -386,6 +301,10 @@ public final class AutoCourseService {
      * No central hub is built (skipHub=true for all holes).
      */
     public AutoCourseScenarioResult placeCourseIncrementally(ServerWorld world, BlockPos hubOrigin, Course course) {
+        return placeCourseIncrementally(world, hubOrigin, course, true);
+    }
+
+    public AutoCourseScenarioResult placeCourseIncrementally(ServerWorld world, BlockPos hubOrigin, Course course, boolean skipHub) {
         List<Hole> builtHoles = new ArrayList<>();
         Map<BlockPos, net.minecraft.block.BlockState> mergedOriginals = new HashMap<>();
         Set<BlockPos> globalProtectedPositions = new HashSet<>();
@@ -623,7 +542,8 @@ public final class AutoCourseService {
         private final UUID ownerUuid;
         private final String courseName;
         private final long seed;
-        private final List<HoleSpec> holeSpecs;
+        private final Course course;
+        private final BlockPos origin;
         private final ServerWorld world;
         private int nextHoleIndex = 1;
         private int ticksWaited = TICKS_BETWEEN_HOLES;
@@ -636,11 +556,12 @@ public final class AutoCourseService {
         private final Map<Integer, BlockPos> alternates = new HashMap<>();
         private final Map<Integer, Integer> effectivePars = new HashMap<>();
 
-        private AutoBuildState(UUID ownerUuid, String courseName, long seed, List<HoleSpec> holeSpecs, ServerWorld world) {
+        private AutoBuildState(UUID ownerUuid, String courseName, long seed, Course course, BlockPos origin, ServerWorld world) {
             this.ownerUuid = ownerUuid;
             this.courseName = courseName;
             this.seed = seed;
-            this.holeSpecs = holeSpecs;
+            this.course = course;
+            this.origin = origin;
             this.world = world;
         }
     }

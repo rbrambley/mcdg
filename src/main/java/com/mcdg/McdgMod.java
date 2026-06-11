@@ -95,6 +95,7 @@ public final class McdgMod implements ModInitializer {
     private static final com.mcdg.game.AutoCourseService AUTO_COURSE_SERVICE = new com.mcdg.game.AutoCourseService(
             COURSE_PLACEMENT_SERVICE,
             COURSE_PLACEMENT_VALIDATOR,
+            COURSE_GENERATOR,
             PRACTICE_COURSE_STORAGE
     );
         private static final ThrowAutoTestService THROW_AUTO_TEST_SERVICE = new ThrowAutoTestService(

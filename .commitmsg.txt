@@ -1,0 +1,11 @@
+Step 6: Unify autocourse with SeededCourseGenerator + placeCourseIncrementally
+
+- AutoCourseService now accepts CourseGenerator in constructor
+- executeAutoCourseNamed and executeAutoCourse generate Course via SeededCourseGenerator
+- tick() calls placeCourseIncrementally in one shot instead of per-hole tick loop
+- placeCourseIncrementally overload accepts skipHub parameter
+- McdgMod passes COURSE_GENERATOR to AutoCourseService
+
+Generated with [Devin](https://cli.devin.ai/docs)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
