@@ -44,7 +44,7 @@ import net.minecraft.world.Heightmap;
 public final class HoleProgressTracker {
     private static final int BASKET_RADIUS_BLOCKS = 2;
     private static final int BASKET_HEIGHT_TOLERANCE = 4;
-    private static final int BASKET_GREEN_RADIUS_BLOCKS = 7;
+    private static final int BASKET_GREEN_RADIUS_BLOCKS = 14;
     private static final int BASKET_GREEN_HEIGHT_BLOCKS = 8;
     // Proximity make radius: flat putts within this distance that hit the basket column count as makes
     // Temporary safety rollback: keep core throw/lie flow stable while strict landing penalties are reworked.
