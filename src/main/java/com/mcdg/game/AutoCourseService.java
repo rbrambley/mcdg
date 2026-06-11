@@ -116,7 +116,7 @@ public final class AutoCourseService {
 
         final String name = trimmed;
         source.sendFeedback(() -> Text.literal("Auto-building course '" + name + "' (" + HOLE_COUNT + " holes) starting at your position...").formatted(Formatting.GREEN), false);
-        source.sendFeedback(() -> Text.literal("Building hole 1/" + HOLE_COUNT + "...").formatted(Formatting.YELLOW), false);
+        source.sendFeedback(() -> Text.literal("Placing course holes, this may take a few seconds...").formatted(Formatting.YELLOW), false);
         return 1;
     }
     public int executeAutoCourse(ServerCommandSource source, String courseName, long seed) {
@@ -147,7 +147,7 @@ public final class AutoCourseService {
 
 
         source.sendFeedback(() -> Text.literal("Auto-building course '" + trimmed + "' (" + HOLE_COUNT + " holes) starting at your position...").formatted(Formatting.GREEN), false);
-        source.sendFeedback(() -> Text.literal("Building hole 1/" + HOLE_COUNT + "...").formatted(Formatting.YELLOW), false);
+        source.sendFeedback(() -> Text.literal("Placing course holes, this may take a few seconds...").formatted(Formatting.YELLOW), false);
         return 1;
     }
 
@@ -175,7 +175,9 @@ public final class AutoCourseService {
 
         ServerWorld world = state.world;
         try {
-            AutoCourseScenarioResult result = placeCourseIncrementally(world, state.origin, state.course, false);
+            AutoCourseScenarioResult result = placeCourseIncrementally(world, state.origin, state.course, false, msg -> {
+                broadcastProgress(server, msg);
+            });
             int catalogIndex = practiceCourseStorage.saveReusable(server, result.course(), result.placedState(), "autocourse", false);
             broadcastSuccess(server, "Course '" + state.courseName + "' built and saved as #" + catalogIndex + ". Use [LIST COURSES] to start a round.");
             broadcastListCoursesButton(server);
@@ -239,7 +241,7 @@ public final class AutoCourseService {
      */
     public AutoCourseScenarioResult runSynchronousScenario(ServerWorld world, BlockPos origin, long seed, String courseName) {
         Course course = generateOutwardConeCourse(seed, origin, 0.0f, 25, 80);
-        return placeCourseIncrementally(world, origin, course, true);
+        return placeCourseIncrementally(world, origin, course, true, null);
     }
 
     /**
@@ -252,6 +254,10 @@ public final class AutoCourseService {
     }
 
     public AutoCourseScenarioResult placeCourseIncrementally(ServerWorld world, BlockPos hubOrigin, Course course, boolean skipHub) {
+        return placeCourseIncrementally(world, hubOrigin, course, skipHub, null);
+    }
+
+    public AutoCourseScenarioResult placeCourseIncrementally(ServerWorld world, BlockPos hubOrigin, Course course, boolean skipHub, java.util.function.Consumer<String> progressMessage) {
         List<Hole> builtHoles = new ArrayList<>();
         Map<BlockPos, net.minecraft.block.BlockState> mergedOriginals = new HashMap<>();
         Set<BlockPos> globalProtectedPositions = new HashSet<>();
@@ -316,6 +322,10 @@ public final class AutoCourseService {
 
             CoursePlacementService.addProtectedColumnArea(globalProtectedPositions, actualTee, 2, 6);
             CoursePlacementService.addProtectedColumnArea(globalProtectedPositions, actualBasket.down(), 2, 8);
+
+            if (progressMessage != null) {
+                progressMessage.accept("Placed hole " + hole.index() + " of " + course.holes().size());
+            }
         }
 
         Course builtCourse = new Course(course.seed(), course.name(), builtHoles);
@@ -364,36 +374,81 @@ public final class AutoCourseService {
             return Math.abs(right) <= allowedRight;
         };
 
-        int[] teeForwardMin = { 0,   30,  80,  140, 160, 140,  90,  40,  60 };
-        int[] teeForwardMax = { 0,   60, 130,  190, 220, 200, 150,  90, 110 };
-        int[] teeRightMin   = { 0,  15,  30,  50,  60,  45,  30,  15,  40 };
-        int[] teeRightMax   = { 0,  25,  45,  75,  90,  70,  55,  35,  60 };
-        double[] basketAngleBias = { 0.0, 0.1, 0.15, 0.2, 0.1, -0.1, -0.2, -0.3, 0.4 };
+        // Phase-based distance ranges (blocks)
+        int[] minDistBlocks = { 0,  80,  80,  80,  60,  60,  40,  40,  40 };
+        int[] maxDistBlocks = { 0, 160, 160, 140, 120, 120,  90,  90,  80 };
+
+        // Phase-based basket angle base (radians), relative to forward direction
+        // Outbound (1-3): mostly forward, small spread
+        // Turnaround (4-6): angled back ~60-120 degrees
+        // Return (7-9): pulling back ~120-180 degrees
+        double[] basketAngleBase = {
+            0.0,
+            0.0,            // hole 1: straight out
+            0.15,           // hole 2: slight spread
+            0.25,           // hole 3: more spread
+            Math.PI * 0.45, // hole 4: ~80deg turn
+            Math.PI * 0.55, // hole 5: ~100deg turn
+            Math.PI * 0.65, // hole 6: ~117deg turn
+            Math.PI * 0.80, // hole 7: ~144deg back
+            Math.PI * 0.90, // hole 8: ~162deg back
+            Math.PI         // hole 9: ~180deg back toward baseline
+        };
+
+        final int MIN_HOLE_SPACING = 40;
+        final int MIN_TEE_TEE_BLOCKS = 35;
+        final int MIN_BASKET_BASKET_BLOCKS = 35;
+        final int MIN_TEE_PREV_BASKET_BLOCKS = 20;
+        final int MIN_BASKET_PREV_TEE_BLOCKS = 35;
+        List<int[]> midpoints = new ArrayList<>(); // {midX, midZ}
+        List<int[]> previousTees = new ArrayList<>();
+        List<int[]> previousBaskets = new ArrayList<>();
 
         List<Hole> holes = new ArrayList<>();
+        int prevBasketX = baseCenterX;
+        double prevHeadingX = fwdX;
+        double prevHeadingZ = fwdZ;
+
+        // Pick the teardrop loop direction once for the whole course
+        double globalAngleSign = random.nextBoolean() ? 1.0 : -1.0;
+        int prevBasketZ = baseCenterZ;
 
         for (int i = 1; i <= HOLE_COUNT; i++) {
-            int forwardDist = teeForwardMin[i - 1] + random.nextInt(teeForwardMax[i - 1] - teeForwardMin[i - 1] + 1);
-            int rightDist = teeRightMin[i - 1] + random.nextInt(teeRightMax[i - 1] - teeRightMin[i - 1] + 1);
-            if (random.nextBoolean()) {
-                rightDist = -rightDist;
+            int teeX, teeZ;
+            double teeFwdX = (i == 1) ? fwdX : prevHeadingX;
+            double teeFwdZ = (i == 1) ? fwdZ : prevHeadingZ;
+            double teeRightX = teeFwdZ;
+            double teeRightZ = -teeFwdX;
+            if (i == 1) {
+                // Hole 1 tee on base line, slight random offset
+                int rightOffset = (random.nextInt(11) - 5); // -5 to +5
+                teeX = baseCenterX + (int) Math.round(rightX * rightOffset);
+                teeZ = baseCenterZ + (int) Math.round(rightZ * rightOffset);
+            } else {
+                // Sequential: tee near previous basket, stepping along previous hole trajectory
+                int teeForward = 15 + random.nextInt(16); // 15-30 blocks past basket
+                int teeRight = (random.nextInt(31) - 15); // +/-15 blocks
+                teeX = prevBasketX + (int) Math.round(teeFwdX * teeForward + teeRightX * teeRight);
+                teeZ = prevBasketZ + (int) Math.round(teeFwdZ * teeForward + teeRightZ * teeRight);
             }
 
-            int teeX = baseCenterX + (int) Math.round(fwdX * forwardDist + rightX * rightDist);
-            int teeZ = baseCenterZ + (int) Math.round(fwdZ * forwardDist + rightZ * rightDist);
-
+            // Ensure tee is inside cone
             if (!inCone.test(teeX, teeZ)) {
-                int attempts = 0;
-                while (!inCone.test(teeX, teeZ) && attempts < 10) {
-                    rightDist = (int) (rightDist * 0.7);
-                    teeX = baseCenterX + (int) Math.round(fwdX * forwardDist + rightX * rightDist);
-                    teeZ = baseCenterZ + (int) Math.round(fwdZ * forwardDist + rightZ * rightDist);
-                    attempts++;
+                for (int attempt = 0; attempt < 10 && !inCone.test(teeX, teeZ); attempt++) {
+                    teeX = baseCenterX + (int) Math.round(fwdX * (20 + random.nextInt(21)));
+                    teeZ = baseCenterZ + (int) Math.round(fwdZ * (20 + random.nextInt(21)));
                 }
             }
 
-            int basketX, basketZ;
+            int basketX = 0, basketZ = 0;
+            boolean placed = false;
+            int placementAttempts = 0;
+            final int MAX_PLACEMENT_ATTEMPTS = 5;
+
+            while (!placed && placementAttempts < MAX_PLACEMENT_ATTEMPTS) {
+                placementAttempts++;
             if (i == HOLE_COUNT) {
+                // Hole 9 basket lands near base line, offset >= 30 from tee1
                 int hole9RightOffset = 30 + random.nextInt(31);
                 if (random.nextBoolean()) {
                     hole9RightOffset = -hole9RightOffset;
@@ -406,19 +461,115 @@ public final class AutoCourseService {
                     basketZ = baseCenterZ + (int) Math.round(rightZ * hole9RightOffset);
                 }
             } else {
-                double basketAngle = Math.toRadians(facingYaw) + basketAngleBias[i - 1] + (random.nextDouble() - 0.5) * 0.3;
-                int distBlocks = HOLE_DIST_MIN_BLOCKS + random.nextInt(HOLE_DIST_MAX_BLOCKS - HOLE_DIST_MIN_BLOCKS + 1);
+                double angleBase = basketAngleBase[i];
+                double angleSign = globalAngleSign;
+                double jitter = (random.nextDouble() - 0.5) * 0.4;
+                double basketAngle = Math.toRadians(facingYaw) + (angleBase * angleSign) + jitter;
+
+                int distBlocks;
+                if (placementAttempts > 1) {
+                    distBlocks = maxDistBlocks[i]; // use max for retries
+                } else {
+                    distBlocks = minDistBlocks[i] + random.nextInt(maxDistBlocks[i] - minDistBlocks[i] + 1);
+                }
+
                 basketX = teeX + (int) Math.round(Math.cos(basketAngle) * distBlocks);
                 basketZ = teeZ + (int) Math.round(Math.sin(basketAngle) * distBlocks);
+
+                // Shrink distance if out of cone
                 if (!inCone.test(basketX, basketZ)) {
-                    int attempts = 0;
-                    while (!inCone.test(basketX, basketZ) && attempts < 10) {
+                    for (int attempt = 0; attempt < 10 && !inCone.test(basketX, basketZ); attempt++) {
                         distBlocks = (int) (distBlocks * 0.85);
                         basketX = teeX + (int) Math.round(Math.cos(basketAngle) * distBlocks);
                         basketZ = teeZ + (int) Math.round(Math.sin(basketAngle) * distBlocks);
-                        attempts++;
                     }
                 }
+            }
+
+            // Spacing checks against all previous holes
+            int midX = (teeX + basketX) / 2;
+            int midZ = (teeZ + basketZ) / 2;
+            boolean tooClose = false;
+
+            for (int[] prev : midpoints) {
+                double dist = Math.hypot(midX - prev[0], midZ - prev[1]);
+                if (dist < MIN_HOLE_SPACING) {
+                    tooClose = true;
+                    break;
+                }
+            }
+
+            if (!tooClose) {
+                for (int[] prevTee : previousTees) {
+                    double dist = Math.hypot(teeX - prevTee[0], teeZ - prevTee[1]);
+                    if (dist < MIN_TEE_TEE_BLOCKS) {
+                        tooClose = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!tooClose) {
+                for (int[] prevBasket : previousBaskets) {
+                    double dist = Math.hypot(basketX - prevBasket[0], basketZ - prevBasket[1]);
+                    if (dist < MIN_BASKET_BASKET_BLOCKS) {
+                        tooClose = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!tooClose) {
+                for (int[] prevTee : previousTees) {
+                    double dist = Math.hypot(basketX - prevTee[0], basketZ - prevTee[1]);
+                    if (dist < MIN_BASKET_PREV_TEE_BLOCKS) {
+                        tooClose = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!tooClose) {
+                for (int b = 0; b < previousBaskets.size(); b++) {
+                    if (b == previousBaskets.size() - 1) continue; // allow chaining from immediate predecessor
+                    int[] prevBasket = previousBaskets.get(b);
+                    double dist = Math.hypot(teeX - prevBasket[0], teeZ - prevBasket[1]);
+                    if (dist < MIN_TEE_PREV_BASKET_BLOCKS) {
+                        tooClose = true;
+                        break;
+                    }
+                }
+            }
+
+            if (tooClose && i > 1 && placementAttempts < MAX_PLACEMENT_ATTEMPTS) {
+                // Retry: shift tee further along trajectory and re-roll basket
+                int retryForward = 25 + random.nextInt(21);
+                int retryRight = (random.nextInt(21) - 10);
+                teeX = prevBasketX + (int) Math.round(teeFwdX * retryForward + teeRightX * retryRight);
+                teeZ = prevBasketZ + (int) Math.round(teeFwdZ * retryForward + teeRightZ * retryRight);
+                if (!inCone.test(teeX, teeZ)) {
+                    teeX = prevBasketX + (int) Math.round(teeFwdX * 20);
+                    teeZ = prevBasketZ + (int) Math.round(teeFwdZ * 20);
+                }
+                continue;
+            }
+
+            placed = true;
+            }
+
+            midpoints.add(new int[]{(teeX + basketX) / 2, (teeZ + basketZ) / 2});
+            previousTees.add(new int[]{teeX, teeZ});
+            previousBaskets.add(new int[]{basketX, basketZ});
+            prevBasketX = basketX;
+            prevBasketZ = basketZ;
+
+            // Update trajectory heading for next hole
+            double headingX = basketX - teeX;
+            double headingZ = basketZ - teeZ;
+            double headingLen = Math.hypot(headingX, headingZ);
+            if (headingLen > 0) {
+                prevHeadingX = headingX / headingLen;
+                prevHeadingZ = headingZ / headingLen;
             }
 
             int relTeeX = teeX - ox;
@@ -445,6 +596,7 @@ public final class AutoCourseService {
             );
             holes.add(hole);
         }
+
 
         String name = com.mcdg.world.SeededCourseGenerator.generateCourseName(random);
         return new Course(seed, name, holes);

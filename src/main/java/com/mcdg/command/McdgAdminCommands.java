@@ -1294,6 +1294,8 @@ public final class McdgAdminCommands {
                 int builtCourses = 0;
 
                 for (int c = 0; c < courseCount; c++) {
+                    int currentCourseNum = c + 1;
+                    source.sendFeedback(() -> Text.literal("Building resort surround course " + currentCourseNum + "/" + courseCount + "...").formatted(Formatting.YELLOW), true);
                     double angle = (2.0 * Math.PI * c) / courseCount + (random.nextDouble() * 0.4 - 0.2);
                     int distance = minDistance + random.nextInt(maxDistance - minDistance + 1);
                     int hubX = center.getX() + (int) Math.round(Math.cos(angle) * distance);
@@ -1305,11 +1307,17 @@ public final class McdgAdminCommands {
                     Course course = autoCourseService.generateOutwardConeCourse(seed, center, facingYaw, distance, 80);
 
                     try {
-                        AutoCourseService.AutoCourseScenarioResult result = autoCourseService.placeCourseIncrementally(world, hubOrigin, course, true);
+                        AutoCourseService.AutoCourseScenarioResult result = autoCourseService.placeCourseIncrementally(world, hubOrigin, course, true, msg -> {
+                            source.sendFeedback(() -> Text.literal(msg).formatted(Formatting.YELLOW), true);
+                        });
                         int catalogIndex = practiceCourseStorage.saveReusable(source.getServer(), result.course(), result.placedState(), "resort-surround", false);
                         builtCourses++;
+                        int completedCourseNum = builtCourses;
+                        source.sendFeedback(() -> Text.literal("Surround course " + completedCourseNum + " complete.").formatted(Formatting.GREEN), true);
                         McdgMod.LOGGER.info("Resort surround course {} placed at ({}, {}), saved as catalog #{}", builtCourses, hubX, hubZ, catalogIndex);
                     } catch (Exception ex) {
+                        int failedCourseNum = c + 1;
+                        source.sendFeedback(() -> Text.literal("Surround course " + failedCourseNum + " failed: " + ex.getMessage()).formatted(Formatting.RED), true);
                         McdgMod.LOGGER.warn("Resort surround course {} failed at ({}, {}): {}", c + 1, hubX, hubZ, ex.getMessage());
                     }
                 }

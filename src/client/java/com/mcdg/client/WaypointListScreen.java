@@ -31,6 +31,7 @@ public class WaypointListScreen extends Screen {
         clearChildren();
         int startX = this.width / 2 - 100;
         int startY = 50;
+        int maxTextWidth = 105; // leave room before Teleport button at startX + 110
         int visibleEnd = Math.min(waypoints.size(), scrollOffset + VISIBLE_ROWS);
 
         for (int i = scrollOffset; i < visibleEnd; i++) {
@@ -76,10 +77,12 @@ public class WaypointListScreen extends Screen {
 
         int startX = this.width / 2 - 100;
         int startY = 50;
+        int maxTextWidth = 105; // leave room before Teleport button at startX + 110
         int visibleEnd = Math.min(waypoints.size(), scrollOffset + VISIBLE_ROWS);
         for (int i = scrollOffset; i < visibleEnd; i++) {
             WaypointManager.ClientWaypoint wp = waypoints.get(i);
-            String label = wp.name() + " (" + wp.x() + ", " + wp.y() + ", " + wp.z() + ")";
+            String fullLabel = wp.name() + " (" + wp.x() + ", " + wp.y() + ", " + wp.z() + ")";
+            String label = this.textRenderer.trimToWidth(fullLabel, maxTextWidth);
             context.drawTextWithShadow(this.textRenderer, Text.literal(label), startX, startY + (i - scrollOffset) * ROW_HEIGHT + 6, 0xAAAAAA);
         }
     }

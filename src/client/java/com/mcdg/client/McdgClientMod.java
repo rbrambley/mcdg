@@ -14,6 +14,8 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+import net.minecraft.particle.DustParticleEffect;
+import org.joml.Vector3f;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.item.ModelPredicateProviderRegistry;
 
@@ -25,6 +27,7 @@ public final class McdgClientMod implements ClientModInitializer {
     private static final Identifier TRAINING_DISC_CHARGED_PREDICATE = new Identifier("mcdg", "charged");
 
     private static RunningRoundScoreState runningRoundScoreState;
+    private static int basketBeamTick = 0;
 
     @Override
     public void onInitializeClient() {
@@ -58,6 +61,26 @@ public final class McdgClientMod implements ClientModInitializer {
             MiniMapRenderer.tickMiniMapJoinPrime(client);
             CinematicOverlay.tick(client);
             RoundInfoOverlay.updateTweens(MiniMapRenderer.getMiniMapState());
+                    // Spawn lime beacon beam above active basket during rounds
+                    if (client.world != null) {
+                        MiniMapState state = MiniMapRenderer.getMiniMapState();
+                        if (state != null) {
+                            basketBeamTick++;
+                            if (basketBeamTick % 4 == 0) {
+                                int bx = state.basketX();
+                                int bz = state.basketZ();
+                                int by = client.world.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, bx, bz);
+                                for (int j = 0; j < 30; j++) {
+                                    double py = by + 1.0 + j * 0.6;
+                                    client.world.addParticle(
+                                            new DustParticleEffect(new Vector3f(0.5f, 1.0f, 0.2f), 0.5f),
+                                            bx + 0.5, py, bz + 0.5,
+                                            0.0, 0.0, 0.0
+                                    );
+                                }
+                            }
+                        }
+                    }
         });
         // When a chunk arrives from the server, reset the minimap rebuild timer so the
         // next render frame picks up the newly loaded terrain rather than waiting up to
