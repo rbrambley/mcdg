@@ -34,10 +34,10 @@ import net.minecraft.util.math.BlockPos;
 public final class AutoCourseService {
     private static final int HOLE_COUNT = 9;
     private static final int TICKS_BETWEEN_HOLES = 20;
-    private static final int MIN_DISTANCE_FEET = 180;
-    private static final int MAX_DISTANCE_FEET = 600;
-    private static final int PAR3_MAX_FEET = 400;
-    private static final int PAR4_MAX_FEET = 700;
+    private static final int MIN_DISTANCE_FEET = 120;
+    private static final int MAX_DISTANCE_FEET = 1400;
+    private static final int PAR3_MAX_FEET = 450;
+    private static final int PAR4_MAX_FEET = 900;
     private static final int MIN_FAIRWAY_WIDTH = 4;
     private static final int MAX_FAIRWAY_WIDTH = 10;
     private static final int COURSE_RADIUS_MIN = 80;
@@ -375,8 +375,8 @@ public final class AutoCourseService {
         };
 
         // Phase-based distance ranges (blocks)
-        int[] minDistBlocks = { 0,  80,  80,  80,  60,  60,  40,  40,  40 };
-        int[] maxDistBlocks = { 0, 160, 160, 140, 120, 120,  90,  90,  80 };
+        int[] minDistBlocks = { 0, 150, 180, 200, 100, 100,  80,  70,  60 };
+        int[] maxDistBlocks = { 0, 300, 400, 450, 250, 220, 180, 160, 140 };
 
         // Phase-based basket angle base (radians), relative to forward direction
         // Outbound (1-3): mostly forward, small spread
@@ -390,13 +390,13 @@ public final class AutoCourseService {
             Math.PI * 0.45, // hole 4: ~80deg turn
             Math.PI * 0.55, // hole 5: ~100deg turn
             Math.PI * 0.65, // hole 6: ~117deg turn
-            Math.PI * 0.80, // hole 7: ~144deg back
-            Math.PI * 0.90, // hole 8: ~162deg back
-            Math.PI         // hole 9: ~180deg back toward baseline
+            Math.PI * 0.70, // hole 7: ~126deg back
+            Math.PI * 0.78, // hole 8: ~140deg back
+            Math.PI * 0.86  // hole 9: ~155deg back toward baseline
         };
 
         final int MIN_HOLE_SPACING = 40;
-        final int MIN_TEE_TEE_BLOCKS = 35;
+        final int MIN_TEE_TEE_BLOCKS = 45;
         final int MIN_BASKET_BASKET_BLOCKS = 35;
         final int MIN_TEE_PREV_BASKET_BLOCKS = 20;
         final int MIN_BASKET_PREV_TEE_BLOCKS = 35;
@@ -426,7 +426,7 @@ public final class AutoCourseService {
                 teeZ = baseCenterZ + (int) Math.round(rightZ * rightOffset);
             } else {
                 // Sequential: tee near previous basket, stepping along previous hole trajectory
-                int teeForward = 15 + random.nextInt(16); // 15-30 blocks past basket
+                int teeForward = 35 + random.nextInt(21); // 35-55 blocks past basket
                 int teeRight = (random.nextInt(31) - 15); // +/-15 blocks
                 teeX = prevBasketX + (int) Math.round(teeFwdX * teeForward + teeRightX * teeRight);
                 teeZ = prevBasketZ + (int) Math.round(teeFwdZ * teeForward + teeRightZ * teeRight);
@@ -541,17 +541,21 @@ public final class AutoCourseService {
                 }
             }
 
-            if (tooClose && i > 1 && placementAttempts < MAX_PLACEMENT_ATTEMPTS) {
-                // Retry: shift tee further along trajectory and re-roll basket
-                int retryForward = 25 + random.nextInt(21);
-                int retryRight = (random.nextInt(21) - 10);
-                teeX = prevBasketX + (int) Math.round(teeFwdX * retryForward + teeRightX * retryRight);
-                teeZ = prevBasketZ + (int) Math.round(teeFwdZ * retryForward + teeRightZ * retryRight);
-                if (!inCone.test(teeX, teeZ)) {
-                    teeX = prevBasketX + (int) Math.round(teeFwdX * 20);
-                    teeZ = prevBasketZ + (int) Math.round(teeFwdZ * 20);
+            if (tooClose && i > 1) {
+                if (placementAttempts < MAX_PLACEMENT_ATTEMPTS) {
+                    // Retry: shift tee further along trajectory and re-roll basket
+                    int retryForward = 50 + random.nextInt(26);
+                    int retryRight = (random.nextInt(21) - 10);
+                    teeX = prevBasketX + (int) Math.round(teeFwdX * retryForward + teeRightX * retryRight);
+                    teeZ = prevBasketZ + (int) Math.round(teeFwdZ * retryForward + teeRightZ * retryRight);
+                    if (!inCone.test(teeX, teeZ)) {
+                        teeX = prevBasketX + (int) Math.round(teeFwdX * 20);
+                        teeZ = prevBasketZ + (int) Math.round(teeFwdZ * 20);
+                    }
+                    continue;
+                } else {
+                    throw new RuntimeException("Could not place hole " + i + " with sufficient spacing from previous holes");
                 }
-                continue;
             }
 
             placed = true;
