@@ -301,6 +301,13 @@ public final class AutoCourseService {
             }
 
             int actualFeet = layoutValidator.distanceFeetFromBlocks(actualTee.getX(), actualTee.getZ(), actualBasket.getX(), actualBasket.getZ());
+            if (actualFeet < MIN_DISTANCE_FEET) {
+                placementService.resetPlacedCourse(world, placed);
+                for (Map.Entry<BlockPos, net.minecraft.block.BlockState> entry : mergedOriginals.entrySet()) {
+                    world.setBlockState(entry.getKey(), entry.getValue(), Block.NOTIFY_ALL);
+                }
+                throw new RuntimeException("Hole " + hole.index() + " too short after terrain resolution: " + actualFeet + " ft (min " + MIN_DISTANCE_FEET + ")");
+            }
             int effectivePar = placed.effectiveHolePars().getOrDefault(hole.index(), computePar(actualFeet));
             Hole actualHole = new Hole(
                     hole.index(), effectivePar, actualFeet,
@@ -554,7 +561,7 @@ public final class AutoCourseService {
                     }
                     continue;
                 } else {
-                    throw new RuntimeException("Could not place hole " + i + " with sufficient spacing from previous holes");
+                    McdgMod.LOGGER.warn("Hole {} could not achieve ideal spacing after {} attempts; accepting best position", i, MAX_PLACEMENT_ATTEMPTS);
                 }
             }
 
