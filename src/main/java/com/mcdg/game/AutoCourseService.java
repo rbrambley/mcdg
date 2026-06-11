@@ -80,6 +80,13 @@ public final class AutoCourseService {
         );
     }
 
+    public int executeAutoCourseNoName(ServerCommandSource source) {
+        long seed = java.util.concurrent.ThreadLocalRandom.current().nextLong();
+        float yaw = source.getPlayer() != null ? source.getPlayer().getYaw() : 0.0f;
+        Course preview = courseGenerator.generate(seed, HOLE_COUNT, yaw);
+        return executeAutoCourseNamed(source, preview.name());
+    }
+
     public int executeAutoCourseNamed(ServerCommandSource source, String courseName) {
         ServerPlayerEntity player = source.getPlayer();
         if (player == null) {
@@ -376,7 +383,44 @@ public final class AutoCourseService {
         return new AutoCourseScenarioResult(builtCourse, mergedState);
     }
 
-    List<HoleSpec> generateHoleSpecsFromOrigin(long seed, BlockPos origin) {
+    /**
+     * Generates a compact 9-hole Course using the spiral layout from generateHoleSpecsFromOrigin.
+     * All hole positions are relative to the origin so placeCourseIncrementally can place them.
+     */
+    public Course generateCompactCourse(long seed, BlockPos origin) {
+        java.util.Random random = new java.util.Random(seed);
+        List<HoleSpec> specs = generateHoleSpecsFromOrigin(seed, origin);
+        int signatureHoleIndex = random.nextInt(specs.size()) + 1;
+
+        List<Hole> holes = new ArrayList<>();
+        for (HoleSpec spec : specs) {
+            int relTeeX = spec.teeX - origin.getX();
+            int relTeeZ = spec.teeZ - origin.getZ();
+            int relBasketX = spec.basketX - origin.getX();
+            int relBasketZ = spec.basketZ - origin.getZ();
+            int localBasketX = spec.basketX - spec.teeX;
+            int localBasketZ = spec.basketZ - spec.teeZ;
+
+            int distanceFeet = layoutValidator.distanceFeetFromBlocks(spec.teeX, spec.teeZ, spec.basketX, spec.basketZ);
+            int par = computePar(distanceFeet);
+
+            Hole hole = new Hole(
+                    spec.holeIndex,
+                    par,
+                    distanceFeet,
+                    new TeePoint(relTeeX, 64, relTeeZ),
+                    new BasketPoint(relBasketX, 64, relBasketZ, spec.basketHeight),
+                    List.of(new FairwaySegment(0, 0, localBasketX, localBasketZ, spec.fairwayWidth)),
+                    spec.holeIndex == signatureHoleIndex ? SignatureHoleType.ISLAND_GREEN : SignatureHoleType.NONE
+            );
+            holes.add(hole);
+        }
+
+        String name = com.mcdg.world.SeededCourseGenerator.generateCourseName(random);
+        return new Course(seed, name, holes);
+    }
+
+    public List<HoleSpec> generateHoleSpecsFromOrigin(long seed, BlockPos origin) {
         java.util.Random random = new java.util.Random(seed);
         List<HoleSpec> specs = new ArrayList<>();
 

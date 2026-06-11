@@ -111,7 +111,16 @@ public final class ResortBuilder {
                             PlacementUtils.setTrackedBlock(world, clearPos, Blocks.AIR.getDefaultState(), originalBlocks);
                         }
                     }
-                } else if (diff < 0) {
+                }
+                // Clear vegetation above surface (trees, vines, leaves) within compound
+                int clearUpTo = Math.max(sy, baseY) + 25;
+                for (int y = sy + 1; y <= clearUpTo; y++) {
+                	BlockPos clearPos = new BlockPos(x, y, z);
+                	if (!protectedPositions.contains(clearPos) && !world.getBlockState(clearPos).isAir()) {
+                		PlacementUtils.setTrackedBlock(world, clearPos, Blocks.AIR.getDefaultState(), originalBlocks);
+                	}
+                }
+                if (diff < 0) {
                     for (int y = sy + 1; y <= baseY; y++) {
                         BlockPos fillPos = new BlockPos(x, y, z);
                         if (!protectedPositions.contains(fillPos)) {

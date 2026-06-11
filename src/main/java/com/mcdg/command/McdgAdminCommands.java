@@ -335,6 +335,7 @@ public final class McdgAdminCommands {
                                                 courseManager,
                                                 roundStateManager,
                                                 practiceCourseStorage,
+                                                playerRoundSessionStorage,
                                                 IntegerArgumentType.getInteger(context, "index")
                                         ))))
                         .then(literal("gotocoursebyindex").requires(McdgAdminCommands::canUseAdminCommands)
@@ -1229,6 +1230,7 @@ public final class McdgAdminCommands {
                         ActiveCourseManager courseManager,
                         RoundStateManager roundStateManager,
                         PracticeCourseStorage practiceCourseStorage,
+                        com.mcdg.game.PlayerRoundSessionStorage playerRoundSessionStorage,
                         int oneBasedIndex
         ) {
                 Optional<PracticeCourseStorage.LoadedPracticeCourse> courseToRemove = practiceCourseStorage.loadReusableByIndex(source.getServer(), oneBasedIndex);
@@ -1247,11 +1249,15 @@ public final class McdgAdminCommands {
                 boolean wasActiveMatch = activeCatalogIndex != null && activeCatalogIndex == oneBasedIndex;
                 PlacedCourseState activePlaced = courseManager.getPlacedCourseState().orElse(null);
                 if (wasActiveMatch || courseManager.isRoundActive()) {
+                	java.util.List<UUID> participantsToClear = new java.util.ArrayList<>(courseManager.getActiveParticipantIds());
                         courseManager.setActiveCourse(null);
                         courseManager.clearPlacedCourseState();
                         courseManager.setActiveCourseCatalogIndex(null);
                         courseManager.setRoundActive(false);
                         clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
+                        for (UUID playerId : participantsToClear) {
+                        	playerRoundSessionStorage.clearPlayer(source.getServer(), playerId, com.mcdg.McdgMod.LOGGER);
+                        }
                         practiceCourseStorage.clear(source.getServer());
                         if (activePlaced != null) {
                                 ServerWorld activeWorld = source.getServer().getWorld(activePlaced.worldKey());
@@ -2315,6 +2321,21 @@ public final class McdgAdminCommands {
             }
         }
 
+        if (hasSavedSession) {
+        	boolean courseStillExists = false;
+        	for (MenuScreenSync.CourseEntry entry : courses) {
+        		if (savedCourseName.equalsIgnoreCase(entry.name())) {
+        			courseStillExists = true;
+        			break;
+        		}
+        	}
+        	if (!courseStillExists) {
+        		hasSavedSession = false;
+        		savedCourseName = "";
+        		savedHole = 0;
+        		savedStrokes = 0;
+        	}
+        }
         MenuScreenSync.Payload payload = new MenuScreenSync.Payload(
                 roundActive, courseLoaded, courseName,
                 activeCatalogIndex, activeHoleCount,
