@@ -89,7 +89,7 @@ public final class CoursePlacementConfig {
         public static final int ADJACENT_MIN_COLUMNS = 10;
         
         /** Maximum water carry distance (about 300 ft) */
-        public static final int MAX_CARRY_BLOCKS = 91;
+        public static final int MAX_CARRY_BLOCKS = 500;
 
         /** Minimum safe fairway width at alternate anchors (7 blocks wide) */
         public static final int SAFE_FAIRWAY_HALF_WIDTH = 3;
@@ -321,10 +321,10 @@ public final class CoursePlacementConfig {
         public static final int MAX_RETRIES = 5;
         
         /** Maximum water carry for par 5 routes */
-        public static final int PAR5_MAX_WATER_CARRY = WaterLanding.MAX_CARRY_BLOCKS;
+        public static final int PAR5_MAX_WATER_CARRY = 500;
         
         /** Maximum water carry for par 3/4 routes */
-        public static final int PAR34_MAX_WATER_CARRY = WaterLanding.MAX_CARRY_BLOCKS;
+        public static final int PAR34_MAX_WATER_CARRY = 500;
     }
 
     /**

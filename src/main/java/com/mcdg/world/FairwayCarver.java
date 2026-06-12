@@ -1,9 +1,11 @@
 package com.mcdg.world;
 
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 
 import net.minecraft.block.BlockState;
@@ -52,19 +54,66 @@ final class FairwayCarver {
             sideZ = 0;
         }
 
+        // Path analysis: identify water steps and plan island segments for significant water crossings.
+        boolean[] isWaterStep = new boolean[steps + 1];
+        int totalWaterSteps = 0;
+        for (int scan = 0; scan <= steps; scan++) {
+            double t = scan / (double) steps;
+            int scanX = (int) Math.round(startX + (endX - startX) * t);
+            int scanZ = (int) Math.round(startZ + (endZ - startZ) * t);
+            isWaterStep[scan] = CoursePlacementService.isWaterCrossingColumn(world, scanX, scanZ);
+            if (isWaterStep[scan]) {
+                totalWaterSteps++;
+            }
+        }
+
+        boolean islandMode = totalWaterSteps > 60;
+        boolean[] shouldCarveStep = new boolean[steps + 1];
+        Arrays.fill(shouldCarveStep, true);
+
+        if (islandMode) {
+            long seed = ((long) startX * 73856093L) ^ ((long) startZ * 19349663L) ^ (long) steps;
+            Random random = new Random(seed);
+            boolean carving = true;
+            int run = 0;
+            int segmentLength = 60 + random.nextInt(31);
+            int gapLength = 20 + random.nextInt(21);
+            for (int scan = 0; scan <= steps; scan++) {
+                if (carving) {
+                    run++;
+                    if (run >= segmentLength) {
+                        carving = false;
+                        run = 0;
+                    }
+                } else {
+                    if (isWaterStep[scan]) {
+                        shouldCarveStep[scan] = false;
+                    }
+                    run++;
+                    if (run >= gapLength) {
+                        carving = true;
+                        run = 0;
+                        segmentLength = 60 + random.nextInt(31);
+                        gapLength = 20 + random.nextInt(21);
+                    }
+                }
+            }
+        }
+
         for (int i = 0; i <= steps; i += stepStride) {
             double t = i / (double) steps;
             int x = (int) Math.round(startX + (endX - startX) * t);
             int z = (int) Math.round(startZ + (endZ - startZ) * t);
 
-            boolean waterColumn = CoursePlacementService.isWaterCrossingColumn(world, x, z);
+            boolean waterColumn = isWaterStep[i];
             if (waterColumn) {
                 waterCarryStreak++;
             } else {
                 waterCarryStreak = 0;
             }
 
-            if (i > 0
+            if (!islandMode
+                    && i > 0
                     && i < steps
                     && waterColumn
                     && (waterCarryStreak >= CoursePlacementConfig.WaterLanding.PATCH_MAX_CARRY || i - lastWaterPatchStep >= CoursePlacementConfig.WaterLanding.PATCH_INTERVAL)) {
@@ -89,6 +138,9 @@ final class FairwayCarver {
                 tunedRadius = Math.max(tunedRadius, Math.min(3, radius + 1));
             }
             BlockState pathState = CoursePlacementService.selectPathMaterial(world, center);
+
+            boolean skipCarve = islandMode && !shouldCarveStep[i];
+            if (!skipCarve) {
 
             for (int dx = -tunedRadius; dx <= tunedRadius; dx++) {
                 for (int dz = -tunedRadius; dz <= tunedRadius; dz++) {
@@ -133,6 +185,7 @@ final class FairwayCarver {
                         protectedPositions,
                         clearedTreeNodes
                     );
+            }
 
             // Add occasional light posts for navigation, keeping spacing so paths do not feel cluttered.
             if (placeLanterns && i - lastLanternStep >= 12 && shouldPlaceFairwayLantern(center.getX(), center.getZ())) {
@@ -149,15 +202,17 @@ final class FairwayCarver {
             }
         }
 
-        enforceWaterLandingContinuity(
-                world,
-                startX,
-                startZ,
-                endX,
-                endZ,
-                originalBlocks,
-                protectedPositions
-        );
+        if (!islandMode) {
+            enforceWaterLandingContinuity(
+                    world,
+                    startX,
+                    startZ,
+                    endX,
+                    endZ,
+                    originalBlocks,
+                    protectedPositions
+            );
+        }
     }
 
     static void clearConnectedTreeCluster(
