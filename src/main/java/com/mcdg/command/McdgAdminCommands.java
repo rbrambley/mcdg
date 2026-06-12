@@ -29,6 +29,8 @@ import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.CourseGenerator;
 import com.mcdg.world.ResortBuilder;
 import com.mcdg.world.ResortWaypointManager;
+import com.mcdg.world.WorldSpawnHandler;
+import com.mcdg.world.ResortData;
 import com.mcdg.net.WaypointRemovedSync;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -39,6 +41,8 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import java.util.ArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.Collection;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -69,6 +73,10 @@ public final class McdgAdminCommands {
         private static final String ADVANCED_COMMANDS_ENV = "MCDG_SHOW_ADVANCED_COMMANDS";
         private static final String ADVANCED_COMMANDS_PROPERTY = "mcdg.showAdvancedCommands";
         static final boolean SHOW_ADVANCED_COMMANDS = readAdvancedCommandVisibility();
+
+        private static final Map<UUID, PendingResortAction> PENDING_RESORT_ACTIONS = new ConcurrentHashMap<>();
+        private record PendingResortAction(BlockPos center, boolean overwrite) {}
+
     private McdgAdminCommands() {
     }
 
@@ -580,8 +588,40 @@ public final class McdgAdminCommands {
                                         context.getSource(),
                                         generator,
                                         autoCourseService,
-                                        practiceCourseStorage
-                                )))
+                                        practiceCourseStorage,
+                                        null,
+                                        null
+                                ))
+                                .then(argument("x", IntegerArgumentType.integer())
+                                        .then(argument("z", IntegerArgumentType.integer())
+                                                .executes(context -> executeBuildResort(
+                                                        context.getSource(),
+                                                        generator,
+                                                        autoCourseService,
+                                                        practiceCourseStorage,
+                                                        IntegerArgumentType.getInteger(context, "x"),
+                                                        IntegerArgumentType.getInteger(context, "z")
+                                                ))))
+                                .then(literal("overwrite").requires(McdgAdminCommands::canUseAdminCommands)
+                                        .requires(McdgAdminCommands::canUseAdvancedCommands)
+                                        .executes(context -> executeBuildResortOverwrite(
+                                                context.getSource(),
+                                                generator,
+                                                autoCourseService,
+                                                practiceCourseStorage
+                                        )))
+                                .then(literal("cancel").requires(McdgAdminCommands::canUseAdminCommands)
+                                        .requires(McdgAdminCommands::canUseAdvancedCommands)
+                                        .executes(context -> executeBuildResortCancel(
+                                                context.getSource()
+                                        ))))
+                        .then(literal("buildcamp").requires(McdgAdminCommands::canUseAdminCommands)
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                                .executes(context -> {
+                                    context.getSource().sendFeedback(() -> Text.literal(
+                                            "/mcdg buildcamp is deprecated. Use /mcdg buildresort instead.").formatted(Formatting.YELLOW), false);
+                                    return 1;
+                                }))
                         .then(literal("resetresort").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeResetResort(
@@ -1277,50 +1317,135 @@ public final class McdgAdminCommands {
                         ServerCommandSource source,
                         CourseGenerator generator,
                         AutoCourseService autoCourseService,
-                        PracticeCourseStorage practiceCourseStorage
+                        PracticeCourseStorage practiceCourseStorage,
+                        Integer x,
+                        Integer z
         ) {
                 ServerWorld world = source.getWorld();
-                BlockPos center = BlockPos.ofFloored(source.getPosition());
+                BlockPos center;
+                if (x != null && z != null) {
+                        center = new BlockPos(x, 64, z);
+                } else {
+                        center = BlockPos.ofFloored(source.getPosition());
+                }
 
+                ResortData existing = WorldSpawnHandler.loadResortData(source.getServer());
+                if (existing != null) {
+                        ServerPlayerEntity player = source.getPlayer();
+                        if (player != null) {
+                                PENDING_RESORT_ACTIONS.put(player.getUuid(), new PendingResortAction(center, false));
+                        }
+                        source.sendFeedback(() -> Text.literal(
+                                "A resort already exists at (" + existing.centerX + ", " + existing.centerZ + ")."
+                        ).formatted(Formatting.YELLOW), false);
+
+                        Text overwriteBtn = Text.literal("[OVERWRITE]").styled(style -> style
+                                .withColor(Formatting.RED)
+                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/mcdg buildresort overwrite"))
+                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Clear existing resort and rebuild"))));
+                        Text cancelBtn = Text.literal("[CANCEL]").styled(style -> style
+                                .withColor(Formatting.GRAY)
+                                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/mcdg buildresort cancel"))
+                                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Cancel operation"))));
+
+                        source.sendFeedback(() -> Text.literal("Choose an action: ").append(overwriteBtn).append(" ").append(cancelBtn), false);
+                        return 1;
+                }
+
+                BlockPos lobbyPos = doBuildResort(source, generator, autoCourseService, practiceCourseStorage, center);
+                world.setSpawnPos(lobbyPos, 0.0f);
+                return 1;
+        }
+
+        private static int executeBuildResortOverwrite(
+                        ServerCommandSource source,
+                        CourseGenerator generator,
+                        AutoCourseService autoCourseService,
+                        PracticeCourseStorage practiceCourseStorage
+        ) {
+                ServerPlayerEntity player = source.getPlayer();
+                if (player == null) {
+                        source.sendError(Text.literal("This command must be run by a player."));
+                        return 0;
+                }
+
+                PendingResortAction pending = PENDING_RESORT_ACTIONS.remove(player.getUuid());
+                if (pending == null) {
+                        source.sendError(Text.literal("No pending resort action. Run /mcdg buildresort first."));
+                        return 0;
+                }
+
+                ResortData existing = WorldSpawnHandler.loadResortData(source.getServer());
+                if (existing == null) {
+                        source.sendError(Text.literal("No existing resort found to overwrite."));
+                        return 0;
+                }
+
+                ServerWorld world = source.getWorld();
+                BlockPos oldCenter = existing.centerPos();
+                resetResortAt(world, oldCenter);
+
+                BlockPos lobbyPos = doBuildResort(source, generator, autoCourseService, practiceCourseStorage, oldCenter);
+                world.setSpawnPos(lobbyPos, 0.0f);
+                source.sendFeedback(() -> Text.literal("World spawn updated to new resort lobby.").formatted(Formatting.GREEN), true);
+                return 1;
+        }
+
+        private static int executeBuildResortCancel(ServerCommandSource source) {
+                ServerPlayerEntity player = source.getPlayer();
+                if (player != null) {
+                        PENDING_RESORT_ACTIONS.remove(player.getUuid());
+                }
+                source.sendFeedback(() -> Text.literal("Resort build cancelled.").formatted(Formatting.GRAY), false);
+                return 1;
+        }
+
+        private static BlockPos doBuildResort(
+                        ServerCommandSource source,
+                        CourseGenerator generator,
+                        AutoCourseService autoCourseService,
+                        PracticeCourseStorage practiceCourseStorage,
+                        BlockPos center
+        ) {
+                ServerWorld world = source.getWorld();
                 java.util.Map<BlockPos, BlockState> originalBlocks = new java.util.HashMap<>();
                 java.util.Set<BlockPos> protectedPositions = new java.util.HashSet<>();
 
                 ResortBuilder.placeResort(world, center, originalBlocks, protectedPositions);
 
-                // Build 3 surrounding courses
                 int courseCount = 3;
-                int minDistance = 100; // blocks from resort center
+                int minDistance = 100;
                 int maxDistance = 160;
                 java.util.Random random = new java.util.Random(world.getSeed());
                 int builtCourses = 0;
 
                 for (int c = 0; c < courseCount; c++) {
-                    int currentCourseNum = c + 1;
-                    source.sendFeedback(() -> Text.literal("Building resort surround course " + currentCourseNum + "/" + courseCount + "...").formatted(Formatting.YELLOW), true);
-                    double angle = (2.0 * Math.PI * c) / courseCount + (random.nextDouble() * 0.4 - 0.2);
-                    int distance = minDistance + random.nextInt(maxDistance - minDistance + 1);
-                    int hubX = center.getX() + (int) Math.round(Math.cos(angle) * distance);
-                    int hubZ = center.getZ() + (int) Math.round(Math.sin(angle) * distance);
-                    BlockPos hubOrigin = new BlockPos(hubX, 64, hubZ);
+                        int currentCourseNum = c + 1;
+                        source.sendFeedback(() -> Text.literal("Building resort surround course " + currentCourseNum + "/" + courseCount + "...").formatted(Formatting.YELLOW), true);
+                        double angle = (2.0 * Math.PI * c) / courseCount + (random.nextDouble() * 0.4 - 0.2);
+                        int distance = minDistance + random.nextInt(maxDistance - minDistance + 1);
+                        int hubX = center.getX() + (int) Math.round(Math.cos(angle) * distance);
+                        int hubZ = center.getZ() + (int) Math.round(Math.sin(angle) * distance);
+                        BlockPos hubOrigin = new BlockPos(hubX, 64, hubZ);
 
-                    long seed = random.nextLong();
-                    float facingYaw = (float) Math.toDegrees(angle);
-                    Course course = autoCourseService.generateOutwardConeCourse(seed, center, facingYaw, distance, 80);
+                        long seed = random.nextLong();
+                        float facingYaw = (float) Math.toDegrees(angle);
+                        Course course = autoCourseService.generateOutwardConeCourse(seed, center, facingYaw, distance, 80);
 
-                    try {
-                        AutoCourseService.AutoCourseScenarioResult result = autoCourseService.placeCourseIncrementally(world, hubOrigin, course, true, msg -> {
-                            source.sendFeedback(() -> Text.literal(msg).formatted(Formatting.YELLOW), true);
-                        });
-                        int catalogIndex = practiceCourseStorage.saveReusable(source.getServer(), result.course(), result.placedState(), "resort-surround", false);
-                        builtCourses++;
-                        int completedCourseNum = builtCourses;
-                        source.sendFeedback(() -> Text.literal("Surround course " + completedCourseNum + " complete.").formatted(Formatting.GREEN), true);
-                        McdgMod.LOGGER.info("Resort surround course {} placed at ({}, {}), saved as catalog #{}", builtCourses, hubX, hubZ, catalogIndex);
-                    } catch (Exception ex) {
-                        int failedCourseNum = c + 1;
-                        source.sendFeedback(() -> Text.literal("Surround course " + failedCourseNum + " failed: " + ex.getMessage()).formatted(Formatting.RED), true);
-                        McdgMod.LOGGER.warn("Resort surround course {} failed at ({}, {}): {}", c + 1, hubX, hubZ, ex.getMessage());
-                    }
+                        try {
+                                AutoCourseService.AutoCourseScenarioResult result = autoCourseService.placeCourseIncrementally(world, hubOrigin, course, true, msg -> {
+                                        source.sendFeedback(() -> Text.literal(msg).formatted(Formatting.YELLOW), true);
+                                });
+                                int catalogIndex = practiceCourseStorage.saveReusable(source.getServer(), result.course(), result.placedState(), "resort-surround", false);
+                                builtCourses++;
+                                int completedCourseNum = builtCourses;
+                                source.sendFeedback(() -> Text.literal("Surround course " + completedCourseNum + " complete.").formatted(Formatting.GREEN), true);
+                                McdgMod.LOGGER.info("Resort surround course {} placed at ({}, {}), saved as catalog #{}" , builtCourses, hubX, hubZ, catalogIndex);
+                        } catch (Exception ex) {
+                                int failedCourseNum = c + 1;
+                                source.sendFeedback(() -> Text.literal("Surround course " + failedCourseNum + " failed: " + ex.getMessage()).formatted(Formatting.RED), true);
+                                McdgMod.LOGGER.warn("Resort surround course {} failed at ({}, {}): {}", c + 1, hubX, hubZ, ex.getMessage());
+                        }
                 }
 
                 BlockPos lobbyPos = center.east(23);
@@ -1331,7 +1456,35 @@ public final class McdgAdminCommands {
                         ". " + finalBuiltCourses + " surround course(s) generated." +
                         " Use the courtyard paths to explore."
                 ), true);
-                return 1;
+                return lobbyPos;
+        }
+
+        private static void resetResortAt(ServerWorld world, BlockPos resortCenter) {
+                int clearRadius = 45;
+                int baseY = resortCenter.getY() - 1;
+                for (int dx = -clearRadius; dx <= clearRadius; dx++) {
+                        for (int dz = -clearRadius; dz <= clearRadius; dz++) {
+                                for (int y = baseY; y <= baseY + 15; y++) {
+                                        BlockPos clearPos = new BlockPos(resortCenter.getX() + dx, y, resortCenter.getZ() + dz);
+                                        world.setBlockState(clearPos, Blocks.AIR.getDefaultState(), Block.NOTIFY_ALL);
+                                }
+                                BlockPos surfacePos = new BlockPos(resortCenter.getX() + dx, baseY, resortCenter.getZ() + dz);
+                                world.setBlockState(surfacePos, Blocks.GRASS_BLOCK.getDefaultState(), Block.NOTIFY_ALL);
+                        }
+                }
+                int itemRemovalRadius = clearRadius;
+                var entities = world.getEntitiesByClass(net.minecraft.entity.ItemEntity.class,
+                        new net.minecraft.util.math.Box(
+                                resortCenter.getX() - itemRemovalRadius, baseY, resortCenter.getZ() - itemRemovalRadius,
+                                resortCenter.getX() + itemRemovalRadius, baseY + 20, resortCenter.getZ() + itemRemovalRadius
+                        ), entity -> true);
+                for (var item : entities) {
+                        item.discard();
+                }
+                ResortWaypointManager.clearResortWaypoint();
+                for (var player : world.getPlayers()) {
+                        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, new WaypointRemovedSync.Payload("MCDG Resort"));
+                }
         }
 
         private static int executeResetResort(ServerCommandSource source) {
