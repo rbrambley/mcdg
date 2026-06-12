@@ -36,6 +36,7 @@ import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.CourseGenerator;
 import com.mcdg.world.ResortWaypointManager;
+import com.mcdg.world.WorldSpawnHandler;
 import com.mcdg.world.PlacementAutoTestService;
 import com.mcdg.world.SeededCourseGenerator;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -177,6 +178,7 @@ public final class McdgMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::maybeStartHeadlessAutoTest);
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::maybeStartAutoStrictSetup);
         ServerLifecycleEvents.SERVER_STARTED.register(server -> LEADERBOARD_MANAGER.load(server));
+        ServerLifecycleEvents.SERVER_STARTED.register(WorldSpawnHandler::onServerStarted);
         ServerLifecycleEvents.SERVER_STOPPING.register(McdgMod::flushRoundSessionOnShutdown);
         ServerLifecycleEvents.SERVER_STOPPING.register(BUILD_COURSE_SESSION_MANAGER::save);
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> LEADERBOARD_MANAGER.save(server));
