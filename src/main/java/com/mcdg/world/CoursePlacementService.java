@@ -229,9 +229,12 @@ public final class CoursePlacementService {
                     originalBlocks,
                     protectedPositions
                 );
+                // Use exact basket target position; if over water, ensureLandIslandSurface
+                // will build an island at that exact location rather than pulling toward shore.
+                BlockPos basketTarget = SurfaceResolver.resolveSurfacePos(world, basketX, basketZ);
                 BlockPos basketSurface = ensureLandIslandSurface(
                     world,
-                    resolveHoleSurface(world, basketX, basketZ),
+                    basketTarget,
                     BASKET_ISLAND_RADIUS,
                     originalBlocks,
                     protectedPositions
