@@ -10,6 +10,7 @@ import com.mcdg.data.TeePoint;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.CourseGenerator;
+import com.mcdg.world.CoursePlacementConfig;
 import com.mcdg.world.HoleLayoutValidator;
 import com.mcdg.game.PlacedCourseState;
 import java.util.ArrayList;
@@ -178,7 +179,8 @@ public final class AutoCourseService {
             AutoCourseScenarioResult result = placeCourseIncrementally(world, state.origin, state.course, false, msg -> {
                 broadcastProgress(server, msg);
             });
-            int catalogIndex = practiceCourseStorage.saveReusable(server, result.course(), result.placedState(), "autocourse", false);
+            Course namedCourse = new Course(result.course().seed(), state.courseName, result.course().holes());
+            int catalogIndex = practiceCourseStorage.saveReusable(server, namedCourse, result.placedState(), "autocourse", false);
             broadcastSuccess(server, "Course '" + state.courseName + "' built and saved as #" + catalogIndex + ". Use [LIST COURSES] to start a round.");
             broadcastListCoursesButton(server);
         } catch (Exception ex) {
@@ -277,6 +279,32 @@ public final class AutoCourseService {
 
             int localBasketX = absBasketX - absTeeX;
             int localBasketZ = absBasketZ - absTeeZ;
+
+            int waterDx = absBasketX - absTeeX;
+            int waterDz = absBasketZ - absTeeZ;
+            int waterSteps = Math.max(Math.abs(waterDx), Math.abs(waterDz));
+            if (waterSteps > 0) {
+                int maxWaterRun = 0;
+                int currentWaterRun = 0;
+                for (int s = 0; s <= waterSteps; s++) {
+                    double t = s / (double) waterSteps;
+                    int sx = (int) Math.round(absTeeX + waterDx * t);
+                    int sz = (int) Math.round(absTeeZ + waterDz * t);
+                    if (CoursePlacementService.isWaterCrossingColumn(world, sx, sz)) {
+                        currentWaterRun++;
+                        maxWaterRun = Math.max(maxWaterRun, currentWaterRun);
+                    } else {
+                        currentWaterRun = 0;
+                    }
+                }
+                if (maxWaterRun > CoursePlacementConfig.WaterLanding.MAX_CARRY_BLOCKS) {
+                    double shrink = (double) CoursePlacementConfig.WaterLanding.MAX_CARRY_BLOCKS / maxWaterRun;
+                    localBasketX = (int) Math.round(localBasketX * shrink);
+                    localBasketZ = (int) Math.round(localBasketZ * shrink);
+                    absBasketX = absTeeX + localBasketX;
+                    absBasketZ = absTeeZ + localBasketZ;
+                }
+            }
 
             BlockPos center = new BlockPos(absTeeX, 64, absTeeZ);
             Hole candidate = new Hole(

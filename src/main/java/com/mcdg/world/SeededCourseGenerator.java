@@ -274,8 +274,16 @@ public final class SeededCourseGenerator implements CourseGenerator {
     }
 
     public static String generateCourseName(Random random) {
-        String[] first = {"Cedar", "Granite", "Maple", "Pine", "Redwood", "Summit"};
-        String[] second = {"Ridge", "Run", "Grove", "Valley", "Meadow", "Loop"};
+        String[] first = {
+            "Cedar", "Granite", "Maple", "Pine", "Redwood", "Summit",
+            "Crystal", "Whispering", "Thunder", "Golden", "Silver", "Emerald",
+            "Misty", "Shadow", "Sunset", "Stony", "Hidden", "Royal", "Iron", "Amber"
+        };
+        String[] second = {
+            "Ridge", "Run", "Grove", "Valley", "Meadow", "Loop",
+            "Peak", "Glen", "Point", "Bend", "Shore", "Creek",
+            "Hollow", "Knoll", "Pass", "Trail", "Heights", "Bluffs", "Vista", "Dunes"
+        };
         return first[random.nextInt(first.length)] + " " + second[random.nextInt(second.length)];
     }
 }

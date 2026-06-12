@@ -144,6 +144,7 @@ public final class McdgAdminCommands {
                                                 LongArgumentType.getLong(context, "seed")
                                         ))))
                         .then(literal("autocourse").requires(McdgAdminCommands::canUseAdminCommands)
+                                .executes(context -> autoCourseService.executeAutoCourseNoName(context.getSource()))
                                 .then(argument("name", StringArgumentType.greedyString())
                                         .executes(context -> autoCourseService.executeAutoCourseNamed(context.getSource(), StringArgumentType.getString(context, "name"))))
                                 .then(literal("cancel")

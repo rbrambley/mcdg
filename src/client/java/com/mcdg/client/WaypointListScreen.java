@@ -7,7 +7,10 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class WaypointListScreen extends Screen {
     private final Screen parent;
@@ -23,8 +26,19 @@ public class WaypointListScreen extends Screen {
 
     @Override
     protected void init() {
-        this.waypoints = WaypointManager.getWaypoints();
+        this.waypoints = dedupeByName(WaypointManager.getWaypoints());
         refreshButtons();
+    }
+
+    private static List<WaypointManager.ClientWaypoint> dedupeByName(List<WaypointManager.ClientWaypoint> raw) {
+        List<WaypointManager.ClientWaypoint> result = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (WaypointManager.ClientWaypoint wp : raw) {
+            if (seen.add(wp.name())) {
+                result.add(wp);
+            }
+        }
+        return result;
     }
 
     private void refreshButtons() {
@@ -46,7 +60,7 @@ public class WaypointListScreen extends Screen {
 
             addDrawableChild(ButtonWidget.builder(Text.literal("Remove"), btn -> {
                 WaypointManager.removeWaypoint(name);
-                this.waypoints = WaypointManager.getWaypoints();
+                this.waypoints = dedupeByName(WaypointManager.getWaypoints());
                 refreshButtons();
             }).dimensions(startX + 200, y, 60, 20).build());
         }
@@ -81,10 +95,20 @@ public class WaypointListScreen extends Screen {
         int visibleEnd = Math.min(waypoints.size(), scrollOffset + VISIBLE_ROWS);
         for (int i = scrollOffset; i < visibleEnd; i++) {
             WaypointManager.ClientWaypoint wp = waypoints.get(i);
-            String fullLabel = wp.name() + " (" + wp.x() + ", " + wp.y() + ", " + wp.z() + ")";
-            String label = this.textRenderer.trimToWidth(fullLabel, maxTextWidth);
-            context.drawTextWithShadow(this.textRenderer, Text.literal(label), startX, startY + (i - scrollOffset) * ROW_HEIGHT + 6, 0xAAAAAA);
+            String label = this.textRenderer.trimToWidth(wp.name(), maxTextWidth);
+            int color = resolveWaypointColor(wp);
+            context.drawTextWithShadow(this.textRenderer, Text.literal(label), startX, startY + (i - scrollOffset) * ROW_HEIGHT + 6, color);
         }
+    }
+
+    private static int resolveWaypointColor(WaypointManager.ClientWaypoint wp) {
+        if ("MCDG Resort".equals(wp.name())) {
+            return 0x00FFFF;
+        }
+        if (wp.color() == 0xFF66CC66) {
+            return 0x66CC66;
+        }
+        return 0xAAAAAA;
     }
 
     @Override

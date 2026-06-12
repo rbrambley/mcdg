@@ -131,7 +131,21 @@ final class FairwayCarver {
                 waterCarryStreak = 0;
             }
 
-            BlockPos center = SurfaceResolver.findPreferredSurfacePos(world, x, z, true, CoursePlacementConfig.SearchRadii.FAIRWAY);
+            BlockPos center;
+            if (islandMode && shouldCarveStep[i]) {
+                center = SurfaceResolver.resolveSurfacePos(world, x, z);
+                BlockPos landingCenter = CoursePlacementService.ensureWaterLandingSurface(
+                        world,
+                        center,
+                        CoursePlacementConfig.WaterLanding.PATCH_RADIUS,
+                        originalBlocks,
+                        protectedPositions
+                );
+                CoursePlacementService.clearHeadroom(world, landingCenter, CoursePlacementConfig.WaterLanding.PATCH_RADIUS, 5, originalBlocks, protectedPositions);
+                CoursePlacementService.addProtectedColumnArea(protectedPositions, landingCenter, CoursePlacementConfig.WaterLanding.PATCH_RADIUS, 5);
+            } else {
+                center = SurfaceResolver.findPreferredSurfacePos(world, x, z, true, CoursePlacementConfig.SearchRadii.FAIRWAY);
+            }
             int tunedRadius = Math.min(2, CoursePlacementService.tunedPathRadius(world, center, radius));
             if (steps - i <= CoursePlacementConfig.FinishGreen.APPROACH_WIDEN_DISTANCE
                     && CoursePlacementService.isWaterAdjacentArea(world, center, CoursePlacementConfig.WaterLanding.ENFORCE_SCAN_RADIUS, CoursePlacementConfig.WaterLanding.ADJACENT_MIN_COLUMNS)) {

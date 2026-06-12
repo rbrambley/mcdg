@@ -159,7 +159,7 @@ public final class McdgMenuScreen extends Screen {
                 y += BTN_H + BTN_GAP;
             }
             if (state.isAdmin()) {
-                addBtn("Build New Course", "/mcdg autocourse", cx, y, bw, TEXT_GOLD, BTN_TINT_GOLD); y += BTN_H + BTN_GAP;
+                addAutoCourseBtn("Build New Course", cx, y, bw, TEXT_GOLD, BTN_TINT_GOLD); y += BTN_H + BTN_GAP;
             }
             addWaypointListBtn("Waypoints", cx, y, bw, TEXT_WHITE, BTN_TINT_NONE);  y += BTN_H + BTN_GAP;
             addPageSwitchBtn("Browse Saved Courses →", Page.COURSES, cx, y, bw, TEXT_WHITE, BTN_TINT_NONE);
@@ -170,6 +170,17 @@ public final class McdgMenuScreen extends Screen {
         ButtonWidget btn = ButtonWidget.builder(Text.literal(label), b -> {
             if (client != null) {
                 client.setScreen(new WaypointListScreen(this));
+            }
+        }).dimensions(x, y, w, BTN_H).build();
+        contentButtons.add(btn);
+        buttonTints.add(new int[]{x, y, w, BTN_H, tint});
+        addDrawableChild(btn);
+    }
+
+    private void addAutoCourseBtn(String label, int x, int y, int w, int textColor, int tint) {
+        ButtonWidget btn = ButtonWidget.builder(Text.literal(label), b -> {
+            if (client != null) {
+                client.setScreen(new AutoCourseNameScreen(this));
             }
         }).dimensions(x, y, w, BTN_H).build();
         contentButtons.add(btn);
@@ -257,7 +268,7 @@ public final class McdgMenuScreen extends Screen {
 
     private void buildBuildPage(int cx, int cy, int bw) {
         int y = cy;
-        addBtn("Auto Build Course",   "/mcdg autocourse",  cx, y, bw, TEXT_GOLD,  BTN_TINT_GOLD);  y += BTN_H + BTN_GAP;
+        addAutoCourseBtn("Auto Build Course", cx, y, bw, TEXT_GOLD, BTN_TINT_GOLD);  y += BTN_H + BTN_GAP;
         addBtn("Manual Build Course", "/mcdg buildcourse", cx, y, bw, TEXT_WHITE, BTN_TINT_NONE);
     }
 

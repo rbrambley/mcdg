@@ -89,7 +89,7 @@ public final class CoursePlacementConfig {
         public static final int ADJACENT_MIN_COLUMNS = 10;
         
         /** Maximum water carry distance (about 300 ft) */
-        public static final int MAX_CARRY_BLOCKS = 500;
+        public static final int MAX_CARRY_BLOCKS = 90;
 
         /** Minimum safe fairway width at alternate anchors (7 blocks wide) */
         public static final int SAFE_FAIRWAY_HALF_WIDTH = 3;
@@ -138,7 +138,7 @@ public final class CoursePlacementConfig {
         }
 
         /** Radius of tee island */
-        public static final int TEE_RADIUS = 2;
+        public static final int TEE_RADIUS = 15;
         
         /** Radius of basket island */
         public static final int BASKET_RADIUS = 7;

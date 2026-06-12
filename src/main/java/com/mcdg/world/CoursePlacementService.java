@@ -221,10 +221,12 @@ public final class CoursePlacementService {
             int basketZ = hole.basket().z() + offsetZ;
             int fairwayWidth = FairwayCarver.resolveHoleFairwayWidth(hole);
 
-                // Build islands if unsafe and use normalized top-surface positions for reliable tee/basket visibility.
+                // Use exact tee target position; if over water, ensureLandIslandSurface
+                // will build an island at that exact location rather than pulling toward shore.
+                BlockPos teeTarget = SurfaceResolver.resolveSurfacePos(world, teeX, teeZ);
                 BlockPos teeSurface = ensureLandIslandSurface(
                     world,
-                    resolveHoleSurface(world, teeX, teeZ),
+                    teeTarget,
                     TEE_ISLAND_RADIUS,
                     originalBlocks,
                     protectedPositions
@@ -2383,7 +2385,7 @@ public final class CoursePlacementService {
         return id.contains("ocean") || id.contains("river") || id.contains("beach");
     }
 
-    static boolean isWaterCrossingColumn(ServerWorld world, int x, int z) {
+    public static boolean isWaterCrossingColumn(ServerWorld world, int x, int z) {
         int worldSurfaceY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z) - 1;
         BlockPos worldSurface = new BlockPos(x, worldSurfaceY, z);
         if (!world.getBlockState(worldSurface).getFluidState().isEmpty()) {
