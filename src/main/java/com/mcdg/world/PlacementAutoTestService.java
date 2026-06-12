@@ -609,7 +609,10 @@ public final class PlacementAutoTestService {
                 || biomeId.contains("beach")
                 || biomeId.contains("shore")
                 || biomeId.contains("stony_shore")
-                || biomeId.contains("snowy_beach");
+                || biomeId.contains("snowy_beach")
+                || biomeId.contains("mushroom_fields")
+                || biomeId.contains("mangrove_swamp")
+                || biomeId.contains("frozen_ocean");
     }
 
     private static boolean isPoorAutotestAnchor(ServerWorld world, BlockPos center, BlockPos sample) {
@@ -620,17 +623,18 @@ public final class PlacementAutoTestService {
 
         int waterColumns = 0;
         int radius = 8;
-        int step = 4;
+        int step = 2;
         for (int dx = -radius; dx <= radius; dx += step) {
             for (int dz = -radius; dz <= radius; dz += step) {
-                BlockPos probe = sample.add(dx, 0, dz);
+                int py = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, sample.getX() + dx, sample.getZ() + dz) - 1;
+                BlockPos probe = new BlockPos(sample.getX() + dx, py, sample.getZ() + dz);
                 if (!world.getFluidState(probe).isEmpty() || !world.getFluidState(probe.up()).isEmpty()) {
                     waterColumns++;
                 }
             }
         }
 
-        return waterColumns >= 4;
+        return waterColumns >= 6;
     }
 
     private static final class ScenarioOutcome {
