@@ -34,7 +34,7 @@ import net.minecraft.util.math.BlockPos;
 public final class AutoCourseService {
     private static final int HOLE_COUNT = 9;
     private static final int TICKS_BETWEEN_HOLES = 20;
-    private static final int MIN_DISTANCE_FEET = 120;
+    private static final int MIN_DISTANCE_FEET = 90;
     private static final int MAX_DISTANCE_FEET = 1400;
     private static final int PAR3_MAX_FEET = 450;
     private static final int PAR4_MAX_FEET = 900;

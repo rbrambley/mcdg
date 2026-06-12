@@ -22,7 +22,7 @@ public final class CoursePlacementConfig {
         public static final int FAIRWAY = 3;
         
         /** Radius to search for hole placement (tee to basket) */
-        public static final int HOLE = 40;
+        public static final int HOLE = 10;
         
         /** Radius to search for course anchor point */
         public static final int ANCHOR = 120;
