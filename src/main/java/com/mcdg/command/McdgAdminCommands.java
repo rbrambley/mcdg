@@ -29,6 +29,7 @@ import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.CourseGenerator;
 import com.mcdg.world.ResortBuilder;
 import com.mcdg.world.ResortWaypointManager;
+import com.mcdg.world.ResortCoursePlacement;
 import com.mcdg.world.WorldSpawnHandler;
 import com.mcdg.world.ResortData;
 import com.mcdg.net.WaypointRemovedSync;
@@ -1414,19 +1415,27 @@ public final class McdgAdminCommands {
                 ResortBuilder.placeResort(world, center, originalBlocks, protectedPositions);
 
                 int courseCount = 3;
-                int minDistance = 100;
-                int maxDistance = 160;
                 java.util.Random random = new java.util.Random(world.getSeed());
                 int builtCourses = 0;
 
-                for (int c = 0; c < courseCount; c++) {
+                java.util.List<ResortCoursePlacement.Candidate> candidates = ResortCoursePlacement.selectCourseAnchors(world, center, random);
+                if (candidates.size() < courseCount) {
+                        source.sendFeedback(() -> Text.literal(
+                                "Warning: only " + candidates.size() + " suitable course locations found (wanted " + courseCount + ")."
+                        ).formatted(Formatting.YELLOW), true);
+                }
+
+                for (int c = 0; c < Math.min(courseCount, candidates.size()); c++) {
+                        ResortCoursePlacement.Candidate candidate = candidates.get(c);
                         int currentCourseNum = c + 1;
                         source.sendFeedback(() -> Text.literal("Building resort surround course " + currentCourseNum + "/" + courseCount + "...").formatted(Formatting.YELLOW), true);
-                        double angle = (2.0 * Math.PI * c) / courseCount + (random.nextDouble() * 0.4 - 0.2);
-                        int distance = minDistance + random.nextInt(maxDistance - minDistance + 1);
-                        int hubX = center.getX() + (int) Math.round(Math.cos(angle) * distance);
-                        int hubZ = center.getZ() + (int) Math.round(Math.sin(angle) * distance);
-                        BlockPos hubOrigin = new BlockPos(hubX, 64, hubZ);
+
+                        BlockPos hubOrigin = candidate.pos();
+                        double angle = candidate.angle();
+                        int distance = (int) Math.round(Math.sqrt(
+                                Math.pow(hubOrigin.getX() - center.getX(), 2) +
+                                Math.pow(hubOrigin.getZ() - center.getZ(), 2)
+                        ));
 
                         long seed = random.nextLong();
                         float facingYaw = (float) Math.toDegrees(angle);
@@ -1440,11 +1449,11 @@ public final class McdgAdminCommands {
                                 builtCourses++;
                                 int completedCourseNum = builtCourses;
                                 source.sendFeedback(() -> Text.literal("Surround course " + completedCourseNum + " complete.").formatted(Formatting.GREEN), true);
-                                McdgMod.LOGGER.info("Resort surround course {} placed at ({}, {}), saved as catalog #{}" , builtCourses, hubX, hubZ, catalogIndex);
+                                McdgMod.LOGGER.info("Resort surround course {} placed at ({}, {}), saved as catalog #{}" , builtCourses, hubOrigin.getX(), hubOrigin.getZ(), catalogIndex);
                         } catch (Exception ex) {
                                 int failedCourseNum = c + 1;
                                 source.sendFeedback(() -> Text.literal("Surround course " + failedCourseNum + " failed: " + ex.getMessage()).formatted(Formatting.RED), true);
-                                McdgMod.LOGGER.warn("Resort surround course {} failed at ({}, {}): {}", c + 1, hubX, hubZ, ex.getMessage());
+                                McdgMod.LOGGER.warn("Resort surround course {} failed at ({}, {}): {}", c + 1, hubOrigin.getX(), hubOrigin.getZ(), ex.getMessage());
                         }
                 }
 
