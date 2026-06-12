@@ -1738,6 +1738,37 @@ public final class McdgAdminCommands {
                 };
         }
 
+        private static boolean isCourseOverlappingResort(net.minecraft.server.MinecraftServer server, PlacedCourseState placed) {
+                ResortData resort = WorldSpawnHandler.loadResortData(server);
+                if (resort == null) {
+                        return false;
+                }
+                BlockPos resortCenter = resort.centerPos();
+                int protectRadius = 50; // covers 80x80 compound + buffer
+                for (BlockPos tee : placed.holeTees().values()) {
+                        int dx = Math.abs(tee.getX() - resortCenter.getX());
+                        int dz = Math.abs(tee.getZ() - resortCenter.getZ());
+                        if (dx <= protectRadius && dz <= protectRadius) {
+                                return true;
+                        }
+                }
+                for (BlockPos basket : placed.holeBaskets().values()) {
+                        int dx = Math.abs(basket.getX() - resortCenter.getX());
+                        int dz = Math.abs(basket.getZ() - resortCenter.getZ());
+                        if (dx <= protectRadius && dz <= protectRadius) {
+                                return true;
+                        }
+                }
+                for (BlockPos alternate : placed.holeAlternateAnchors().values()) {
+                        int dx = Math.abs(alternate.getX() - resortCenter.getX());
+                        int dz = Math.abs(alternate.getZ() - resortCenter.getZ());
+                        if (dx <= protectRadius && dz <= protectRadius) {
+                                return true;
+                        }
+                }
+                return false;
+        }
+
                 private static int executeCleanupCourse(
                         ServerCommandSource source,
                         ActiveCourseManager courseManager,
@@ -1757,6 +1788,10 @@ public final class McdgAdminCommands {
                         return 0;
                 }
 
+                if (isCourseOverlappingResort(source.getServer(), placed)) {
+                        source.sendError(Text.literal("Course overlaps with the resort area. Cleanup blocked to protect the resort."));
+                        return 0;
+                }
                 evacuatePlayersBeforeCleanup(source, world, placed);
                 placementService.resetPlacedCourse(world, placed);
                 CourseFireProtection.remove(world);
@@ -1976,6 +2011,11 @@ public final class McdgAdminCommands {
                 Optional<PracticeCourseStorage.LoadedPracticeCourse> loaded = practiceCourseStorage.loadReusableByIndex(source.getServer(), oneBasedIndex);
                 if (loaded.isEmpty()) {
                         source.sendError(Text.literal("Course #" + oneBasedIndex + " not found."));
+                        return 0;
+                }
+                PlacedCourseState placedState = loaded.get().placedCourseState();
+                if (isCourseOverlappingResort(source.getServer(), placedState)) {
+                        source.sendError(Text.literal("Course overlaps with the resort area. Cleanup blocked to protect the resort."));
                         return 0;
                 }
 
