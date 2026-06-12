@@ -1,9 +1,11 @@
 package com.mcdg.world;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
@@ -54,51 +56,20 @@ final class FairwayCarver {
             sideZ = 0;
         }
 
-        // Path analysis: identify water steps and plan island segments for significant water crossings.
+        // Path analysis: identify water steps for island fairway detection.
         boolean[] isWaterStep = new boolean[steps + 1];
         int totalWaterSteps = 0;
         for (int scan = 0; scan <= steps; scan++) {
             double t = scan / (double) steps;
             int scanX = (int) Math.round(startX + (endX - startX) * t);
             int scanZ = (int) Math.round(startZ + (endZ - startZ) * t);
-            isWaterStep[scan] = CoursePlacementService.isWaterCrossingColumn(world, scanX, scanZ);
+            isWaterStep[scan] = hasSurfaceWater(world, scanX, scanZ);
             if (isWaterStep[scan]) {
                 totalWaterSteps++;
             }
         }
 
         boolean islandMode = totalWaterSteps > 60;
-        boolean[] shouldCarveStep = new boolean[steps + 1];
-        Arrays.fill(shouldCarveStep, true);
-
-        if (islandMode) {
-            long seed = ((long) startX * 73856093L) ^ ((long) startZ * 19349663L) ^ (long) steps;
-            Random random = new Random(seed);
-            boolean carving = true;
-            int run = 0;
-            int segmentLength = 60 + random.nextInt(31);
-            int gapLength = 20 + random.nextInt(21);
-            for (int scan = 0; scan <= steps; scan++) {
-                if (carving) {
-                    run++;
-                    if (run >= segmentLength) {
-                        carving = false;
-                        run = 0;
-                    }
-                } else {
-                    if (isWaterStep[scan]) {
-                        shouldCarveStep[scan] = false;
-                    }
-                    run++;
-                    if (run >= gapLength) {
-                        carving = true;
-                        run = 0;
-                        segmentLength = 60 + random.nextInt(31);
-                        gapLength = 20 + random.nextInt(21);
-                    }
-                }
-            }
-        }
 
         for (int i = 0; i <= steps; i += stepStride) {
             double t = i / (double) steps;
@@ -132,7 +103,9 @@ final class FairwayCarver {
             }
 
             BlockPos center;
-            if (islandMode && shouldCarveStep[i]) {
+            if (islandMode && isWaterStep[i]) {
+                // Over water: resolve surface then raise a solid landing patch so the
+                // fairway is continuous safe land rather than islands with gaps.
                 center = SurfaceResolver.resolveSurfacePos(world, x, z);
                 BlockPos landingCenter = CoursePlacementService.ensureWaterLandingSurface(
                         world,
@@ -153,8 +126,7 @@ final class FairwayCarver {
             }
             BlockState pathState = CoursePlacementService.selectPathMaterial(world, center);
 
-            boolean skipCarve = islandMode && !shouldCarveStep[i];
-            if (!skipCarve) {
+            if (true) {
 
             for (int dx = -tunedRadius; dx <= tunedRadius; dx++) {
                 for (int dz = -tunedRadius; dz <= tunedRadius; dz++) {
@@ -559,4 +531,13 @@ final class FairwayCarver {
         return hash;
     }
 
+
+    /** Returns true only if the top block at (x,z) contains fluid. */
+    private static boolean hasSurfaceWater(ServerWorld world, int x, int z) {
+        int surfY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z) - 1;
+        if (surfY <= world.getBottomY()) {
+            return false;
+        }
+        return !world.getBlockState(new BlockPos(x, surfY, z)).getFluidState().isEmpty();
+    }
 }

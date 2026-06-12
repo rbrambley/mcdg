@@ -42,6 +42,10 @@ public final class WaypointSync {
         }
     }
 
+    public static void clearAll() {
+        LAST_SYNCED_WAYPOINTS.clear();
+    }
+
     public static List<WaypointEntry> getWaypoints(ServerPlayerEntity player) {
         if (player == null) {
             return List.of();

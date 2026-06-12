@@ -93,6 +93,8 @@ public final class WaypointManager {
         roundHoleWaypoints.clear();
         waypointRenderModes.clear();
         loadedWaypointDimensionKey = "";
+        loadedWaypointContextKey = "";
+        clientWaypoints.clear();
     }
 
     public static void tick(MinecraftClient client) {

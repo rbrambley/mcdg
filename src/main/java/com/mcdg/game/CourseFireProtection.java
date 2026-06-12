@@ -24,7 +24,7 @@ public final class CourseFireProtection {
             if (!courseManager.getActiveParticipantIds().contains(player.getUuid())) {
                 return true;
             }
-            if (!isFireDamage(source)) {
+            if (!isRoundDamageToSuppress(source)) {
                 return true;
             }
             return false;
@@ -52,5 +52,13 @@ public final class CourseFireProtection {
                 || source.isOf(DamageTypes.HOT_FLOOR)
                 || source.isOf(DamageTypes.FIREBALL)
                 || source.isOf(DamageTypes.FIREWORKS);
+    }
+
+    private static boolean isRoundDamageToSuppress(DamageSource source) {
+        return isFireDamage(source)
+                || source.isOf(DamageTypes.FALL)
+                || source.isOf(DamageTypes.FALLING_BLOCK)
+                || source.isOf(DamageTypes.DROWN)
+                ;
     }
 }

@@ -36,6 +36,7 @@ import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.CourseGenerator;
 import com.mcdg.world.ResortWaypointManager;
+import com.mcdg.world.SurfaceResolver;
 import com.mcdg.world.WorldSpawnHandler;
 import com.mcdg.world.PlacementAutoTestService;
 import com.mcdg.world.SeededCourseGenerator;
@@ -172,16 +173,20 @@ public final class McdgMod implements ModInitializer {
         ServerTickEvents.END_SERVER_TICK.register(AUTO_COURSE_SERVICE::tick);
         ServerTickEvents.END_SERVER_TICK.register(McdgMod::handlePendingAutoStrictSetup);
         ServerTickEvents.END_SERVER_TICK.register(McdgMod::autosaveRoundSession);
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> WaypointSync.clearAll());
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> ResortWaypointManager.clearResortWaypoint());
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::loadPersistedPracticeCourse);
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::loadPersistedRoundSession);
         ServerLifecycleEvents.SERVER_STARTED.register(BUILD_COURSE_SESSION_MANAGER::load);
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::maybeStartHeadlessAutoTest);
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::maybeStartAutoStrictSetup);
         ServerLifecycleEvents.SERVER_STARTED.register(server -> LEADERBOARD_MANAGER.load(server));
-        ServerLifecycleEvents.SERVER_STARTED.register(WorldSpawnHandler::onServerStarted);
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> WorldSpawnHandler.onServerStarted(server, AUTO_COURSE_SERVICE, PRACTICE_COURSE_STORAGE));
         ServerLifecycleEvents.SERVER_STOPPING.register(McdgMod::flushRoundSessionOnShutdown);
         ServerLifecycleEvents.SERVER_STOPPING.register(BUILD_COURSE_SESSION_MANAGER::save);
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> LEADERBOARD_MANAGER.save(server));
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> WaypointSync.clearAll());
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> ResortWaypointManager.clearResortWaypoint());
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
             server.execute(() -> {
                 restoreRoundParticipantOnJoin(handler.player, server);
@@ -694,7 +699,11 @@ public final class McdgMod implements ModInitializer {
         // Player-created waypoint
         for (WaypointSync.WaypointEntry entry : WaypointSync.getWaypoints(player)) {
             if (entry != null && entry.name().equals(name)) {
-                BlockPos target = new BlockPos(entry.x(), entry.y(), entry.z());
+                int targetY = entry.y();
+                if (targetY == WaypointSync.UNKNOWN_Y) {
+                    targetY = SurfaceResolver.resolveSurfacePos(player.getServerWorld(), entry.x(), entry.z()).getY();
+                }
+                BlockPos target = new BlockPos(entry.x(), targetY, entry.z());
                 BlockPos safe = resolveSafeFeetNearWithin(player.getServerWorld(), target, 2);
                 player.teleport(player.getServerWorld(), safe.getX() + 0.5, safe.getY(), safe.getZ() + 0.5, Set.of(), player.getYaw(), player.getPitch());
                 player.sendMessage(Text.literal("Teleported to " + name + "!"), false);

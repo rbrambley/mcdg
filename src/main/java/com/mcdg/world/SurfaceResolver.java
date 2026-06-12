@@ -11,12 +11,12 @@ import net.minecraft.world.Heightmap;
 /**
  * Resolves ground surfaces for tee and basket placement.
  */
-final class SurfaceResolver {
+public final class SurfaceResolver {
     private static final int SURFACE_SEARCH_DEPTH_LIMIT = CoursePlacementConfig.Surface.SEARCH_DEPTH_LIMIT;
 
     private SurfaceResolver() {}
 
-    static BlockPos resolveSurfacePos(ServerWorld world, int x, int z) {
+    public static BlockPos resolveSurfacePos(ServerWorld world, int x, int z) {
         // Force chunk generation/loading so heightmap values are valid.
         ChunkPos chunkPos = new ChunkPos(x >> 4, z >> 4);
         world.getChunk(chunkPos.x, chunkPos.z);
