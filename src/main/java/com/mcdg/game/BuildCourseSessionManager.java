@@ -64,13 +64,7 @@ public final class BuildCourseSessionManager {
     private static final int MAX_HOLES = 27;
     private static final long CLAIM_TIMEOUT_MS = 24L * 60L * 60L * 1000L;
     private static final long CONFIRM_TIMEOUT_MS = 15_000L;
-    private static final int MIN_DISTANCE_FEET = 180;
-    private static final int MAX_DISTANCE_FEET = 780;
     private static final int MAX_DISTANCE_DRIFT_FEET = 180;
-    private static final int PAR3_MAX_FEET = 400;
-    private static final int PAR4_MAX_FEET = 700;
-    private static final int MIN_FAIRWAY_WIDTH = 4;
-    private static final int MAX_FAIRWAY_WIDTH = 10;
 
     private final CoursePlacementService placementService;
     private final CoursePlacementValidator placementValidator;
@@ -149,11 +143,11 @@ public final class BuildCourseSessionManager {
         }
 
         ServerWorld world = owner.getServerWorld();
-        PreviewSpec spec = computePreview(owner, holeIndex);
+        BuildPreviewService.PreviewSpec spec = BuildPreviewService.computePreview(owner, holeIndex);
 
-        spawnMarker(world, owner, spec.teeAnchor, 0.4, 0.95, 0.2);
-        spawnMarker(world, owner, spec.basketAnchor, 0.95, 0.2, 0.2);
-        spawnPath(world, owner, spec.teeAnchor, spec.basketAnchor, 0.2, 0.75, 0.95);
+        BuildPreviewService.spawnMarker(world, owner, spec.teeAnchor, 0.4, 0.95, 0.2);
+        BuildPreviewService.spawnMarker(world, owner, spec.basketAnchor, 0.95, 0.2, 0.2);
+        BuildPreviewService.spawnPath(world, owner, spec.teeAnchor, spec.basketAnchor, 0.2, 0.75, 0.95);
     }
 
     public LiteralArgumentBuilder<ServerCommandSource> registerNode() {
@@ -316,7 +310,7 @@ public final class BuildCourseSessionManager {
         }
 
         ServerWorld world = player.getServerWorld();
-        PreviewSpec preview = computePreview(player, targetIndex);
+        BuildPreviewService.PreviewSpec preview = BuildPreviewService.computePreview(player, targetIndex);
         BlockPos desiredCenter = midpoint(preview.teeAnchor, preview.basketAnchor);
         int localTeeX = preview.teeAnchor.getX() - desiredCenter.getX();
         int localTeeZ = preview.teeAnchor.getZ() - desiredCenter.getZ();
@@ -381,7 +375,7 @@ public final class BuildCourseSessionManager {
                 sendBuildStepPrompt(source);
                 return 0;
                 }
-            int effectivePar = placed.effectiveHolePars().getOrDefault(targetIndex, computePar(actualDistanceFeet));
+            int effectivePar = placed.effectiveHolePars().getOrDefault(targetIndex, BuildPreviewService.computePar(actualDistanceFeet));
             Hole actualHole = new Hole(
                     targetIndex,
                     effectivePar,
@@ -955,60 +949,6 @@ public final class BuildCourseSessionManager {
         }
         return Optional.empty();
     }
-
-    private PreviewSpec computePreview(ServerPlayerEntity player, int holeIndex) {
-        // Use the raw yaw (not snapped to 4 cardinals) to get an 8-directional unit vector.
-        float yawRad = (float) Math.toRadians(player.getYaw());
-        int dx = (int) Math.round(-Math.sin(yawRad));
-        int dz = (int) Math.round(Math.cos(yawRad));
-        if (dx == 0 && dz == 0) { dz = 1; } // guard against floating-point edge case
-        BlockPos feet = player.getBlockPos();
-        BlockPos teeAnchor = feet.add(dx * 2, 0, dz * 2);
-
-        long seed = (((long) teeAnchor.getX()) << 32) ^ (teeAnchor.getZ() * 341873128712L) ^ (holeIndex * 73428767L);
-        java.util.Random random = new java.util.Random(seed);
-
-        int distanceFeet = MIN_DISTANCE_FEET + random.nextInt((MAX_DISTANCE_FEET - MIN_DISTANCE_FEET) + 1);
-        int distanceBlocks = Math.max(1, Math.round(distanceFeet / 3.0f));
-        int fairwayWidth = MIN_FAIRWAY_WIDTH + random.nextInt((MAX_FAIRWAY_WIDTH - MIN_FAIRWAY_WIDTH) + 1);
-        int basketHeight = 1 + random.nextInt(2);
-
-        BlockPos basketAnchor = teeAnchor.add(dx * distanceBlocks, 0, dz * distanceBlocks);
-        int par = computePar(distanceFeet);
-
-        return new PreviewSpec(seed, holeIndex, teeAnchor, basketAnchor, feet, distanceFeet, par, fairwayWidth, basketHeight);
-    }
-
-    private static int computePar(int distanceFeet) {
-        if (distanceFeet <= PAR3_MAX_FEET) {
-            return 3;
-        }
-        if (distanceFeet <= PAR4_MAX_FEET) {
-            return 4;
-        }
-        return 5;
-    }
-
-    private void spawnMarker(ServerWorld world, ServerPlayerEntity player, BlockPos pos, double r, double g, double b) {
-        world.spawnParticles(ParticleTypes.END_ROD,
-                pos.getX() + 0.5, pos.getY() + 1.1, pos.getZ() + 0.5,
-                6, 0.35, 0.35, 0.35, 0.0);
-    }
-
-    private void spawnPath(ServerWorld world, ServerPlayerEntity player, BlockPos from, BlockPos to, double r, double g, double b) {
-        double dx = to.getX() - from.getX();
-        double dy = to.getY() - from.getY();
-        double dz = to.getZ() - from.getZ();
-        int steps = Math.max(6, (int) Math.ceil(Math.sqrt(dx * dx + dz * dz) / 6.0));
-        for (int i = 0; i <= steps; i++) {
-            double t = i / (double) steps;
-            double x = from.getX() + 0.5 + (dx * t);
-            double y = from.getY() + 1.0 + (dy * t);
-            double z = from.getZ() + 0.5 + (dz * t);
-            world.spawnParticles(player, ParticleTypes.END_ROD, true, x, y, z, 1, 0, 0, 0, 0.0);
-        }
-    }
-
     private void upsertBuiltHole(BuiltHole builtHole) {
         session.builtHoles.removeIf(h -> h.index == builtHole.index);
         session.builtHoles.add(builtHole);
@@ -1146,32 +1086,6 @@ public final class BuildCourseSessionManager {
                 .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal((runNow ? "Run: " : "Fill chat: ") + command)))
         );
     }
-
-    private static final class PreviewSpec {
-        private final long seed;
-        private final int holeIndex;
-        private final BlockPos teeAnchor;
-        private final BlockPos basketAnchor;
-        private final BlockPos originalTeeAnchor;
-        private final int distanceFeet;
-        private final int par;
-        private final int fairwayWidth;
-        private final int basketHeight;
-
-        private PreviewSpec(long seed, int holeIndex, BlockPos teeAnchor, BlockPos basketAnchor, BlockPos originalTeeAnchor,
-                            int distanceFeet, int par, int fairwayWidth, int basketHeight) {
-            this.seed = seed;
-            this.holeIndex = holeIndex;
-            this.teeAnchor = teeAnchor;
-            this.basketAnchor = basketAnchor;
-            this.originalTeeAnchor = originalTeeAnchor;
-            this.distanceFeet = distanceFeet;
-            this.par = par;
-            this.fairwayWidth = fairwayWidth;
-            this.basketHeight = basketHeight;
-        }
-    }
-
     private static final class BuildSession {
         private UUID ownerId;
         private String ownerName;
