@@ -83,7 +83,7 @@ public final class ThrowAutoTestService {
             state.lie(),
             createBossBar("Throw autotest: starting...", source.getServer(), player)
         );
-        HoleProgressTracker.beginAutotestLieMarkerTrail();
+        LieMarkerService.beginAutotestLieMarkerTrail();
         updateBossBar(activeSession, 0, false, state.currentHole(), state.lie(), null);
         source.sendFeedback(() -> Text.literal("Throw autotest started for " + throwsToRun + " throws."), true);
         return 1;
@@ -359,7 +359,7 @@ public final class ThrowAutoTestService {
                 session.source.getServer().stop(false);
             }
 
-            HoleProgressTracker.endAutotestLieMarkerTrail(session.source.getServer());
+            LieMarkerService.endAutotestLieMarkerTrail(session.source.getServer());
         }
         activeSession = null;
     }
@@ -471,7 +471,7 @@ public final class ThrowAutoTestService {
             state.lie(),
             createBossBar("Throw autotest: waiting for auto start...", server, player)
         );
-        HoleProgressTracker.beginAutotestLieMarkerTrail();
+        LieMarkerService.beginAutotestLieMarkerTrail();
         updateBossBar(activeSession, 0, false, state.currentHole(), state.lie(), null);
 
         server.getCommandSource().sendFeedback(

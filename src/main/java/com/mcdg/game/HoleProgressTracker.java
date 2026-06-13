@@ -50,14 +50,12 @@ public final class HoleProgressTracker {
     // Proximity make radius: flat putts within this distance that hit the basket column count as makes
     // Temporary safety rollback: keep core throw/lie flow stable while strict landing penalties are reworked.
     private static final HudStateFormatter HUD_STATE_FORMATTER = new HudStateFormatter();
-    private static final Map<UUID, Map<BlockPos, LieMarkerState>> LIE_MARKER_HISTORY = new HashMap<>();
     private static final Map<UUID, Map<Integer, Integer>> HOLE_SCORE_HISTORY = new HashMap<>();
     static final Map<UUID, Integer> HOLE_ONE_RANDOM_ORDER = new HashMap<>();
+    private static final Map<UUID, Integer> CACHED_CORRIDOR_HALF_WIDTH = new HashMap<>();
     private static final Map<UUID, BlockPos> LAST_LIE_POSITION = new HashMap<>();
     private static final Map<UUID, BlockPos> LAST_BREADCRUMB_POSITION = new HashMap<>();
-    private static final Map<UUID, Integer> CACHED_CORRIDOR_HALF_WIDTH = new HashMap<>();
     private static int LAST_RUNNING_SCOREBOARD_HASH = Integer.MIN_VALUE;
-    private static int AUTOTEST_MARKER_TRAIL_REFCOUNT = 0;
     private static boolean ROUND_WAS_ACTIVE = false;
 
     private HoleProgressTracker() {
@@ -90,7 +88,7 @@ public final class HoleProgressTracker {
                     }
                     MiniMapSyncService.sendInactive(server);
                     LAST_RUNNING_SCOREBOARD_HASH = Integer.MIN_VALUE;
-                    clearAllLieMarkers(server);
+                    LieMarkerService.clearAllLieMarkers(server);
                     HoleTeeMapManager.clearAllRoundHoleMaps(server);
                 }
                 return;
@@ -136,7 +134,7 @@ public final class HoleProgressTracker {
                 BlockPos currentLie = state.lie();
                 BlockPos lastLie = LAST_LIE_POSITION.get(player.getUuid());
                 if (lastLie == null || !currentLie.equals(lastLie)) {
-                    updateLieMarker(player, currentLie);
+                    LieMarkerService.updateLieMarker(player, currentLie);
                     LAST_LIE_POSITION.put(player.getUuid(), currentLie);
                 }
 
@@ -222,7 +220,7 @@ public final class HoleProgressTracker {
                         double distToBasket = playerPos.getSquaredDistance(basket);
                         BlockPos lastBreadcrumbPos = LAST_BREADCRUMB_POSITION.get(player.getUuid());
                         if (lastBreadcrumbPos == null || playerPos.getSquaredDistance(lastBreadcrumbPos) > 16.0 || distToBasket > 100.0) {
-                            spawnBreadcrumbLine(serverWorld, player, basket);
+                            LieMarkerService.spawnBreadcrumbLine(serverWorld, player, basket);
                             LAST_BREADCRUMB_POSITION.put(player.getUuid(), playerPos);
                         }
                     }
@@ -321,7 +319,7 @@ public final class HoleProgressTracker {
                 BlockPos safeNextTee = SafePositionFinder.resolveSafeFeetNear(player.getServerWorld(), nextTee);
                 roundStateManager.advanceToNextHole(player.getUuid(), safeNextTee);
                 player.teleport(safeNextTee.getX() + 0.5, safeNextTee.getY() + 1.0, safeNextTee.getZ() + 0.5);
-                updateLieMarker(player, safeNextTee);
+                LieMarkerService.updateLieMarker(player, safeNextTee);
                 if (state.holeStrokes() == 1) {
                     ServerPlayNetworking.send(player, AceCinematicSync.Payload.active(state.currentHole(), currentHole.distanceFeet()));
                     AceCompanionService.scheduleForPlayer(player.getUuid(), server.getOverworld().getTime());
@@ -390,7 +388,7 @@ public final class HoleProgressTracker {
         }
 
         roundStateManager.updateLie(player.getUuid(), safeLie);
-        updateLieMarker(player, safeLie);
+        LieMarkerService.updateLieMarker(player, safeLie);
         player.teleport(safeLie.getX() + 0.5, safeLie.getY() + 1.0, safeLie.getZ() + 0.5);
         ThrowResolver.recordResolutionReason(player.getUuid(), "GOTOLIE");
         return Optional.of(safeLie);
@@ -699,31 +697,6 @@ public final class HoleProgressTracker {
     static int distanceFeet(BlockPos from, BlockPos to) {
         return Math.max(0, Math.round(distanceMeters(from, to) * 3.28084f));
     }
-
-    private static void clearAllLieMarkers(MinecraftServer server) {
-        for (Map<BlockPos, LieMarkerState> markerStates : LIE_MARKER_HISTORY.values()) {
-            for (LieMarkerState markerState : markerStates.values()) {
-                ServerWorld world = server.getWorld(markerState.worldKey());
-                if (world == null) {
-                    continue;
-                }
-                world.setBlockState(markerState.markerPos(), markerState.previousGroundState(), Block.NOTIFY_ALL);
-            }
-        }
-        LIE_MARKER_HISTORY.clear();
-    }
-
-    public static void beginAutotestLieMarkerTrail() {
-        AUTOTEST_MARKER_TRAIL_REFCOUNT++;
-    }
-
-    public static void endAutotestLieMarkerTrail(MinecraftServer server) {
-        AUTOTEST_MARKER_TRAIL_REFCOUNT = Math.max(0, AUTOTEST_MARKER_TRAIL_REFCOUNT - 1);
-        if (AUTOTEST_MARKER_TRAIL_REFCOUNT == 0) {
-            clearAllLieMarkers(server);
-        }
-    }
-
     /**
      * Resets all static state. Call this when cleaning up a course to ensure
      * no stale minimap packets or round state leak into the next session.
@@ -737,84 +710,15 @@ public final class HoleProgressTracker {
         LAST_BREADCRUMB_POSITION.clear();
         CACHED_CORRIDOR_HALF_WIDTH.clear();
         MiniMapSyncService.reset();
-        AUTOTEST_MARKER_TRAIL_REFCOUNT = 0;
+        LieMarkerService.reset();
         MiniMapSyncService.sendInactive(server);
         if (LAST_RUNNING_SCOREBOARD_HASH != Integer.MIN_VALUE) {
             sendRunningScoreboardInactive(server);
         }
         LAST_RUNNING_SCOREBOARD_HASH = Integer.MIN_VALUE;
-        clearAllLieMarkers(server);
+        LieMarkerService.clearAllLieMarkers(server);
         HoleTeeMapManager.clearAllRoundHoleMaps(server);
     }
-
-    static void updateLieMarker(ServerPlayerEntity player, BlockPos lieFeet) {
-        ServerWorld world = player.getServerWorld();
-        BlockPos markerPos = lieFeet.down();
-        UUID playerId = player.getUuid();
-        boolean keepTrail = AUTOTEST_MARKER_TRAIL_REFCOUNT > 0;
-
-        Map<BlockPos, LieMarkerState> history = LIE_MARKER_HISTORY.computeIfAbsent(playerId, ignored -> new HashMap<>());
-        BlockPos markerKey = markerPos.toImmutable();
-
-        if (!keepTrail && !history.isEmpty()) {
-            clearPlayerLieMarkers(player.getServer(), playerId);
-            history = LIE_MARKER_HISTORY.computeIfAbsent(playerId, ignored -> new HashMap<>());
-        }
-
-        if (history.containsKey(markerKey)) {
-            if (!world.getBlockState(markerKey).isOf(Blocks.LIME_WOOL)) {
-                world.setBlockState(markerKey, Blocks.LIME_WOOL.getDefaultState(), 3);
-            }
-            return;
-        }
-
-        BlockState original = world.getBlockState(markerPos);
-        world.setBlockState(markerPos, Blocks.LIME_WOOL.getDefaultState(), 3);
-        history.put(markerKey, new LieMarkerState(world.getRegistryKey(), markerKey, original));
-    }
-
-    static void clearPlayerLieMarkers(MinecraftServer server, UUID playerId) {
-        Map<BlockPos, LieMarkerState> markerStates = LIE_MARKER_HISTORY.get(playerId);
-        if (markerStates == null || markerStates.isEmpty()) {
-            return;
-        }
-
-        for (LieMarkerState markerState : markerStates.values()) {
-            ServerWorld world = server.getWorld(markerState.worldKey());
-            if (world == null) {
-                continue;
-            }
-            world.setBlockState(markerState.markerPos(), markerState.previousGroundState(), Block.NOTIFY_ALL);
-        }
-
-        markerStates.clear();
-    }
-
-    static void spawnBreadcrumbLine(ServerWorld world, ServerPlayerEntity player, BlockPos to) {
-        double sx = player.getX();
-        double sy = player.getY() + 6.5;
-        double sz = player.getZ();
-        double tx = to.getX() + 0.5;
-        double ty = to.getY() + 6.5;
-        double tz = to.getZ() + 0.5;
-
-        double dx = tx - sx;
-        double dy = ty - sy;
-        double dz = tz - sz;
-        double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        int steps = Math.min(32, Math.max(8, (int) (distance / 3.0)));
-
-        for (int i = 1; i <= steps; i++) {
-            double t = i / (double) steps;
-            double px = sx + (dx * t);
-            double py = sy + (dy * t);
-            double pz = sz + (dz * t);
-            world.spawnParticles(ParticleTypes.END_ROD, px, py, pz, 1, 0.01, 0.01, 0.01, 0.0);
-        }
-
-    }
-
-
     private static void removeRoundThrowItems(ServerPlayerEntity player) {
         RoundInventoryCleaner.purgeRoundItemsAndJunk(player);
     }
@@ -839,15 +743,6 @@ public final class HoleProgressTracker {
         int dy = Math.abs(playerFeet.getY() - throwLie.getY());
         return dy > 1;
     }
-
-
-        private record LieMarkerState(
-            RegistryKey<net.minecraft.world.World> worldKey,
-            BlockPos markerPos,
-            BlockState previousGroundState
-        ) {
-        }
-
     private static void broadcastRoundLeaderboard(
             MinecraftServer server,
             RegistryKey<net.minecraft.world.World> worldKey,

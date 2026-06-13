@@ -250,7 +250,7 @@ public final class ThrowResolver {
 
         roundStateManager.updateLie(player.getUuid(), resultingLie);
         LAST_THROW_DISTANCE_FEET.put(player.getUuid(), HoleProgressTracker.distanceFeet(throwLie, resultingLie));
-        HoleProgressTracker.updateLieMarker(player, resultingLie);
+        LieMarkerService.updateLieMarker(player, resultingLie);
         PlayerRoundState updated = roundStateManager.getState(player.getUuid()).orElse(state);
         if (strictFlowDebug) {
             McdgMod.LOGGER.info(

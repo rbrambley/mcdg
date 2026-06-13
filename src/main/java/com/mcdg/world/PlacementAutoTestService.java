@@ -3,6 +3,7 @@ package com.mcdg.world;
 import com.mcdg.data.Course;
 import com.mcdg.game.ActiveCourseManager;
 import com.mcdg.game.HoleProgressTracker;
+import com.mcdg.game.LieMarkerService;
 import com.mcdg.game.PlacedCourseState;
 import com.mcdg.game.AutoCourseService;
 import com.mcdg.game.RoundStateManager;
@@ -108,7 +109,7 @@ public final class PlacementAutoTestService {
         long resolvedBaseSeed = baseSeedOverride == null ? System.currentTimeMillis() : baseSeedOverride;
         boolean shadowSurfaceRuleMode = isShadowSurfaceRuleEnabledEffective();
         activeSession = new AutoTestSession(source, world, runs, holes, biomeAnchors, progressBar, resolvedBaseSeed, shadowSurfaceRuleMode);
-        HoleProgressTracker.beginAutotestLieMarkerTrail();
+        LieMarkerService.beginAutotestLieMarkerTrail();
 
         String startMessage = "Starting autotest: runs=" + runs
                 + ", holes=" + holes
@@ -406,7 +407,7 @@ public final class PlacementAutoTestService {
         }
 
         roundStateManager.clearAll();
-        HoleProgressTracker.endAutotestLieMarkerTrail(session.source.getServer());
+        LieMarkerService.endAutotestLieMarkerTrail(session.source.getServer());
         if ("true".equalsIgnoreCase(System.getenv(AUTOTEST_SHUTDOWN_ENV))) {
             session.source.getServer().stop(false);
         }
