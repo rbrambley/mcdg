@@ -16,6 +16,10 @@ import com.mcdg.game.RoundPresentationService;
 import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.ScorecardManager;
 import com.mcdg.game.ThrowAutoTestService;
+import com.mcdg.game.AutoCourseService;
+import com.mcdg.game.BuildCourseSessionManager;
+import com.mcdg.game.PlayerRoundSessionStorage;
+import com.mcdg.game.RoundSessionStorage;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.PlacementAutoTestService;
 import com.mcdg.world.CoursePlacementService;
@@ -77,7 +81,11 @@ public final class McdgAdminCommands {
             boolean skipRoundPresentation,
             TournamentRulesetManager rulesetManager,
             PracticeCourseStorage practiceCourseStorage,
-            ThrowAutoTestService throwAutoTestService
+            ThrowAutoTestService throwAutoTestService,
+            RoundSessionStorage roundSessionStorage,
+            PlayerRoundSessionStorage playerRoundSessionStorage,
+            BuildCourseSessionManager buildCourseSessionManager,
+            AutoCourseService autoCourseService
     ) {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
                 dispatcher.register(literal("mcdg")
@@ -330,12 +338,13 @@ public final class McdgAdminCommands {
                                         courseManager,
                                         placementValidator
                                 )))
-                        .then(literal("buildcamp").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
-                                .executes(context -> executeBuildCamp(
-                                        context.getSource(),
-                                        placementService
-                                )))
+                        // Commented out due to missing CoursePlacementService.LodgingBuildResult and tryBuildPermanentLodgingSite
+                        //                         .then(literal("buildcamp").requires(McdgAdminCommands::canUseAdminCommands)
+                        //                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
+                        //                                 .executes(context -> executeBuildCamp(
+                        //                                         context.getSource(),
+                        //                                         placementService
+                        //                                 )))
                         .then(literal("autotestplacement").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .then(argument("runs", IntegerArgumentType.integer(1, 200))
@@ -376,6 +385,10 @@ public final class McdgAdminCommands {
                                         .executes(context -> executeAutoTestThrows(
                                                 context.getSource(),
                                                 throwAutoTestService,
+                                                roundSessionStorage,
+                                                playerRoundSessionStorage,
+                                                buildCourseSessionManager,
+                                                autoCourseService,
                                                 IntegerArgumentType.getInteger(context, "count")
                                         ))))
                         .then(literal("quickthrowtest").requires(McdgAdminCommands::canUseAdminCommands)
@@ -392,12 +405,16 @@ public final class McdgAdminCommands {
                                                         roundPresentationService,
                                                         practiceCourseStorage,
                                                         throwAutoTestService,
+                                                        roundSessionStorage,
+                                                        playerRoundSessionStorage,
+                                                        buildCourseSessionManager,
+                                                        autoCourseService,
                                                         LongArgumentType.getLong(context, "seed"),
                                                         IntegerArgumentType.getInteger(context, "count")
                                                 )))))
                         .then(literal("cancelthrowtest").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
-                                .executes(context -> executeCancelThrowTest(context.getSource(), throwAutoTestService)))));
+                                .executes(context -> executeCancelThrowTest(context.getSource(), throwAutoTestService, roundSessionStorage, playerRoundSessionStorage, buildCourseSessionManager, autoCourseService)))));
     }
 
         private static boolean canUseAdminCommands(ServerCommandSource source) {
@@ -1091,26 +1108,27 @@ public final class McdgAdminCommands {
                 return par;
         }
 
-        private static int executeBuildCamp(
-                        ServerCommandSource source,
-                        CoursePlacementService placementService
-        ) {
-                ServerWorld world = source.getWorld();
-                BlockPos requestedOrigin = BlockPos.ofFloored(source.getPosition());
-                CoursePlacementService.LodgingBuildResult result = placementService.tryBuildPermanentLodgingSite(world, requestedOrigin);
-                if (!result.success()) {
-                        source.sendError(Text.literal(result.message()));
-                        return 0;
-                }
-
-                BlockPos center = result.center();
-                source.sendFeedback(() -> Text.literal(
-                                "Permanent lodging site built at X=" + center.getX() + " Y=" + center.getY() + " Z=" + center.getZ()
-                                        + ". This camp is separate from course central and created only on command."
-                ), true);
-                return 1;
-        }
-
+        // Commented out due to missing CoursePlacementService.LodgingBuildResult and tryBuildPermanentLodgingSite
+        //         private static int executeBuildCamp(
+        //                         ServerCommandSource source,
+        //                         CoursePlacementService placementService
+        //         ) {
+        //                 ServerWorld world = source.getWorld();
+        //                 BlockPos requestedOrigin = BlockPos.ofFloored(source.getPosition());
+        //                 CoursePlacementService.LodgingBuildResult result = placementService.tryBuildPermanentLodgingSite(world, requestedOrigin);
+        //                 if (!result.success()) {
+        //                         source.sendError(Text.literal(result.message()));
+        //                         return 0;
+        //                 }
+        // 
+        //                 BlockPos center = result.center();
+        //                 source.sendFeedback(() -> Text.literal(
+        //                                 "Permanent lodging site built at X=" + center.getX() + " Y=" + center.getY() + " Z=" + center.getZ()
+        //                                         + ". This camp is separate from course central and created only on command."
+        //                 ), true);
+        //                 return 1;
+        //         }
+        // 
         private static void sendCourseBuildProgressOverlay(
                         ServerPlayerEntity player,
                         int holesDone,
@@ -1895,12 +1913,20 @@ public final class McdgAdminCommands {
         private static int executeAutoTestThrows(
                         ServerCommandSource source,
                         ThrowAutoTestService throwAutoTestService,
+            RoundSessionStorage roundSessionStorage,
+            PlayerRoundSessionStorage playerRoundSessionStorage,
+            BuildCourseSessionManager buildCourseSessionManager,
+            AutoCourseService autoCourseService,
                         int count
         ) {
                 return throwAutoTestService.start(source, count);
         }
 
-        private static int executeCancelThrowTest(ServerCommandSource source, ThrowAutoTestService throwAutoTestService) {
+        private static int executeCancelThrowTest(ServerCommandSource source, ThrowAutoTestService throwAutoTestService,
+            RoundSessionStorage roundSessionStorage,
+            PlayerRoundSessionStorage playerRoundSessionStorage,
+            BuildCourseSessionManager buildCourseSessionManager,
+            AutoCourseService autoCourseService) {
                 return throwAutoTestService.cancel(source);
         }
 
@@ -1914,6 +1940,10 @@ public final class McdgAdminCommands {
                         RoundPresentationService roundPresentationService,
                         PracticeCourseStorage practiceCourseStorage,
                         ThrowAutoTestService throwAutoTestService,
+            RoundSessionStorage roundSessionStorage,
+            PlayerRoundSessionStorage playerRoundSessionStorage,
+            BuildCourseSessionManager buildCourseSessionManager,
+            AutoCourseService autoCourseService,
                         long seed,
                         int throwCount
         ) {
@@ -1939,7 +1969,7 @@ public final class McdgAdminCommands {
                         return 0;
                 }
 
-                int testStarted = executeAutoTestThrows(source, throwAutoTestService, throwCount);
+                int testStarted = executeAutoTestThrows(source, throwAutoTestService, roundSessionStorage, playerRoundSessionStorage, buildCourseSessionManager, autoCourseService, throwCount);
                 if (testStarted == 0) {
                         return 0;
                 }

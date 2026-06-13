@@ -43,6 +43,21 @@ public final class RegressionCheckRunner {
     private static final Path ROUND_RUNNING_SCORES_SYNC_FILE = Paths.get(
         "src", "main", "java", "com", "mcdg", "net", "RoundRunningScoresSync.java"
     );
+    private static final Path COMMAND_PERMISSIONS_FILE = Paths.get(
+        "src", "main", "java", "com", "mcdg", "command", "CommandPermissions.java"
+    );
+    private static final Path SAFE_POSITION_FINDER_FILE = Paths.get(
+        "src", "main", "java", "com", "mcdg", "world", "SafePositionFinder.java"
+    );
+    private static final Path OUT_OF_BOUNDS_CLASSIFIER_FILE = Paths.get(
+        "src", "main", "java", "com", "mcdg", "game", "OutOfBoundsClassifier.java"
+    );
+    private static final Path COURSE_ANCHOR_FINDER_FILE = Paths.get(
+        "src", "main", "java", "com", "mcdg", "world", "CourseAnchorFinder.java"
+    );
+    private static final Path GOLF_TITLE_MESSENGER_FILE = Paths.get(
+        "src", "main", "java", "com", "mcdg", "game", "GolfTitleMessenger.java"
+    );
     private static final Pattern HOLE_SPECIAL_CASE_PATTERN = Pattern.compile(
             "\\b(?:holeIndex|currentHole|holeNumber|holeId)\\b\\s*(?:==|!=|<=|>=|<|>)\\s*\\d+|\\.index\\(\\)\\s*(?:==|!=|<=|>=|<|>)\\s*\\d+"
     );
@@ -81,6 +96,7 @@ public final class RegressionCheckRunner {
         runGameplayFlowChecks();
         runScoreboardContractChecks();
         runCinematicContractChecks();
+        runRefactoredClassChecks();
         runParDistributionChecks(generator);
 
         Course one = generator.generate(123456789L, HOLE_COUNT);
@@ -464,6 +480,120 @@ public final class RegressionCheckRunner {
             "int localScore",
             "Cinematic regression: round-complete local score field is missing."
         );
+
+    }
+
+    private static void runRefactoredClassChecks() {
+        // CommandPermissions: Security-critical authorization checks
+        if (!Files.exists(COMMAND_PERMISSIONS_FILE)) {
+            throw new RuntimeException("CommandPermissions regression file missing: " + COMMAND_PERMISSIONS_FILE);
+        }
+        String commandPermissionsSource;
+        try {
+            commandPermissionsSource = Files.readString(COMMAND_PERMISSIONS_FILE, StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to read CommandPermissions source for regression checks", ex);
+        }
+        assertContains(
+            commandPermissionsSource,
+            "public static boolean canUseAdminCommands",
+            "CommandPermissions regression: canUseAdminCommands method is missing (security-critical)."
+        );
+        assertContains(
+            commandPermissionsSource,
+            "public static boolean canUseAdvancedCommands",
+            "CommandPermissions regression: canUseAdvancedCommands method is missing (security-critical)."
+        );
+
+        // SafePositionFinder: Safety-critical position validation
+        if (!Files.exists(SAFE_POSITION_FINDER_FILE)) {
+            throw new RuntimeException("SafePositionFinder regression file missing: " + SAFE_POSITION_FINDER_FILE);
+        }
+        String safePositionFinderSource;
+        try {
+            safePositionFinderSource = Files.readString(SAFE_POSITION_FINDER_FILE, StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to read SafePositionFinder source for regression checks", ex);
+        }
+        assertContains(
+            safePositionFinderSource,
+            "public static BlockPos resolveSafeFeetNear",
+            "SafePositionFinder regression: resolveSafeFeetNear method is missing (safety-critical)."
+        );
+        assertContains(
+            safePositionFinderSource,
+            "isStandableFeet",
+            "SafePositionFinder regression: resolveSafeFeetNear must use isStandableFeet for safety validation."
+        );
+        assertContains(
+            safePositionFinderSource,
+            "public static BlockPos findNearestStandableFeet",
+            "SafePositionFinder regression: findNearestStandableFeet method is missing (safety-critical)."
+        );
+
+        // OutOfBoundsClassifier: Gameplay-critical boundary detection
+        if (!Files.exists(OUT_OF_BOUNDS_CLASSIFIER_FILE)) {
+            throw new RuntimeException("OutOfBoundsClassifier regression file missing: " + OUT_OF_BOUNDS_CLASSIFIER_FILE);
+        }
+        String outOfBoundsClassifierSource;
+        try {
+            outOfBoundsClassifierSource = Files.readString(OUT_OF_BOUNDS_CLASSIFIER_FILE, StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to read OutOfBoundsClassifier source for regression checks", ex);
+        }
+        assertContains(
+            outOfBoundsClassifierSource,
+            "public static StrictPenaltyType classifyOutType",
+            "OutOfBoundsClassifier regression: classifyOutType classification method is missing."
+        );
+        assertContains(
+            outOfBoundsClassifierSource,
+            "public static StrictPenaltyType classifyOutTypeWithCorridor",
+            "OutOfBoundsClassifier regression: classifyOutTypeWithCorridor method is missing."
+        );
+
+        // CourseAnchorFinder: Terrain-aware course placement
+        if (!Files.exists(COURSE_ANCHOR_FINDER_FILE)) {
+            throw new RuntimeException("CourseAnchorFinder regression file missing: " + COURSE_ANCHOR_FINDER_FILE);
+        }
+        String courseAnchorFinderSource;
+        try {
+            courseAnchorFinderSource = Files.readString(COURSE_ANCHOR_FINDER_FILE, StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to read CourseAnchorFinder source for regression checks", ex);
+        }
+        assertContains(
+            courseAnchorFinderSource,
+            "static BlockPos findPreferredCourseAnchor",
+            "CourseAnchorFinder regression: findPreferredCourseAnchor method is missing."
+        );
+        assertContains(
+            courseAnchorFinderSource,
+            "static CourseBounds findCourseBounds",
+            "CourseAnchorFinder regression: findCourseBounds method is missing."
+        );
+
+        // GolfTitleMessenger: Server-side title overlay
+        if (!Files.exists(GOLF_TITLE_MESSENGER_FILE)) {
+            throw new RuntimeException("GolfTitleMessenger regression file missing: " + GOLF_TITLE_MESSENGER_FILE);
+        }
+        String golfTitleMessengerSource;
+        try {
+            golfTitleMessengerSource = Files.readString(GOLF_TITLE_MESSENGER_FILE, StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to read GolfTitleMessenger source for regression checks", ex);
+        }
+        assertContains(
+            golfTitleMessengerSource,
+            "static void sendClankTitle",
+            "GolfTitleMessenger regression: sendClankTitle method is missing."
+        );
+        assertContains(
+            golfTitleMessengerSource,
+            "static void sendStrictPenaltyTitle",
+            "GolfTitleMessenger regression: sendStrictPenaltyTitle method is missing."
+        );
+
     }
 
     private static void runArchitectureChecks() {
