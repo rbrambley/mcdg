@@ -164,4 +164,25 @@ public final class PlacementUtils {
                 || state.isOf(Blocks.TWISTING_VINES)
                 || state.isOf(Blocks.TWISTING_VINES_PLANT);
     }
+    static int[] teeForwardUnit(BlockPos teeCenter, BlockPos basketSurface) {
+        int dx = basketSurface.getX() - teeCenter.getX();
+        int dz = basketSurface.getZ() - teeCenter.getZ();
+        if (Math.abs(dx) >= Math.abs(dz)) {
+            return new int[] { Integer.compare(dx, 0), 0 };
+        }
+        return new int[] { 0, Integer.compare(dz, 0) };
+    }
+
+    static int placedDistanceFeet(BlockPos from, BlockPos to) {
+        if (from == null || to == null) {
+            return 0;
+        }
+
+        double dx = (to.getX() + 0.5) - (from.getX() + 0.5);
+        double dy = (to.getY() + 0.5) - (from.getY() + 0.5);
+        double dz = (to.getZ() + 0.5) - (from.getZ() + 0.5);
+        int meters = Math.max(0, (int) Math.round(Math.sqrt(dx * dx + dy * dy + dz * dz)));
+        return Math.max(0, Math.round(meters * 3.28084f));
+    }
+
 }

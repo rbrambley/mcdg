@@ -183,7 +183,7 @@ final class FairwayCarver {
                 if (PlacementUtils.isProtected(protectedPositions, lanternBase.up())) {
                     continue;
                 }
-                CoursePlacementService.placeLanternPost(world, lanternBase, 2, originalBlocks);
+                CourseStructureBuilder.placeLanternPost(world, lanternBase, 2, originalBlocks);
                 lastLanternStep = i;
             }
         }
