@@ -4,6 +4,7 @@ import com.mcdg.McdgMod;
 import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import com.mcdg.rules.TournamentRulesetManager;
+import com.mcdg.world.SafePositionFinder;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -102,8 +103,8 @@ public final class ThrowResolver {
                             player.getGameProfile().getName(),
                             state.currentHole(),
                             state.totalStrokes(),
-                            HoleProgressTracker.formatPos(throwLie),
-                            HoleProgressTracker.formatPos(currentFeet),
+                            OutOfBoundsClassifier.formatPos(throwLie),
+                            OutOfBoundsClassifier.formatPos(currentFeet),
                             pendingTicks,
                             trackedPearlInFlight,
                             withinReleaseGrace
@@ -122,8 +123,8 @@ public final class ThrowResolver {
                             player.getGameProfile().getName(),
                             state.currentHole(),
                             state.totalStrokes(),
-                            HoleProgressTracker.formatPos(throwLie),
-                            HoleProgressTracker.formatPos(currentFeet),
+                            OutOfBoundsClassifier.formatPos(throwLie),
+                            OutOfBoundsClassifier.formatPos(currentFeet),
                             pendingTicks
                     );
                 }
@@ -143,14 +144,14 @@ public final class ThrowResolver {
         }
         LAST_THROW_PENDING_TICKS.remove(player.getUuid());
 
-        BlockPos landingFeet = HoleProgressTracker.findNearestStandableFeet(world, currentFeet);
+        BlockPos landingFeet = SafePositionFinder.findNearestStandableFeet(world, currentFeet);
 
         BlockPos resultingLie = landingFeet;
         BlockPos firstOutCrossing = null;
         StrictPenaltyType landingPenalty = StrictPenaltyType.NONE;
         if (ENABLE_STRICT_LANDING_PENALTIES && rulesetManager.isStrict()) {
-            StrictPenaltyType currentFeetPenalty = HoleProgressTracker.classifyOutType(world, currentFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
-            StrictPenaltyType standableFeetPenalty = HoleProgressTracker.classifyOutType(world, landingFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
+            StrictPenaltyType currentFeetPenalty = OutOfBoundsClassifier.classifyOutType(world, currentFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
+            StrictPenaltyType standableFeetPenalty = OutOfBoundsClassifier.classifyOutType(world, landingFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
             landingPenalty = combinePenalty(currentFeetPenalty, standableFeetPenalty);
             if (landingPenalty != StrictPenaltyType.NONE) {
                 if (strictFlowDebug) {
@@ -159,9 +160,9 @@ public final class ThrowResolver {
                             player.getGameProfile().getName(),
                             state.currentHole(),
                             state.totalStrokes(),
-                            HoleProgressTracker.formatPos(throwLie),
-                            HoleProgressTracker.formatPos(currentFeet),
-                            HoleProgressTracker.formatPos(landingFeet),
+                            OutOfBoundsClassifier.formatPos(throwLie),
+                            OutOfBoundsClassifier.formatPos(currentFeet),
+                            OutOfBoundsClassifier.formatPos(landingFeet),
                             currentFeetPenalty.name(),
                             standableFeetPenalty.name(),
                             landingPenalty.name()
@@ -205,15 +206,15 @@ public final class ThrowResolver {
                     Text.literal(label + " landing in strict mode: +" + penaltyStrokes + " stroke. " + penaltyText),
                     true
                 );
-                HoleProgressTracker.sendStrictPenaltyTitle(player, landingPenalty, penaltyStrokes);
+                GolfTitleMessenger.sendStrictPenaltyTitle(player, landingPenalty, penaltyStrokes);
                 state = roundStateManager.markLastThrowPenalty(player.getUuid(), true).orElse(state);
                 }
 
                 if (hudScoringDebug) {
                 player.sendMessage(Text.literal(
                         "Strict dbg | landing=" + landingPenalty.name()
-                                + " | firstOut=" + HoleProgressTracker.formatPos(firstOutCrossing)
-                                + " | safeLie=" + HoleProgressTracker.formatPos(resultingLie)
+                                + " | firstOut=" + OutOfBoundsClassifier.formatPos(firstOutCrossing)
+                                + " | safeLie=" + OutOfBoundsClassifier.formatPos(resultingLie)
                 ), false);
             }
         }
@@ -237,13 +238,13 @@ public final class ThrowResolver {
             BlockPos bounced = basketBouncePosition(world, basket);
             resultingLie = bounced;
             player.teleport(resultingLie.getX() + 0.5, resultingLie.getY() + 1.0, resultingLie.getZ() + 0.5);
-            HoleProgressTracker.sendClankTitle(player);
+            GolfTitleMessenger.sendClankTitle(player);
         }
 
         if (!madeShot) {
-            resultingLie = HoleProgressTracker.findNearestStandableFeet(world, resultingLie);
-            if (!HoleProgressTracker.isStandableFeetBlock(world, resultingLie)) {
-                resultingLie = HoleProgressTracker.findNearestStandableFeet(world, throwLie);
+            resultingLie = SafePositionFinder.findNearestStandableFeet(world, resultingLie);
+            if (!SafePositionFinder.isStandableFeet(world, resultingLie)) {
+                resultingLie = SafePositionFinder.findNearestStandableFeet(world, throwLie);
             }
         }
 
@@ -258,8 +259,8 @@ public final class ThrowResolver {
                     updated.currentHole(),
                     state.totalStrokes(),
                     updated.totalStrokes(),
-                    HoleProgressTracker.formatPos(throwLie),
-                    HoleProgressTracker.formatPos(resultingLie),
+                    OutOfBoundsClassifier.formatPos(throwLie),
+                    OutOfBoundsClassifier.formatPos(resultingLie),
                     landingPenalty.name(),
                     updated.lastThrowPenalty()
             );
@@ -344,7 +345,7 @@ public final class ThrowResolver {
             BlockPos alternateAnchor,
             TournamentRulesetManager rulesetManager
     ) {
-        BlockPos start = HoleProgressTracker.findNearestStandableFeet(world, throwLie);
+        BlockPos start = SafePositionFinder.findNearestStandableFeet(world, throwLie);
         BlockPos end = landingFeet;
         BlockPos lastInBoundsSolid = start;
         BlockPos firstOut = null;
@@ -358,16 +359,16 @@ public final class ThrowResolver {
             int z = (int) Math.floor((start.getZ() + 0.5) + ((end.getZ() + 0.5 - (start.getZ() + 0.5)) * t));
             BlockPos probeRaw = new BlockPos(x, y, z);
 
-            if (HoleProgressTracker.classifyOutType(world, probeRaw, currentHole, tee, basket, alternateAnchor, rulesetManager) != StrictPenaltyType.NONE) {
+            if (OutOfBoundsClassifier.classifyOutType(world, probeRaw, currentHole, tee, basket, alternateAnchor, rulesetManager) != StrictPenaltyType.NONE) {
                 if (firstOut == null) {
                     firstOut = probeRaw.toImmutable();
                 }
                 continue;
             }
 
-            BlockPos standableProbe = HoleProgressTracker.findNearestStandableFeet(world, probeRaw);
-            if (HoleProgressTracker.isStandableFeetBlock(world, standableProbe)
-                    && HoleProgressTracker.classifyOutType(world, standableProbe, currentHole, tee, basket, alternateAnchor, rulesetManager) == StrictPenaltyType.NONE) {
+            BlockPos standableProbe = SafePositionFinder.findNearestStandableFeet(world, probeRaw);
+            if (SafePositionFinder.isStandableFeet(world, standableProbe)
+                    && OutOfBoundsClassifier.classifyOutType(world, standableProbe, currentHole, tee, basket, alternateAnchor, rulesetManager) == StrictPenaltyType.NONE) {
                 lastInBoundsSolid = standableProbe;
             }
         }
@@ -427,7 +428,7 @@ public final class ThrowResolver {
             for (int dx : offsets) {
                 int dist = Math.abs(dx) + Math.abs(dz);
                 if (dist < 1 || dist > 3) continue;
-                BlockPos candidate = HoleProgressTracker.findNearestStandableFeet(world,
+                BlockPos candidate = SafePositionFinder.findNearestStandableFeet(world,
                         new BlockPos(basket.getX() + dx, basket.getY(), basket.getZ() + dz));
                 if (candidate != null && HoleProgressTracker.manhattanDistance(candidate, basket) >= 1) {
                     return candidate;

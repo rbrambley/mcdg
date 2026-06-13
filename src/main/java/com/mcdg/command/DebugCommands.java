@@ -3,7 +3,12 @@ package com.mcdg.command;
 import com.mcdg.data.Course;
 import com.mcdg.game.ActiveCourseManager;
 import com.mcdg.game.PlacedCourseState;
+import com.mcdg.game.PracticeCourseStorage;
+import com.mcdg.game.RoundPresentationService;
+import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.ThrowAutoTestService;
+import com.mcdg.world.CourseGenerator;
+import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.PlacementAutoTestService;
 import java.util.List;
@@ -23,7 +28,7 @@ public final class DebugCommands {
         public static int executeDebugPermissions(ServerCommandSource source) {
                 boolean hasPermissionLevelTwo = source.hasPermissionLevel(2);
                 boolean dedicated = source.getServer().isDedicated();
-                boolean allowedByGate = McdgAdminCommands.canUseAdminCommands(source);
+                boolean allowedByGate = CommandPermissions.canUseAdminCommands(source);
 
                 String sourceType = "non-entity";
                 String sourceIdentity = source.getName();
@@ -42,7 +47,7 @@ public final class DebugCommands {
                         "mcdg debug perms -> hasPermissionLevel(2)=" + hasPermissionLevelTwo
                                 + ", dedicated=" + dedicated
                                 + ", canUseAdminCommands=" + allowedByGate
-                                + ", showAdvancedCommands=" + McdgAdminCommands.SHOW_ADVANCED_COMMANDS
+                                + ", showAdvancedCommands=" + CommandPermissions.SHOW_ADVANCED_COMMANDS
                                 + ", sourceType=" + finalSourceType
                                 + ", source=" + finalSourceIdentity
                 ), false);
@@ -170,6 +175,52 @@ public final class DebugCommands {
 
         public static int executeCancelThrowTest(ServerCommandSource source, ThrowAutoTestService throwAutoTestService) {
                 return throwAutoTestService.cancel(source);
+        }
+
+        public static int executeQuickThrowTest(
+                        ServerCommandSource source,
+                        CourseGenerator generator,
+                        ActiveCourseManager courseManager,
+                        CoursePlacementService placementService,
+                        CoursePlacementValidator placementValidator,
+                        RoundStateManager roundStateManager,
+                        RoundPresentationService roundPresentationService,
+                        PracticeCourseStorage practiceCourseStorage,
+                        ThrowAutoTestService throwAutoTestService,
+                        long seed,
+                        int throwCount
+        ) {
+                int created = CourseAdminCommands.executeCreateCourse(source, generator, courseManager, seed);
+                if (created == 0) {
+                        return 0;
+                }
+
+                int started = CourseAdminCommands.executeStartRound(
+                        source,
+                        courseManager,
+                        placementService,
+                        placementValidator,
+                        roundStateManager,
+                        roundPresentationService,
+                        true,
+                        practiceCourseStorage,
+                        false,
+                        true,
+                        null
+                );
+                if (started == 0) {
+                        return 0;
+                }
+
+                int testStarted = executeAutoTestThrows(source, throwAutoTestService, throwCount);
+                if (testStarted == 0) {
+                        return 0;
+                }
+
+                source.sendFeedback(() -> Text.literal(
+                        "Quick throw test running: seed=" + seed + ", throws=" + throwCount + "."
+                ), true);
+                return 1;
         }
 
 }

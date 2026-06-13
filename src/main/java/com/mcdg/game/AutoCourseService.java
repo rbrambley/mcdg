@@ -11,6 +11,7 @@ import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.CourseGenerator;
 import com.mcdg.world.CoursePlacementConfig;
+import com.mcdg.world.PlacementUtils;
 import com.mcdg.world.HoleLayoutValidator;
 import com.mcdg.game.PlacedCourseState;
 import java.util.ArrayList;
@@ -348,8 +349,8 @@ public final class AutoCourseService {
             alternates.putAll(placed.holeAlternateAnchors());
             effectivePars.putAll(placed.effectiveHolePars());
 
-            CoursePlacementService.addProtectedColumnArea(globalProtectedPositions, actualTee, 2, 6);
-            CoursePlacementService.addProtectedColumnArea(globalProtectedPositions, actualBasket.down(), 2, 8);
+            PlacementUtils.addProtectedColumnArea(globalProtectedPositions, actualTee, 2, 6);
+            PlacementUtils.addProtectedColumnArea(globalProtectedPositions, actualBasket.down(), 2, 8);
 
             if (progressMessage != null) {
                 progressMessage.accept("Placed hole " + hole.index() + " of " + course.holes().size());

@@ -1,6 +1,7 @@
 package com.mcdg.game;
 
 import com.mcdg.data.Course;
+import com.mcdg.world.SafePositionFinder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -159,7 +160,7 @@ public final class TurnManager {
         if (tee != null) {
             ServerWorld world = server.getWorld(placed.worldKey());
             if (world != null) {
-                BlockPos safeTee = HoleProgressTracker.resolveSafeFeetNear(world, tee);
+                BlockPos safeTee = SafePositionFinder.resolveSafeFeetNear(world, tee);
                 roundStateManager.updateLie(playerId, safeTee);
                 ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
                 if (player != null && player.getWorld().getRegistryKey() == placed.worldKey()) {

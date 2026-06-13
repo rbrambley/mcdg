@@ -98,7 +98,7 @@ public final class MiniMapSyncService {
         UUID playerId = player.getUuid();
         BlockPos mapFocus = player.getBlockPos();
         int[] corridorEntry = tee != null
-                ? HoleProgressTracker.nearestForwardCorridorEntry(state.lie(), tee, basket, alternateAnchor, corridorHalfWidth)
+                ? OutOfBoundsClassifier.nearestForwardCorridorEntry(state.lie(), tee, basket, alternateAnchor, corridorHalfWidth)
                 : null;
         int corridorEntryFeet = corridorEntry != null ? corridorEntry[0] : 0;
         int corridorEntryBearing = corridorEntry != null ? corridorEntry[1] : 0;
@@ -176,7 +176,7 @@ public final class MiniMapSyncService {
         UUID playerId = player.getUuid();
         BlockPos mapFocus = player.getBlockPos();
         int[] corridorEntry = tee != null
-                ? HoleProgressTracker.nearestForwardCorridorEntry(state.lie(), tee, basket, alternateAnchor, corridorHalfWidth)
+                ? OutOfBoundsClassifier.nearestForwardCorridorEntry(state.lie(), tee, basket, alternateAnchor, corridorHalfWidth)
                 : null;
         int corridorEntryFeet = corridorEntry != null ? corridorEntry[0] : 0;
         int corridorEntryBearing = corridorEntry != null ? corridorEntry[1] : 0;
@@ -232,7 +232,7 @@ public final class MiniMapSyncService {
             int corridorEntryFeet,
             int corridorEntryBearing
     ) {
-        int[] waterGap = HoleProgressTracker.findLongestWaterGap(world, lie, basket);
+        int[] waterGap = OutOfBoundsClassifier.findLongestWaterGap(world, lie, basket);
         int waterGapStartFeet = waterGap[2] > 0 ? Math.round(waterGap[0] * 3.28084f) : 0;
         int waterGapEndFeet = waterGap[2] > 0 ? Math.round(waterGap[1] * 3.28084f) : 0;
         boolean hasWaterGap = waterGap[2] > 0;

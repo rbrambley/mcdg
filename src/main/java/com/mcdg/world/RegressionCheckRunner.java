@@ -23,7 +23,7 @@ public final class RegressionCheckRunner {
         "src", "main", "java", "com", "mcdg", "world", "CoursePlacementValidator.java"
     );
     private static final Path ADMIN_COMMAND_FILE = Paths.get(
-        "src", "main", "java", "com", "mcdg", "command", "McdgAdminCommands.java"
+        "src", "main", "java", "com", "mcdg", "command", "CourseAdminCommands.java"
     );
     private static final Path COURSE_PLACEMENT_FILE = Paths.get(
         "src", "main", "java", "com", "mcdg", "world", "CoursePlacementService.java"

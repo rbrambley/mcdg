@@ -1,6 +1,7 @@
 package com.mcdg.game;
 
 import com.mcdg.McdgMod;
+import com.mcdg.world.SafePositionFinder;
 import com.mcdg.data.Course;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -574,7 +575,7 @@ public final class ThrowAutoTestService {
             PlayerRoundState state
     ) {
         BlockPos playerFeet = player.getBlockPos();
-        BlockPos nearestPlayerFeet = resolveSafeFeetNear(world, playerFeet);
+        BlockPos nearestPlayerFeet = SafePositionFinder.resolveSafeFeetNear(world, playerFeet);
         StringBuilder builder = new StringBuilder();
         builder.append("playerFeet=").append(formatPos(playerFeet));
         builder.append(" nearestStandable=").append(formatPos(nearestPlayerFeet));
@@ -595,7 +596,7 @@ public final class ThrowAutoTestService {
     }
 
     private static BlockPos resolveClearLaunchFeetNear(ServerWorld world, BlockPos preferredFeet, BlockPos basket) {
-        BlockPos fallback = resolveSafeFeetNear(world, preferredFeet);
+        BlockPos fallback = SafePositionFinder.resolveSafeFeetNear(world, preferredFeet);
         if (hasClearImmediateLaunchPath(world, fallback, basket)) {
             return fallback;
         }
@@ -612,7 +613,7 @@ public final class ThrowAutoTestService {
                         }
 
                         BlockPos candidate = preferredFeet.add(dx, dy, dz);
-                        if (!isStandableFeet(world, candidate) || !hasClearImmediateLaunchPath(world, candidate, basket)) {
+                        if (!SafePositionFinder.isStandableFeet(world, candidate) || !hasClearImmediateLaunchPath(world, candidate, basket)) {
                             continue;
                         }
 
@@ -690,62 +691,6 @@ public final class ThrowAutoTestService {
         ).isEmpty();
     }
 
-    private static BlockPos resolveSafeFeetNear(ServerWorld world, BlockPos preferredFeet) {
-        if (isStandableFeet(world, preferredFeet)) {
-            return preferredFeet;
-        }
-
-        for (int dy = 1; dy <= 6; dy++) {
-            BlockPos up = preferredFeet.up(dy);
-            if (isStandableFeet(world, up)) {
-                return up;
-            }
-            BlockPos down = preferredFeet.down(dy);
-            if (isStandableFeet(world, down)) {
-                return down;
-            }
-        }
-
-        for (int radius = 1; radius <= 6; radius++) {
-            for (int dx = -radius; dx <= radius; dx++) {
-                for (int dz = -radius; dz <= radius; dz++) {
-                    if (Math.abs(dx) != radius && Math.abs(dz) != radius) {
-                        continue;
-                    }
-                    BlockPos candidate = preferredFeet.add(dx, 0, dz);
-                    if (isStandableFeet(world, candidate)) {
-                        return candidate;
-                    }
-                }
-            }
-        }
-
-        return preferredFeet;
-    }
-
-    private static boolean isStandableFeet(ServerWorld world, BlockPos feet) {
-        if (!world.getFluidState(feet).isEmpty()) {
-            return false;
-        }
-        if (!world.getBlockState(feet).getCollisionShape(world, feet).isEmpty()) {
-            return false;
-        }
-
-        BlockPos head = feet.up();
-        if (!world.getFluidState(head).isEmpty()) {
-            return false;
-        }
-        if (!world.getBlockState(head).getCollisionShape(world, head).isEmpty()) {
-            return false;
-        }
-
-        BlockPos ground = feet.down();
-        if (!world.getFluidState(ground).isEmpty()) {
-            return false;
-        }
-
-        return !world.getBlockState(ground).getCollisionShape(world, ground).isEmpty();
-    }
 
     private static final class AutoThrowSession {
         private final ServerCommandSource source;

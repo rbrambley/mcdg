@@ -2,7 +2,11 @@ package com.mcdg.command;
 
 import com.mcdg.game.ActiveCourseManager;
 import com.mcdg.game.PlayerRoundSessionStorage;
+import com.mcdg.game.PlacedCourseState;
+import com.mcdg.game.PracticeCourseStorage;
+import com.mcdg.net.MenuScreenSync;
 import com.mcdg.rules.TournamentRulesetManager;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.ClickEvent;
@@ -10,6 +14,8 @@ import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -138,8 +144,9 @@ public final class MenuCommands {
         TournamentRulesetManager.StrictSurfacePreset preset = rulesetManager.getStrictSurfacePreset();
         source.sendFeedback(() -> Text.literal("Rules").formatted(Formatting.BLUE, Formatting.BOLD), false);
         source.sendFeedback(() -> Text.literal("Current: " + ruleset.name().toLowerCase() + " / " + preset.name().toLowerCase()).formatted(Formatting.DARK_GRAY), false);
-        source.sendFeedback(() -> menuButton("Set Casual", "/mcdg ruleset casual", Formatting.GREEN, true), false);
-        source.sendFeedback(() -> menuButton("Set Strict", "/mcdg ruleset strict", Formatting.GOLD, true), false);
+        source.sendFeedback(() -> menuButton("Casual", "/mcdg ruleset casual", Formatting.GREEN, true), false);
+        source.sendFeedback(() -> menuButton("Standard", "/mcdg ruleset standard", Formatting.YELLOW, true), false);
+        source.sendFeedback(() -> menuButton("Strict", "/mcdg ruleset strict", Formatting.RED, true), false);
         source.sendFeedback(() -> Text.literal("─ Strict Surface ─").formatted(Formatting.DARK_GRAY), false);
         source.sendFeedback(() -> menuButton("Fast (forgiving)", "/mcdg ruleset surface fast", Formatting.GREEN, true), false);
         source.sendFeedback(() -> menuButton("Balanced (default)", "/mcdg ruleset surface balanced", Formatting.YELLOW, true), false);
@@ -218,6 +225,95 @@ public final class MenuCommands {
         }
         source.sendFeedback(() -> Text.literal("Pending menu confirmation canceled."), false);
         source.sendFeedback(() -> menuButton("BACK", "/mcdg menu", Formatting.GRAY, true), false);
+        return 1;
+    }
+
+    public static int sendMenuScreen(
+            ServerCommandSource source,
+            ActiveCourseManager courseManager,
+            PlayerRoundSessionStorage playerRoundSessionStorage,
+            TournamentRulesetManager rulesetManager,
+            PracticeCourseStorage practiceCourseStorage
+    ) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            return MenuCommands.executeMenuDashboard(source, courseManager, playerRoundSessionStorage, rulesetManager);
+        }
+
+        boolean roundActive = courseManager.isRoundActive();
+        boolean courseLoaded = courseManager.getPlacedCourseState().isPresent();
+        com.mcdg.data.Course activeCourse = courseManager.getActiveCourse().orElse(null);
+        String courseName = activeCourse != null && activeCourse.name() != null ? activeCourse.name() : "";
+        int activeCatalogIndex = courseManager.getActiveCourseCatalogIndex().orElse(-1);
+        int activeHoleCount = activeCourse != null ? activeCourse.holes().size() : 0;
+        boolean isAdmin = canUseAdminCommands(source);
+
+        boolean hasSavedSession = false;
+        String savedCourseName = "";
+        int savedHole = 0;
+        int savedStrokes = 0;
+        if (!roundActive && playerRoundSessionStorage != null) {
+            var saved = playerRoundSessionStorage.loadPlayer(source.getServer(), player.getUuid(), null).orElse(null);
+            if (saved != null) {
+                hasSavedSession = true;
+                savedCourseName = saved.courseName() != null ? saved.courseName() : "";
+                savedHole = saved.state().currentHole();
+                savedStrokes = saved.state().totalStrokes();
+            }
+        }
+
+        TournamentRulesetManager.Ruleset ruleset = rulesetManager.getActiveRuleset();
+        TournamentRulesetManager.StrictSurfacePreset preset = rulesetManager.getStrictSurfacePreset();
+
+        List<MenuScreenSync.CourseEntry> courses = new ArrayList<>();
+        List<PracticeCourseStorage.ReusableCourseEntry> entries = practiceCourseStorage.listReusable(source.getServer());
+        for (PracticeCourseStorage.ReusableCourseEntry entry : entries) {
+            courses.add(new MenuScreenSync.CourseEntry(entry.index(), entry.name(), entry.holeCount()));
+        }
+
+        // Auto-save current course if placed but not in catalog
+        if (courseLoaded && activeCatalogIndex < 0 && activeCourse != null) {
+            PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
+            if (placed != null) {
+                int savedIndex = practiceCourseStorage.saveReusable(source.getServer(), activeCourse, placed, "autosave/menu", false);
+                if (savedIndex > 0) {
+                    courseManager.setActiveCourseCatalogIndex(savedIndex);
+                    activeCatalogIndex = savedIndex;
+                    // Refresh courses list
+                    courses.clear();
+                    entries = practiceCourseStorage.listReusable(source.getServer());
+                    for (PracticeCourseStorage.ReusableCourseEntry entry : entries) {
+                        courses.add(new MenuScreenSync.CourseEntry(entry.index(), entry.name(), entry.holeCount()));
+                    }
+                }
+            }
+        }
+
+        if (hasSavedSession) {
+            boolean courseStillExists = false;
+            for (MenuScreenSync.CourseEntry entry : courses) {
+                if (savedCourseName.equalsIgnoreCase(entry.name())) {
+                    courseStillExists = true;
+                    break;
+                }
+            }
+            if (!courseStillExists) {
+                hasSavedSession = false;
+                savedCourseName = "";
+                savedHole = 0;
+                savedStrokes = 0;
+            }
+        }
+        MenuScreenSync.Payload payload = new MenuScreenSync.Payload(
+                roundActive, courseLoaded, courseName,
+                activeCatalogIndex, activeHoleCount,
+                hasSavedSession, savedCourseName, savedHole, savedStrokes,
+                isAdmin,
+                ruleset.name().toLowerCase(),
+                preset.name().toLowerCase(),
+                courses
+        );
+        ServerPlayNetworking.send(player, payload);
         return 1;
     }
 

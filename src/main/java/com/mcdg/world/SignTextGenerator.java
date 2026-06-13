@@ -29,7 +29,7 @@ final class SignTextGenerator {
             String hazardNote,
             Map<BlockPos, BlockState> originalBlocks
     ) {
-        CoursePlacementService.clearHeadroom(world, signGround, 0, 3, originalBlocks, null);
+        PlacementUtils.clearHeadroom(world, signGround, 0, 3, originalBlocks, null);
         BlockPos signPos = signGround.up(1);
         BlockState signState = Blocks.OAK_SIGN
                 .getDefaultState()
