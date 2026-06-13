@@ -112,27 +112,27 @@ On first player spawn in a fresh world:
 - [x] Implement `ResortBuilder` with basic room layout (lobby, courtyard, housing, fountain, perimeter wall, lighting).
 - [x] Test: manual `/mcdg buildresort` builds a resort at current position.
 
-### Phase 2: New World Auto-Build
+### Phase 2: New World Auto-Build — DONE
 
-- [ ] Implement `WorldSpawnHandler` using `ServerLifecycleEvents.SERVER_STARTED`.
-- [ ] Detect fresh world (no resort marker, no prior player data).
-- [ ] Trigger resort build when new world starts (not on first player join).
-- [ ] Set world spawn to resort lobby.
+- [x] Implement `WorldSpawnHandler` using `ServerLifecycleEvents.SERVER_STARTED`.
+- [x] Detect fresh world (no resort marker, no prior player data).
+- [x] Trigger resort build when new world starts (not on first player join).
+- [x] Set world spawn to resort lobby.
 - Resort waypoint is synced to players on join only (already implemented via `ResortWaypointManager.broadcastToPlayer`).
 
-### Phase 3: Admin Command + Overwrite Flow
+### Phase 3: Admin Command + Overwrite Flow — DONE
 
 - [x] `/mcdg buildresort` works at current player position.
-- [ ] `buildresort` generates 3 surrounding courses after resort placement (one at a time, 30+ blocks from wall, terrain-aware sides, no overlap).
+- [x] `buildresort` generates 3 surrounding courses after resort placement (one at a time, 30+ blocks from wall, terrain-aware sides, no overlap).
 
-- [ ] Add `/mcdg buildresort <x> <z>` location arg.
-- [ ] Implement existing-resort detection and prompt flow.
-- [ ] Ask about world spawn update on overwrite.
-- [ ] Deprecate `/mcdg buildcamp` with redirect message.
+- [x] Add `/mcdg buildresort <x> <z>` location arg.
+- [x] Implement existing-resort detection and prompt flow.
+- [x] Ask about world spawn update on overwrite.
+- [x] Deprecate `/mcdg buildcamp` with redirect message.
 
-### Phase 4: Polish
+### Phase 4: Polish — DONE
 
-- Protect resort from `cleanupcourse`.
+- [x] Protect resort from `cleanupcourse`.
 - `gradle quickRegression smokeRegression`.
 
 ---
@@ -149,15 +149,15 @@ On first player spawn in a fresh world:
 
 ## Acceptance Criteria
 
-- [ ] Fresh single-player world auto-builds resort on world start.
-- [ ] Fresh server world auto-builds resort on world start.
-- [ ] `/mcdg buildresort` builds at current position on existing worlds.
-- [ ] `/mcdg buildresort` generates 3 courses around the resort (one at a time, 30+ blocks from wall, no overlap).
-- [ ] `/mcdg buildresort <x> <z>` builds at specified coordinates.
-- [ ] Rebuilding at existing resort shows prompt with overwrite / new location / cancel options.
-- [ ] World spawn is updated to resort lobby when requested.
-- [ ] `cleanupcourse` does not destroy resort blocks.
-- [ ] `gradle quickRegression smokeRegression` passes.
+- [x] Fresh single-player world auto-builds resort on world start.
+- [x] Fresh server world auto-builds resort on world start.
+- [x] `/mcdg buildresort` builds at current position on existing worlds.
+- [x] `/mcdg buildresort` generates 3 courses around the resort (one at a time, 30+ blocks from wall, no overlap).
+- [x] `/mcdg buildresort <x> <z>` builds at specified coordinates.
+- [x] Rebuilding at existing resort shows prompt with overwrite / new location / cancel options.
+- [x] World spawn is updated to resort lobby when requested.
+- [x] `cleanupcourse` does not destroy resort blocks.
+- [x] `gradle quickRegression smokeRegression` passes.
 
 ---
 

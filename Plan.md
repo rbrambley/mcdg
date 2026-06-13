@@ -34,6 +34,55 @@ Open / next:
 
 ---
 
+## Unified Course Placement + Resort + Outward Teardrop Generator (2026-06-06 to 2026-06-12)
+
+Implemented / validated:
+
+- **Outward teardrop cone course generator** is now the default for all auto-builds.
+  - Replaces spiral/compact layout for `autocourse` (player menu) and `buildresort` surround courses.
+  - Uses a base-line + outward cone + turnaround + return-leg routing pattern.
+  - Keeps hole 9 basket near base line with >= 30 block offset from tee 1.
+- **Island fairways**: full-width segments with water-carry gaps for coastal/watery terrain.
+- **Auto-course naming GUI**: menu-driven `autocourse` prompt collects course name before build; water-carry cap (`91` blocks / ~300 ft) enforced during generation.
+- **Resort auto-build on fresh worlds**: `WorldSpawnHandler` detects new worlds and triggers resort + 3 surround courses at world spawn.
+- **Admin `/mcdg buildresort`**:
+  - Builds at current player position or optional `<x> <z>` coordinates.
+  - Existing-resort detection with overwrite / new location / cancel prompt flow.
+  - World spawn update to resort lobby interior when requested.
+- **`ResortCoursePlacement`** builds 3 terrain-aware surrounding courses one at a time, dynamically choosing sides based on terrain (avoids water, steep slopes, obstructions).
+- **`buildcamp` deprecated** in favor of `buildresort`; command now shows deprecation redirect.
+- **Resort area protected from `cleanupcourse`** via resort marker block exclusion radius.
+- **Autotest reliability**: expanded biome exclusions (`mushroom_fields`, etc.) and tightened anchor water probe in `PlacementAutoTestService`.
+- **Waypoint leak fixes**: stale server-side waypoints cleared on disconnect; `/mcdg waypoint clear` added.
+- **Teleport death / survival damage fixes** during round entry and resume teleportation.
+- **Fairway water carving** fix for full-width segments.
+- **OB-on-green fix**: expanded basket green safe zone radius so basket-structure contact no longer incorrectly classifies as hazard.
+
+Key commits:
+
+- `94e2544` Fix waypoint leaks, teleport death, survival damage, and fairway water carving.
+- `f9e402f` Fix autotest biome exclusions and anchor water probe.
+- `b192b79` Protect resort area from cleanupcourse.
+- `9a930cd` Implement ResortCoursePlacement with terrain-aware surround courses.
+- `797e785` Add buildresort coordinate args and overwrite prompt flow.
+- `eb9d2d3` Implement WorldSpawnHandler for resort auto-build on fresh worlds.
+- `17c4c57` Add auto-course naming GUI and enforce water-carry cap.
+- `64c7ea3` Implement island fairways: full-width segments with water carry gaps.
+- `767743a` Implement outward teardrop cone course generator.
+
+Validation status:
+
+- `gradle build`: PASS.
+- `gradle quickRegression`: PASS.
+- `gradle smokeRegression`: PASS.
+- ATLauncher deploy gate: PASS.
+
+Open / next:
+
+- Multiplayer live validation (2-player full round still pending).
+
+---
+
 ## MCDG Coordinated Plan (Up To Date)
 
 Date: 2026-05-30
@@ -104,10 +153,9 @@ Command + generation model update (2026-06-02):
   - Disc mode switching (Putter / Mid / Driver), release angle (hyzer/flat/anhyzer).
   - Post-release initiative after multiplayer validation and compact course layout.
 - Resort / world spawn (see `RESORT-PLAN.md` for full plan).
-  - Auto-build resort with 3 surrounding courses on new worlds.
+  - **Implemented.** Auto-build resort with 3 surrounding courses on new worlds.
   - Admin command `/mcdg buildresort` for existing worlds with overwrite/relocate flow.
-  - Deprecates `/mcdg buildcamp`.
-  - Post-release initiative alongside or after multiplayer validation.
+  - `buildcamp` deprecated in favor of `buildresort`.
 - Tournament system (see `TOURNAMENT-PLAN.md` for full plan).
   - Stroke play across 1–4 admin-selected catalog courses.
   - Solo and multiplayer support, live spectator leaderboard, archival history.
@@ -182,11 +230,21 @@ Done:
   (`basket_marker_flooded`).
 - Recent fixes are deployed to ATLauncher test instance with successful
   lifecycle smoke.
+- Outward teardrop cone course generator is the default for auto-builds (resort
+  surround + player `autocourse`).
+- Island fairways with full-width segments and water-carry gaps.
+- Auto-course naming GUI and water-carry cap enforcement.
+- Resort auto-build on fresh worlds (`WorldSpawnHandler`) + admin `/mcdg
+  buildresort` with coordinate args and overwrite/relocate prompt flow.
+- `ResortCoursePlacement` with terrain-aware 3-course surround generation.
+- Resort area protected from `cleanupcourse`.
+- Autotest biome exclusions and anchor water probe fixes.
+- Waypoint leak fixes, teleport death / survival damage fixes, fairway water
+  carving fix, OB-on-green fix.
 
 Open:
 
 - Manual verification closeout for newest fixes:
-  - watery basket finish scenarios,
   - elevation-floor behavior on varied terrain,
   - cleanup relocation behavior in live multiplayer,
   - last-3-hole score panel behavior in live multiplayer.
@@ -1342,6 +1400,8 @@ Primary automation workflows:
 ---
 
 ## Smoke Test Reliability (Pending — 2026-06-09)
+
+**Status: Fixed in commit `f9e402f`.** Expanded biome exclusions and tightened anchor water probe.
 
 **Problem:** Headless lifecycle smoke (`run-headless-autotest.ps1`) consistently fails because the persistent `run/` world spawns in a `mushroom_fields` biome with 96% water coverage. The autotest keeps retrying placement from that fixed origin.
 

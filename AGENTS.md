@@ -28,14 +28,18 @@
 - `McdgMod` — server initializer, wires all services, registers networking and commands
 - `RoundStateManager` — thread-safe player round state via `ConcurrentHashMap`
 - `ActiveCourseManager` — tracks active course, placement state, round status
-- `HoleProgressTracker` — throw resolution, pearl tracking, strict landing, turn timeouts (~1900 lines, needs splitting)
-- `CoursePlacementService` — world editing, block placement, validation, signs (~3500 lines, needs splitting)
-- `McdgAdminCommands` — all admin commands (~2100 lines, needs splitting)
+- `HoleProgressTracker` — throw resolution, pearl tracking, strict landing, turn timeouts (~1536 lines, needs splitting)
+- `CoursePlacementService` — world editing, block placement, validation, signs (~2648 lines, needs splitting)
+- `McdgAdminCommands` — all admin commands (~2563 lines, needs splitting)
 - `SeededCourseGenerator` — procedural course generation
+- `ResortBuilder` — resort structure placement (lobby, courtyard, housing, wall, lighting)
+- `ResortCoursePlacement` — computes 3 terrain-aware course anchors around a resort
+- `WorldSpawnHandler` — auto-builds resort on fresh world start
+- `ResortWaypointManager` — resort waypoint broadcast to joining players
 
 ### Client (`src/client/java/com/mcdg/client/`)
 - `McdgClientMod` — client initializer, thin event wiring (~180 lines, good)
-- `MiniMapRenderer` — minimap rendering, terrain sampling, hazard overlays (~1285 lines, recently extracted)
+- `MiniMapRenderer` — minimap rendering, terrain sampling, hazard overlays (~1108 lines, recently extracted)
 - `WaypointManager` — waypoint CRUD, world labels, minimap arrows
 - `ClientNetworking` — packet receivers dispatching to correct threads
 
@@ -46,7 +50,7 @@
 - `AceCinematicSync`, `RoundCompleteCinematicSync` — cinematic overlays
 
 ## Known Hotspots
-1. `CoursePlacementService` (~3500 lines) — split into `BlockPlacer`, `SignTextGenerator`, `PlacementValidator`, `StructureCleaner`
-2. `HoleProgressTracker` (~1900 lines) — extract `ThrowResolver`, `TurnManager`, `MiniMapSyncService`
-3. `McdgAdminCommands` (~2100 lines) — split by command domain (course, round, debug)
-4. `MiniMapRenderer` (~1285 lines) — could split `TerrainSampler`, `HazardOverlayRenderer`
+1. `CoursePlacementService` (~2648 lines) — split into `BlockPlacer`, `SignTextGenerator`, `PlacementValidator`, `StructureCleaner`
+2. `HoleProgressTracker` (~1536 lines) — extract `ThrowResolver`, `TurnManager`, `MiniMapSyncService`
+3. `McdgAdminCommands` (~2563 lines) — split by command domain (course, round, debug)
+4. `MiniMapRenderer` (~1108 lines) — could split `TerrainSampler`, `HazardOverlayRenderer`
