@@ -207,10 +207,10 @@ public final class CourseStructureBuilder {
         BlockPos leftSurface = SurfaceResolver.resolveSurfacePos(world, leftPracticeTarget.getX(), leftPracticeTarget.getZ());
         BlockPos rightSurface = SurfaceResolver.resolveSurfacePos(world, rightPracticeTarget.getX(), rightPracticeTarget.getZ());
 
-        if (CoursePlacementService.isUnsafeSurface(world, leftSurface)) {
+        if (SurfaceAdaptationHelper.isUnsafeSurface(world, leftSurface)) {
             leftSurface = PlacementUtils.orientedOffset(hubSurface, side, back, -7, 6, 0);
         }
-        if (CoursePlacementService.isUnsafeSurface(world, rightSurface)) {
+        if (SurfaceAdaptationHelper.isUnsafeSurface(world, rightSurface)) {
             rightSurface = PlacementUtils.orientedOffset(hubSurface, side, back, 7, 6, 0);
         }
 
@@ -245,7 +245,7 @@ public final class CourseStructureBuilder {
         PlacementUtils.setTrackedBlock(world, bannerGround.up(1), Blocks.OAK_FENCE.getDefaultState(), originalBlocks);
         BlockPos bannerPos = bannerGround.up(2);
         PlacementUtils.setTrackedBlock(world, bannerPos, Blocks.WHITE_BANNER.getDefaultState(), originalBlocks);
-        String hazardNote = CoursePlacementService.teeHazardNote(world, teeCenter, basketSurface);
+        String hazardNote = PlacementCleanupHelper.teeHazardNote(world, teeCenter, basketSurface);
         String noteToShow = signatureName.isEmpty()
                 ? (routeNote.isEmpty() ? hazardNote : routeNote)
                 : "\u2605 " + signatureName;

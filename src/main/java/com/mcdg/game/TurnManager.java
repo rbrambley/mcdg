@@ -221,8 +221,8 @@ public final class TurnManager {
             ordered.sort((a, b) -> {
                 PlayerRoundState aState = snapshot.get(a);
                 PlayerRoundState bState = snapshot.get(b);
-                int aDistance = aState == null ? 0 : HoleProgressTracker.distanceMeters(aState.lie(), basket);
-                int bDistance = bState == null ? 0 : HoleProgressTracker.distanceMeters(bState.lie(), basket);
+                int aDistance = aState == null ? 0 : DistanceUtils.distanceMeters(aState.lie(), basket);
+                int bDistance = bState == null ? 0 : DistanceUtils.distanceMeters(bState.lie(), basket);
                 int distanceCompare = Integer.compare(bDistance, aDistance);
                 if (distanceCompare != 0) {
                     return distanceCompare;

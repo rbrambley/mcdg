@@ -153,8 +153,8 @@ public final class HoleProgressTracker {
                     );
                 }
 
-                int lieDistMeters = distanceMeters(state.lie(), basket);
-                int lieDistFeet = distanceFeet(state.lie(), basket);
+                int lieDistMeters = DistanceUtils.distanceMeters(state.lie(), basket);
+                int lieDistFeet = DistanceUtils.distanceFeet(state.lie(), basket);
                 int completedPar = cumulativeParThroughHole(course, state.currentHole() - 1);
                 int runningExpectedThrows = completedPar + state.holeStrokes();
                 int holeParDelta = computeHolePaceDelta(
@@ -292,11 +292,11 @@ public final class HoleProgressTracker {
                         player.sendMessage(HUD_STATE_FORMATTER.formatRoundComplete(state.totalStrokes(), totalPar), false);
                     }
 
-                    broadcastRoundLeaderboard(server, placed.worldKey(), roundStateManager, totalPar);
+                    RoundLeaderboardHelper.broadcastRoundLeaderboard(server, placed.worldKey(), roundStateManager, totalPar);
 
                     boolean roundEnded = roundStateManager.snapshotStates().isEmpty();
                     if (roundEnded) {
-                        sendRoundCompleteCinematic(server, placed.worldKey(), roundStateManager, totalPar);
+                        RoundLeaderboardHelper.sendRoundCompleteCinematic(server, placed.worldKey(), roundStateManager, totalPar);
                         courseManager.setRoundActive(false);
                         ServerWorld courseWorld = server.getWorld(placed.worldKey());
                         if (courseWorld != null) {
@@ -677,26 +677,6 @@ public final class HoleProgressTracker {
         return dx <= BASKET_RADIUS_BLOCKS && dz <= BASKET_RADIUS_BLOCKS && dy <= BASKET_HEIGHT_TOLERANCE;
     }
 
-
-    /**
-     * Detects makes from short flat putts that don't arc through the hopper.
-     * When the player is very close to the basket and lands on the basket column, count it as a make.
-     */
-
-    static int manhattanDistance(BlockPos from, BlockPos to) {
-        return Math.abs(from.getX() - to.getX()) + Math.abs(from.getY() - to.getY()) + Math.abs(from.getZ() - to.getZ());
-    }
-
-    static int distanceMeters(BlockPos from, BlockPos to) {
-        double dx = (to.getX() + 0.5) - (from.getX() + 0.5);
-        double dy = (to.getY() + 0.5) - (from.getY() + 0.5);
-        double dz = (to.getZ() + 0.5) - (from.getZ() + 0.5);
-        return Math.max(0, (int) Math.round(Math.sqrt(dx * dx + dy * dy + dz * dz)));
-    }
-
-    static int distanceFeet(BlockPos from, BlockPos to) {
-        return Math.max(0, Math.round(distanceMeters(from, to) * 3.28084f));
-    }
     /**
      * Resets all static state. Call this when cleaning up a course to ensure
      * no stale minimap packets or round state leak into the next session.
@@ -743,118 +723,7 @@ public final class HoleProgressTracker {
         int dy = Math.abs(playerFeet.getY() - throwLie.getY());
         return dy > 1;
     }
-    private static void broadcastRoundLeaderboard(
-            MinecraftServer server,
-            RegistryKey<net.minecraft.world.World> worldKey,
-            RoundStateManager roundStateManager,
-            int totalPar
-    ) {
-        Map<UUID, Integer> completed = roundStateManager.snapshotCompletedRounds();
-        if (completed.isEmpty()) {
-            return;
-        }
 
-        List<Map.Entry<UUID, Integer>> ranked = new ArrayList<>(completed.entrySet());
-        ranked.sort(Comparator.comparingInt(Map.Entry::getValue));
 
-        List<ServerPlayerEntity> viewers = server.getPlayerManager().getPlayerList().stream()
-                .filter(p -> p.getWorld().getRegistryKey() == worldKey)
-                .toList();
-        if (viewers.isEmpty()) {
-            return;
-        }
 
-        Text header = HUD_STATE_FORMATTER.formatRoundSummaryHeader(totalPar, ranked.size());
-        for (ServerPlayerEntity viewer : viewers) {
-            viewer.sendMessage(header, false);
-        }
-
-        int rank = 1;
-        for (Map.Entry<UUID, Integer> entry : ranked) {
-            ServerPlayerEntity rankedPlayer = server.getPlayerManager().getPlayer(entry.getKey());
-            String name = rankedPlayer != null ? rankedPlayer.getGameProfile().getName() : entry.getKey().toString().substring(0, 8);
-            Text line = HUD_STATE_FORMATTER.formatRoundSummaryEntry(rank, name, entry.getValue(), totalPar);
-            for (ServerPlayerEntity viewer : viewers) {
-                viewer.sendMessage(line, false);
-            }
-            rank++;
-        }
-    }
-
-    private static void sendRoundCompleteCinematic(
-            MinecraftServer server,
-            RegistryKey<net.minecraft.world.World> worldKey,
-            RoundStateManager roundStateManager,
-            int totalPar
-    ) {
-        Map<UUID, Integer> completed = roundStateManager.snapshotCompletedRounds();
-        if (completed.isEmpty()) {
-            return;
-        }
-
-        List<Map.Entry<UUID, Integer>> ranked = new ArrayList<>(completed.entrySet());
-        ranked.sort(Comparator.comparingInt(Map.Entry::getValue));
-
-        String firstName = rankedName(server, ranked, 0);
-        int firstScore = rankedScore(ranked, 0);
-        String secondName = rankedName(server, ranked, 1);
-        int secondScore = rankedScore(ranked, 1);
-        String thirdName = rankedName(server, ranked, 2);
-        int thirdScore = rankedScore(ranked, 2);
-
-        List<ServerPlayerEntity> viewers = server.getPlayerManager().getPlayerList().stream()
-                .filter(p -> p.getWorld().getRegistryKey() == worldKey)
-                .toList();
-        if (viewers.isEmpty()) {
-            return;
-        }
-
-        for (ServerPlayerEntity viewer : viewers) {
-            int localRank = -1;
-            int localScore = completed.getOrDefault(viewer.getUuid(), 0);
-            for (int i = 0; i < ranked.size(); i++) {
-                if (ranked.get(i).getKey().equals(viewer.getUuid())) {
-                    localRank = i + 1;
-                    break;
-                }
-            }
-
-            ServerPlayNetworking.send(
-                    viewer,
-                    RoundCompleteCinematicSync.Payload.active(
-                            totalPar,
-                            ranked.size(),
-                            firstName,
-                            firstScore,
-                            secondName,
-                            secondScore,
-                            thirdName,
-                            thirdScore,
-                            localRank,
-                            localScore
-                    )
-            );
-        }
-    }
-
-    private static String rankedName(MinecraftServer server, List<Map.Entry<UUID, Integer>> ranked, int index) {
-        if (index < 0 || index >= ranked.size()) {
-            return "-";
-        }
-
-        UUID playerId = ranked.get(index).getKey();
-        ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
-        if (player != null) {
-            return player.getGameProfile().getName();
-        }
-
-        return playerId.toString().substring(0, 8);
-    }
-
-    private static int rankedScore(List<Map.Entry<UUID, Integer>> ranked, int index) {
-        if (index < 0 || index >= ranked.size()) {
-            return 0;
-        }
-        return ranked.get(index).getValue();
-    }
 }

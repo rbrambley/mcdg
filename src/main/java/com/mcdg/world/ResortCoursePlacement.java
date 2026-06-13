@@ -59,7 +59,7 @@ public final class ResortCoursePlacement {
         }
 
         // Penalize water
-        if (CoursePlacementService.isUnsafeSurface(world, candidate)) {
+        if (SurfaceAdaptationHelper.isUnsafeSurface(world, candidate)) {
             score += 5000;
         }
 

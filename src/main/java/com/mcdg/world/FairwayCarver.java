@@ -89,7 +89,7 @@ final class FairwayCarver {
                     && waterColumn
                     && (waterCarryStreak >= CoursePlacementConfig.WaterLanding.PATCH_MAX_CARRY || i - lastWaterPatchStep >= CoursePlacementConfig.WaterLanding.PATCH_INTERVAL)) {
                 BlockPos waterSurface = SurfaceResolver.resolveSurfacePos(world, x, z);
-                BlockPos landingCenter = CoursePlacementService.ensureWaterLandingSurface(
+                BlockPos landingCenter = SurfaceAdaptationHelper.ensureWaterLandingSurface(
                         world,
                         waterSurface,
                         CoursePlacementConfig.WaterLanding.PATCH_RADIUS,
@@ -107,7 +107,7 @@ final class FairwayCarver {
                 // Over water: resolve surface then raise a solid landing patch so the
                 // fairway is continuous safe land rather than islands with gaps.
                 center = SurfaceResolver.resolveSurfacePos(world, x, z);
-                BlockPos landingCenter = CoursePlacementService.ensureWaterLandingSurface(
+                BlockPos landingCenter = SurfaceAdaptationHelper.ensureWaterLandingSurface(
                         world,
                         center,
                         CoursePlacementConfig.WaterLanding.PATCH_RADIUS,
@@ -119,12 +119,12 @@ final class FairwayCarver {
             } else {
                 center = SurfaceResolver.findPreferredSurfacePos(world, x, z, true, CoursePlacementConfig.SearchRadii.FAIRWAY);
             }
-            int tunedRadius = Math.min(2, CoursePlacementService.tunedPathRadius(world, center, radius));
+            int tunedRadius = Math.min(2, PlacementCleanupHelper.tunedPathRadius(world, center, radius));
             if (steps - i <= CoursePlacementConfig.FinishGreen.APPROACH_WIDEN_DISTANCE
                     && CoursePlacementService.isWaterAdjacentArea(world, center, CoursePlacementConfig.WaterLanding.ENFORCE_SCAN_RADIUS, CoursePlacementConfig.WaterLanding.ADJACENT_MIN_COLUMNS)) {
                 tunedRadius = Math.max(tunedRadius, Math.min(3, radius + 1));
             }
-            BlockState pathState = CoursePlacementService.selectPathMaterial(world, center);
+            BlockState pathState = PlacementCleanupHelper.selectPathMaterial(world, center);
 
             if (true) {
 
@@ -140,7 +140,7 @@ final class FairwayCarver {
                     int pathY = surface.getY();
 
                     // Keep fairway natural: only remove vegetation/tree material up to local canopy height.
-                    CoursePlacementService.clearFairwayColumnVegetation(
+                    PlacementCleanupHelper.clearFairwayColumnVegetation(
                             world,
                             sampleX,
                             sampleZ,
@@ -163,7 +163,7 @@ final class FairwayCarver {
             }
 
                     // Run an explicit sweep around the step center so trunk columns adjacent to the path do not survive.
-                    CoursePlacementService.clearFairwaySweepVolume(
+                    PlacementCleanupHelper.clearFairwaySweepVolume(
                         world,
                         center,
                         tunedRadius + CoursePlacementConfig.Fairway.LOG_SWEEP_EXTRA_RADIUS,
@@ -178,7 +178,7 @@ final class FairwayCarver {
                 int lanternSide = (coordinateNoise(center.getX() * 31, center.getZ() * 17) & 1) == 0 ? 1 : -1;
                 int lanternX = center.getX() + (sideX * (tunedRadius + 1) * lanternSide);
                 int lanternZ = center.getZ() + (sideZ * (tunedRadius + 1) * lanternSide);
-                BlockPos lanternBase = CoursePlacementService.ensureLandIslandSurface(world,
+                BlockPos lanternBase = SurfaceAdaptationHelper.ensureLandIslandSurface(world,
                         SurfaceResolver.findPreferredSurfacePos(world, lanternX, lanternZ, true, CoursePlacementConfig.SearchRadii.FAIRWAY), 1, originalBlocks, protectedPositions);
                 if (PlacementUtils.isProtected(protectedPositions, lanternBase.up())) {
                     continue;
@@ -331,14 +331,14 @@ final class FairwayCarver {
                 continue;
             }
 
-            BlockPos landingCenter = CoursePlacementService.ensureLandIslandSurface(
+            BlockPos landingCenter = SurfaceAdaptationHelper.ensureLandIslandSurface(
                     world,
                     SurfaceResolver.resolveSurfacePos(world, x, z),
                     CoursePlacementConfig.WaterLanding.PATCH_RADIUS,
                     originalBlocks,
                     protectedPositions
             );
-                landingCenter = CoursePlacementService.ensureWaterLandingSurface(
+                landingCenter = SurfaceAdaptationHelper.ensureWaterLandingSurface(
                     world,
                     landingCenter,
                     CoursePlacementConfig.WaterLanding.PATCH_RADIUS,
@@ -398,7 +398,7 @@ final class FairwayCarver {
                     BlockPos fillPos = new BlockPos(wx, y, wz);
                     if (PlacementUtils.isProtected(protectedPositions, fillPos)) { continue; }
                     BlockState fillState = world.getBlockState(fillPos);
-                    if (CoursePlacementService.isFillReplaceable(fillState)) {
+                    if (SurfaceAdaptationHelper.isFillReplaceable(fillState)) {
                         PlacementUtils.setTrackedBlock(world, fillPos, Blocks.DIRT.getDefaultState(), originalBlocks);
                     }
                 }
@@ -406,7 +406,7 @@ final class FairwayCarver {
                 BlockPos surfacePos = new BlockPos(wx, platformY, wz);
                 if (PlacementUtils.isProtected(protectedPositions, surfacePos)) { continue; }
                 BlockState surfaceState = world.getBlockState(surfacePos);
-                if (CoursePlacementService.isFillReplaceable(surfaceState)) {
+                if (SurfaceAdaptationHelper.isFillReplaceable(surfaceState)) {
                     BlockState newSurface = isEdge ? Blocks.SAND.getDefaultState() : Blocks.GRASS_BLOCK.getDefaultState();
                     PlacementUtils.setTrackedBlock(world, surfacePos, newSurface, originalBlocks);
                 }
@@ -432,7 +432,7 @@ final class FairwayCarver {
             Set<BlockPos> protectedPositions
     ) {
         BlockPos expanded = basketSurface;
-        int targetRadius = Math.max(CoursePlacementConfig.WaterLanding.ADJACENT_BASKET_GREEN_RADIUS, CoursePlacementService.resolveFinishGreenRadius(0, fairwayWidth));
+        int targetRadius = Math.max(CoursePlacementConfig.WaterLanding.ADJACENT_BASKET_GREEN_RADIUS, SurfaceAdaptationHelper.resolveFinishGreenRadius(0, fairwayWidth));
         int currentRadius = Math.max(1, targetRadius);
 
         for (int pass = 0; pass < 5; pass++) {
@@ -443,7 +443,7 @@ final class FairwayCarver {
                 CoursePlacementConfig.WaterLanding.ADJACENT_MIN_COLUMNS
             );
             if (waterAdjacent) {
-            expanded = CoursePlacementService.ensureWaterLandingSurface(
+            expanded = SurfaceAdaptationHelper.ensureWaterLandingSurface(
                 world,
                 expanded,
                 currentRadius,
@@ -451,7 +451,7 @@ final class FairwayCarver {
                 protectedPositions
             );
             } else {
-            expanded = CoursePlacementService.ensureLandIslandSurface(
+            expanded = SurfaceAdaptationHelper.ensureLandIslandSurface(
                 world,
                 expanded,
                 currentRadius,
@@ -468,32 +468,32 @@ final class FairwayCarver {
                     originalBlocks,
                     protectedPositions
             );
-            CoursePlacementService.shapePlayableFinishApproach(
+            SurfaceAdaptationHelper.shapePlayableFinishApproach(
                     world,
                     finishOrigin,
                     expanded,
                     fairwayWidth,
                     currentRadius,
-                    CoursePlacementService.countFinishHazardColumns(world, finishOrigin, expanded),
+                    SurfaceAdaptationHelper.countFinishHazardColumns(world, finishOrigin, expanded),
                     originalBlocks,
                     protectedPositions
             );
 
-            if (CoursePlacementService.countSafeLandingColumns(world, expanded, 8) >= CoursePlacementConfig.FinishGreen.MIN_SAFE_COLUMNS) {
-                if (CoursePlacementService.isDeeplyEnclosedBasketSurface(world, expanded)) {
-                    BlockPos recovered = CoursePlacementService.tryRecoverEnclosedBasketSurface(
+            if (SurfaceAdaptationHelper.countSafeLandingColumns(world, expanded, 8) >= CoursePlacementConfig.FinishGreen.MIN_SAFE_COLUMNS) {
+                if (SurfaceAdaptationHelper.isDeeplyEnclosedBasketSurface(world, expanded)) {
+                    BlockPos recovered = SurfaceAdaptationHelper.tryRecoverEnclosedBasketSurface(
                             world,
                             teeSurface,
                             expanded,
                             originalBlocks,
                             protectedPositions
                     );
-                    if (recovered != null && !CoursePlacementService.isDeeplyEnclosedBasketSurface(world, recovered)) {
+                    if (recovered != null && !SurfaceAdaptationHelper.isDeeplyEnclosedBasketSurface(world, recovered)) {
                         return recovered;
                     }
 
-                    BlockPos relocated = CoursePlacementService.relocateBasketSurfaceIfNeeded(world, teeSurface, expanded);
-                    if (!CoursePlacementService.isDeeplyEnclosedBasketSurface(world, relocated)) {
+                    BlockPos relocated = SurfaceAdaptationHelper.relocateBasketSurfaceIfNeeded(world, teeSurface, expanded);
+                    if (!SurfaceAdaptationHelper.isDeeplyEnclosedBasketSurface(world, relocated)) {
                         return relocated;
                     }
                 } else {

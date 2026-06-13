@@ -249,7 +249,7 @@ public final class ThrowResolver {
         }
 
         roundStateManager.updateLie(player.getUuid(), resultingLie);
-        LAST_THROW_DISTANCE_FEET.put(player.getUuid(), HoleProgressTracker.distanceFeet(throwLie, resultingLie));
+        LAST_THROW_DISTANCE_FEET.put(player.getUuid(), DistanceUtils.distanceFeet(throwLie, resultingLie));
         LieMarkerService.updateLieMarker(player, resultingLie);
         PlayerRoundState updated = roundStateManager.getState(player.getUuid()).orElse(state);
         if (strictFlowDebug) {
@@ -350,7 +350,7 @@ public final class ThrowResolver {
         BlockPos lastInBoundsSolid = start;
         BlockPos firstOut = null;
 
-        int distance = Math.max(1, HoleProgressTracker.manhattanDistance(start, end));
+        int distance = Math.max(1, DistanceUtils.manhattanDistance(start, end));
         int samples = Math.max(24, distance * 4);
         for (int i = 1; i <= samples; i++) {
             double t = i / (double) samples;
@@ -380,7 +380,7 @@ public final class ThrowResolver {
         int targetX = basket.getX();
         int targetZ = basket.getZ();
         int targetY = basket.getY() + 1;
-        int distance = Math.max(1, HoleProgressTracker.manhattanDistance(throwLie, landingFeet));
+        int distance = Math.max(1, DistanceUtils.manhattanDistance(throwLie, landingFeet));
         int samples = Math.max(24, distance * 4);
         for (int i = 1; i <= samples; i++) {
             double t = i / (double) samples;
@@ -430,7 +430,7 @@ public final class ThrowResolver {
                 if (dist < 1 || dist > 3) continue;
                 BlockPos candidate = SafePositionFinder.findNearestStandableFeet(world,
                         new BlockPos(basket.getX() + dx, basket.getY(), basket.getZ() + dz));
-                if (candidate != null && HoleProgressTracker.manhattanDistance(candidate, basket) >= 1) {
+                if (candidate != null && DistanceUtils.manhattanDistance(candidate, basket) >= 1) {
                     return candidate;
                 }
             }

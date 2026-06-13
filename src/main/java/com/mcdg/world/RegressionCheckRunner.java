@@ -22,8 +22,8 @@ public final class RegressionCheckRunner {
     private static final Path VALIDATOR_FILE = Paths.get(
         "src", "main", "java", "com", "mcdg", "world", "CoursePlacementValidator.java"
     );
-    private static final Path ADMIN_COMMAND_FILE = Paths.get(
-        "src", "main", "java", "com", "mcdg", "command", "CourseAdminCommands.java"
+    private static final Path ROUND_LIFECYCLE_FILE = Paths.get(
+        "src", "main", "java", "com", "mcdg", "command", "RoundLifecycleCommands.java"
     );
     private static final Path COURSE_PLACEMENT_FILE = Paths.get(
         "src", "main", "java", "com", "mcdg", "world", "CoursePlacementService.java"
@@ -248,15 +248,15 @@ public final class RegressionCheckRunner {
         if (!Files.exists(VALIDATOR_FILE)) {
             throw new RuntimeException("Validator regression file missing: " + VALIDATOR_FILE);
         }
-        if (!Files.exists(ADMIN_COMMAND_FILE)) {
-            throw new RuntimeException("Admin command regression file missing: " + ADMIN_COMMAND_FILE);
+        if (!Files.exists(ROUND_LIFECYCLE_FILE)) {
+            throw new RuntimeException("Admin command regression file missing: " + ROUND_LIFECYCLE_FILE);
         }
 
         String validatorSource;
         String adminSource;
         try {
             validatorSource = Files.readString(VALIDATOR_FILE, StandardCharsets.UTF_8);
-            adminSource = Files.readString(ADMIN_COMMAND_FILE, StandardCharsets.UTF_8);
+            adminSource = Files.readString(ROUND_LIFECYCLE_FILE, StandardCharsets.UTF_8);
         } catch (IOException ex) {
             throw new RuntimeException("Failed to read placement source files for regression checks", ex);
         }

@@ -185,7 +185,7 @@ final class HazardOverlayRenderer {
 
         for (int py = minY; py <= maxY; py += sampleStep) {
             for (int px = minX; px <= maxX; px += sampleStep) {
-                if (!MiniMapRenderer.isPointInsideCircle(px, py, clipCenterX, clipCenterY, clipRadiusSq)) {
+                if (!MiniMapDrawingUtils.isPointInsideCircle(px, py, clipCenterX, clipCenterY, clipRadiusSq)) {
                     continue;
                 }
 
@@ -203,7 +203,7 @@ final class HazardOverlayRenderer {
                     continue;
                 }
 
-                MiniMapRenderer.fillRectClipped(drawContext, px, py, sampleStep, sampleStep, overlayColor, clipCenterX, clipCenterY, clipRadiusSq);
+                MiniMapDrawingUtils.fillRectClipped(drawContext, px, py, sampleStep, sampleStep, overlayColor, clipCenterX, clipCenterY, clipRadiusSq);
             }
         }
     }

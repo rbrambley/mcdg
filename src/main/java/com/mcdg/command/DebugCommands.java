@@ -195,7 +195,7 @@ public final class DebugCommands {
                         return 0;
                 }
 
-                int started = CourseAdminCommands.executeStartRound(
+                int started = RoundLifecycleCommands.executeStartRound(
                         source,
                         courseManager,
                         placementService,

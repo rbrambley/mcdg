@@ -101,7 +101,7 @@ final class CourseAnchorFinder {
             CourseBounds courseBounds,
             Set<Long> rejectedAnchorKeys
     ) {
-        int score = SurfaceResolver.scoreSurface(world, candidate, targetX, targetZ, true) + CoursePlacementService.localWaterPenalty(world, candidate);
+        int score = SurfaceResolver.scoreSurface(world, candidate, targetX, targetZ, true) + SurfaceAdaptationHelper.localWaterPenalty(world, candidate);
         if (rejectedAnchorKeys.contains(anchorClusterKey(candidate))) {
             score += 2_000_000;
         }

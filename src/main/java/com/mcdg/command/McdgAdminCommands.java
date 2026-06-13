@@ -143,7 +143,7 @@ public final class McdgAdminCommands {
                                 .then(literal("cancel")
                                         .executes(context -> autoCourseService.executeCancel(context.getSource())))) 
                         .then(literal("startround").requires(CommandPermissions::canUseAdminCommands)
-                                .executes(context -> CourseAdminCommands.executeStartRound(
+                                .executes(context -> RoundLifecycleCommands.executeStartRound(
                                         context.getSource(),
                                         courseManager,
                                         placementService,
@@ -157,7 +157,7 @@ public final class McdgAdminCommands {
                                         null
                                 ))
                                 .then(argument("players", EntityArgumentType.players())
-                                        .executes(context -> CourseAdminCommands.executeStartRound(
+                                        .executes(context -> RoundLifecycleCommands.executeStartRound(
                                                 context.getSource(),
                                                 courseManager,
                                                 placementService,
@@ -171,7 +171,7 @@ public final class McdgAdminCommands {
                                                 EntityArgumentType.getPlayers(context, "players")
                                         )))
                                 .then(literal("strict")
-                                        .executes(context -> CourseAdminCommands.executeStartRound(
+                                        .executes(context -> RoundLifecycleCommands.executeStartRound(
                                                 context.getSource(),
                                                 courseManager,
                                                 placementService,
@@ -185,7 +185,7 @@ public final class McdgAdminCommands {
                                                 null
                                         ))
                                         .then(argument("players", EntityArgumentType.players())
-                                                .executes(context -> CourseAdminCommands.executeStartRound(
+                                                .executes(context -> RoundLifecycleCommands.executeStartRound(
                                                         context.getSource(),
                                                         courseManager,
                                                         placementService,
@@ -200,7 +200,7 @@ public final class McdgAdminCommands {
                                                 )))))
                         .then(literal("resumecourse").requires(CommandPermissions::canUseAdminCommands)
                                 .requires(CommandPermissions::canUseAdvancedCommands)
-                                .executes(context -> CourseAdminCommands.executeResumeCourse(
+                                .executes(context -> RoundLifecycleCommands.executeResumeCourse(
                                         context.getSource(),
                                         courseManager,
                                         roundStateManager,
@@ -209,7 +209,7 @@ public final class McdgAdminCommands {
                                         null
                                 ))
                                 .then(argument("players", EntityArgumentType.players())
-                                        .executes(context -> CourseAdminCommands.executeResumeCourse(
+                                        .executes(context -> RoundLifecycleCommands.executeResumeCourse(
                                                 context.getSource(),
                                                 courseManager,
                                                 roundStateManager,
@@ -333,7 +333,7 @@ public final class McdgAdminCommands {
                                                 IntegerArgumentType.getInteger(context, "index")
                                         ))))
                         .then(literal("cleanupcourse").requires(CommandPermissions::canUseAdminCommands)
-                                .executes(context -> CourseAdminCommands.executeCleanupCourse(
+                                .executes(context -> RoundLifecycleCommands.executeCleanupCourse(
                                         context.getSource(),
                                         courseManager,
                                         placementService,
@@ -342,14 +342,14 @@ public final class McdgAdminCommands {
                                 )))
                         .then(literal("gotocoursebyindex").requires(CommandPermissions::canUseAdminCommands)
                                 .then(argument("index", IntegerArgumentType.integer(1))
-                                        .executes(context -> CourseAdminCommands.executeGotoCourseByIndex(
+                                        .executes(context -> RoundLifecycleCommands.executeGotoCourseByIndex(
                                                 context.getSource(),
                                                 practiceCourseStorage,
                                                 IntegerArgumentType.getInteger(context, "index")
                                         ))))
                         .then(literal("cleanupcoursebyindex").requires(CommandPermissions::canUseAdminCommands)
                                 .then(argument("index", IntegerArgumentType.integer(1))
-                                        .executes(context -> CourseAdminCommands.executeCleanupCourseByIndex(
+                                        .executes(context -> RoundLifecycleCommands.executeCleanupCourseByIndex(
                                                 context.getSource(),
                                                 practiceCourseStorage,
                                                 placementService,

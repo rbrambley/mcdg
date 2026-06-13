@@ -52,7 +52,7 @@ public final class SurfaceResolver {
     static BlockPos normalizePlayableSurface(ServerWorld world, BlockPos pos) {
         // Keep playable anchors on stable ground at this X/Z and never promote into canopy height.
         BlockPos resolved = resolveSurfacePos(world, pos.getX(), pos.getZ());
-        if (CoursePlacementService.isUnsafeSurface(world, resolved)) {
+        if (SurfaceAdaptationHelper.isUnsafeSurface(world, resolved)) {
             return pos;
         }
         return resolved;
@@ -160,7 +160,7 @@ public final class SurfaceResolver {
                         world,
                         resolveSurfacePos(world, surface.getX() + dx, surface.getZ() + dz)
                     );
-                    if (candidate.getY() < minY || CoursePlacementService.isUnsafeSurface(world, candidate)) {
+                    if (candidate.getY() < minY || SurfaceAdaptationHelper.isUnsafeSurface(world, candidate)) {
                         continue;
                     }
                     if (requirePlayableTee && !isPlayableTeeSurface(world, candidate)) {
@@ -186,12 +186,12 @@ public final class SurfaceResolver {
 
     static BlockPos refineLandCandidate(ServerWorld world, BlockPos base, int targetX, int targetZ) {
         BlockPos best = base;
-        int bestScore = scoreSurface(world, best, targetX, targetZ, true) + CoursePlacementService.localWaterPenalty(world, best);
+        int bestScore = scoreSurface(world, best, targetX, targetZ, true) + SurfaceAdaptationHelper.localWaterPenalty(world, best);
 
         for (int dx = -4; dx <= 4; dx += 2) {
             for (int dz = -4; dz <= 4; dz += 2) {
                 BlockPos candidate = resolveSurfacePos(world, base.getX() + dx, base.getZ() + dz);
-                int score = scoreSurface(world, candidate, targetX, targetZ, true) + CoursePlacementService.localWaterPenalty(world, candidate);
+                int score = scoreSurface(world, candidate, targetX, targetZ, true) + SurfaceAdaptationHelper.localWaterPenalty(world, candidate);
                 if (score < bestScore) {
                     bestScore = score;
                     best = candidate;
@@ -207,12 +207,12 @@ public final class SurfaceResolver {
         int dz = Math.abs(candidate.getZ() - targetZ);
         int score = (dx + dz) * 8;
 
-        if (preferLand && CoursePlacementService.isUnsafeSurface(world, candidate)) {
+        if (preferLand && SurfaceAdaptationHelper.isUnsafeSurface(world, candidate)) {
             score += 10000;
         }
 
         if (preferLand) {
-            if (CoursePlacementService.isWaterBiome(world, candidate)) {
+            if (SurfaceAdaptationHelper.isWaterBiome(world, candidate)) {
                 score += 5000;
             }
         }
@@ -254,7 +254,7 @@ public final class SurfaceResolver {
 
     static boolean isStableGround(ServerWorld world, BlockPos pos) {
         BlockState ground = world.getBlockState(pos);
-        if (CoursePlacementService.isUnsafeSurface(world, pos)) {
+        if (SurfaceAdaptationHelper.isUnsafeSurface(world, pos)) {
             return false;
         }
         return ground.isSolidBlock(world, pos);
@@ -280,16 +280,16 @@ public final class SurfaceResolver {
     }
 
     static boolean isPlayableTeeSurface(ServerWorld world, BlockPos pos) {
-        if (!CoursePlacementService.isWalkableGround(world, pos)) {
+        if (!SurfaceAdaptationHelper.isWalkableGround(world, pos)) {
             return false;
         }
-        if (CoursePlacementService.isDeeplyEnclosedTeeSurface(world, pos)) {
+        if (SurfaceAdaptationHelper.isDeeplyEnclosedTeeSurface(world, pos)) {
             return false;
         }
-        if (CoursePlacementService.isLikelyPitSurface(world, pos)) {
+        if (SurfaceAdaptationHelper.isLikelyPitSurface(world, pos)) {
             return false;
         }
-        if (CoursePlacementService.hasExcessiveTeeEnclosure(world, pos)) {
+        if (SurfaceAdaptationHelper.hasExcessiveTeeEnclosure(world, pos)) {
             return false;
         }
 
@@ -314,7 +314,7 @@ public final class SurfaceResolver {
                     world,
                     resolveSurfacePos(world, pos.getX() + direction[0], pos.getZ() + direction[1])
             );
-            if (!CoursePlacementService.isWalkableGround(world, sample)) {
+            if (!SurfaceAdaptationHelper.isWalkableGround(world, sample)) {
                 continue;
             }
             if (Math.abs(sample.getY() - pos.getY()) <= CoursePlacementConfig.Tee.EXIT_Y_TOLERANCE) {
@@ -326,19 +326,19 @@ public final class SurfaceResolver {
     }
 
     static boolean isPlayableBasketSurface(ServerWorld world, BlockPos pos) {
-        if (!CoursePlacementService.isWalkableGround(world, pos)) {
+        if (!SurfaceAdaptationHelper.isWalkableGround(world, pos)) {
             return false;
         }
-        if (CoursePlacementService.hasFluidInBasketMarkerColumn(world, pos, CoursePlacementConfig.Basket.DRY_COLUMN_CHECK_HEIGHT)) {
+        if (SurfaceAdaptationHelper.hasFluidInBasketMarkerColumn(world, pos, CoursePlacementConfig.Basket.DRY_COLUMN_CHECK_HEIGHT)) {
             return false;
         }
-        if (CoursePlacementService.isLikelyPitSurface(world, pos)) {
+        if (SurfaceAdaptationHelper.isLikelyPitSurface(world, pos)) {
             return false;
         }
-        if (CoursePlacementService.isDeeplyEnclosedBasketSurface(world, pos)) {
+        if (SurfaceAdaptationHelper.isDeeplyEnclosedBasketSurface(world, pos)) {
             return false;
         }
-        return !CoursePlacementService.hasExcessiveTeeEnclosure(world, pos);
+        return !SurfaceAdaptationHelper.hasExcessiveTeeEnclosure(world, pos);
     }
 
 }
