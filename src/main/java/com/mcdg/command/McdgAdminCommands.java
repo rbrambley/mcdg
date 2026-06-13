@@ -616,13 +616,6 @@ public final class McdgAdminCommands {
                                         .executes(context -> executeBuildResortCancel(
                                                 context.getSource()
                                         ))))
-                        .then(literal("buildcamp").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
-                                .executes(context -> {
-                                    context.getSource().sendFeedback(() -> Text.literal(
-                                            "/mcdg buildcamp is deprecated. Use /mcdg buildresort instead.").formatted(Formatting.YELLOW), false);
-                                    return 1;
-                                }))
                         .then(literal("resetresort").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeResetResort(

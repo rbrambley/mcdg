@@ -1026,7 +1026,7 @@ public final class HoleProgressTracker {
         int baseHalf = Math.max(3, maxSegmentWidth / 2);
         int baseline = Math.max(rulesetManager.strictCorridorMinimumHalfWidthBlocks(), baseHalf + rulesetManager.strictCorridorBasePaddingBlocks());
 
-        int directCarryGap = computeLongestWaterCarryGap(world, tee, basket);
+        int directCarryGap = findLongestWaterGap(world, tee, basket)[2];
         if (directCarryGap > rulesetManager.strictAltRouteCarryTriggerBlocks()) {
             return Math.max(baseline, rulesetManager.strictAltRouteHalfWidthBlocks());
         }
@@ -1091,10 +1091,6 @@ static int[] findLongestWaterGap(ServerWorld world, BlockPos start, BlockPos end
     return new int[]{bestStart, bestEnd, longest};
 }
 
-/** Legacy wrapper that returns just the max gap length for corridor width decisions. */
-private static int computeLongestWaterCarryGap(ServerWorld world, BlockPos start, BlockPos end) {
-    return findLongestWaterGap(world, start, end)[2];
-}
 
     /**
      * Returns a standable position in the 2-block ring around the basket (as if the disc bounced off it).

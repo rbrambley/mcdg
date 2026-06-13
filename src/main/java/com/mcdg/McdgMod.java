@@ -228,11 +228,10 @@ public final class McdgMod implements ModInitializer {
             return ActionResult.PASS;
         });
 
-        LOGGER.info("Initialized {} (defaultHoles={}, protection={}, debug={}, hudScoringDebug={}, strictFlowDebug={}, skipRoundPresentation={}, rulesetDefault={}, strictRespawnPenaltyStrokes={})",
+        LOGGER.info("Initialized {} (defaultHoles={}, protection={}, hudScoringDebug={}, strictFlowDebug={}, skipRoundPresentation={}, rulesetDefault={}, strictRespawnPenaltyStrokes={})",
                 MOD_ID,
                 config.defaultHoleCount(),
             config.enforceCourseProtection(),
-            config.enableDebugLogging(),
             config.enableHudScoringDebug(),
             config.enableStrictFlowDebug(),
             config.skipRoundPresentation(),
