@@ -1086,26 +1086,26 @@ public final class BuildCourseSessionManager {
                 .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal((runNow ? "Run: " : "Fill chat: ") + command)))
         );
     }
-    private static final class BuildSession {
-        private UUID ownerId;
-        private String ownerName;
-        private long createdAtMs;
-        private long updatedAtMs;
-        private long ownerLastSeenAtMs;
-        private boolean paused;
-        private int holeCount;
-        private int nextHoleIndex;
-        private int rebuildHoleIndex;
-        private long rebuildToken;
-        private long rebuildTokenExpiresAtMs;
-        private int rebuildTokenHoleIndex;
-        private long claimToken;
-        private long claimTokenExpiresAtMs;
-        private int previewTickGate;
-        private final List<BuiltHole> builtHoles;
-        private final Set<String> dimensionsUsed;
+    static final class BuildSession {
+        UUID ownerId;
+        String ownerName;
+        long createdAtMs;
+        long updatedAtMs;
+        long ownerLastSeenAtMs;
+        boolean paused;
+        int holeCount;
+        int nextHoleIndex;
+        int rebuildHoleIndex;
+        long rebuildToken;
+        long rebuildTokenExpiresAtMs;
+        int rebuildTokenHoleIndex;
+        long claimToken;
+        long claimTokenExpiresAtMs;
+        int previewTickGate;
+        final List<BuiltHole> builtHoles;
+        final Set<String> dimensionsUsed;
 
-        private BuildSession() {
+        BuildSession() {
             this.builtHoles = new ArrayList<>();
             this.dimensionsUsed = new HashSet<>();
             this.nextHoleIndex = 1;
@@ -1117,7 +1117,7 @@ public final class BuildCourseSessionManager {
             this.claimTokenExpiresAtMs = -1L;
         }
 
-        private static BuildSession newSession(ServerPlayerEntity owner) {
+        static BuildSession newSession(ServerPlayerEntity owner) {
             BuildSession session = new BuildSession();
             long now = System.currentTimeMillis();
             session.ownerId = owner.getUuid();
@@ -1129,7 +1129,7 @@ public final class BuildCourseSessionManager {
         }
     }
 
-    private record BuiltHole(
+    record BuiltHole(
             int index,
             Hole hole,
             PlacedCourseStateSnapshot placed,
@@ -1137,7 +1137,7 @@ public final class BuildCourseSessionManager {
             long holeSeed,
             BlockPos originalTeeAnchor
     ) {
-        private static BuiltHole from(Hole hole, PlacedCourseState placed, String worldId, long holeSeed, BlockPos originalTeeAnchor) {
+        static BuiltHole from(Hole hole, PlacedCourseState placed, String worldId, long holeSeed, BlockPos originalTeeAnchor) {
             return new BuiltHole(
                     hole.index(),
                     hole,
@@ -1148,187 +1148,11 @@ public final class BuildCourseSessionManager {
             );
         }
 
-        private PlacedCourseState placedState() {
+        PlacedCourseState placedState() {
             return placed.toPlacedCourseState(worldId);
         }
     }
-
-    private static final class BuildSessionSnapshot {
-        private String ownerId;
-        private String ownerName;
-        private long createdAtMs;
-        private long updatedAtMs;
-        private long ownerLastSeenAtMs;
-        private boolean paused;
-        private int holeCount;
-        private int nextHoleIndex;
-        private int rebuildHoleIndex;
-        private long rebuildToken;
-        private long rebuildTokenExpiresAtMs;
-        private int rebuildTokenHoleIndex;
-        private long claimToken;
-        private long claimTokenExpiresAtMs;
-        private List<BuiltHoleSnapshot> builtHoles;
-        private Set<String> dimensionsUsed;
-
-        private static BuildSessionSnapshot from(BuildSession session) {
-            BuildSessionSnapshot snapshot = new BuildSessionSnapshot();
-            snapshot.ownerId = session.ownerId.toString();
-            snapshot.ownerName = session.ownerName;
-            snapshot.createdAtMs = session.createdAtMs;
-            snapshot.updatedAtMs = session.updatedAtMs;
-            snapshot.ownerLastSeenAtMs = session.ownerLastSeenAtMs;
-            snapshot.paused = session.paused;
-            snapshot.holeCount = session.holeCount;
-            snapshot.nextHoleIndex = session.nextHoleIndex;
-            snapshot.rebuildHoleIndex = session.rebuildHoleIndex;
-            snapshot.rebuildToken = session.rebuildToken;
-            snapshot.rebuildTokenExpiresAtMs = session.rebuildTokenExpiresAtMs;
-            snapshot.rebuildTokenHoleIndex = session.rebuildTokenHoleIndex;
-            snapshot.claimToken = session.claimToken;
-            snapshot.claimTokenExpiresAtMs = session.claimTokenExpiresAtMs;
-            snapshot.builtHoles = new ArrayList<>();
-            for (BuiltHole hole : session.builtHoles) {
-                snapshot.builtHoles.add(BuiltHoleSnapshot.from(hole));
-            }
-            snapshot.dimensionsUsed = new HashSet<>(session.dimensionsUsed);
-            return snapshot;
-        }
-
-        private BuildSession toSession() {
-            BuildSession restored = new BuildSession();
-            restored.ownerId = UUID.fromString(ownerId);
-            restored.ownerName = ownerName;
-            restored.createdAtMs = createdAtMs;
-            restored.updatedAtMs = updatedAtMs;
-            restored.ownerLastSeenAtMs = ownerLastSeenAtMs;
-            restored.paused = paused;
-            restored.holeCount = holeCount;
-            restored.nextHoleIndex = nextHoleIndex;
-            restored.rebuildHoleIndex = rebuildHoleIndex;
-            restored.rebuildToken = rebuildToken;
-            restored.rebuildTokenExpiresAtMs = rebuildTokenExpiresAtMs;
-            restored.rebuildTokenHoleIndex = rebuildTokenHoleIndex;
-            restored.claimToken = claimToken;
-            restored.claimTokenExpiresAtMs = claimTokenExpiresAtMs;
-            if (builtHoles != null) {
-                for (BuiltHoleSnapshot hole : builtHoles) {
-                    restored.builtHoles.add(hole.toBuiltHole());
-                }
-            }
-            if (dimensionsUsed != null) {
-                restored.dimensionsUsed.addAll(dimensionsUsed);
-            }
-            return restored;
-        }
-    }
-
-    private static final class BuiltHoleSnapshot {
-        private int index;
-        private Hole hole;
-        private PlacedCourseStateSnapshot placed;
-        private String worldId;
-        private long holeSeed;
-        private BlockPosSnapshot originalTeeAnchor;
-
-        private static BuiltHoleSnapshot from(BuiltHole hole) {
-            BuiltHoleSnapshot snapshot = new BuiltHoleSnapshot();
-            snapshot.index = hole.index;
-            snapshot.hole = hole.hole;
-            snapshot.placed = hole.placed;
-            snapshot.worldId = hole.worldId;
-            snapshot.holeSeed = hole.holeSeed;
-            snapshot.originalTeeAnchor = BlockPosSnapshot.of(hole.originalTeeAnchor);
-            return snapshot;
-        }
-
-        private BuiltHole toBuiltHole() {
-            return new BuiltHole(index, hole, placed, worldId, holeSeed, originalTeeAnchor.toBlockPos());
-        }
-    }
-
-    private static final class PlacedCourseStateSnapshot {
-        private String worldId;
-        private List<BlockStateSnapshot> originals;
-        private Map<Integer, BlockPosSnapshot> tees;
-        private Map<Integer, BlockPosSnapshot> baskets;
-        private Map<Integer, BlockPosSnapshot> alternates;
-        private Map<Integer, Integer> effectivePars;
-
-        private static PlacedCourseStateSnapshot from(PlacedCourseState placed) {
-            PlacedCourseStateSnapshot snapshot = new PlacedCourseStateSnapshot();
-            snapshot.worldId = placed.worldKey().getValue().toString();
-            snapshot.originals = new ArrayList<>();
-            for (Map.Entry<BlockPos, net.minecraft.block.BlockState> entry : placed.originalBlocks().entrySet()) {
-                snapshot.originals.add(new BlockStateSnapshot(BlockPosSnapshot.of(entry.getKey()), net.minecraft.block.Block.getRawIdFromState(entry.getValue())));
-            }
-            snapshot.tees = toPosSnapshotMap(placed.holeTees());
-            snapshot.baskets = toPosSnapshotMap(placed.holeBaskets());
-            snapshot.alternates = toPosSnapshotMap(placed.holeAlternateAnchors());
-            snapshot.effectivePars = new HashMap<>(placed.effectiveHolePars());
-            return snapshot;
-        }
-
-        private static Map<Integer, BlockPosSnapshot> toPosSnapshotMap(Map<Integer, BlockPos> source) {
-            Map<Integer, BlockPosSnapshot> map = new HashMap<>();
-            for (Map.Entry<Integer, BlockPos> entry : source.entrySet()) {
-                map.put(entry.getKey(), BlockPosSnapshot.of(entry.getValue()));
-            }
-            return map;
-        }
-
-        private PlacedCourseState toPlacedCourseState(String fallbackWorldId) {
-            String resolvedWorld = worldId == null || worldId.isBlank() ? fallbackWorldId : worldId;
-            Map<BlockPos, net.minecraft.block.BlockState> originalsMap = new HashMap<>();
-            if (originals != null) {
-                for (BlockStateSnapshot snapshot : originals) {
-                    originalsMap.put(snapshot.pos.toBlockPos(), Block.getStateFromRawId(snapshot.stateId));
-                }
-            }
-
-            Map<Integer, BlockPos> teesMap = toPosMap(tees);
-            Map<Integer, BlockPos> basketsMap = toPosMap(baskets);
-            Map<Integer, BlockPos> alternatesMap = toPosMap(alternates);
-            Map<Integer, Integer> effectiveParsMap = effectivePars == null ? Map.of() : new HashMap<>(effectivePars);
-
-            RegistryKey<World> key = resolveWorldKey(resolvedWorld);
-            return new PlacedCourseState(key, originalsMap, teesMap, basketsMap, alternatesMap, effectiveParsMap);
-        }
-
-        private static Map<Integer, BlockPos> toPosMap(Map<Integer, BlockPosSnapshot> source) {
-            Map<Integer, BlockPos> map = new HashMap<>();
-            if (source == null) {
-                return map;
-            }
-            for (Map.Entry<Integer, BlockPosSnapshot> entry : source.entrySet()) {
-                map.put(entry.getKey(), entry.getValue().toBlockPos());
-            }
-            return map;
-        }
-    }
-
-    private record BlockStateSnapshot(BlockPosSnapshot pos, int stateId) {
-    }
-
-    private static final class BlockPosSnapshot {
-        private int x;
-        private int y;
-        private int z;
-
-        private static BlockPosSnapshot of(BlockPos pos) {
-            BlockPosSnapshot snapshot = new BlockPosSnapshot();
-            snapshot.x = pos.getX();
-            snapshot.y = pos.getY();
-            snapshot.z = pos.getZ();
-            return snapshot;
-        }
-
-        private BlockPos toBlockPos() {
-            return new BlockPos(x, y, z);
-        }
-    }
-
-    private static RegistryKey<World> resolveWorldKey(String worldId) {
+    static RegistryKey<World> resolveWorldKey(String worldId) {
         String normalized = worldId == null || worldId.isBlank() ? "minecraft:overworld" : worldId.trim();
         int colon = normalized.indexOf(':');
         if (colon < 0) {
