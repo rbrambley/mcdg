@@ -1,7 +1,50 @@
 # Disc Glide & Curve Physics Plan
 
-**Status:** Ready for implementation  
+**Status:** RESTARTING - Phase 0 charge enhancements complete, Phase 1-6 pending  
+**Last Updated:** 2026-06-14  
+**Strategy:** Separated charge enhancements (merged to master) from glide physics (new branch with simplified integration)  
+**Previous Attempt:** feature/glide branch abandoned due to complex integration pattern causing 9 bug fixes  
 **Goal:** Replace vanilla Ender Pearl throws with three distinct throw stances (Overhand, Backhand, Forehand), each with aerodynamic glide physics and release-angle control.
+
+---
+
+## Revised Implementation Strategy (2026-06-14)
+
+### Phase 0: Charge & HUD Enhancements ✅ COMPLETED
+- **Status:** Merged to master from `feature/charge-enhancements`
+- **Features Implemented:**
+  - Slower charge rate (120 ticks, 2 seconds instead of 1)
+  - 125% max power with overcharge zone
+  - Power lock feature (F keybind) for aiming without losing charge
+  - Audio cues at 25%, 50%, 75%, 100% charge thresholds
+  - Distance markers on HUD showing estimated throw distance
+  - Enhanced HUD styling (color changes, percentage text, "LOCKED" indicator)
+- **Rationale:** General throw improvements independent of glide physics
+- **Benefits:** Immediate value to players, lower risk, simpler testing
+
+### Lessons Learned from First Attempt
+
+**What Went Wrong:**
+1. **Complex server-to-client sync packets** - `ThrowStanceSync`, `ThrowPowerLockSync`, `ThrowDistanceSync` created fragile state management
+2. **Over-engineered integration** - Multiple sync points between client and server for simple stance selection
+3. **Mixed concerns** - Charge enhancements and glide physics in same branch made debugging difficult
+4. **Bug accumulation** - 9 corrective commits indicated fundamental architecture issues
+
+**What Went Right:**
+1. **DiscFlightSimulator physics engine** - Core glide physics implementation was solid
+2. **Charge enhancements** - Slower charge, power lock, audio cues worked well
+3. **HUD distance markers** - Good user feedback mechanism
+
+**New Approach:**
+- **Simplified integration:** Keep stance purely client-side until throw, send with throw packet
+- **No complex sync packets:** Avoid server-to-client state synchronization for simple preferences
+- **Separate concerns:** Charge enhancements already in master, glide physics focused on flight simulation
+- **Incremental testing:** Each phase tested independently before proceeding
+
+### Current Branch Status
+- **feature/glide:** Abandoned - contains working charge enhancements but complex glide integration
+- **feature/charge-enhancements:** Extracted charge work, ready to merge to master
+- **feature/glide-v2:** Planned - fresh branch from enhanced master with simplified architecture
 
 ---
 
@@ -107,7 +150,7 @@ deflection  = (naturalFade + angleBias) * baseCurve * (1 - fadeProgress)
 
 ---
 
-## Phased Implementation
+## Phased Implementation (Revised for Simplified Integration)
 
 ### Phase 1: Core Glide Physics
 - Create `DiscFlightSimulator` with `FlightState` and server tick handler.
@@ -116,13 +159,14 @@ deflection  = (naturalFade + angleBias) * baseCurve * (1 - fadeProgress)
 - Implement glide phase (upward impulse) and glide taper. No lateral curve yet.
 - Validate: 400-600 ft at full power with flat/horizontal aim.
 
-### Phase 2: Throw Stance Selection
+### Phase 2: Throw Stance Selection (SIMPLIFIED)
 - Add `ThrowStance` enum (`OVERHAND`, `BACKHAND`, `FOREHAND`).
 - Add `cycleThrowStanceKey` to `ClientKeybinds` (`R` default).
-- Create `ThrowPreferenceManager` (client-side).
-- Send stance to server at throw time (extend `ThrowResolver.registerThrowRelease` or use pearl NBT).
+- Create `ThrowPreferenceManager` (client-side only - NO server sync).
+- Send stance to server at throw time via simple parameter in `ChargedDiscItem.performThrow()`.
 - `DiscFlightSimulator`: apply stance-specific physics (Overhand = vanilla, Backhand = left fade, Forehand = right fade).
 - Render stance name on HUD when holding disc.
+- **NO server-to-client sync packets** - stance remains client-side until throw
 
 ### Phase 3: Release Angle Input
 - Add `ReleaseAngle` enum (`HYZER`, `FLAT`, `ANHYZER`).
@@ -136,6 +180,7 @@ deflection  = (naturalFade + angleBias) * baseCurve * (1 - fadeProgress)
 - Trail color per stance (or per angle).
 - Sound cue when fade phase begins (optional).
 - Clean HUD stance/angle indicator.
+- After-throw stats display (glide, fade, total distance).
 
 ### Phase 5: Balance, Autotest & Validation
 - Tune `glideTicks` and curve magnitude:
@@ -171,7 +216,7 @@ deflection  = (naturalFade + angleBias) * baseCurve * (1 - fadeProgress)
 - `src/client/java/com/mcdg/client/ThrowPreferenceManager.java`
 
 **Modify:**
-- `src/main/java/com/mcdg/game/ChargedDiscItem.java` -- send stance/angle to server on throw
+- `src/main/java/com/mcdg/game/ChargedDiscItem.java` -- send stance/angle to server on throw (simple parameter, not packet)
 - `src/main/java/com/mcdg/McdgMod.java` -- register `DiscFlightSimulator::tick`
 - `src/main/java/com/mcdg/game/HoleProgressTracker.java` -- call `DiscFlightSimulator.reset()`
 - `src/main/java/com/mcdg/game/ThrowResolver.java` -- accept stance/angle in `registerThrowRelease` (or read from pearl)
@@ -180,6 +225,11 @@ deflection  = (naturalFade + angleBias) * baseCurve * (1 - fadeProgress)
 - `src/client/java/com/mcdg/client/McdgClientMod.java` -- poll keybind, capture scroll, send preferences
 - `src/client/java/com/mcdg/client/HudOverlays.java` -- render stance + angle indicators
 - `src/main/resources/assets/mcdg/lang/en_us.json` -- add translation keys for stance, angle, keybind
+
+**DO NOT CREATE (Simplified Integration):**
+- ~~`ThrowStanceSync`~~ - Use simple parameter instead of server-to-client packet
+- ~~`ThrowPowerLockSync`~~ - Power lock already handled in charge enhancements
+- ~~`ThrowDistanceSync`~~ - Add in Phase 4 when physics are stable
 
 ---
 
