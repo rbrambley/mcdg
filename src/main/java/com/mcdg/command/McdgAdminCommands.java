@@ -2047,4 +2047,68 @@ public final class McdgAdminCommands {
 
                 return !world.getBlockState(ground).getCollisionShape(world, ground).isEmpty();
         }
+
+    private static int executeGotoCourseByIndex(
+            ServerCommandSource source,
+            PracticeCourseStorage practiceCourseStorage,
+            int oneBasedIndex
+    ) {
+        Optional<PracticeCourseStorage.LoadedPracticeCourse> loaded = practiceCourseStorage.loadReusableByIndex(source.getServer(), oneBasedIndex);
+        if (loaded.isEmpty()) {
+            source.sendError(Text.literal("Course #" + oneBasedIndex + " not found."));
+            return 0;
+        }
+
+        PlacedCourseState placed = loaded.get().placedCourseState();
+        BlockPos firstTee = placed.holeTees().get(1);
+        if (firstTee == null) {
+            source.sendError(Text.literal("Hole 1 tee location is unavailable for course #" + oneBasedIndex + "."));
+            return 0;
+        }
+
+        try {
+            ServerPlayerEntity player = source.getPlayerOrThrow();
+            ServerWorld world = source.getServer().getWorld(placed.worldKey());
+            BlockPos safeTee = world == null ? firstTee : resolveSafeFeetNear(world, firstTee);
+            player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
+            source.sendFeedback(() -> Text.literal("Teleported to Hole 1 tee."), false);
+            return 1;
+        } catch (Exception ex) {
+            source.sendError(Text.literal("This command must be run by a player."));
+            return 0;
+        }
+    }
+
+    private static int executeCleanupCourseByIndex(
+            ServerCommandSource source,
+            PracticeCourseStorage practiceCourseStorage,
+            CoursePlacementService placementService,
+            RoundStateManager roundStateManager,
+            ActiveCourseManager courseManager,
+            int oneBasedIndex
+    ) {
+        Optional<PracticeCourseStorage.LoadedPracticeCourse> loaded = practiceCourseStorage.loadReusableByIndex(source.getServer(), oneBasedIndex);
+        if (loaded.isEmpty()) {
+            source.sendError(Text.literal("Course #" + oneBasedIndex + " not found."));
+            return 0;
+        }
+
+        PlacedCourseState placed = loaded.get().placedCourseState();
+        ServerWorld world = source.getServer().getWorld(placed.worldKey());
+        if (world == null) {
+            source.sendError(Text.literal("World for course #" + oneBasedIndex + " is not available."));
+            return 0;
+        }
+
+        evacuatePlayersBeforeCleanup(source, world, placed);
+        placementService.resetPlacedCourse(world, placed);
+        removeJunkDropsNearCourse(world, placed);
+        removeRoundThrowItemsFromCourseWorldPlayers(source, courseManager);
+        courseManager.clearPlacedCourseState();
+        courseManager.setRoundActive(false);
+        clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
+
+        source.sendFeedback(() -> Text.literal("Cleaned up course #" + oneBasedIndex + "."), true);
+        return 1;
+    }
 }
