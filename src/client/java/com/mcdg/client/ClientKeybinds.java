@@ -16,6 +16,7 @@ public final class ClientKeybinds {
     private static KeyBinding addWaypointKey;
     private static KeyBinding removeNearestWaypointKey;
     private static KeyBinding toggleWaypointLabelsKey;
+    private static KeyBinding lockPowerKey;
 
     private ClientKeybinds() {
     }
