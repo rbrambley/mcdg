@@ -11,6 +11,7 @@ import com.mcdg.game.PlayerRoundSessionStorage;
 import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import com.mcdg.game.BuildCourseSessionManager;
+import com.mcdg.game.ChargedDiscItem;
 import com.mcdg.game.PracticeCourseStorage;
 import com.mcdg.game.RoundInventoryCleaner;
 import com.mcdg.game.RoundPresentationService;
@@ -123,6 +124,7 @@ public final class McdgMod implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(WaypointSync.ID, WaypointSync.CODEC);
         PayloadTypeRegistry.playC2S().register(LeaderboardRequest.ID, LeaderboardRequest.CODEC);
         PayloadTypeRegistry.playC2S().register(WaypointTeleportSync.ID, WaypointTeleportSync.CODEC);
+        PayloadTypeRegistry.playC2S().register(ThrowPowerLockSync.ID, ThrowPowerLockSync.CODEC);
         PayloadTypeRegistry.playS2C().register(AceCinematicSync.ID, AceCinematicSync.CODEC);
         PayloadTypeRegistry.playS2C().register(HoleMiniMapSync.ID, HoleMiniMapSync.CODEC);
         PayloadTypeRegistry.playS2C().register(RoundRunningScoresSync.ID, RoundRunningScoresSync.CODEC);
@@ -148,6 +150,12 @@ public final class McdgMod implements ModInitializer {
         );
         ServerPlayNetworking.registerGlobalReceiver(WaypointTeleportSync.ID, (payload, context) ->
                 context.server().execute(() -> handleWaypointTeleport(context.player(), payload))
+        );
+        ServerPlayNetworking.registerGlobalReceiver(ThrowPowerLockSync.ID, (payload, context) ->
+                context.server().execute(() -> {
+                    // Store server-side power lock state for use during throw
+                    ChargedDiscItem.setServerPowerLocked(context.player().getUuid(), payload.locked(), payload.lockedChargePercent());
+                })
         );
         McdgConfig config = McdgConfig.loadDefault();
         McdgItems.register(ACTIVE_COURSE_MANAGER, ROUND_STATE_MANAGER, TOURNAMENT_RULESET_MANAGER, config.enableStrictFlowDebug());

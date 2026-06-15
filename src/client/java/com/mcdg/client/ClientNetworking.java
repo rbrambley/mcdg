@@ -1,5 +1,6 @@
 package com.mcdg.client;
 
+import com.mcdg.game.ChargedDiscItem;
 import com.mcdg.net.AceCinematicSync;
 
 import com.mcdg.net.HoleMiniMapSync;
@@ -66,6 +67,11 @@ public final class ClientNetworking {
         );
         ClientPlayNetworking.registerGlobalReceiver(WaypointRemovedSync.ID, (payload, context) ->
             context.client().execute(() -> WaypointManager.removeWaypoint(payload.name()))
+        );
+        ClientPlayNetworking.registerGlobalReceiver(ThrowPowerLockSync.ID, (payload, context) ->
+            context.client().execute(() -> {
+                ChargedDiscItem.setPowerLocked(payload.locked());
+            })
         );
     }
 }

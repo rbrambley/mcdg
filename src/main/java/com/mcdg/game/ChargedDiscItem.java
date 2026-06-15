@@ -18,17 +18,28 @@ import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.UseAction;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 public final class ChargedDiscItem extends Item {
     private static final int MAX_CHARGE_TICKS = 120;
     private static final float MAX_POWER_MULTIPLIER = 1.25f;
     private static final float MIN_VELOCITY = 0.7f;
     private static final float VELOCITY_SPAN = 1.6f;
+
+    // Client-side only fields (for visual feedback)
     private static boolean clientChargeVisible;
     private static float clientChargePercent;
     private static boolean powerLocked;
     private static float lockedChargePercent;
+    private static int lockedTicks;  // Track ticks at lock time
     private static int lastAudioThreshold;
+
+    // Server-side power lock tracking (per player)
+    private static final Map<UUID, Boolean> SERVER_POWER_LOCKED = new HashMap<>();
+    private static final Map<UUID, Float> SERVER_LOCKED_CHARGE = new HashMap<>();
+    private static final Map<UUID, Integer> SERVER_LOCKED_TICKS = new HashMap<>();
 
     private final ActiveCourseManager courseManager;
     private final RoundStateManager roundStateManager;
@@ -64,7 +75,12 @@ public final class ChargedDiscItem extends Item {
             clientChargePercent = 0.0f;
             powerLocked = false;
             lockedChargePercent = 0.0f;
+            lockedTicks = 0;
             lastAudioThreshold = 0;
+        } else {
+            // Reset server-side power lock state on new charge
+            SERVER_POWER_LOCKED.remove(user.getUuid());
+            SERVER_LOCKED_CHARGE.remove(user.getUuid());
         }
 
         user.setCurrentHand(hand);
@@ -89,31 +105,31 @@ public final class ChargedDiscItem extends Item {
 
         if (world.isClient()) {
             clientChargeVisible = true;
-            
-            // Handle power lock
+
+            // Handle power lock - once locked, stop calculating from remainingUseTicks
             if (powerLocked) {
-                clientChargePercent = lockedChargePercent;
+                // Use the locked tick count, don't continue accumulating
+                charge = computeChargePercent(lockedTicks);
+                clientChargePercent = charge;
             } else {
                 clientChargePercent = charge;
             }
-            
-            // Handle audio thresholds
-            int currentThreshold = (int) (clientChargePercent * 100 / 25) * 25;
-            if (currentThreshold > lastAudioThreshold && currentThreshold <= 100) {
-                lastAudioThreshold = currentThreshold;
-                float pitch = 0.8f + (currentThreshold / 100.0f) * 0.4f;
-                world.playSound(
-                    null,
-                    user.getX(),
-                    user.getY(),
-                    user.getZ(),
-                    SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP,
-                    SoundCategory.PLAYERS,
-                    0.5f,
-                    pitch
-                );
+
+            // Handle audio thresholds - check all thresholds that may have been crossed
+            int[] thresholds = {25, 50, 75, 100};
+            int chargePercent = (int) (clientChargePercent * 100);
+            for (int threshold : thresholds) {
+                if (chargePercent >= threshold && lastAudioThreshold < threshold) {
+                    lastAudioThreshold = threshold;
+                    float pitch = 0.8f + (threshold / 100.0f) * 0.4f;
+                    // Play sound through the player entity for client-side audio
+                    if (user instanceof PlayerEntity player) {
+                        player.playSound(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, pitch);
+                    }
+                    break; // Only play one sound per tick
+                }
             }
-            
+
             return;
         }
 
@@ -129,6 +145,7 @@ public final class ChargedDiscItem extends Item {
             clientChargePercent = 0.0f;
             powerLocked = false;
             lockedChargePercent = 0.0f;
+            lockedTicks = 0;
             lastAudioThreshold = 0;
             return;
         }
@@ -200,10 +217,7 @@ public final class ChargedDiscItem extends Item {
                 );
                 serverPlayer.sendMessage(
                         Text.literal(
-                                "Move back to your lie before throwing. "
-                                + "Distance=" + distanceFromLie
-                                + " blocks, allowed=" + allowedDistance
-                                + " (" + rulesetManager.getActiveRuleset().name().toLowerCase() + ")."
+                                "Move back to your lie before throwing! (" + distanceFromLie + " blocks away, max " + allowedDistance + ")"
                         ).formatted(Formatting.RED),
                         true
                 );
@@ -211,21 +225,45 @@ public final class ChargedDiscItem extends Item {
             }
         }
 
-        int usedTicks = getMaxUseTime(stack) - remainingUseTicks;
-        float charge = computeChargePercent(usedTicks);
-        
-        // Use locked charge if power is locked
-        if (powerLocked) {
-            charge = lockedChargePercent;
-        }
-        
-        float velocity = MIN_VELOCITY + (VELOCITY_SPAN * charge);
+        // Check if power is locked on the server
+        UUID playerUuid = serverPlayer.getUuid();
+        Boolean serverLocked = SERVER_POWER_LOCKED.get(playerUuid);
+        Integer lockedTicks = SERVER_LOCKED_TICKS.get(playerUuid);
 
+        float charge;
+        int usedTicks;
+        if (serverLocked != null && serverLocked && lockedTicks != null) {
+            // Currently locked - use the locked tick count (charge stops accumulating)
+            usedTicks = lockedTicks;
+            charge = computeChargePercent(usedTicks);
+            McdgMod.LOGGER.info("Using LOCKED charge for throw: player={} lockedTicks={} charge={}", playerUuid, lockedTicks, String.format("%.3f", charge));
+        } else {
+            // Not locked - use real-time calculated charge
+            usedTicks = getMaxUseTime(stack) - remainingUseTicks;
+            charge = computeChargePercent(usedTicks);
+            String source = (lockedTicks != null) ? "(was locked at " + lockedTicks + " ticks but unlocked)" : "(never locked)";
+            McdgMod.LOGGER.info("Using REAL-TIME charge for throw: player={} usedTicks={} charge={}% {}", playerUuid, usedTicks, String.format("%.1f", charge*100), source);
+        }
+
+        if (charge <= 0.0f) {
+            return;
+        }
+
+        float velocity = MIN_VELOCITY + charge * VELOCITY_SPAN;
+
+        // Use vanilla Ender Pearl velocity calculation for proper trajectory
         EnderPearlEntity pearl = new EnderPearlEntity(world, serverPlayer);
         pearl.setItem(new ItemStack(Items.ENDER_PEARL));
         pearl.setVelocity(serverPlayer, serverPlayer.getPitch(), serverPlayer.getYaw(), 0.0f, velocity, 1.0f);
         world.spawnEntity(pearl);
+
+        // Initialize throw tracking
         ThrowResolver.registerThrowRelease(serverPlayer.getUuid(), pearl.getUuid(), world.getTime());
+
+        // Clear server-side power lock state after throw
+        SERVER_POWER_LOCKED.remove(playerUuid);
+        SERVER_LOCKED_CHARGE.remove(playerUuid);
+        SERVER_LOCKED_TICKS.remove(playerUuid);
 
         world.playSound(
                 null,
@@ -242,9 +280,8 @@ public final class ChargedDiscItem extends Item {
         roundStateManager.recordThrow(serverPlayer.getUuid(), recordedThrowLie);
         if (strictFlowDebug) {
             McdgMod.LOGGER.info(
-                "Strict throw release | player={} usedTicks={} charge={} velocity={} pos={} strict={}",
+                "Strict throw release | player={} charge={} velocity={} pos={} strict={}",
                 serverPlayer.getGameProfile().getName(),
-                usedTicks,
                 String.format("%.3f", charge),
                 String.format("%.3f", velocity),
                 formatPos(serverPlayer.getBlockPos()),
@@ -271,6 +308,7 @@ public final class ChargedDiscItem extends Item {
         return Math.max(0.0f, Math.min(MAX_POWER_MULTIPLIER, charge));
     }
 
+    // Client-side accessors
     public static boolean isClientChargeVisible() {
         return clientChargeVisible;
     }
@@ -288,12 +326,40 @@ public final class ChargedDiscItem extends Item {
     }
 
     public static void setPowerLocked(boolean locked) {
-        powerLocked = locked;
-        if (locked) {
-            lockedChargePercent = clientChargePercent;
-        } else {
-            lockedChargePercent = 0.0f;
+        // Final lock - no unlock allowed
+        if (!locked) {
+            return;  // Ignore unlock commands
         }
+        // Only lock if not already locked
+        if (powerLocked) {
+            return;  // Already locked, ignore re-lock attempts
+        }
+        powerLocked = true;
+        lockedChargePercent = clientChargePercent;
+        // Calculate and store the tick count at lock time
+        lockedTicks = Math.round(lockedChargePercent * MAX_CHARGE_TICKS);
+        System.out.println("[CLIENT] setPowerLocked(true): captured charge=" + String.format("%.1f", lockedChargePercent*100) + "%, ticks=" + lockedTicks);
+    }
+
+    // Server-side power lock state management - FINAL LOCK, no unlock
+    public static void setServerPowerLocked(UUID playerUuid, boolean locked, float chargePercent) {
+        // Only allow locking once per throw - ignore unlock commands
+        if (!locked) {
+            // Unlock is not allowed - power lock is final
+            return;
+        }
+        // Only lock if not already locked
+        Boolean alreadyLocked = SERVER_POWER_LOCKED.get(playerUuid);
+        if (alreadyLocked != null && alreadyLocked) {
+            // Already locked, ignore re-lock attempts
+            return;
+        }
+        SERVER_POWER_LOCKED.put(playerUuid, true);
+        SERVER_LOCKED_CHARGE.put(playerUuid, chargePercent);
+        // Calculate and store the tick count at which we locked
+        int lockedTicks = Math.round(chargePercent * MAX_CHARGE_TICKS);
+        SERVER_LOCKED_TICKS.put(playerUuid, lockedTicks);
+        McdgMod.LOGGER.info("Power LOCKED for player {} at charge={} ticks={} (FINAL)", playerUuid, String.format("%.3f", chargePercent), lockedTicks);
     }
 
     private static Text buildReleaseText(float charge) {

@@ -58,6 +58,12 @@ public final class ClientKeybinds {
                 GLFW.GLFW_KEY_L,
                 "category.mcdg"
         ));
+        lockPowerKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.mcdg.lock_power",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_F,
+                "category.mcdg"
+        ));
     }
 
     public static net.minecraft.text.Text getOpenMenuKeyText() {
@@ -96,6 +102,12 @@ public final class ClientKeybinds {
 
     public static void forEachToggleWaypointLabelsPress(Runnable action) {
         while (toggleWaypointLabelsKey.wasPressed()) {
+            action.run();
+        }
+    }
+
+    public static void forEachLockPowerPress(Runnable action) {
+        while (lockPowerKey.wasPressed()) {
             action.run();
         }
     }
