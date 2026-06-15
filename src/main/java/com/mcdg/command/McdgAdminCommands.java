@@ -497,6 +497,33 @@ public final class McdgAdminCommands {
                                             .executes(context -> WaypointCommands.executeWaypointTeleport(
                                                     context.getSource(), courseManager,
                                                     StringArgumentType.getString(context, "target")))))));
+
+            dispatcher.register(literal("mcdg")
+                    .then(literal("buildresort").requires(McdgAdminCommands::canUseAdminCommands)
+                            .executes(context -> ResortAdminCommands.executeBuildResort(
+                                    context.getSource(), generator, autoCourseService, practiceCourseStorage, null, null))
+                            .then(argument("x", IntegerArgumentType.integer())
+                                    .then(argument("z", IntegerArgumentType.integer())
+                                            .executes(context -> ResortAdminCommands.executeBuildResort(
+                                                    context.getSource(), generator, autoCourseService, practiceCourseStorage,
+                                                    IntegerArgumentType.getInteger(context, "x"),
+                                                    IntegerArgumentType.getInteger(context, "z")))))
+                            .then(literal("overwrite").requires(McdgAdminCommands::canUseAdminCommands)
+                                    .executes(context -> ResortAdminCommands.executeBuildResortOverwrite(
+                                            context.getSource(), generator, autoCourseService, practiceCourseStorage)))
+                            .then(literal("cancel").requires(McdgAdminCommands::canUseAdminCommands)
+                                    .executes(context -> ResortAdminCommands.executeBuildResortCancel(
+                                            context.getSource())))));
+
+            dispatcher.register(literal("mcdg")
+                    .then(literal("resetresort").requires(McdgAdminCommands::canUseAdminCommands)
+                            .executes(context -> ResortAdminCommands.executeResetResort(
+                                    context.getSource()))));
+
+            dispatcher.register(literal("mcdg")
+                    .then(literal("removesurroundcourses").requires(McdgAdminCommands::canUseAdminCommands)
+                            .executes(context -> ResortAdminCommands.executeRemoveSurroundCourses(
+                                    context.getSource(), placementService, practiceCourseStorage))));
         });
     }
 
