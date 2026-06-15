@@ -11,6 +11,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
@@ -53,6 +54,15 @@ public final class McdgClientMod implements ClientModInitializer {
             ClientKeybinds.forEachOpenMenuPress(() -> {
                 if (client.player != null && client.getNetworkHandler() != null && client.currentScreen == null) {
                     client.getNetworkHandler().sendChatCommand("mcdg");
+                }
+            });
+            ClientKeybinds.forEachLockPowerPress(() -> {
+                if (client.player != null && ChargedDiscItem.isClientChargeVisible()) {
+                    // Only allow locking if not already locked (final lock - no toggle)
+                    if (!ChargedDiscItem.isPowerLocked()) {
+                        ChargedDiscItem.setPowerLocked(true);
+                        ClientPlayNetworking.send(new com.mcdg.net.ThrowPowerLockSync.Payload(true, ChargedDiscItem.getClientChargePercent()));
+                    }
                 }
             });
             WaypointManager.tick(client);
