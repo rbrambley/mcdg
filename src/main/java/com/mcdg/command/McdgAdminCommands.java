@@ -96,7 +96,7 @@ public final class McdgAdminCommands {
                                 .executes(context -> executeGotoLie(context.getSource(), roundStateManager)))
                         .then(literal("createcourse").requires(McdgAdminCommands::canUseAdminCommands)
                                 .then(argument("seed", LongArgumentType.longArg())
-                                        .executes(context -> executeCreateCourse(
+                                        .executes(context -> CourseAdminCommands.executeCreateCourse(
                                                 context.getSource(),
                                                 generator,
                                                 courseManager,
@@ -662,35 +662,6 @@ public final class McdgAdminCommands {
                         selectedPlayers
                 );
         }
-
-    private static int executeCreateCourse(
-            ServerCommandSource source,
-            CourseGenerator generator,
-            ActiveCourseManager courseManager,
-            long seed
-        ) {
-        int holeCount = 9;
-
-        try {
-            Course generated = generator.generate(seed, holeCount);
-            Course course = ensureSingleSignatureHole(generated);
-            courseManager.setActiveCourse(course);
-
-            Hole signatureHole = course.holes().stream().filter(Hole::isSignature).findFirst().orElse(null);
-            String signatureSuffix = signatureHole == null
-                    ? ""
-                    : " Signature: H" + signatureHole.index() + " (" + signatureHole.signatureType().displayName() + ").";
-
-            source.sendFeedback(() -> Text.literal(
-                    "Created active course '" + course.name() + "' with " + course.holes().size() + " holes (seed=" + seed + "). Use /mcdg startround or /mcdg practicecourse to place it near you on the surface."
-                            + signatureSuffix
-            ), false);
-            return 1;
-        } catch (RuntimeException ex) {
-            source.sendError(Text.literal("Course generation failed: " + ex.getMessage()));
-            return 0;
-        }
-    }
 
         private static int executeStartRound(
                         ServerCommandSource source,
@@ -2106,7 +2077,7 @@ public final class McdgAdminCommands {
                         long seed,
                         int throwCount
         ) {
-                int created = executeCreateCourse(source, generator, courseManager, seed);
+                int created = CourseAdminCommands.executeCreateCourse(source, generator, courseManager, seed);
                 if (created == 0) {
                         return 0;
                 }
