@@ -416,6 +416,88 @@ public final class McdgAdminCommands {
                         .then(literal("cancelthrowtest").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeCancelThrowTest(context.getSource(), throwAutoTestService, roundSessionStorage, playerRoundSessionStorage, buildCourseSessionManager, autoCourseService)))));
+
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
+            dispatcher.register(literal("mcdg")
+                    .then(literal("savesession").requires(McdgAdminCommands::canUseAdminCommands)
+                            .executes(context -> SessionCommands.executeSaveSession(
+                                    context.getSource(), courseManager, roundStateManager, playerRoundSessionStorage, null))
+                            .then(argument("players", EntityArgumentType.players())
+                                    .executes(context -> SessionCommands.executeSaveSession(
+                                            context.getSource(), courseManager, roundStateManager, playerRoundSessionStorage,
+                                            EntityArgumentType.getPlayers(context, "players"))))));
+
+            dispatcher.register(literal("mcdg")
+                    .then(literal("resumesession").requires(McdgAdminCommands::canUseAdminCommands)
+                            .executes(context -> SessionCommands.executeResumeSession(
+                                    context.getSource(), courseManager, roundStateManager, practiceCourseStorage,
+                                    playerRoundSessionStorage, SessionCommands.ResumeSourceSelection.PREFER_MANUAL, null))
+                            .then(argument("players", EntityArgumentType.players())
+                                    .executes(context -> SessionCommands.executeResumeSession(
+                                            context.getSource(), courseManager, roundStateManager, practiceCourseStorage,
+                                            playerRoundSessionStorage, SessionCommands.ResumeSourceSelection.PREFER_MANUAL,
+                                            EntityArgumentType.getPlayers(context, "players"))))
+                            .then(literal("manual")
+                                    .executes(context -> SessionCommands.executeResumeSession(
+                                            context.getSource(), courseManager, roundStateManager, practiceCourseStorage,
+                                            playerRoundSessionStorage, SessionCommands.ResumeSourceSelection.MANUAL_ONLY, null))
+                                    .then(argument("players", EntityArgumentType.players())
+                                            .executes(context -> SessionCommands.executeResumeSession(
+                                                    context.getSource(), courseManager, roundStateManager, practiceCourseStorage,
+                                                    playerRoundSessionStorage, SessionCommands.ResumeSourceSelection.MANUAL_ONLY,
+                                                    EntityArgumentType.getPlayers(context, "players")))))
+                            .then(literal("auto")
+                                    .executes(context -> SessionCommands.executeResumeSession(
+                                            context.getSource(), courseManager, roundStateManager, practiceCourseStorage,
+                                            playerRoundSessionStorage, SessionCommands.ResumeSourceSelection.AUTO_ONLY, null))
+                                    .then(argument("players", EntityArgumentType.players())
+                                            .executes(context -> SessionCommands.executeResumeSession(
+                                                    context.getSource(), courseManager, roundStateManager, practiceCourseStorage,
+                                                    playerRoundSessionStorage, SessionCommands.ResumeSourceSelection.AUTO_ONLY,
+                                                    EntityArgumentType.getPlayers(context, "players")))))));
+
+            dispatcher.register(literal("mcdg")
+                    .then(literal("roundsession").requires(McdgAdminCommands::canUseAdminCommands)
+                            .executes(context -> SessionCommands.executeRoundSessionStatus(
+                                    context.getSource(), roundSessionStorage))
+                            .then(literal("status")
+                                    .executes(context -> SessionCommands.executeRoundSessionStatus(
+                                            context.getSource(), roundSessionStorage)))
+                            .then(literal("clear")
+                                    .executes(context -> SessionCommands.executeRoundSessionClear(
+                                            context.getSource(), roundSessionStorage, courseManager, roundStateManager, practiceCourseStorage)))));
+
+            dispatcher.register(literal("mcdg")
+                    .then(literal("gotocoursebyindex").requires(McdgAdminCommands::canUseAdminCommands)
+                            .then(argument("index", IntegerArgumentType.integer(1))
+                                    .executes(context -> executeGotoCourseByIndex(
+                                            context.getSource(), practiceCourseStorage,
+                                            IntegerArgumentType.getInteger(context, "index"))))));
+
+            dispatcher.register(literal("mcdg")
+                    .then(literal("cleanupcoursebyindex").requires(McdgAdminCommands::canUseAdminCommands)
+                            .then(argument("index", IntegerArgumentType.integer(1))
+                                    .executes(context -> executeCleanupCourseByIndex(
+                                            context.getSource(), practiceCourseStorage, placementService,
+                                            roundStateManager, courseManager,
+                                            IntegerArgumentType.getInteger(context, "index"))))));
+
+            dispatcher.register(literal("mcdg")
+                    .then(literal("waypoint").requires(McdgAdminCommands::canUseAdminCommands)
+                            .then(literal("list")
+                                    .executes(context -> WaypointCommands.executeWaypointList(
+                                            context.getSource(), courseManager)))
+                            .then(literal("clear")
+                                    .executes(context -> WaypointCommands.executeWaypointClear(
+                                            context.getSource())))
+                            .then(literal("tp")
+                                    .executes(context -> WaypointCommands.executeWaypointTeleportPrompt(
+                                            context.getSource(), courseManager))
+                                    .then(argument("target", StringArgumentType.greedyString())
+                                            .executes(context -> WaypointCommands.executeWaypointTeleport(
+                                                    context.getSource(), courseManager,
+                                                    StringArgumentType.getString(context, "target")))))));
+        });
     }
 
         private static boolean canUseAdminCommands(ServerCommandSource source) {
