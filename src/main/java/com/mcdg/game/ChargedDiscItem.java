@@ -17,6 +17,7 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.UseAction;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import java.util.HashMap;
 import java.util.Map;
@@ -256,6 +257,15 @@ public final class ChargedDiscItem extends Item {
         pearl.setItem(new ItemStack(Items.ENDER_PEARL));
         pearl.setVelocity(serverPlayer, serverPlayer.getPitch(), serverPlayer.getYaw(), 0.0f, velocity, 1.0f);
         world.spawnEntity(pearl);
+
+        // Register with DiscFlightSimulator for glide physics (Phase 1: defaults to OVERHAND stance)
+        DiscFlightSimulator.registerThrow(
+                pearl.getUuid(),
+                (int) world.getTime(),
+                serverPlayer.getYaw(),
+                charge,
+                new Vec3d(serverPlayer.getX(), serverPlayer.getY(), serverPlayer.getZ())
+        );
 
         // Initialize throw tracking
         ThrowResolver.registerThrowRelease(serverPlayer.getUuid(), pearl.getUuid(), world.getTime());
