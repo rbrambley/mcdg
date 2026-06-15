@@ -524,6 +524,55 @@ public final class McdgAdminCommands {
                     .then(literal("removesurroundcourses").requires(McdgAdminCommands::canUseAdminCommands)
                             .executes(context -> ResortAdminCommands.executeRemoveSurroundCourses(
                                     context.getSource(), placementService, practiceCourseStorage))));
+
+            // autocourse
+            dispatcher.register(literal("mcdg")
+                    .then(literal("autocourse").requires(McdgAdminCommands::canUseAdminCommands)
+                            .executes(context -> autoCourseService.executeAutoCourseNoName(context.getSource()))
+                            .then(argument("name", StringArgumentType.greedyString())
+                                    .executes(context -> autoCourseService.executeAutoCourseNamed(
+                                            context.getSource(), StringArgumentType.getString(context, "name"))))
+                            .then(literal("cancel")
+                                    .executes(context -> autoCourseService.executeCancel(context.getSource())))));
+
+            // removecourse
+            dispatcher.register(literal("mcdg")
+                    .then(literal("removecourse").requires(McdgAdminCommands::canUseAdminCommands)
+                            .then(argument("index", IntegerArgumentType.integer(1))
+                                    .executes(context -> CourseAdminCommands.executeRemoveCourse(
+                                            context.getSource(), courseManager, roundStateManager,
+                                            practiceCourseStorage, playerRoundSessionStorage,
+                                            IntegerArgumentType.getInteger(context, "index"))))));
+
+            // usecourse
+            dispatcher.register(literal("mcdg")
+                    .then(literal("usecourse").requires(McdgAdminCommands::canUseAdminCommands)
+                            .requires(McdgAdminCommands::canUseAdvancedCommands)
+                            .then(argument("index", IntegerArgumentType.integer(1))
+                                    .executes(context -> CourseAdminCommands.executeUseCourse(
+                                            context.getSource(), courseManager, roundStateManager,
+                                            practiceCourseStorage,
+                                            IntegerArgumentType.getInteger(context, "index"))))));
+
+            // resumecourse
+            dispatcher.register(literal("mcdg")
+                    .then(literal("resumecourse").requires(McdgAdminCommands::canUseAdminCommands)
+                            .requires(McdgAdminCommands::canUseAdvancedCommands)
+                            .executes(context -> RoundLifecycleCommands.executeResumeCourse(
+                                    context.getSource(), courseManager, roundStateManager,
+                                    roundPresentationService, skipRoundPresentation, null))
+                            .then(argument("players", EntityArgumentType.players())
+                                    .executes(context -> RoundLifecycleCommands.executeResumeCourse(
+                                            context.getSource(), courseManager, roundStateManager,
+                                            roundPresentationService, skipRoundPresentation,
+                                            EntityArgumentType.getPlayers(context, "players"))))));
+
+            // roundstatus
+            dispatcher.register(literal("mcdg")
+                    .then(literal("roundstatus").requires(McdgAdminCommands::canUseAdminCommands)
+                            .requires(McdgAdminCommands::canUseAdvancedCommands)
+                            .executes(context -> RoundAdminCommands.executeRoundStatus(
+                                    context.getSource(), courseManager, roundStateManager))));
         });
     }
 
