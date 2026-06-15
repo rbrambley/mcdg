@@ -9,6 +9,7 @@ import com.mcdg.net.RoundCompleteCinematicSync;
 import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.WaypointSync;
 import com.mcdg.net.WaypointRemovedSync;
+import com.mcdg.net.ThrowPowerLockSync;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 /**

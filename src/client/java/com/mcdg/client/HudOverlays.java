@@ -83,17 +83,47 @@ public final class HudOverlays {
         drawContext.fill(barX - 2, barTop - 2, barX + POWER_BAR_WIDTH + 2, barBottom + 2, 0x70000000);
         drawContext.fill(barX, barTop, barX + POWER_BAR_WIDTH, barBottom, 0xAA1B1B1B);
 
+        // Draw distance markers at 25%, 50%, 75%, 100%
+        int[] thresholds = {25, 50, 75, 100};
+        for (int threshold : thresholds) {
+            float thresholdCharge = threshold / 100.0f;
+            int markY = barBottom - Math.round(thresholdCharge * POWER_BAR_HEIGHT);
+            drawContext.fill(barX - 1, markY, barX + POWER_BAR_WIDTH + 1, markY + 1, 0xFFFFFFFF);
+            
+            // Simple distance estimation (will be replaced with DiscFlightSimulator in glide branch)
+            int estimatedDistance = Math.round(thresholdCharge * 400); // Approximate max distance in feet
+            String distanceText = estimatedDistance + "ft";
+            int textX = rightHandThrow ? barX + POWER_BAR_WIDTH + 4 : barX - client.textRenderer.getWidth(distanceText) - 4;
+            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(distanceText).formatted(Formatting.GRAY), textX, markY - 4, 0xAAAAAA);
+        }
+
         int filledPixels = Math.max(0, Math.min(POWER_BAR_HEIGHT, Math.round(charge * POWER_BAR_HEIGHT)));
         if (filledPixels > 0) {
             int fillTop = barBottom - filledPixels;
-            int color = charge < 0.5f ? 0xFF3AC25B : 0xFFFFC336;
+            
+            // Color changes: green below 50%, yellow 50-100%, red overcharge 100-125%
+            int color;
+            if (charge > 1.0f) {
+                color = 0xFFFF3333; // Red overcharge zone
+            } else if (charge < 0.5f) {
+                color = 0xFF3AC25B; // Green
+            } else {
+                color = 0xFFFFC336; // Yellow
+            }
             drawContext.fill(barX + 1, fillTop, barX + POWER_BAR_WIDTH - 1, barBottom - 1, color);
         }
 
-        int normalMarkY = barBottom - (POWER_BAR_HEIGHT / 2);
-        drawContext.fill(barX - 1, normalMarkY, barX + POWER_BAR_WIDTH + 1, normalMarkY + 1, 0xFFFFFFFF);
+        // Draw overcharge zone marker at 100%
+        int overchargeMarkY = barBottom - POWER_BAR_HEIGHT;
+        drawContext.fill(barX - 1, overchargeMarkY, barX + POWER_BAR_WIDTH + 1, overchargeMarkY + 1, 0xFFFF3333);
 
+        // Percentage text
         int percent = Math.round(charge * 100.0f);
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(Integer.toString(percent) + "%"), barX - 8, barTop - 12, 0x66E3FF);
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(Integer.toString(percent) + "%").formatted(Formatting.WHITE), barX - 8, barTop - 12, 0xFFFFFF);
+
+        // LOCKED indicator
+        if (ChargedDiscItem.isPowerLocked()) {
+            drawContext.drawTextWithShadow(client.textRenderer, Text.literal("LOCKED").formatted(Formatting.RED), barX - 8, barTop - 24, 0xFF5555);
+        }
     }
 }

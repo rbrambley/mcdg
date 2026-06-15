@@ -20,11 +20,15 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
 public final class ChargedDiscItem extends Item {
-    private static final int MAX_CHARGE_TICKS = 20;
+    private static final int MAX_CHARGE_TICKS = 120;
+    private static final float MAX_POWER_MULTIPLIER = 1.25f;
     private static final float MIN_VELOCITY = 0.7f;
     private static final float VELOCITY_SPAN = 1.6f;
     private static boolean clientChargeVisible;
     private static float clientChargePercent;
+    private static boolean powerLocked;
+    private static float lockedChargePercent;
+    private static int lastAudioThreshold;
 
     private final ActiveCourseManager courseManager;
     private final RoundStateManager roundStateManager;
@@ -58,6 +62,9 @@ public final class ChargedDiscItem extends Item {
         if (world.isClient()) {
             clientChargeVisible = true;
             clientChargePercent = 0.0f;
+            powerLocked = false;
+            lockedChargePercent = 0.0f;
+            lastAudioThreshold = 0;
         }
 
         user.setCurrentHand(hand);
@@ -70,6 +77,9 @@ public final class ChargedDiscItem extends Item {
             if (world.isClient()) {
                 clientChargeVisible = false;
                 clientChargePercent = 0.0f;
+                powerLocked = false;
+                lockedChargePercent = 0.0f;
+                lastAudioThreshold = 0;
             }
             return;
         }
@@ -79,7 +89,31 @@ public final class ChargedDiscItem extends Item {
 
         if (world.isClient()) {
             clientChargeVisible = true;
-            clientChargePercent = charge;
+            
+            // Handle power lock
+            if (powerLocked) {
+                clientChargePercent = lockedChargePercent;
+            } else {
+                clientChargePercent = charge;
+            }
+            
+            // Handle audio thresholds
+            int currentThreshold = (int) (clientChargePercent * 100 / 25) * 25;
+            if (currentThreshold > lastAudioThreshold && currentThreshold <= 100) {
+                lastAudioThreshold = currentThreshold;
+                float pitch = 0.8f + (currentThreshold / 100.0f) * 0.4f;
+                world.playSound(
+                    null,
+                    user.getX(),
+                    user.getY(),
+                    user.getZ(),
+                    SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP,
+                    SoundCategory.PLAYERS,
+                    0.5f,
+                    pitch
+                );
+            }
+            
             return;
         }
 
@@ -93,6 +127,9 @@ public final class ChargedDiscItem extends Item {
         if (world.isClient()) {
             clientChargeVisible = false;
             clientChargePercent = 0.0f;
+            powerLocked = false;
+            lockedChargePercent = 0.0f;
+            lastAudioThreshold = 0;
             return;
         }
 
@@ -176,6 +213,12 @@ public final class ChargedDiscItem extends Item {
 
         int usedTicks = getMaxUseTime(stack) - remainingUseTicks;
         float charge = computeChargePercent(usedTicks);
+        
+        // Use locked charge if power is locked
+        if (powerLocked) {
+            charge = lockedChargePercent;
+        }
+        
         float velocity = MIN_VELOCITY + (VELOCITY_SPAN * charge);
 
         EnderPearlEntity pearl = new EnderPearlEntity(world, serverPlayer);
@@ -225,7 +268,7 @@ public final class ChargedDiscItem extends Item {
 
     private static float computeChargePercent(int usedTicks) {
         float charge = usedTicks / (float) MAX_CHARGE_TICKS;
-        return Math.max(0.0f, Math.min(1.0f, charge));
+        return Math.max(0.0f, Math.min(MAX_POWER_MULTIPLIER, charge));
     }
 
     public static boolean isClientChargeVisible() {
@@ -234,6 +277,23 @@ public final class ChargedDiscItem extends Item {
 
     public static float getClientChargePercent() {
         return clientChargePercent;
+    }
+
+    public static boolean isPowerLocked() {
+        return powerLocked;
+    }
+
+    public static float getLockedChargePercent() {
+        return lockedChargePercent;
+    }
+
+    public static void setPowerLocked(boolean locked) {
+        powerLocked = locked;
+        if (locked) {
+            lockedChargePercent = clientChargePercent;
+        } else {
+            lockedChargePercent = 0.0f;
+        }
     }
 
     private static Text buildReleaseText(float charge) {
