@@ -17,6 +17,7 @@ public final class ClientKeybinds {
     private static KeyBinding removeNearestWaypointKey;
     private static KeyBinding toggleWaypointLabelsKey;
     private static KeyBinding lockPowerKey;
+    private static KeyBinding cycleThrowStanceKey;
 
     private ClientKeybinds() {
     }
@@ -64,6 +65,12 @@ public final class ClientKeybinds {
                 GLFW.GLFW_KEY_F,
                 "category.mcdg"
         ));
+        cycleThrowStanceKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.mcdg.cycle_stance",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_R,
+                "category.mcdg"
+        ));
     }
 
     public static net.minecraft.text.Text getOpenMenuKeyText() {
@@ -108,6 +115,12 @@ public final class ClientKeybinds {
 
     public static void forEachLockPowerPress(Runnable action) {
         while (lockPowerKey.wasPressed()) {
+            action.run();
+        }
+    }
+
+    public static void forEachStanceCyclePress(Runnable action) {
+        while (cycleThrowStanceKey.wasPressed()) {
             action.run();
         }
     }

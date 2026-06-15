@@ -3,6 +3,7 @@ package com.mcdg.game;
 import com.mcdg.McdgMod;
 import net.minecraft.entity.projectile.thrown.EnderPearlEntity;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.Map;
@@ -15,7 +16,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * Phase 1: Core Glide Physics
  * - Glide phase: upward impulse to counteract gravity for flat flight
  * - Glide taper: gradual reduction of upward impulse at end of glide
- * - No lateral curve yet (added in Phase 2)
+ *
+ * Phase 2: Throw Stance Selection
+ * - Lateral fade curve based on stance (Backhand = left fade, Forehand = right fade)
+ * - Overhand = vanilla physics (no glide, no fade)
  *
  * Target: 400-600 ft at full power with flat/horizontal aim
  */
@@ -24,11 +28,12 @@ public final class DiscFlightSimulator {
     // FlightState record tracks per-throw parameters
     public record FlightState(
             UUID pearlUuid,
+            UUID playerUuid,        // Track which player threw, for timeout resolution
             int launchTick,
             float launchYawDegrees,
             float charge,           // 0.0 - 1.25 (can overcharge)
-            ThrowStance stance,     // OVERHAND (default for Phase 1)
-            ReleaseAngle angle,     // FLAT (default for Phase 1)
+            ThrowStance stance,     // OVERHAND, BACKHAND, FOREHAND
+            ReleaseAngle angle,     // HYZER, FLAT, ANHYZER
             Vec3d launchPos         // Starting position for distance tracking
     ) {
         /**
@@ -36,9 +41,10 @@ public final class DiscFlightSimulator {
          * 10 ticks (min) to 80 ticks (full power)
          */
         public int glideTicks() {
-            // Base 10 ticks + up to 70 additional ticks based on charge
-            float normalizedCharge = Math.min(1.0f, charge); // Cap at 100% for glide duration
-            return 10 + Math.round(normalizedCharge * 70);
+            // Base 10 ticks + up to 40 additional ticks based on charge
+            // Total 50 ticks max (2.5 seconds) - enough for 600-700 ft
+            float normalizedCharge = Math.min(1.0f, charge);
+            return 10 + Math.round(normalizedCharge * 40);
         }
 
         /**
@@ -70,14 +76,30 @@ public final class DiscFlightSimulator {
         public boolean isGlideComplete(int currentServerTick) {
             return glideProgress(currentServerTick) >= 1.0f;
         }
+
+        /**
+         * Returns fade progress (0.0 to 1.0) for the fade phase (last 40% of glide).
+         * Returns 0.0 before fade phase begins.
+         */
+        public float fadeProgress(int currentServerTick) {
+            float glideProgress = glideProgress(currentServerTick);
+            // Fade phase starts at 60% through glide
+            if (glideProgress < 0.6f) {
+                return 0.0f;
+            }
+            // Fade increases from 0 to 1 over last 40% of glide
+            return (glideProgress - 0.6f) / 0.4f;
+        }
     }
 
     // Active flights keyed by pearl UUID
     private static final Map<UUID, FlightState> ACTIVE_FLIGHTS = new ConcurrentHashMap<>();
 
-    // Physics constants
-    private static final double UPWARD_IMPULSE = 0.03;      // Counteracts vanilla gravity (~-0.03/tick)
-    private static final double GLIDE_TAPER_START = 0.8;    // Start tapering at 80% of glide
+    // Physics constants - Option 4: Natural arc with early taper
+    private static final double UPWARD_IMPULSE = 0.018;     // Less lift for natural arc (was 0.025)
+    private static final double GLIDE_TAPER_START = 0.6;  // Start taper at 60% for earlier descent (was 80%)
+    private static final double BASE_CURVE_STRENGTH = 0.008; // Base lateral deflection per tick during fade
+    private static final int MAX_FLIGHT_TICKS = 120; // Maximum flight time (6 seconds) - safety net for natural landing
 
     // Distance validation target
     private static final float TARGET_MIN_DISTANCE_FT = 400;
@@ -91,34 +113,38 @@ public final class DiscFlightSimulator {
      * Register a new throw with the flight simulator.
      * Called from ChargedDiscItem.onStoppedUsing() after pearl spawn.
      *
-     * Phase 1: Uses default OVERHAND stance and FLAT angle.
+     * Phase 2: Accepts stance and angle parameters from client.
      */
     public static void registerThrow(
             UUID pearlUuid,
+            UUID playerUuid,
             int launchTick,
             float launchYawDegrees,
             float charge,
+            ThrowStance stance,
+            ReleaseAngle angle,
             Vec3d launchPos
     ) {
-        // Phase 1: Default to OVERHAND stance and FLAT angle
         FlightState state = new FlightState(
                 pearlUuid,
+                playerUuid,
                 launchTick,
                 launchYawDegrees,
                 charge,
-                ThrowStance.OVERHAND,
-                ReleaseAngle.FLAT,
+                stance,
+                angle,
                 launchPos
         );
 
         ACTIVE_FLIGHTS.put(pearlUuid, state);
 
         McdgMod.LOGGER.info(
-                "DiscFlightSimulator registered throw | pearl={} charge={} glideTicks={} stance={}",
+                "DiscFlightSimulator registered throw | pearl={} charge={} glideTicks={} stance={} angle={}",
                 pearlUuid,
                 String.format("%.3f", charge),
                 state.glideTicks(),
-                state.stance()
+                state.stance(),
+                state.angle()
         );
     }
 
@@ -133,16 +159,34 @@ public final class DiscFlightSimulator {
             FlightState state = entry.getValue();
             EnderPearlEntity pearl = findPearl(server, entry.getKey());
 
-            if (pearl == null || pearl.isRemoved() || pearl.isOnGround()) {
-                // Pearl landed or despawned - log final distance
+            int flightTicks = state.ticksSinceLaunch(currentTick);
+            boolean pearlGone = pearl == null || pearl.isRemoved();
+            boolean pearlLanded = pearl != null && pearl.isOnGround();
+            boolean timedOut = flightTicks > MAX_FLIGHT_TICKS;
+
+            if (pearlGone || pearlLanded || timedOut) {
+                // Always force-clear the tracked pearl so ThrowResolver can resolve the throw.
+                // Critical when pearl enters unloaded chunks (pearlGone) - without this
+                // ThrowResolver keeps waiting indefinitely.
+                ThrowResolver.forceClearTrackedPearl(state.playerUuid());
+
+                String reason = pearlGone ? "pearl_unloaded" : pearlLanded ? "landed" : "timeout";
                 if (pearl != null && state.stance().hasGlide()) {
                     double distance = calculateDistance(state.launchPos(), pearl.getPos());
                     McdgMod.LOGGER.info(
-                            "DiscFlightSimulator flight complete | pearl={} distance={}ft stance={} charge={}",
+                            "DiscFlightSimulator flight complete | pearl={} reason={} distance={}ft stance={} angle={} charge={} ticks={}",
                             state.pearlUuid(),
+                            reason,
                             String.format("%.1f", distance),
                             state.stance(),
-                            String.format("%.3f", state.charge())
+                            state.angle(),
+                            String.format("%.3f", state.charge()),
+                            flightTicks
+                    );
+                } else {
+                    McdgMod.LOGGER.info(
+                            "DiscFlightSimulator flight ended | pearl={} reason={} ticks={}",
+                            state.pearlUuid(), reason, flightTicks
                     );
                 }
                 return true; // Remove from tracking
@@ -162,7 +206,9 @@ public final class DiscFlightSimulator {
      * Apply glide physics to a pearl.
      * - Glide phase: upward impulse to counteract gravity
      * - Glide taper: gradually reduce upward impulse in final 20%
-     * Phase 1: No lateral curve (added in Phase 2)
+     * - Fade phase: lateral curve based on stance + angle (last 40% of glide)
+     *
+     * Phase 2: Added lateral fade curve
      */
     private static void applyGlidePhysics(EnderPearlEntity pearl, FlightState state, int currentTick) {
         float progress = state.glideProgress(currentTick);
@@ -187,7 +233,49 @@ public final class DiscFlightSimulator {
         // Apply upward velocity adjustment
         // We add to existing velocity to maintain forward momentum
         Vec3d velocity = pearl.getVelocity();
-        pearl.setVelocity(velocity.x, velocity.y + upwardImpulse, velocity.z);
+        double newVelX = velocity.x;
+        double newVelY = velocity.y + upwardImpulse;
+        double newVelZ = velocity.z;
+
+        // Apply lateral fade curve (Phase 2)
+        float fadeProgress = state.fadeProgress(currentTick);
+        if (fadeProgress > 0.0f) {
+            // Calculate deflection based on stance + angle
+            // naturalFade: -1 = left (backhand), +1 = right (forehand), 0 = none (overhand)
+            // angleBias: -1 = hyzer (exaggerate fade), +1 = anhyzer (counteract fade), 0 = flat
+            int naturalFade = state.stance().naturalFadeDirection();
+            int angleBias = state.angle().angleBias();
+
+            // Combined deflection: natural fade + angle bias
+            // Hyzer exaggerates natural fade, anhyzer counteracts it
+            int totalBias = naturalFade + angleBias;
+
+            // Apply curve that increases through fade phase
+            double curveStrength = BASE_CURVE_STRENGTH * totalBias * fadeProgress;
+
+            // Calculate perpendicular direction (left/right of launch yaw)
+            float yawRad = (float) Math.toRadians(state.launchYawDegrees);
+            double leftX = Math.cos(yawRad + Math.PI / 2); // Perpendicular to facing direction
+            double leftZ = Math.sin(yawRad + Math.PI / 2);
+
+            // Apply lateral nudge (negative = left, positive = right)
+            newVelX += leftX * curveStrength;
+            newVelZ += leftZ * curveStrength;
+
+            // Log fade for debugging (once per throw when fade starts)
+            if (fadeProgress < 0.05f && (currentTick - state.launchTick) % 10 == 0) {
+                McdgMod.LOGGER.debug(
+                        "DiscFlightSimulator fade start | pearl={} stance={} angle={} bias={} strength={}",
+                        state.pearlUuid(),
+                        state.stance(),
+                        state.angle(),
+                        totalBias,
+                        String.format("%.5f", curveStrength)
+                );
+            }
+        }
+
+        pearl.setVelocity(newVelX, newVelY, newVelZ);
     }
 
     /**

@@ -34,6 +34,7 @@ import com.mcdg.net.RoundCompleteCinematicSync;
 import com.mcdg.net.WaypointTeleportSync;
 import com.mcdg.net.WaypointRemovedSync;
 import com.mcdg.net.ThrowPowerLockSync;
+import com.mcdg.net.ThrowStanceSync;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
@@ -126,6 +127,7 @@ public final class McdgMod implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(LeaderboardRequest.ID, LeaderboardRequest.CODEC);
         PayloadTypeRegistry.playC2S().register(WaypointTeleportSync.ID, WaypointTeleportSync.CODEC);
         PayloadTypeRegistry.playC2S().register(ThrowPowerLockSync.ID, ThrowPowerLockSync.CODEC);
+        PayloadTypeRegistry.playC2S().register(ThrowStanceSync.ID, ThrowStanceSync.CODEC);
         PayloadTypeRegistry.playS2C().register(AceCinematicSync.ID, AceCinematicSync.CODEC);
         PayloadTypeRegistry.playS2C().register(HoleMiniMapSync.ID, HoleMiniMapSync.CODEC);
         PayloadTypeRegistry.playS2C().register(RoundRunningScoresSync.ID, RoundRunningScoresSync.CODEC);
@@ -156,6 +158,13 @@ public final class McdgMod implements ModInitializer {
                 context.server().execute(() -> {
                     // Store server-side power lock state for use during throw
                     ChargedDiscItem.setServerPowerLocked(context.player().getUuid(), payload.locked(), payload.lockedChargePercent());
+                })
+        );
+        ServerPlayNetworking.registerGlobalReceiver(ThrowStanceSync.ID, (payload, context) ->
+                context.server().execute(() -> {
+                    // Store server-side stance for use during throw
+                    ChargedDiscItem.setServerStance(context.player().getUuid(), payload.stance(), payload.angle());
+                    McdgMod.LOGGER.info("Server received stance sync: player={} stance={} angle={}", context.player().getUuid(), payload.stance(), payload.angle());
                 })
         );
         McdgConfig config = McdgConfig.loadDefault();

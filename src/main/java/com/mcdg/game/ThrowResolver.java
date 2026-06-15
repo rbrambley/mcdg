@@ -278,6 +278,17 @@ public final class ThrowResolver {
         LAST_THROW_PENDING_TICKS.remove(playerId);
     }
 
+    /**
+     * Force clear the tracked pearl for a player. Called by DiscFlightSimulator when max flight time is exceeded.
+     * This allows ThrowResolver to proceed with resolution even if the pearl is in unloaded chunks.
+     */
+    public static void forceClearTrackedPearl(UUID playerId) {
+        if (LAST_THROW_PEARL_UUID.containsKey(playerId)) {
+            McdgMod.LOGGER.info("Force clearing tracked pearl for player {} (flight timeout)", playerId);
+            LAST_THROW_PEARL_UUID.remove(playerId);
+        }
+    }
+
     static boolean isThrowResolutionPending(UUID playerId, int totalStrokes) {
         if (totalStrokes <= 0) {
             return false;
