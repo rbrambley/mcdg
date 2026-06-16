@@ -53,6 +53,8 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
+import com.mcdg.game.OutOfBoundsClassifier;
+import com.mojang.brigadier.arguments.BoolArgumentType;
 
 public final class McdgAdminCommands {
         private static final String ADVANCED_COMMANDS_ENV = "MCDG_SHOW_ADVANCED_COMMANDS";
@@ -332,6 +334,12 @@ public final class McdgAdminCommands {
                         .then(literal("debugperms").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeDebugPermissions(context.getSource())))
+                        .then(literal("debug").requires(McdgAdminCommands::canUseAdminCommands)
+                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                                .then(literal("obclassifier")
+                                        .executes(context -> executeDebugObClassifier(context.getSource()))
+                                        .then(argument("enabled", BoolArgumentType.bool())
+                                                .executes(context -> executeDebugObClassifierSet(context.getSource(), BoolArgumentType.getBool(context, "enabled"))))))
                         .then(literal("validateplacement").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
                                 .executes(context -> executeValidatePlacement(
@@ -2240,5 +2248,17 @@ public final class McdgAdminCommands {
 
         source.sendFeedback(() -> Text.literal("Cleaned up course #" + oneBasedIndex + "."), true);
         return 1;
+    }
+
+    private static int executeDebugObClassifier(ServerCommandSource source) {
+        boolean current = OutOfBoundsClassifier.isDebugLoggingEnabled();
+        source.sendFeedback(() -> Text.literal("OB Classifier debug logging: " + (current ? "enabled" : "disabled")), false);
+        return current ? 1 : 0;
+    }
+
+    private static int executeDebugObClassifierSet(ServerCommandSource source, boolean enabled) {
+        OutOfBoundsClassifier.setDebugLogging(enabled);
+        source.sendFeedback(() -> Text.literal("OB Classifier debug logging " + (enabled ? "enabled" : "disabled")), true);
+        return enabled ? 1 : 0;
     }
 }

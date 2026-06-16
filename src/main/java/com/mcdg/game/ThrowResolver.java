@@ -146,10 +146,21 @@ public final class ThrowResolver {
 
         BlockPos landingFeet = SafePositionFinder.findNearestStandableFeet(world, currentFeet);
 
+        // Made shot detection: check BEFORE applying any penalties so a successful
+        // basket shot is never penalized regardless of landing terrain.
+        boolean madeShot = isDiscThroughBasket(throwLie, currentFeet, basket)
+                || isCloseProximityMake(throwLie, currentFeet, basket);
+
         BlockPos resultingLie = landingFeet;
         BlockPos firstOutCrossing = null;
         StrictPenaltyType landingPenalty = StrictPenaltyType.NONE;
-        if (ENABLE_STRICT_LANDING_PENALTIES && rulesetManager.isStrict()) {
+
+        if (madeShot) {
+            // Successful basket shot - no penalties apply, lie is set to basket
+            resultingLie = basket.up();
+            player.teleport(resultingLie.getX() + 0.5, resultingLie.getY() + 1.0, resultingLie.getZ() + 0.5);
+            state = roundStateManager.markLastThrowPenalty(player.getUuid(), false).orElse(state);
+        } else if (ENABLE_STRICT_LANDING_PENALTIES && rulesetManager.isStrict()) {
             StrictPenaltyType currentFeetPenalty = OutOfBoundsClassifier.classifyOutType(world, currentFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
             StrictPenaltyType standableFeetPenalty = OutOfBoundsClassifier.classifyOutType(world, landingFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
             landingPenalty = combinePenalty(currentFeetPenalty, standableFeetPenalty);
@@ -219,19 +230,11 @@ public final class ThrowResolver {
             }
         }
 
-        if (landingPenalty == StrictPenaltyType.NONE) {
+        if (landingPenalty == StrictPenaltyType.NONE && !madeShot) {
             state = roundStateManager.markLastThrowPenalty(player.getUuid(), false).orElse(state);
         }
 
-        // Made shot: pearl path passed through the hopper (Y+1) at the basket column.
-        // Made shot: pearl path passed through the hopper (Y+1) at the basket column,
-        // or flat putt from very close range that lands on the basket column.
-        boolean madeShot = isDiscThroughBasket(throwLie, currentFeet, basket)
-                || isCloseProximityMake(throwLie, currentFeet, basket);
-        if (madeShot) {
-            resultingLie = basket.up();
-            player.teleport(resultingLie.getX() + 0.5, resultingLie.getY() + 1.0, resultingLie.getZ() + 0.5);
-        }
+        // Basket make already handled above; this block removed as part of Option A refactor.
 
         // Basket body hits (above the make-zone) should bounce to the ring with a CLANK cue.
         if (!madeShot && shouldBounceOffBasketStructure(resultingLie, basket)) {

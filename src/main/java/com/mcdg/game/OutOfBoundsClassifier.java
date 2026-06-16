@@ -1,5 +1,7 @@
 package com.mcdg.game;
 
+import com.mcdg.McdgMod;
+
 import com.mcdg.data.Hole;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.SafePositionFinder;
@@ -18,7 +20,22 @@ public final class OutOfBoundsClassifier {
     private static final int BASKET_GREEN_RADIUS_BLOCKS = 14;
     private static final int BASKET_GREEN_HEIGHT_BLOCKS = 8;
 
+    // Runtime toggle for debug logging (controlled via /mcdg debug obclassifier command)
+    private static volatile boolean debugLoggingEnabled = false;
+
     private OutOfBoundsClassifier() {}
+
+    /**
+     * Enables or disables debug logging for out-of-bounds classification.
+     * When enabled, each classification decision is logged with details.
+     */
+    public static void setDebugLogging(boolean enabled) {
+        debugLoggingEnabled = enabled;
+    }
+
+    public static boolean isDebugLoggingEnabled() {
+        return debugLoggingEnabled;
+    }
 
     public static StrictPenaltyType classifyOutType(
             ServerWorld world,
@@ -43,33 +60,68 @@ public final class OutOfBoundsClassifier {
             TournamentRulesetManager rulesetManager,
             int corridorHalfWidth
     ) {
-        // Basket green is a fully safe zone — no penalties for any landing within it.
+        return classifyOutTypeWithCorridorDebug(world, feet, currentHole, tee, basket, alternateAnchor, rulesetManager, corridorHalfWidth, debugLoggingEnabled);
+    }
+
+    public static StrictPenaltyType classifyOutTypeWithCorridorDebug(
+            ServerWorld world,
+            BlockPos feet,
+            Hole currentHole,
+            BlockPos tee,
+            BlockPos basket,
+            BlockPos alternateAnchor,
+            TournamentRulesetManager rulesetManager,
+            int corridorHalfWidth,
+            boolean debug
+    ) {
+        // Basket green is a fully safe zone -- no penalties for any landing within it.
         if (isBasketGreenSafe(feet, basket.down())) {
+            if (debug) {
+                McdgMod.LOGGER.info("[OBClassifier] feet={} basket={} -> BASKET_GREEN_SAFE", formatPos(feet), formatPos(basket));
+            }
             return StrictPenaltyType.NONE;
         }
 
         // Basket column (hopper, pole, lantern) is always safe.
         if (feet.getX() == basket.getX() && feet.getZ() == basket.getZ()) {
+            if (debug) {
+                McdgMod.LOGGER.info("[OBClassifier] feet={} basket={} -> BASKET_COLUMN_SAFE", formatPos(feet), formatPos(basket));
+            }
             return StrictPenaltyType.NONE;
         }
 
         if (isFluidPenaltyZone(world, feet)) {
+            if (debug) {
+                McdgMod.LOGGER.info("[OBClassifier] feet={} -> FLUID_OB", formatPos(feet));
+            }
             return StrictPenaltyType.OB;
         }
 
         double lateral = distanceFromPlayableRouteXZ(feet, tee, basket, alternateAnchor);
         if (lateral > corridorHalfWidth) {
+            if (debug) {
+                McdgMod.LOGGER.info("[OBClassifier] feet={} lateral={} corridor={} -> CORRIDOR_OB", formatPos(feet), lateral, corridorHalfWidth);
+            }
             return StrictPenaltyType.OB;
         }
 
         if (rulesetManager.strictEnableSlopeHazard() && isSteepSlopeHazard(world, feet, rulesetManager.strictSlopeHazardDeltaY())) {
+            if (debug) {
+                McdgMod.LOGGER.info("[OBClassifier] feet={} -> SLOPE_HAZARD", formatPos(feet));
+            }
             return StrictPenaltyType.HAZARD;
         }
 
         if (rulesetManager.strictEnableRoughHazard() && isDenseRoughHazard(world, feet, rulesetManager.strictRoughHazardLeafLogThreshold())) {
+            if (debug) {
+                McdgMod.LOGGER.info("[OBClassifier] feet={} -> ROUGH_HAZARD", formatPos(feet));
+            }
             return StrictPenaltyType.HAZARD;
         }
 
+        if (debug) {
+            McdgMod.LOGGER.info("[OBClassifier] feet={} -> NONE (in bounds)", formatPos(feet));
+        }
         return StrictPenaltyType.NONE;
     }
 
