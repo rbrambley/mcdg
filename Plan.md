@@ -22,6 +22,42 @@ Next:
 
 ---
 
+## Disc Glide Physics -- Phases 1-3 (2026-06-14 to 2026-06-16) ✅ COMPLETED
+
+Implemented / validated:
+
+- **Phase 1: Core Glide Physics** (`DiscFlightSimulator` with server tick handler,
+  upward impulse to counteract gravity, glide taper, 400--600 ft range at full power).
+- **Phase 2: Throw Stance Selection** (`R` keybind cycles Overhand/Backhand/Forehand,
+  client-side `ThrowPreferenceManager`, stance sent at throw time, no server sync).
+- **Phase 3: Release Angle + Curve Physics** (scroll during charge cycles
+  Hyzer/Flat/Anhyzer, combined stance+angle fade formula, power meter HUD shows
+  stance/angle, basket detection uses curved trajectory path).
+
+Key commits:
+- `42c779f` Phase 1: Core Glide Physics for Disc Flight Simulator
+- `cd236e7` Phase 2: Throw Stance Selection with Glide and Fade Physics
+- `fc97c9d` Perf: eliminate server tick stalls on menu open and course start
+- `41c8f4a` Fix: made-shot detection before penalty logic; add OB classifier debug command
+- `746b18b` Merge pull request #7 from rbrambley/feature/disc-glide-phase1
+- `9b4041e` Fix power meter HUD distance estimation for all three throw stances
+- `461951a` Add player pitch to HUD distance estimation
+- `0bc813f` Fix basket detection to use curved trajectory path and expanded make-zone
+- `777777b` Remove temporary fix scripts from repo
+
+Branch: `feature/disc-glide-phase3` (ready to merge to master)
+
+Deployment status:
+- quickRegression and smokeRegression passing
+- Manual ATLauncher testing: glide distances, stance cycling, fade curves validated
+- Test instance jar updated successfully
+
+Open / next:
+- Phase 4: Visual polish (particle trails, sound cues)
+- Phase 5: Autotest integration with aim-off compensation
+
+---
+
 ## Menu UX Refactor + Session Resume (2026-06-05)
 
 Implemented / validated:
