@@ -58,39 +58,54 @@ Open / next:
 
 ---
 
-## Resort Course Reliability -- Async Builder + Compact Cone (2026-06-16)
+## Resort Course Reliability -- Async Builder + Compact Cone (2026-06-16) ✅ COMPLETED
 
 Implemented / validated:
 
-- **Non-blocking resort startup**: WorldSpawnHandler now builds the resort
+- **Non-blocking resort startup**: `WorldSpawnHandler` now builds the resort
   structure synchronously (lobby, courtyard, housing) but queues surround
   courses for background tick-spread building. Players can join and explore
   the resort immediately instead of waiting minutes on a frozen loading screen.
-- **Background course builder**: ResortCourseBuilder processes one candidate
-  per server tick, avoiding server thread stalls.
+- **Background course builder**: `ResortCourseBuilder` defers building until
+  a player joins, then processes one candidate every 10 seconds.
 - **ServerBossBar progress indicator**: Green progress bar shows
-  Building resort courses... X/3 to all players in the overworld.
+  "Building resort courses... X/3" to all players in the overworld.
   Joining players are auto-added to the bar if a build is active.
 - **Compact cone for resort courses**: Changed from large hub-to-resort-distance
-  cone to aseLineDistance=25 with hubOrigin as origin, matching the
+  cone to `baseLineDistance=25` with `hubOrigin` as origin, matching the
   proven player auto-build geometry. This keeps each course self-contained
-  within the terrain that ResortCoursePlacement scored.
-- **Retry all candidates**: Increased candidate pool from 3 to 6 and tries
-  every location until 3 courses succeed (or candidates exhausted).
-- **Admin /mcdg buildresort rebuild**: Also uses compact cone for consistency.
+  within the terrain that `ResortCoursePlacement` scored.
+- **Resort intersection check**: Added `RESORT_SAFETY_RADIUS=60` to skip
+  candidates whose holes would be within 60 blocks of the resort center.
+- **GUI menu integration**: Resort courses now appear in the G menu with
+  a `[RESORT]` tag alongside player-built courses.
+- **Admin `/mcdg buildresort` rebuild**: Also uses compact cone for consistency.
 
 Key commits:
-- 124fd54 Async resort course builder with compact cone and progress bar
+- `124fd54` Async resort course builder with compact cone and progress bar
+- `6ecebc5` fix: defer course building until player joins + resort intersection check
+- `aec81e6` fix: correct yaw conversion and slow down resort course build rate
+- `e0211b7` fix: show resort courses in GUI menu with [RESORT] tag
 
-Branch: eature/resort-course-reliability
+Branch: `feature/resort-course-reliability` -> `master`
 
 Deployment status:
-- Build passing (./gradlew build)
+- Build passing (`./gradlew build`)
 - quickRegression passing
-- Pending: smokeRegression, ATLauncher manual test on fresh world
+- Manual ATLauncher testing: player joins immediately, 2-3 courses build reliably
+- Test instance jar updated successfully
+
+Known limitation:
+- Each course placement blocks the integrated server thread for ~30-40 seconds.
+  In single-player this causes lag spikes (doors/items/mobs freeze) during
+  each course build. The 10-second delay between starts spreads spikes out
+  but does not eliminate them. True fix requires tick-incremental hole placement.
 
 Open / next:
 - Multiplayer live validation (2-player full round still pending).
+- Option: refactor `placeCourseIncrementally` to place one hole per tick
+  for smooth background building without lag spikes.
+
 ---
 
 ## Menu UX Refactor + Session Resume (2026-06-05)
