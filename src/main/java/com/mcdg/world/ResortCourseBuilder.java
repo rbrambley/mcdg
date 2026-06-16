@@ -3,6 +3,7 @@ package com.mcdg.world;
 import com.mcdg.McdgMod;
 import com.mcdg.data.Course;
 import com.mcdg.game.AutoCourseService;
+import com.mcdg.game.TickIncrementalCoursePlacer;
 import com.mcdg.game.PracticeCourseStorage;
 import net.minecraft.entity.boss.BossBar;
 import net.minecraft.entity.boss.ServerBossBar;
@@ -38,6 +39,8 @@ public final class ResortCourseBuilder {
     private static boolean buildStarted = false;
     private static Random random = null;
     private static boolean isBuilding = false;
+    private static TickIncrementalCoursePlacer activePlacer = null;
+    private static BlockPos currentHubOrigin = null;
 
     private ResortCourseBuilder() {}
 
@@ -93,6 +96,46 @@ public final class ResortCourseBuilder {
             broadcastToPlayers(Text.literal("Building resort surround courses in the background...").formatted(Formatting.YELLOW));
         }
 
+        // Drive active tick-incremental placer one hole per tick
+        if (activePlacer != null) {
+            activePlacer.tick();
+
+            if (progressBar != null) {
+                float holeProgress = activePlacer.getProgress();
+                float totalProgress = (builtCourses + holeProgress) / SURROUND_COURSE_COUNT;
+                progressBar.setPercent(totalProgress);
+                int holeNum = Math.min(9, (int) Math.ceil(holeProgress * 9));
+                progressBar.setName(Text.literal("Building resort courses... " + builtCourses + "/" + SURROUND_COURSE_COUNT + " (hole " + holeNum + "/9)").formatted(Formatting.GREEN));
+            }
+
+            if (activePlacer.isDone()) {
+                try {
+                    AutoCourseService.AutoCourseScenarioResult result = activePlacer.getResult();
+                    McdgMod.LOGGER.info("Placed course '{}' with {} holes", result.course().name(), result.course().holes().size());
+                    int catalogIndex = practiceCourseStorage.saveReusable(
+                            server, result.course(), result.placedState(), "resort-surround", false);
+                    builtCourses++;
+                    McdgMod.LOGGER.info("SUCCESS: Resort course {} placed at ({}, {}), catalog #{}",
+                            builtCourses, currentHubOrigin.getX(), currentHubOrigin.getZ(), catalogIndex);
+                    updateProgressBar();
+                    broadcastToPlayers(Text.literal("Resort course " + builtCourses + "/" + SURROUND_COURSE_COUNT + " built!").formatted(Formatting.GREEN));
+                } catch (Exception ex) {
+                    McdgMod.LOGGER.warn("FAILED: Course at ({}, {}) failed to save: {}",
+                            currentHubOrigin.getX(), currentHubOrigin.getZ(), ex.getMessage(), ex);
+                }
+                activePlacer = null;
+                currentHubOrigin = null;
+                ticksSinceLastBuild = 0;
+            } else if (activePlacer.isFailed()) {
+                McdgMod.LOGGER.warn("FAILED: Course at ({}, {}) failed: {}",
+                        currentHubOrigin.getX(), currentHubOrigin.getZ(), activePlacer.getFailureMessage());
+                activePlacer = null;
+                currentHubOrigin = null;
+                ticksSinceLastBuild = 0;
+            }
+            return;
+        }
+
         if (builtCourses >= SURROUND_COURSE_COUNT) {
             finishBuilding();
             return;
@@ -113,6 +156,7 @@ public final class ResortCourseBuilder {
         attemptedCandidates++;
 
         BlockPos hubOrigin = candidate.pos();
+        currentHubOrigin = hubOrigin;
         double angle = candidate.angle();
         long seed = random.nextLong();
         float facingYaw = (float) (-90.0 - Math.toDegrees(angle));
@@ -129,25 +173,18 @@ public final class ResortCourseBuilder {
             if (resortCenter != null && courseIntersectsResort(course, hubOrigin, resortCenter)) {
                 McdgMod.LOGGER.warn("Skipping candidate at ({}, {}): course would intersect resort area",
                         hubOrigin.getX(), hubOrigin.getZ());
+                currentHubOrigin = null;
                 return;
             }
 
-            AutoCourseService.AutoCourseScenarioResult result = autoCourseService.placeCourseIncrementally(
-                    targetWorld, hubOrigin, course, true);
-            McdgMod.LOGGER.info("Placed course '{}' with {} holes", result.course().name(), result.course().holes().size());
-
-            int catalogIndex = practiceCourseStorage.saveReusable(
-                    server, result.course(), result.placedState(), "resort-surround", false);
-            builtCourses++;
-            McdgMod.LOGGER.info("SUCCESS: Resort course {} placed at ({}, {}), catalog #{}",
-                    builtCourses, hubOrigin.getX(), hubOrigin.getZ(), catalogIndex);
-
-            updateProgressBar();
-            broadcastToPlayers(Text.literal("Resort course " + builtCourses + "/" + SURROUND_COURSE_COUNT + " built!").formatted(Formatting.GREEN));
+            activePlacer = autoCourseService.createTickIncrementalPlacer(
+                    targetWorld, hubOrigin, course, true,
+                    msg -> McdgMod.LOGGER.info("Resort course progress: {}", msg));
 
         } catch (Exception ex) {
             McdgMod.LOGGER.warn("FAILED: Course at ({}, {}) failed: {}",
                     hubOrigin.getX(), hubOrigin.getZ(), ex.getMessage(), ex);
+            currentHubOrigin = null;
         }
     }
 
@@ -255,5 +292,7 @@ public final class ResortCourseBuilder {
         playerHasJoined = false;
         buildStarted = false;
         random = null;
+        activePlacer = null;
+        currentHubOrigin = null;
     }
 }

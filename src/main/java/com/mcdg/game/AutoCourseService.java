@@ -175,24 +175,36 @@ public final class AutoCourseService {
         }
         state.ticksWaited = 0;
 
-        ServerWorld world = state.world;
-        try {
-            AutoCourseScenarioResult result = placeCourseIncrementally(world, state.origin, state.course, false, msg -> {
-                broadcastProgress(server, msg);
-            });
-            Course namedCourse = new Course(result.course().seed(), state.courseName, result.course().holes());
-            int catalogIndex = practiceCourseStorage.saveReusable(server, namedCourse, result.placedState(), "autocourse", false);
-            broadcastSuccess(server, "Course '" + state.courseName + "' built and saved as #" + catalogIndex + ". Use [LIST COURSES] to start a round.");
-            broadcastListCoursesButton(server);
-        } catch (Exception ex) {
-            broadcastError(server, "Course build failed: " + ex.getMessage());
-            McdgMod.LOGGER.error("AutoCourseService build failed", ex);
-            rollbackAll(server);
+        if (state.placer == null) {
+            state.placer = new TickIncrementalCoursePlacer(
+                    placementService, state.world, state.origin, state.course, false,
+                    msg -> broadcastProgress(server, msg));
         }
-        state = null;
+
+        state.placer.tick();
+
+        if (state.placer.isDone()) {
+            try {
+                AutoCourseScenarioResult result = state.placer.getResult();
+                Course namedCourse = new Course(result.course().seed(), state.courseName, result.course().holes());
+                int catalogIndex = practiceCourseStorage.saveReusable(server, namedCourse, result.placedState(), "autocourse", false);
+                broadcastSuccess(server, "Course '" + state.courseName + "' built and saved as #" + catalogIndex + ". Use [LIST COURSES] to start a round.");
+                broadcastListCoursesButton(server);
+            } catch (Exception ex) {
+                broadcastError(server, "Course build failed: " + ex.getMessage());
+                McdgMod.LOGGER.error("AutoCourseService build failed", ex);
+                rollbackAll(server);
+            }
+            state = null;
+        } else if (state.placer.isFailed()) {
+            broadcastError(server, "Course build failed: " + state.placer.getFailureMessage());
+            McdgMod.LOGGER.error("AutoCourseService build failed", state.placer.getFailureMessage());
+            rollbackAll(server);
+            state = null;
+        }
     }
     private void finalizeCourse(MinecraftServer server) {
-        if (state == null || state.builtHoles.isEmpty()) {
+        if (state == null || state.placer == null || !state.placer.isDone()) {
             state = null;
             return;
         }
@@ -200,16 +212,9 @@ public final class AutoCourseService {
         try {
             long seed = state.seed;
             String name = state.courseName;
-            Course course = new Course(seed, name, state.builtHoles);
-            PlacedCourseState mergedPlaced = new PlacedCourseState(
-                    state.world.getRegistryKey(),
-                    state.mergedOriginals,
-                    state.tees,
-                    state.baskets,
-                    state.alternates,
-                    state.effectivePars
-            );
-            int catalogIndex = practiceCourseStorage.saveReusable(server, course, mergedPlaced, "autocourse", false);
+            AutoCourseScenarioResult result = state.placer.getResult();
+            Course course = new Course(seed, name, result.course().holes());
+            int catalogIndex = practiceCourseStorage.saveReusable(server, course, result.placedState(), "autocourse", false);
 
             broadcastSuccess(server, "Course '" + name + "' built and saved as #" + catalogIndex + ". Use [LIST COURSES] to start a round.");
             broadcastListCoursesButton(server);
@@ -223,12 +228,13 @@ public final class AutoCourseService {
     }
 
     private void rollbackAll(MinecraftServer server) {
-        if (state == null) {
+        if (state == null || state.placer == null) {
             return;
         }
-        CoursePlacementService.evacuatePlayersFromRestoreArea(state.world, state.mergedOriginals);
-        if (!state.mergedOriginals.isEmpty()) {
-            for (Map.Entry<BlockPos, net.minecraft.block.BlockState> entry : state.mergedOriginals.entrySet()) {
+        java.util.Map<BlockPos, net.minecraft.block.BlockState> mergedOriginals = state.placer.getMergedOriginals();
+        CoursePlacementService.evacuatePlayersFromRestoreArea(state.world, mergedOriginals);
+        if (!mergedOriginals.isEmpty()) {
+            for (java.util.Map.Entry<BlockPos, net.minecraft.block.BlockState> entry : mergedOriginals.entrySet()) {
                 state.world.setBlockState(entry.getKey(), entry.getValue(), Block.NOTIFY_ALL);
             }
         }
@@ -260,106 +266,25 @@ public final class AutoCourseService {
         return placeCourseIncrementally(world, hubOrigin, course, skipHub, null);
     }
 
+    /**
+     * Creates a tick-incremental placer for background/async course building.
+     * Callers should drive {@link TickIncrementalCoursePlacer#tick()} once per server tick.
+     */
+    public TickIncrementalCoursePlacer createTickIncrementalPlacer(
+            ServerWorld world, BlockPos hubOrigin, Course course, boolean skipHub, java.util.function.Consumer<String> progressMessage) {
+        return new TickIncrementalCoursePlacer(placementService, world, hubOrigin, course, skipHub, progressMessage);
+    }
+
     public AutoCourseScenarioResult placeCourseIncrementally(ServerWorld world, BlockPos hubOrigin, Course course, boolean skipHub, java.util.function.Consumer<String> progressMessage) {
-        List<Hole> builtHoles = new ArrayList<>();
-        Map<BlockPos, net.minecraft.block.BlockState> mergedOriginals = new HashMap<>();
-        Set<BlockPos> globalProtectedPositions = new HashSet<>();
-        Map<Integer, BlockPos> tees = new HashMap<>();
-        Map<Integer, BlockPos> baskets = new HashMap<>();
-        Map<Integer, BlockPos> alternates = new HashMap<>();
-        Map<Integer, Integer> effectivePars = new HashMap<>();
-
-        int hubX = hubOrigin.getX();
-        int hubZ = hubOrigin.getZ();
-
-        for (Hole hole : course.holes()) {
-            int absTeeX = hubX + hole.tee().x();
-            int absTeeZ = hubZ + hole.tee().z();
-            int absBasketX = hubX + hole.basket().x();
-            int absBasketZ = hubZ + hole.basket().z();
-
-            int localBasketX = absBasketX - absTeeX;
-            int localBasketZ = absBasketZ - absTeeZ;
-
-            int waterDx = absBasketX - absTeeX;
-            int waterDz = absBasketZ - absTeeZ;
-            int waterSteps = Math.max(Math.abs(waterDx), Math.abs(waterDz));
-            if (waterSteps > 0) {
-                int maxWaterRun = 0;
-                int currentWaterRun = 0;
-                for (int s = 0; s <= waterSteps; s++) {
-                    double t = s / (double) waterSteps;
-                    int sx = (int) Math.round(absTeeX + waterDx * t);
-                    int sz = (int) Math.round(absTeeZ + waterDz * t);
-                    if (CoursePlacementService.isWaterCrossingColumn(world, sx, sz)) {
-                        currentWaterRun++;
-                        maxWaterRun = Math.max(maxWaterRun, currentWaterRun);
-                    } else {
-                        currentWaterRun = 0;
-                    }
-                }
-                if (maxWaterRun > CoursePlacementConfig.WaterLanding.MAX_CARRY_BLOCKS) {
-                    double shrink = (double) CoursePlacementConfig.WaterLanding.MAX_CARRY_BLOCKS / maxWaterRun;
-                    localBasketX = (int) Math.round(localBasketX * shrink);
-                    localBasketZ = (int) Math.round(localBasketZ * shrink);
-                    absBasketX = absTeeX + localBasketX;
-                    absBasketZ = absTeeZ + localBasketZ;
-                }
-            }
-
-            BlockPos center = new BlockPos(absTeeX, 64, absTeeZ);
-            Hole candidate = new Hole(
-                    hole.index(), hole.par(), hole.distanceFeet(),
-                    new TeePoint(0, 64, 0),
-                    new BasketPoint(localBasketX, 64, localBasketZ, hole.basket().basketHeight()),
-                    List.of(new FairwaySegment(0, 0, localBasketX, localBasketZ,
-                            hole.fairwaySegments().isEmpty() ? 4 : hole.fairwaySegments().get(0).width())),
-                    hole.signatureType()
-            );
-            Course tempCourse = new Course(course.seed(), course.name() + "-hole-" + hole.index(), List.of(candidate));
-            PlacedCourseState placed = placementService.placeCourseAtFixedOrigin(world, center, tempCourse, ignored -> {}, globalProtectedPositions, true);
-
-            BlockPos actualTee = placed.holeTees().get(hole.index());
-            BlockPos actualBasket = placed.holeBaskets().get(hole.index());
-            if (actualTee == null || actualBasket == null) {
-                placementService.resetPlacedCourse(world, placed);
-                for (Map.Entry<BlockPos, net.minecraft.block.BlockState> entry : mergedOriginals.entrySet()) {
-                    world.setBlockState(entry.getKey(), entry.getValue(), Block.NOTIFY_ALL);
-                }
-                throw new RuntimeException("Incremental placement hole " + hole.index() + " produced no tee/basket");
-            }
-
-            int actualFeet = layoutValidator.distanceFeetFromBlocks(actualTee.getX(), actualTee.getZ(), actualBasket.getX(), actualBasket.getZ());
-            int effectivePar = placed.effectiveHolePars().getOrDefault(hole.index(), computePar(actualFeet));
-            Hole actualHole = new Hole(
-                    hole.index(), effectivePar, actualFeet,
-                    new TeePoint(actualTee.getX(), actualTee.getY(), actualTee.getZ()),
-                    new BasketPoint(actualBasket.getX(), actualBasket.getY(), actualBasket.getZ(), hole.basket().basketHeight()),
-                    List.of(new FairwaySegment(actualTee.getX(), actualTee.getZ(), actualBasket.getX(), actualBasket.getZ(),
-                            hole.fairwaySegments().isEmpty() ? 4 : hole.fairwaySegments().get(0).width())),
-                    hole.signatureType()
-            );
-            builtHoles.add(actualHole);
-
-            for (Map.Entry<BlockPos, net.minecraft.block.BlockState> entry : placed.originalBlocks().entrySet()) {
-                mergedOriginals.putIfAbsent(entry.getKey(), entry.getValue());
-            }
-            tees.putAll(placed.holeTees());
-            baskets.putAll(placed.holeBaskets());
-            alternates.putAll(placed.holeAlternateAnchors());
-            effectivePars.putAll(placed.effectiveHolePars());
-
-            PlacementUtils.addProtectedColumnArea(globalProtectedPositions, actualTee, 2, 6);
-            PlacementUtils.addProtectedColumnArea(globalProtectedPositions, actualBasket.down(), 2, 8);
-
-            if (progressMessage != null) {
-                progressMessage.accept("Placed hole " + hole.index() + " of " + course.holes().size());
-            }
+        TickIncrementalCoursePlacer placer = new TickIncrementalCoursePlacer(
+                placementService, world, hubOrigin, course, skipHub, progressMessage);
+        while (!placer.isDone() && !placer.isFailed()) {
+            placer.tick();
         }
-
-        Course builtCourse = new Course(course.seed(), course.name(), builtHoles);
-        PlacedCourseState mergedState = new PlacedCourseState(world.getRegistryKey(), mergedOriginals, tees, baskets, alternates, effectivePars);
-        return new AutoCourseScenarioResult(builtCourse, mergedState);
+        if (placer.isFailed()) {
+            throw new RuntimeException(placer.getFailureMessage());
+        }
+        return placer.getResult();
     }
 
     /**
@@ -694,16 +619,8 @@ public final class AutoCourseService {
         private final Course course;
         private final BlockPos origin;
         private final ServerWorld world;
-        private int nextHoleIndex = 1;
         private int ticksWaited = TICKS_BETWEEN_HOLES;
-        private int signatureHoleIndex = 1;
-        private final List<Hole> builtHoles = new ArrayList<>();
-        private final Map<BlockPos, net.minecraft.block.BlockState> mergedOriginals = new HashMap<>();
-        private final Set<BlockPos> globalProtectedPositions = new HashSet<>();
-        private final Map<Integer, BlockPos> tees = new HashMap<>();
-        private final Map<Integer, BlockPos> baskets = new HashMap<>();
-        private final Map<Integer, BlockPos> alternates = new HashMap<>();
-        private final Map<Integer, Integer> effectivePars = new HashMap<>();
+        private TickIncrementalCoursePlacer placer = null;
 
         private AutoBuildState(UUID ownerUuid, String courseName, long seed, Course course, BlockPos origin, ServerWorld world) {
             this.ownerUuid = ownerUuid;

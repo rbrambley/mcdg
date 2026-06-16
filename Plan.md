@@ -1021,3 +1021,153 @@ Project can be considered release-ready for current scope when:
 2. Multiplayer reliability pass is complete for core 2-player scenarios.
 3. Regression coverage includes strict + resume high-risk paths.
 4. Performance/compatibility notes and operator docs are complete.
+
+---
+
+## Tick-Incremental Course Placement Refactor (Next Session)
+
+### Problem Statement
+placeCourseIncrementally in AutoCourseService loops over holes and calls placeCourseAtFixedOrigin for each hole. While this spreads courses across ticks (via ResortCourseBuilder), each individual placeCourseAtFixedOrigin call still blocks the server thread for ~30--40 seconds because CoursePlacementService.placeCourse() performs ALL world editing for a single 9-hole course synchronously in one call.
+
+The work inside placeCourse() breaks down into:
+- Phase 0 (anchor resolution): Read-only terrain scans -- fast, ~50 ms.
+- Phase 1 (surface resolution): SurfaceResolver, SurfaceAdaptationHelper island building for tees/baskets -- moderate, ~1--2 s.
+- Phase 2 (fairway carving): FairwayCarver.carveFairway() per hole -- heavy, ~20--30 s total for 9 holes.
+- Phase 3 (structure placement): CourseStructureBuilder for tees, baskets, signs, lanterns, hub -- moderate, ~5--10 s total.
+
+Goal: refactor placeCourseIncrementally so that each phase of each hole yields the server thread, eliminating lag spikes entirely.
+
+---
+
+### Proposed Architecture: TickIncrementalCoursePlacer
+
+A new class (or inner state machine) that replaces the synchronous placeCourseIncrementally method with an asynchronous, tick-driven builder.
+
+#### State Machine States
+
+INIT
+  |
+  v
+RESOLVE_SURFACES   <-- one tick, read-only scan of all holes
+  |
+  v
+CARVE_FAIRWAY_H1   <-- one tick per hole (or per N blocks if still too slow)
+  |
+  v
+CARVE_FAIRWAY_H2
+  |
+  ...
+  |
+  v
+CARVE_FAIRWAY_H9
+  |
+  v
+PLACE_STRUCTURES_H1  <-- one tick per hole
+  |
+  ...
+  v
+PLACE_STRUCTURES_H9
+  |
+  v
+PLACE_HUB (if !skipHub)
+  |
+  v
+DONE  --> callback with AutoCourseScenarioResult
+
+#### Key Design Decisions
+
+1. Yield Boundaries
+   - After each hole's fairway carving (Phase 2), return from the tick handler.
+   - After each hole's structure placement (Phase 3), return from the tick handler.
+   - If a single fairway is still too heavy (e.g., signature hole with wide carve), split FairwayCarver.carveFairway into a tick-incremental variant that processes a fixed number of blocks per tick.
+
+2. Data Persistence Between Ticks
+   - All mutable state (originalBlocks, holeTees, holeBaskets, protectedPositions, etc.) lives in the state machine instance.
+   - The ServerWorld reference is held (safe because the world is persistent).
+   - A Consumer<AutoCourseScenarioResult> callback is stored for completion.
+
+3. Error Handling & Rollback
+   - If any phase fails (e.g., actualTee or actualBasket is null after placement), immediately call resetPlacedCourse on the partial PlacedCourseState built so far.
+   - Restore all originalBlocks collected up to that point.
+   - Invoke the callback with null or a failure sentinel.
+
+4. Integration with ResortCourseBuilder
+   - ResortCourseBuilder.tick() currently:
+     1. Picks a candidate.
+     2. Generates the course.
+     3. Calls placeCourseIncrementally (blocks for 30--40 s).
+     4. Saves to practiceCourseStorage.
+   - After refactor, ResortCourseBuilder.tick() will:
+     1. Check if a TickIncrementalCoursePlacer is active. If yes, call placer.tick() and return.
+     2. If no active placer and still need courses, pick a candidate, generate the course, create a new TickIncrementalCoursePlacer, and return immediately.
+     3. When the placer completes (callback), save to practiceCourseStorage and increment builtCourses.
+
+5. Progress Reporting
+   - The placer accepts a Consumer<String> progressMessage (already exists).
+   - It also reports a float 0.0f .. 1.0f to update the ServerBossBar percentage directly.
+   - ResortCourseBuilder will update the boss bar each tick based on the placer's reported progress.
+
+6. Synchronous API Preservation
+   - Keep the existing placeCourseIncrementally(...) signatures for BuildCourseSessionManager and other callers that don't need async behavior.
+   - Add a new beginPlaceCourseIncrementally(..., Consumer<AutoCourseScenarioResult> callback) that starts the async builder and returns immediately.
+
+---
+
+### Files to Modify
+
+| File | Change |
+|------|--------|
+| AutoCourseService.java | Add beginPlaceCourseIncrementally(...) method. Extract shared state setup into a helper. |
+| CoursePlacementService.java | Add placeCourseTickIncremental(...) or split placeCourse into callable phases. Alternatively, create TickIncrementalCoursePlacer here. |
+| ResortCourseBuilder.java | Refactor tick() to drive a TickIncrementalCoursePlacer instead of calling synchronous placeCourseIncrementally. |
+| McdgMod.java | Ensure ServerTickEvents.END_SERVER_TICK is registered (already is). |
+
+---
+
+### Implementation Steps (for next session)
+
+1. Create TickIncrementalCoursePlacer
+   - Define enum PlacerState { INIT, RESOLVE_SURFACES, CARVE_FAIRWAY, PLACE_STRUCTURES, PLACE_HUB, DONE, FAILED }
+   - Hold all mutable state fields currently local to placeCourseIncrementally.
+   - Implement tick(ServerWorld world) that advances state by one unit of work per call.
+
+2. Refactor CoursePlacementService.placeCourse
+   - Extract Phase 1 (surface resolution) into resolveHoleSurfaces(...).
+   - Extract Phase 2 (fairway carving) into carveFairwayForHole(...).
+   - Extract Phase 3 (structures) into placeStructuresForHole(...).
+   - Keep the public placeCourse method as a synchronous wrapper that calls these in sequence.
+
+3. Wire into AutoCourseService
+   - Add beginPlaceCourseIncrementally(...) that creates the placer, stores it in a static or instance field, and returns.
+   - Add tickPlacer() called from ResortCourseBuilder or McdgMod server tick.
+
+4. Update ResortCourseBuilder
+   - Replace the synchronous placeCourseIncrementally call with:
+     if (activePlacer == null) {
+         activePlacer = autoCourseService.beginPlaceCourseIncrementally(...);
+     }
+     activePlacer.tick(targetWorld);
+     if (activePlacer.isDone()) {
+         // save result, clear activePlacer, increment builtCourses
+     }
+
+5. Testing
+   - Run ./gradlew build.
+   - Create a fresh world in single-player.
+   - Verify player joins immediately (no Joining world... delay).
+   - Verify ServerBossBar shows smooth progress (no freezes).
+   - Verify all 3 resort courses appear in the menu after completion.
+   - Check server tick times (F3 pie chart or logs) -- should show no >100 ms spikes during course placement.
+
+---
+
+### Risk Mitigation
+
+| Risk | Mitigation |
+|------|-----------|
+| Splitting fairway carving causes visible growing fairway artifact | Process entire hole in one tick; if still too slow, split by block rows but hide with particle effects or accept minor visual artifact during build. |
+| Player walks into half-built course | Use protectedPositions to prevent player from modifying blocks; half-built state is safe to play on (just missing signs). |
+| State machine complexity | Keep states linear (no branching except FAILURE); document each state's invariants in comments. |
+| Memory pressure from holding state across ticks | State is small (a few HashMaps); negligible compared to world data. |
+
+---
