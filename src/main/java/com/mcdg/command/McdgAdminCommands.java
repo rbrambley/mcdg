@@ -2216,7 +2216,8 @@ public final class McdgAdminCommands {
             ActiveCourseManager courseManager,
             int oneBasedIndex
     ) {
-        Optional<PracticeCourseStorage.LoadedPracticeCourse> loaded = practiceCourseStorage.loadReusableByIndex(source.getServer(), oneBasedIndex);
+        // Full load required: cleanup needs originalBlocks to restore the world.
+        Optional<PracticeCourseStorage.LoadedPracticeCourse> loaded = practiceCourseStorage.loadReusableByIndexFull(source.getServer(), oneBasedIndex);
         if (loaded.isEmpty()) {
             source.sendError(Text.literal("Course #" + oneBasedIndex + " not found."));
             return 0;

@@ -271,7 +271,7 @@ public final class ChargedDiscItem extends Item {
         DiscFlightSimulator.registerThrow(
                 pearl.getUuid(),
                 serverPlayer.getUuid(),
-                (int) world.getTime(),
+                world.getServer().getTicks(), // Must match server.getTicks() used in DiscFlightSimulator.tick()
                 serverPlayer.getYaw(),
                 charge,
                 stance,

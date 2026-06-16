@@ -203,6 +203,9 @@ public final class McdgMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::maybeStartAutoStrictSetup);
         ServerLifecycleEvents.SERVER_STARTED.register(server -> LEADERBOARD_MANAGER.load(server));
         ServerLifecycleEvents.SERVER_STARTED.register(server -> WorldSpawnHandler.onServerStarted(server, AUTO_COURSE_SERVICE, PRACTICE_COURSE_STORAGE));
+        // Warm storage caches after full startup (including WorldSpawnHandler) so the
+        // first G key press after any server restart is instant for all players.
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> PRACTICE_COURSE_STORAGE.listReusable(server));
         ServerLifecycleEvents.SERVER_STOPPING.register(McdgMod::flushRoundSessionOnShutdown);
         ServerLifecycleEvents.SERVER_STOPPING.register(BUILD_COURSE_SESSION_MANAGER::save);
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> LEADERBOARD_MANAGER.save(server));
@@ -212,6 +215,9 @@ public final class McdgMod implements ModInitializer {
             server.execute(() -> {
                 restoreRoundParticipantOnJoin(handler.player, server);
                 ResortWaypointManager.broadcastToPlayer(handler.player);
+                // Warm storage caches on join so the first G key press is instant.
+                PRACTICE_COURSE_STORAGE.listReusable(server);
+                PLAYER_ROUND_SESSION_STORAGE.loadPlayer(server, handler.player.getUuid(), null);
             })
         );
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
@@ -385,7 +391,11 @@ public final class McdgMod implements ModInitializer {
     private static void loadPersistedPracticeCourse(net.minecraft.server.MinecraftServer server) {
         PRACTICE_COURSE_STORAGE.load(server).ifPresent(snapshot -> {
             ACTIVE_COURSE_MANAGER.setActiveCourse(snapshot.course());
-            ACTIVE_COURSE_MANAGER.setActiveCourseCatalogIndex(null);
+            // Restore catalog index so the auto-save path in sendMenuScreen() is not
+            // triggered on the first G key press after a server restart.
+            int catalogIndex = PRACTICE_COURSE_STORAGE.findCatalogIndex(
+                    server, snapshot.course(), snapshot.placedCourseState());
+            ACTIVE_COURSE_MANAGER.setActiveCourseCatalogIndex(catalogIndex > 0 ? catalogIndex : null);
             ACTIVE_COURSE_MANAGER.setPlacedCourseState(snapshot.placedCourseState());
             ACTIVE_COURSE_MANAGER.setPersistentPlacedCourse(true);
             ACTIVE_COURSE_MANAGER.setLegacyPracticeSnapshot(snapshot.legacyFormat());

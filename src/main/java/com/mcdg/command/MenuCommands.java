@@ -265,12 +265,6 @@ public final class MenuCommands {
         TournamentRulesetManager.Ruleset ruleset = rulesetManager.getActiveRuleset();
         TournamentRulesetManager.StrictSurfacePreset preset = rulesetManager.getStrictSurfacePreset();
 
-        List<MenuScreenSync.CourseEntry> courses = new ArrayList<>();
-        List<PracticeCourseStorage.ReusableCourseEntry> entries = practiceCourseStorage.listReusable(source.getServer());
-        for (PracticeCourseStorage.ReusableCourseEntry entry : entries) {
-            courses.add(new MenuScreenSync.CourseEntry(entry.index(), entry.name(), entry.holeCount()));
-        }
-
         // Auto-save current course if placed but not in catalog
         if (courseLoaded && activeCatalogIndex < 0 && activeCourse != null) {
             PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
@@ -279,14 +273,18 @@ public final class MenuCommands {
                 if (savedIndex > 0) {
                     courseManager.setActiveCourseCatalogIndex(savedIndex);
                     activeCatalogIndex = savedIndex;
-                    // Refresh courses list
-                    courses.clear();
-                    entries = practiceCourseStorage.listReusable(source.getServer());
-                    for (PracticeCourseStorage.ReusableCourseEntry entry : entries) {
-                        courses.add(new MenuScreenSync.CourseEntry(entry.index(), entry.name(), entry.holeCount()));
-                    }
                 }
             }
+        }
+
+        List<MenuScreenSync.CourseEntry> courses = new ArrayList<>();
+        for (PracticeCourseStorage.ReusableCourseEntry entry : practiceCourseStorage.listReusable(source.getServer())) {
+            // Resort surround courses are managed via /mcdg listcourses and /mcdg removesurroundcourses;
+            // exclude them from the player-facing GUI menu to keep it clean.
+            if ("resort-surround".equals(entry.sourceTag())) {
+                continue;
+            }
+            courses.add(new MenuScreenSync.CourseEntry(entry.index(), entry.name(), entry.holeCount()));
         }
 
         if (hasSavedSession) {

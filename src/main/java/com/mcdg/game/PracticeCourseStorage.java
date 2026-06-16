@@ -40,6 +40,9 @@ public final class PracticeCourseStorage {
     private static final int MAX_CATALOG_ENTRIES = 12;
     private static final int CURRENT_SNAPSHOT_VERSION = 4;
 
+    // In-memory cache for the course catalog -- invalidated on every write.
+    private CourseCatalogSnapshot catalogCache = null;
+
     public void save(MinecraftServer server, Course course, PlacedCourseState placedCourseState) {
         PracticeCourseSnapshot snapshot = PracticeCourseSnapshot.from(course, placedCourseState);
         Path path = resolvePath(server);
@@ -128,7 +131,7 @@ public final class PracticeCourseStorage {
             if (catalog.entries.size() > MAX_CATALOG_ENTRIES) {
                 catalog.entries = new ArrayList<>(catalog.entries.subList(0, MAX_CATALOG_ENTRIES));
             }
-            Files.writeString(path, GSON.toJson(catalog));
+            writeCatalogSnapshot(path, catalog);
             return entry.stableIndex;
         } catch (IOException | RuntimeException ex) {
             McdgMod.LOGGER.error("Failed to save reusable course catalog to {}", path, ex);
@@ -142,7 +145,7 @@ public final class PracticeCourseStorage {
         }
 
         Path path = resolveCatalogPath(server);
-        if (!Files.exists(path)) {
+        if (catalogCache == null && !Files.exists(path)) {
             return false;
         }
 
@@ -167,7 +170,7 @@ public final class PracticeCourseStorage {
             }
 
             catalog.entries.sort(Comparator.comparingLong(this::entryActivityAt).reversed());
-            Files.writeString(path, GSON.toJson(catalog));
+            writeCatalogSnapshot(path, catalog);
             return true;
         } catch (IOException | RuntimeException ex) {
             McdgMod.LOGGER.error("Failed to touch reusable course #{} in {}", stableIndex, path, ex);
@@ -177,7 +180,7 @@ public final class PracticeCourseStorage {
 
     public Optional<LoadedPracticeCourse> loadMostRecentReusable(MinecraftServer server, RegistryKey<World> preferredWorld) {
         Path path = resolveCatalogPath(server);
-        if (!Files.exists(path)) {
+        if (catalogCache == null && !Files.exists(path)) {
             return Optional.empty();
         }
 
@@ -213,12 +216,27 @@ public final class PracticeCourseStorage {
     }
 
     public Optional<LoadedPracticeCourse> loadReusableByIndex(MinecraftServer server, int oneBasedIndex) {
+        return loadReusableByIndexInternal(server, oneBasedIndex, false);
+    }
+
+    /**
+     * Loads a catalog entry with full originalBlocks deserialization.
+     * Use this only for admin commands that need to restore blocks
+     * (cleanup, remove resort surround courses). For normal play use
+     * {@link #loadReusableByIndex} which skips the expensive block decode.
+     */
+    public Optional<LoadedPracticeCourse> loadReusableByIndexFull(MinecraftServer server, int oneBasedIndex) {
+        return loadReusableByIndexInternal(server, oneBasedIndex, true);
+    }
+
+    private Optional<LoadedPracticeCourse> loadReusableByIndexInternal(
+            MinecraftServer server, int oneBasedIndex, boolean includeOriginalBlocks) {
         if (oneBasedIndex < 1) {
             return Optional.empty();
         }
 
         Path path = resolveCatalogPath(server);
-        if (!Files.exists(path)) {
+        if (catalogCache == null && !Files.exists(path)) {
             return Optional.empty();
         }
 
@@ -246,7 +264,9 @@ public final class PracticeCourseStorage {
             }
 
             Course parsedCourse = entry.snapshot.course.toCourse();
-            PlacedCourseState parsedPlaced = entry.snapshot.toPlacedCourseState(worldKey);
+            PlacedCourseState parsedPlaced = includeOriginalBlocks
+                    ? entry.snapshot.toPlacedCourseState(worldKey)
+                    : entry.snapshot.toPlacedCourseStateShallow(worldKey);
             return Optional.of(new LoadedPracticeCourse(parsedCourse, parsedPlaced, entry.snapshot.isLegacyFormat()));
         } catch (IOException | RuntimeException ex) {
             McdgMod.LOGGER.error("Failed to load reusable course #{} from {}", oneBasedIndex, path, ex);
@@ -256,7 +276,7 @@ public final class PracticeCourseStorage {
 
     public List<ReusableCourseEntry> listReusable(MinecraftServer server) {
         Path path = resolveCatalogPath(server);
-        if (!Files.exists(path)) {
+        if (catalogCache == null && !Files.exists(path)) {
             return List.of();
         }
 
@@ -269,21 +289,42 @@ public final class PracticeCourseStorage {
             List<CourseCatalogEntrySnapshot> sortedEntries = sortedEntries(catalog.entries);
             List<ReusableCourseEntry> result = new ArrayList<>();
             for (CourseCatalogEntrySnapshot entry : sortedEntries) {
-                if (entry == null || entry.snapshot == null || entry.snapshot.course == null) {
+                if (entry == null) {
                     continue;
                 }
 
-                String worldValue = entry.snapshot.worldKey == null ? "unknown" : entry.snapshot.worldKey;
-                CourseSnapshot courseSnapshot = entry.snapshot.course;
-                int holes = courseSnapshot.holes == null ? 0 : courseSnapshot.holes.size();
+                // Prefer compact metadata (no block-state deserialization needed).
+                // Fall back to full snapshot for entries saved before compact fields existed.
+                String name;
+                int holes;
+                String worldValue;
+                long seed;
+                if (entry.courseName != null && entry.courseHoleCount > 0) {
+                    name = entry.courseName;
+                    holes = entry.courseHoleCount;
+                    // World and seed still require the snapshot; use defaults if absent.
+                    worldValue = (entry.snapshot != null && entry.snapshot.worldKey != null)
+                            ? entry.snapshot.worldKey : "unknown";
+                    seed = (entry.snapshot != null && entry.snapshot.course != null)
+                            ? entry.snapshot.course.seed : 0L;
+                } else if (entry.snapshot != null && entry.snapshot.course != null) {
+                    CourseSnapshot cs = entry.snapshot.course;
+                    name = cs.name == null ? "unnamed" : cs.name;
+                    holes = cs.holes == null ? 0 : cs.holes.size();
+                    worldValue = entry.snapshot.worldKey == null ? "unknown" : entry.snapshot.worldKey;
+                    seed = cs.seed;
+                } else {
+                    continue;
+                }
+
                 result.add(new ReusableCourseEntry(
                     entry.stableIndex,
                         entry.createdAtMs,
                         entry.sourceTag == null ? "unknown" : entry.sourceTag,
                         entry.compactPreferred,
                         worldValue,
-                        courseSnapshot.seed,
-                        courseSnapshot.name == null ? "unnamed" : courseSnapshot.name,
+                        seed,
+                        name,
                         holes
                 ));
             }
@@ -297,7 +338,7 @@ public final class PracticeCourseStorage {
     public int pruneReusable(MinecraftServer server, int keepCount) {
         int safeKeep = Math.max(0, keepCount);
         Path path = resolveCatalogPath(server);
-        if (!Files.exists(path)) {
+        if (catalogCache == null && !Files.exists(path)) {
             return 0;
         }
 
@@ -314,7 +355,7 @@ public final class PracticeCourseStorage {
             }
 
             catalog.entries = new ArrayList<>(sortedEntries.subList(0, safeKeep));
-            Files.writeString(path, GSON.toJson(catalog));
+            writeCatalogSnapshot(path, catalog);
             return existingCount - safeKeep;
         } catch (IOException | RuntimeException ex) {
             McdgMod.LOGGER.error("Failed to prune reusable course catalog at {}", path, ex);
@@ -324,7 +365,7 @@ public final class PracticeCourseStorage {
 
     public int reusableCount(MinecraftServer server) {
         Path path = resolveCatalogPath(server);
-        if (!Files.exists(path)) {
+        if (catalogCache == null && !Files.exists(path)) {
             return 0;
         }
 
@@ -337,13 +378,45 @@ public final class PracticeCourseStorage {
         }
     }
 
+    /**
+     * Returns the stable catalog index for the given course (matched by world key + seed),
+     * or -1 if no matching entry exists. Used at startup to restore the catalog index
+     * after a server restart so the auto-save path in sendMenuScreen() is not triggered.
+     */
+    public int findCatalogIndex(MinecraftServer server, com.mcdg.data.Course course, PlacedCourseState placed) {
+        if (course == null || placed == null) {
+            return -1;
+        }
+        Path path = resolveCatalogPath(server);
+        if (catalogCache == null && !Files.exists(path)) {
+            return -1;
+        }
+        try {
+            CourseCatalogSnapshot catalog = readCatalogSnapshot(path);
+            if (catalog.entries == null) {
+                return -1;
+            }
+            String targetWorldKey = placed.worldKey().getValue().toString();
+            long targetSeed = course.seed();
+            for (CourseCatalogEntrySnapshot entry : catalog.entries) {
+                if (isDuplicateReusableEntry(entry, targetWorldKey, targetSeed, null)) {
+                    return entry.stableIndex;
+                }
+            }
+            return -1;
+        } catch (IOException | RuntimeException ex) {
+            McdgMod.LOGGER.error("Failed to find catalog index from {}", path, ex);
+            return -1;
+        }
+    }
+
     public int pruneReusableByIndices(MinecraftServer server, Set<Integer> oneBasedIndices) {
         if (oneBasedIndices == null || oneBasedIndices.isEmpty()) {
             return 0;
         }
 
         Path path = resolveCatalogPath(server);
-        if (!Files.exists(path)) {
+        if (catalogCache == null && !Files.exists(path)) {
             return 0;
         }
 
@@ -369,7 +442,7 @@ public final class PracticeCourseStorage {
             }
 
             catalog.entries = keptEntries;
-            Files.writeString(path, GSON.toJson(catalog));
+            writeCatalogSnapshot(path, catalog);
             return removed;
         } catch (IOException | RuntimeException ex) {
             McdgMod.LOGGER.error("Failed to prune reusable entries by indices at {}", path, ex);
@@ -386,6 +459,9 @@ public final class PracticeCourseStorage {
     }
 
     private CourseCatalogSnapshot readCatalogSnapshot(Path path) throws IOException {
+        if (catalogCache != null) {
+            return catalogCache;
+        }
         if (!Files.exists(path)) {
             return CourseCatalogSnapshot.empty();
         }
@@ -422,7 +498,13 @@ public final class PracticeCourseStorage {
         if (parsed.nextIndex <= maxIndex) {
             parsed.nextIndex = maxIndex + 1;
         }
+        catalogCache = parsed;
         return parsed;
+    }
+
+    private void writeCatalogSnapshot(Path path, CourseCatalogSnapshot catalog) throws IOException {
+        Files.writeString(path, GSON.toJson(catalog));
+        catalogCache = catalog;
     }
 
     private List<CourseCatalogEntrySnapshot> sortedEntries(List<CourseCatalogEntrySnapshot> entries) {
@@ -557,6 +639,28 @@ public final class PracticeCourseStorage {
             }
 
             return new PlacedCourseState(worldKey, blocks, tees, baskets, alternateAnchors);
+        }
+
+        /**
+         * Builds a PlacedCourseState without decoding originalBlocks.
+         * Used for normal play paths (playcourse, resumecourse) where originalBlocks
+         * are never needed. Eliminates the expensive per-block BlockState codec
+         * operations that caused multi-second stalls on the server tick thread.
+         */
+        private PlacedCourseState toPlacedCourseStateShallow(RegistryKey<World> worldKey) {
+            Map<Integer, BlockPos> tees = IndexedPosSnapshot.toMap(placedTees);
+            Map<Integer, BlockPos> baskets = IndexedPosSnapshot.toMap(placedBaskets);
+            Map<Integer, BlockPos> alternateAnchors = IndexedPosSnapshot.toMap(placedAlternateAnchors);
+
+            if (tees.isEmpty()) {
+                tees = course.toHoleTees();
+            }
+            if (baskets.isEmpty()) {
+                baskets = course.toHoleBaskets();
+            }
+
+            // Pass an empty map — originalBlocks are not needed for normal play.
+            return new PlacedCourseState(worldKey, Map.of(), tees, baskets, alternateAnchors);
         }
 
         private boolean isLegacyFormat() {
@@ -795,6 +899,10 @@ public final class PracticeCourseStorage {
         private String sourceTag;
         private boolean compactPreferred;
         private String layoutSignature;
+        // Compact metadata -- populated on save so listReusable() never needs to
+        // deserialize the full snapshot (which includes block-state data).
+        private String courseName;
+        private int courseHoleCount;
         private PracticeCourseSnapshot snapshot;
 
         private static CourseCatalogEntrySnapshot from(PracticeCourseSnapshot snapshot, String sourceTag, boolean compactPreferred, long now) {
@@ -804,6 +912,11 @@ public final class PracticeCourseStorage {
             entry.sourceTag = sourceTag == null ? "unknown" : sourceTag;
             entry.compactPreferred = compactPreferred;
             entry.layoutSignature = buildLayoutSignature(snapshot.course);
+            // Populate compact metadata eagerly so readers don't need the full snapshot.
+            if (snapshot.course != null) {
+                entry.courseName = snapshot.course.name;
+                entry.courseHoleCount = snapshot.course.holes == null ? 0 : snapshot.course.holes.size();
+            }
             entry.snapshot = snapshot;
             return entry;
         }

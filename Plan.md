@@ -171,6 +171,38 @@ Deployment status:
 
 ---
 
+## Code Cleanup Backlog
+
+Low-risk housekeeping tasks deferred to avoid scope creep. Do these as a
+dedicated cleanup pass before any major refactor.
+
+### PracticeCourseStorage — remove legacy single-course methods and rename
+
+The class manages two unrelated things. The "catalog" half is active and healthy.
+The "single practice course" half is a legacy recovery mechanism that predates
+the catalog and is now redundant.
+
+**Safe to remove:**
+- `save()`, `load()`, `clear()` methods and their ~12 call sites across 5 files
+- `mcdg-practice-course.json` (stops being written; old files on disk are harmlessly ignored)
+- `reusableCount()` — dead code, called nowhere
+- The deprecated `/mcdg practicecourse` command and its `persistentCourse` flag
+  in `executeStartRound()`
+
+**Migration step required:**
+- Replace the server-startup `load()` call in `McdgMod.loadPersistedPracticeCourse()`
+  with `loadMostRecentReusable()` from the catalog. The catalog already contains
+  the same course data (every placement calls `saveReusable()`), so restart
+  recovery is preserved without the legacy file.
+
+**Keep / rename:**
+- `LoadedPracticeCourse` record — still the return type for `loadMostRecentReusable()`
+  and `loadReusableByIndex()`. Rename to `LoadedCourse` at the same time.
+- `PracticeCourseStorage` → `CourseStorage` (referenced by name in ~10 files;
+  pure find-and-replace, zero behavioral risk).
+
+---
+
 ## Possible Additions Later
 
 - Per-hole wind (global drift vector or per-hole).
