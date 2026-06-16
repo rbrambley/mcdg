@@ -381,17 +381,18 @@ public final class DiscFlightSimulator {
      * Mirrors TrajectoryCalculator.calculateTrajectory() physics exactly so the
      * HUD preview matches what the disc actually does in-game.
      */
-    public static int estimateDistance(float charge, ThrowStance stance) {
+    public static int estimateDistance(float charge, ThrowStance stance, float pitch) {
         // Clamp to valid range (same as TrajectoryCalculator)
         float normalizedCharge = Math.min(1.0f, Math.max(0.0f, charge));
 
-        // Initial horizontal speed must match ChargedDiscItem:
-        //   float velocity = MIN_VELOCITY + charge * VELOCITY_SPAN  (0.7 + charge * 1.6)
-        double vx = 0.7 + normalizedCharge * 1.6;
-        // Overhand: no glide, needs a small initial upward component to simulate a realistic throw arc.
-        // Use ~10 degree launch angle (sin(10 deg) ~ 0.17) since we have no player pitch at HUD time.
+        // Compute initial velocity from charge and pitch, mirroring ChargedDiscItem:
+        //   velX = -sin(yaw)*cos(pitch)*velocity, velY = -sin(pitch)*velocity
+        // For HUD we only care about vx/vy magnitudes; use pitch directly.
+        double velocity = 0.7 + normalizedCharge * 1.6;
+        double pitchRad = Math.toRadians(pitch);
+        double vx = Math.cos(pitchRad) * velocity;
+        double vy = -Math.sin(pitchRad) * velocity;
         boolean hasGlide = stance.hasGlide();
-        double vy = hasGlide ? 0.0 : vx * 0.17;
 
         // Glide duration identical to TrajectoryCalculator
         int glideTicks = hasGlide ? 10 + Math.round(normalizedCharge * 40) : 0;

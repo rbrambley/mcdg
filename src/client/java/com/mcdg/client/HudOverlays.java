@@ -94,7 +94,7 @@ public final class HudOverlays {
 
             // Distance estimation using DiscFlightSimulator with current stance
             ThrowStance stance = ThrowPreferenceManager.getSelectedStance();
-            int estimatedDistance = com.mcdg.game.DiscFlightSimulator.estimateDistance(thresholdCharge, stance);
+            int estimatedDistance = com.mcdg.game.DiscFlightSimulator.estimateDistance(thresholdCharge, stance, client.player.getPitch());
             String distanceText = estimatedDistance + "ft";
             int textX = rightHandThrow ? barX + POWER_BAR_WIDTH + 4 : barX - client.textRenderer.getWidth(distanceText) - 4;
             drawContext.drawTextWithShadow(client.textRenderer, Text.literal(distanceText).formatted(Formatting.GRAY), textX, markY - 4, 0xAAAAAA);
