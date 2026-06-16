@@ -329,7 +329,8 @@ public final class ResortAdminCommands {
 
         for (PracticeCourseStorage.ReusableCourseEntry entry : surroundCourses) {
             int idx = entry.index();
-            var loaded = practiceCourseStorage.loadReusableByIndex(source.getServer(), idx);
+            // Full load required: resort removal needs originalBlocks to restore the world.
+            var loaded = practiceCourseStorage.loadReusableByIndexFull(source.getServer(), idx);
             if (loaded.isEmpty()) {
                 failCount++;
                 indicesToRemove.add(idx);

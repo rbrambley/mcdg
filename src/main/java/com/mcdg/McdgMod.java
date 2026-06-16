@@ -12,6 +12,7 @@ import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import com.mcdg.game.BuildCourseSessionManager;
 import com.mcdg.game.ChargedDiscItem;
+import com.mcdg.game.DiscFlightSimulator;
 import com.mcdg.game.PracticeCourseStorage;
 import com.mcdg.game.RoundInventoryCleaner;
 import com.mcdg.game.RoundPresentationService;
@@ -33,6 +34,7 @@ import com.mcdg.net.RoundCompleteCinematicSync;
 import com.mcdg.net.WaypointTeleportSync;
 import com.mcdg.net.WaypointRemovedSync;
 import com.mcdg.net.ThrowPowerLockSync;
+import com.mcdg.net.ThrowStanceSync;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
@@ -125,6 +127,7 @@ public final class McdgMod implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(LeaderboardRequest.ID, LeaderboardRequest.CODEC);
         PayloadTypeRegistry.playC2S().register(WaypointTeleportSync.ID, WaypointTeleportSync.CODEC);
         PayloadTypeRegistry.playC2S().register(ThrowPowerLockSync.ID, ThrowPowerLockSync.CODEC);
+        PayloadTypeRegistry.playC2S().register(ThrowStanceSync.ID, ThrowStanceSync.CODEC);
         PayloadTypeRegistry.playS2C().register(AceCinematicSync.ID, AceCinematicSync.CODEC);
         PayloadTypeRegistry.playS2C().register(HoleMiniMapSync.ID, HoleMiniMapSync.CODEC);
         PayloadTypeRegistry.playS2C().register(RoundRunningScoresSync.ID, RoundRunningScoresSync.CODEC);
@@ -157,6 +160,13 @@ public final class McdgMod implements ModInitializer {
                     ChargedDiscItem.setServerPowerLocked(context.player().getUuid(), payload.locked(), payload.lockedChargePercent());
                 })
         );
+        ServerPlayNetworking.registerGlobalReceiver(ThrowStanceSync.ID, (payload, context) ->
+                context.server().execute(() -> {
+                    // Store server-side stance for use during throw
+                    ChargedDiscItem.setServerStance(context.player().getUuid(), payload.stance(), payload.angle());
+                    McdgMod.LOGGER.info("Server received stance sync: player={} stance={} angle={}", context.player().getUuid(), payload.stance(), payload.angle());
+                })
+        );
         McdgConfig config = McdgConfig.loadDefault();
         McdgItems.register(ACTIVE_COURSE_MANAGER, ROUND_STATE_MANAGER, TOURNAMENT_RULESET_MANAGER, config.enableStrictFlowDebug());
         McdgAdminCommands.register(
@@ -183,6 +193,7 @@ public final class McdgMod implements ModInitializer {
         ServerTickEvents.END_SERVER_TICK.register(AUTO_COURSE_SERVICE::tick);
         ServerTickEvents.END_SERVER_TICK.register(McdgMod::handlePendingAutoStrictSetup);
         ServerTickEvents.END_SERVER_TICK.register(McdgMod::autosaveRoundSession);
+	ServerTickEvents.END_SERVER_TICK.register(DiscFlightSimulator::tick);
         ServerLifecycleEvents.SERVER_STARTED.register(server -> WaypointSync.clearAll());
         ServerLifecycleEvents.SERVER_STARTED.register(server -> ResortWaypointManager.clearResortWaypoint());
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::loadPersistedPracticeCourse);
@@ -192,6 +203,9 @@ public final class McdgMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::maybeStartAutoStrictSetup);
         ServerLifecycleEvents.SERVER_STARTED.register(server -> LEADERBOARD_MANAGER.load(server));
         ServerLifecycleEvents.SERVER_STARTED.register(server -> WorldSpawnHandler.onServerStarted(server, AUTO_COURSE_SERVICE, PRACTICE_COURSE_STORAGE));
+        // Warm storage caches after full startup (including WorldSpawnHandler) so the
+        // first G key press after any server restart is instant for all players.
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> PRACTICE_COURSE_STORAGE.listReusable(server));
         ServerLifecycleEvents.SERVER_STOPPING.register(McdgMod::flushRoundSessionOnShutdown);
         ServerLifecycleEvents.SERVER_STOPPING.register(BUILD_COURSE_SESSION_MANAGER::save);
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> LEADERBOARD_MANAGER.save(server));
@@ -201,6 +215,9 @@ public final class McdgMod implements ModInitializer {
             server.execute(() -> {
                 restoreRoundParticipantOnJoin(handler.player, server);
                 ResortWaypointManager.broadcastToPlayer(handler.player);
+                // Warm storage caches on join so the first G key press is instant.
+                PRACTICE_COURSE_STORAGE.listReusable(server);
+                PLAYER_ROUND_SESSION_STORAGE.loadPlayer(server, handler.player.getUuid(), null);
             })
         );
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
@@ -374,7 +391,11 @@ public final class McdgMod implements ModInitializer {
     private static void loadPersistedPracticeCourse(net.minecraft.server.MinecraftServer server) {
         PRACTICE_COURSE_STORAGE.load(server).ifPresent(snapshot -> {
             ACTIVE_COURSE_MANAGER.setActiveCourse(snapshot.course());
-            ACTIVE_COURSE_MANAGER.setActiveCourseCatalogIndex(null);
+            // Restore catalog index so the auto-save path in sendMenuScreen() is not
+            // triggered on the first G key press after a server restart.
+            int catalogIndex = PRACTICE_COURSE_STORAGE.findCatalogIndex(
+                    server, snapshot.course(), snapshot.placedCourseState());
+            ACTIVE_COURSE_MANAGER.setActiveCourseCatalogIndex(catalogIndex > 0 ? catalogIndex : null);
             ACTIVE_COURSE_MANAGER.setPlacedCourseState(snapshot.placedCourseState());
             ACTIVE_COURSE_MANAGER.setPersistentPlacedCourse(true);
             ACTIVE_COURSE_MANAGER.setLegacyPracticeSnapshot(snapshot.legacyFormat());

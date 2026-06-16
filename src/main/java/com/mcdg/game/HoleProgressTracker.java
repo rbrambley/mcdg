@@ -76,6 +76,7 @@ public final class HoleProgressTracker {
                 if (ROUND_WAS_ACTIVE) {
                     ROUND_WAS_ACTIVE = false;
         ThrowResolver.reset();
+                    DiscFlightSimulator.reset();
                     HOLE_ONE_RANDOM_ORDER.clear();
         TurnManager.reset();
                     LAST_LIE_POSITION.clear();
@@ -684,6 +685,7 @@ public final class HoleProgressTracker {
     public static void resetAllState(MinecraftServer server) {
         ROUND_WAS_ACTIVE = false;
         ThrowResolver.reset();
+        DiscFlightSimulator.reset();
         HOLE_ONE_RANDOM_ORDER.clear();
         TurnManager.reset();
         LAST_LIE_POSITION.clear();
@@ -727,3 +729,5 @@ public final class HoleProgressTracker {
 
 
 }
+
+

@@ -1,6 +1,8 @@
 package com.mcdg.game;
 
 import com.mcdg.McdgMod;
+import com.mcdg.game.ThrowStance;
+import com.mcdg.game.ReleaseAngle;
 import com.mcdg.rules.TournamentRulesetManager;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -17,6 +19,7 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.UseAction;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,6 +43,9 @@ public final class ChargedDiscItem extends Item {
     private static final Map<UUID, Boolean> SERVER_POWER_LOCKED = new HashMap<>();
     private static final Map<UUID, Float> SERVER_LOCKED_CHARGE = new HashMap<>();
     private static final Map<UUID, Integer> SERVER_LOCKED_TICKS = new HashMap<>();
+    // Server-side stance tracking (per player)
+    private static final Map<UUID, ThrowStance> SERVER_PLAYER_STANCE = new HashMap<>();
+    private static final Map<UUID, ReleaseAngle> SERVER_PLAYER_ANGLE = new HashMap<>();
 
     private final ActiveCourseManager courseManager;
     private final RoundStateManager roundStateManager;
@@ -257,6 +263,22 @@ public final class ChargedDiscItem extends Item {
         pearl.setVelocity(serverPlayer, serverPlayer.getPitch(), serverPlayer.getYaw(), 0.0f, velocity, 1.0f);
         world.spawnEntity(pearl);
 
+        // Register with DiscFlightSimulator for glide physics (Phase 1: defaults to OVERHAND stance)
+        // Get server-side stance (defaults to OVERHAND/FLAT if not set)
+        ThrowStance stance = SERVER_PLAYER_STANCE.getOrDefault(playerUuid, ThrowStance.OVERHAND);
+        ReleaseAngle angle = SERVER_PLAYER_ANGLE.getOrDefault(playerUuid, ReleaseAngle.FLAT);
+
+        DiscFlightSimulator.registerThrow(
+                pearl.getUuid(),
+                serverPlayer.getUuid(),
+                world.getServer().getTicks(), // Must match server.getTicks() used in DiscFlightSimulator.tick()
+                serverPlayer.getYaw(),
+                charge,
+                stance,
+                angle,
+                new Vec3d(serverPlayer.getX(), serverPlayer.getY(), serverPlayer.getZ())
+        );
+
         // Initialize throw tracking
         ThrowResolver.registerThrowRelease(serverPlayer.getUuid(), pearl.getUuid(), world.getTime());
 
@@ -360,6 +382,13 @@ public final class ChargedDiscItem extends Item {
         int lockedTicks = Math.round(chargePercent * MAX_CHARGE_TICKS);
         SERVER_LOCKED_TICKS.put(playerUuid, lockedTicks);
         McdgMod.LOGGER.info("Power LOCKED for player {} at charge={} ticks={} (FINAL)", playerUuid, String.format("%.3f", chargePercent), lockedTicks);
+    }
+
+    // Server-side stance state management
+    public static void setServerStance(UUID playerUuid, ThrowStance stance, ReleaseAngle angle) {
+        SERVER_PLAYER_STANCE.put(playerUuid, stance);
+        SERVER_PLAYER_ANGLE.put(playerUuid, angle);
+        McdgMod.LOGGER.debug("Stance set for player {}: stance={} angle={}", playerUuid, stance, angle);
     }
 
     private static Text buildReleaseText(float charge) {

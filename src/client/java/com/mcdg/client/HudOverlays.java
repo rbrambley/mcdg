@@ -2,6 +2,8 @@ package com.mcdg.client;
 
 import com.mcdg.game.ChargedDiscItem;
 import com.mcdg.game.McdgItems;
+import com.mcdg.game.ReleaseAngle;
+import com.mcdg.game.ThrowStance;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.MutableText;
@@ -89,9 +91,10 @@ public final class HudOverlays {
             float thresholdCharge = threshold / 100.0f;
             int markY = barBottom - Math.round(thresholdCharge * POWER_BAR_HEIGHT);
             drawContext.fill(barX - 1, markY, barX + POWER_BAR_WIDTH + 1, markY + 1, 0xFFFFFFFF);
-            
-            // Simple distance estimation (will be replaced with DiscFlightSimulator in glide branch)
-            int estimatedDistance = Math.round(thresholdCharge * 400); // Approximate max distance in feet
+
+            // Distance estimation using DiscFlightSimulator with current stance
+            ThrowStance stance = ThrowPreferenceManager.getSelectedStance();
+            int estimatedDistance = com.mcdg.game.DiscFlightSimulator.estimateDistance(thresholdCharge, stance);
             String distanceText = estimatedDistance + "ft";
             int textX = rightHandThrow ? barX + POWER_BAR_WIDTH + 4 : barX - client.textRenderer.getWidth(distanceText) - 4;
             drawContext.drawTextWithShadow(client.textRenderer, Text.literal(distanceText).formatted(Formatting.GRAY), textX, markY - 4, 0xAAAAAA);
@@ -100,7 +103,7 @@ public final class HudOverlays {
         int filledPixels = Math.max(0, Math.min(POWER_BAR_HEIGHT, Math.round(charge * POWER_BAR_HEIGHT)));
         if (filledPixels > 0) {
             int fillTop = barBottom - filledPixels;
-            
+
             // Color changes: green below 50%, yellow 50-100%, red overcharge 100-125%
             int color;
             if (charge > 1.0f) {
@@ -125,5 +128,54 @@ public final class HudOverlays {
         if (ChargedDiscItem.isPowerLocked()) {
             drawContext.drawTextWithShadow(client.textRenderer, Text.literal("LOCKED").formatted(Formatting.RED), barX - 8, barTop - 24, 0xFF5555);
         }
+
+        // Phase 2: Stance and Angle display
+        renderStanceIndicator(drawContext, client, barX, barTop, rightHandThrow);
+    }
+
+    /**
+     * Render the stance and angle indicator near the power bar.
+     * Shows stance name (Overhand/Backhand/Forehand) and angle arrow.
+     */
+    private static void renderStanceIndicator(DrawContext drawContext, MinecraftClient client, int barX, int barTop, boolean rightHandThrow) {
+        ThrowStance stance = ThrowPreferenceManager.getSelectedStance();
+        ReleaseAngle angle = ThrowPreferenceManager.getSelectedAngle();
+
+        // Stance name with appropriate formatting
+        Formatting stanceColor = switch (stance) {
+            case OVERHAND -> Formatting.GRAY;
+            case BACKHAND -> Formatting.AQUA;
+            case FOREHAND -> Formatting.GREEN;
+        };
+
+        String stanceName = switch (stance) {
+            case OVERHAND -> "Overhand";
+            case BACKHAND -> "Backhand";
+            case FOREHAND -> "Forehand";
+        };
+
+        // Angle symbol
+        String angleSymbol = switch (angle) {
+            case HYZER -> "^";     // Up arrow for hyzer
+            case FLAT -> "-";      // Dash for flat
+            case ANHYZER -> "v";   // Down arrow for anhyzer
+        };
+
+        Formatting angleColor = switch (angle) {
+            case HYZER -> Formatting.RED;      // Hyzer = more fade
+            case FLAT -> Formatting.WHITE;     // Neutral
+            case ANHYZER -> Formatting.YELLOW; // Anhyzer = counteract fade
+        };
+
+        // Combine stance and angle
+        Text stanceText = Text.literal(stanceName).formatted(stanceColor);
+        Text angleText = Text.literal(" " + angleSymbol).formatted(angleColor);
+
+        int stanceWidth = client.textRenderer.getWidth(stanceText) + client.textRenderer.getWidth(angleText);
+        int textX = rightHandThrow ? barX + POWER_BAR_WIDTH + 4 : barX - stanceWidth - 4;
+        int textY = barTop - 36; // Above LOCKED indicator
+
+        drawContext.drawTextWithShadow(client.textRenderer, stanceText, textX, textY, 0xFFFFFF);
+        drawContext.drawTextWithShadow(client.textRenderer, angleText, textX + client.textRenderer.getWidth(stanceText), textY, 0xFFFFFF);
     }
 }

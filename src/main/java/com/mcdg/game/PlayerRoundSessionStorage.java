@@ -20,6 +20,9 @@ public final class PlayerRoundSessionStorage {
     private static final String FILE_NAME = "mcdg-player-round-sessions.json";
     private static final int CURRENT_VERSION = 1;
 
+    // In-memory cache for the sessions file -- invalidated on every write.
+    private SessionsFileSnapshot sessionsCache = null;
+
     public boolean savePlayer(
             MinecraftServer server,
             UUID playerId,
@@ -68,7 +71,10 @@ public final class PlayerRoundSessionStorage {
         return server.getSavePath(WorldSavePath.ROOT).resolve(FILE_NAME);
     }
 
-    private static SessionsFileSnapshot readFileSnapshot(Path path, Logger logger) {
+    private SessionsFileSnapshot readFileSnapshot(Path path, Logger logger) {
+        if (sessionsCache != null) {
+            return sessionsCache;
+        }
         if (!Files.exists(path)) {
             return new SessionsFileSnapshot(CURRENT_VERSION, new HashMap<>());
         }
@@ -79,7 +85,9 @@ public final class PlayerRoundSessionStorage {
             if (parsed == null || parsed.sessions == null || parsed.version <= 0 || parsed.version > CURRENT_VERSION) {
                 return new SessionsFileSnapshot(CURRENT_VERSION, new HashMap<>());
             }
-            return new SessionsFileSnapshot(CURRENT_VERSION, new HashMap<>(parsed.sessions));
+            SessionsFileSnapshot snapshot = new SessionsFileSnapshot(CURRENT_VERSION, new HashMap<>(parsed.sessions));
+            sessionsCache = snapshot;
+            return snapshot;
         } catch (IOException | RuntimeException ex) {
             if (logger != null) {
                 logger.error("Failed to read player round sessions from {}", path, ex);
@@ -88,10 +96,11 @@ public final class PlayerRoundSessionStorage {
         }
     }
 
-    private static boolean writeFileSnapshot(Path path, SessionsFileSnapshot fileSnapshot, Logger logger) {
+    private boolean writeFileSnapshot(Path path, SessionsFileSnapshot fileSnapshot, Logger logger) {
         try {
             Files.createDirectories(path.getParent());
             Files.writeString(path, GSON.toJson(fileSnapshot));
+            sessionsCache = fileSnapshot;
             return true;
         } catch (IOException ex) {
             if (logger != null) {

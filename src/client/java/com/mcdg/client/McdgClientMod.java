@@ -1,8 +1,10 @@
 package com.mcdg.client;
 
 import com.mcdg.game.ChargedDiscItem;
+import com.mcdg.client.ThrowPreferenceManager;
 import com.mcdg.game.McdgItems;
 import com.mcdg.net.HoleMiniMapSync;
+import com.mcdg.net.ThrowStanceSync;
 import com.mcdg.net.LeaderboardResponse;
 import com.mcdg.net.RoundRunningScoresSync;
 import java.util.ArrayList;
@@ -63,6 +65,24 @@ public final class McdgClientMod implements ClientModInitializer {
                         ChargedDiscItem.setPowerLocked(true);
                         ClientPlayNetworking.send(new com.mcdg.net.ThrowPowerLockSync.Payload(true, ChargedDiscItem.getClientChargePercent()));
                     }
+                }
+            });
+            // Phase 2: Stance cycling with R key
+            ClientKeybinds.forEachStanceCyclePress(() -> {
+                if (client.player != null) {
+                    ThrowPreferenceManager.cycleStance();
+                    // Send to server so it's available at throw time
+                    ClientPlayNetworking.send(new ThrowStanceSync.Payload(
+                        ThrowPreferenceManager.getSelectedStance(),
+                        ThrowPreferenceManager.getSelectedAngle()
+                    ));
+                    // Show feedback to player
+                    client.player.sendMessage(
+                        net.minecraft.text.Text.literal("Stance: ")
+                            .append(net.minecraft.text.Text.literal(ThrowPreferenceManager.getSelectedStance().toString())
+                                .formatted(net.minecraft.util.Formatting.AQUA)),
+                        true
+                    );
                 }
             });
             WaypointManager.tick(client);
