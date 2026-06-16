@@ -257,30 +257,54 @@ public final class ChargedDiscItem extends Item {
 
         float velocity = MIN_VELOCITY + charge * VELOCITY_SPAN;
 
-        // Use vanilla Ender Pearl velocity calculation for proper trajectory
-        EnderPearlEntity pearl = new EnderPearlEntity(world, serverPlayer);
-        pearl.setItem(new ItemStack(Items.ENDER_PEARL));
-        pearl.setVelocity(serverPlayer, serverPlayer.getPitch(), serverPlayer.getYaw(), 0.0f, velocity, 1.0f);
-        world.spawnEntity(pearl);
-
-        // Register with DiscFlightSimulator for glide physics (Phase 1: defaults to OVERHAND stance)
+        // Calculate throw trajectory (predicted flight path, no pearl entity)
         // Get server-side stance (defaults to OVERHAND/FLAT if not set)
         ThrowStance stance = SERVER_PLAYER_STANCE.getOrDefault(playerUuid, ThrowStance.OVERHAND);
         ReleaseAngle angle = SERVER_PLAYER_ANGLE.getOrDefault(playerUuid, ReleaseAngle.FLAT);
 
-        DiscFlightSimulator.registerThrow(
-                pearl.getUuid(),
-                serverPlayer.getUuid(),
-                world.getServer().getTicks(), // Must match server.getTicks() used in DiscFlightSimulator.tick()
-                serverPlayer.getYaw(),
+        // Calculate initial velocity vector
+        float pitch = serverPlayer.getPitch();
+        float yaw = serverPlayer.getYaw();
+        double yawRad = Math.toRadians(yaw);
+        double pitchRad = Math.toRadians(pitch);
+
+        double velX = -Math.sin(yawRad) * Math.cos(pitchRad) * velocity;
+        double velY = -Math.sin(pitchRad) * velocity;
+        double velZ = Math.cos(yawRad) * Math.cos(pitchRad) * velocity;
+        Vec3d initialVelocity = new Vec3d(velX, velY, velZ);
+
+        Vec3d startPos = new Vec3d(serverPlayer.getX(), serverPlayer.getY(), serverPlayer.getZ());
+
+        // Calculate complete trajectory (terrain-aware collision)
+        TrajectoryCalculator.TrajectoryResult trajectory = TrajectoryCalculator.calculateTrajectory(
+                serverPlayer.getServerWorld(),
+                startPos,
+                initialVelocity,
+                yaw,
                 charge,
                 stance,
-                angle,
-                new Vec3d(serverPlayer.getX(), serverPlayer.getY(), serverPlayer.getZ())
+                angle
         );
 
-        // Initialize throw tracking
-        ThrowResolver.registerThrowRelease(serverPlayer.getUuid(), pearl.getUuid(), world.getTime());
+        McdgMod.LOGGER.info(
+                "Trajectory calculated | player={} distance={}ft drift={}ft {} flightTicks={} stance={} angle={}",
+                playerUuid,
+                String.format("%.1f", trajectory.totalDistanceFt()),
+                String.format("%.1f", Math.abs(trajectory.lateralDriftFt())),
+                trajectory.lateralDriftFt() > 0 ? "RIGHT" : "LEFT",
+                trajectory.flightTicks(),
+                stance,
+                angle
+        );
+
+        // Initialize throw tracking with calculated landing position
+        ThrowResolver.registerCalculatedThrow(
+                serverPlayer.getUuid(),
+                world.getTime(),
+                trajectory.landingPosition(),
+                trajectory.flightTicks(),
+                trajectory.pathPoints()
+        );
 
         // Clear server-side power lock state after throw
         SERVER_POWER_LOCKED.remove(playerUuid);

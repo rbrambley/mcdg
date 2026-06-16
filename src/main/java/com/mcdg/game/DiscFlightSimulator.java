@@ -11,13 +11,13 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Simulates disc golf flight physics for ender pearl throws.
+ * Simulates disc golf flight physics for ender pearl throws (auto-test only).
  *
- * Phase 1: Core Glide Physics
+ * NOTE: Player throws use TrajectoryCalculator (calculated trajectory, no pearl).
  * - Glide phase: upward impulse to counteract gravity for flat flight
  * - Glide taper: gradual reduction of upward impulse at end of glide
  *
- * Phase 2: Throw Stance Selection
+ * Features:
  * - Lateral fade curve based on stance (Backhand = left fade, Forehand = right fade)
  * - Overhand = vanilla physics (no glide, no fade)
  *
@@ -34,7 +34,8 @@ public final class DiscFlightSimulator {
             float charge,           // 0.0 - 1.25 (can overcharge)
             ThrowStance stance,     // OVERHAND, BACKHAND, FOREHAND
             ReleaseAngle angle,     // HYZER, FLAT, ANHYZER
-            Vec3d launchPos         // Starting position for distance tracking
+            Vec3d launchPos,        // Starting position for distance tracking
+            double initialSpeed     // Initial velocity magnitude for curve calculation
     ) {
         /**
          * Calculate glide duration in ticks based on charge.
@@ -78,28 +79,31 @@ public final class DiscFlightSimulator {
         }
 
         /**
-         * Returns fade progress (0.0 to 1.0) for the fade phase (last 40% of glide).
-         * Returns 0.0 before fade phase begins.
+         * Returns velocity-based curve factor (0.0 to 1.0).
+         * Disc curves more as it slows down (like real disc golf).
+         * No tick-based phases - purely velocity driven.
          */
-        public float fadeProgress(int currentServerTick) {
-            float glideProgress = glideProgress(currentServerTick);
-            // Fade phase starts at 60% through glide
-            if (glideProgress < 0.6f) {
-                return 0.0f;
+        public float curveFactor(double currentSpeed, double initialSpeed) {
+            if (initialSpeed <= 0 || currentSpeed >= initialSpeed) {
+                return 0.0f; // No curve at launch
             }
-            // Fade increases from 0 to 1 over last 40% of glide
-            return (glideProgress - 0.6f) / 0.4f;
+            // Curve increases as disc slows: 0.0 at full speed, up to 1.0 as it stops
+            double factor = 1.0 - (currentSpeed / initialSpeed);
+            return (float) Math.min(1.0f, Math.max(0.0f, factor));
         }
     }
 
     // Active flights keyed by pearl UUID
     private static final Map<UUID, FlightState> ACTIVE_FLIGHTS = new ConcurrentHashMap<>();
 
-    // Physics constants - Option 4: Natural arc with early taper
-    private static final double UPWARD_IMPULSE = 0.018;     // Less lift for natural arc (was 0.025)
-    private static final double GLIDE_TAPER_START = 0.6;  // Start taper at 60% for earlier descent (was 80%)
-    private static final double BASE_CURVE_STRENGTH = 0.008; // Base lateral deflection per tick during fade
-    private static final int MAX_FLIGHT_TICKS = 120; // Maximum flight time (6 seconds) - safety net for natural landing
+    // Track initial speeds for velocity-based curve calculation
+    private static final Map<UUID, Double> INITIAL_SPEEDS = new ConcurrentHashMap<>();
+
+    // Physics constants - Aligned with TrajectoryCalculator for consistent flight physics
+    private static final double UPWARD_IMPULSE = 0.06;      // Aligned with TrajectoryCalculator - must be less than GRAVITY (0.08)
+    private static final double GLIDE_TAPER_START = 0.6;  // Start taper at 60% for earlier descent
+    private static final double BASE_CURVE_STRENGTH = 0.06; // Base lateral deflection per tick during fade
+    private static final int MAX_FLIGHT_TICKS = 300; // Safety timeout (15 seconds) - physics should handle landing naturally
 
     // Distance validation target
     private static final float TARGET_MIN_DISTANCE_FT = 400;
@@ -111,9 +115,9 @@ public final class DiscFlightSimulator {
 
     /**
      * Register a new throw with the flight simulator.
-     * Called from ChargedDiscItem.onStoppedUsing() after pearl spawn.
+     * Called from ThrowAutoTestService for auto-test throws (pearl-based).
      *
-     * Phase 2: Accepts stance and angle parameters from client.
+     * Note: Player throws via ChargedDiscItem use calculated trajectory instead (no pearl).
      */
     public static void registerThrow(
             UUID pearlUuid,
@@ -133,7 +137,8 @@ public final class DiscFlightSimulator {
                 charge,
                 stance,
                 angle,
-                launchPos
+                launchPos,
+                0.0  // initialSpeed - captured on first physics tick
         );
 
         ACTIVE_FLIGHTS.put(pearlUuid, state);
@@ -173,11 +178,16 @@ public final class DiscFlightSimulator {
                 String reason = pearlGone ? "pearl_unloaded" : pearlLanded ? "landed" : "timeout";
                 if (pearl != null && state.stance().hasGlide()) {
                     double distance = calculateDistance(state.launchPos(), pearl.getPos());
+                    // Calculate lateral drift (how far left/right from aim line)
+                    double lateralDrift = calculateLateralDrift(state.launchPos(), state.launchYawDegrees(), pearl.getPos());
+                    String driftDirection = lateralDrift > 0 ? "RIGHT" : "LEFT";
                     McdgMod.LOGGER.info(
-                            "DiscFlightSimulator flight complete | pearl={} reason={} distance={}ft stance={} angle={} charge={} ticks={}",
+                            "DiscFlightSimulator flight complete | pearl={} reason={} distance={}ft drift={}ft {} stance={} angle={} charge={} ticks={}",
                             state.pearlUuid(),
                             reason,
                             String.format("%.1f", distance),
+                            String.format("%.1f", Math.abs(lateralDrift)),
+                            driftDirection,
                             state.stance(),
                             state.angle(),
                             String.format("%.3f", state.charge()),
@@ -237,9 +247,18 @@ public final class DiscFlightSimulator {
         double newVelY = velocity.y + upwardImpulse;
         double newVelZ = velocity.z;
 
-        // Apply lateral fade curve (Phase 2)
-        float fadeProgress = state.fadeProgress(currentTick);
-        if (fadeProgress > 0.0f) {
+        // Apply velocity-based lateral curve (Phase 2 - now tick-independent)
+        // Capture initial speed on first tick if not already stored
+        double currentSpeed = velocity.horizontalLength();
+        double initialSpeed = INITIAL_SPEEDS.getOrDefault(state.pearlUuid(), 0.0);
+        if (initialSpeed == 0.0 && currentSpeed > 0.1) {
+            initialSpeed = currentSpeed;
+            INITIAL_SPEEDS.put(state.pearlUuid(), initialSpeed);
+        }
+
+        // Calculate curve factor: more curve as disc slows down (like real disc golf)
+        float curveFactor = state.curveFactor(currentSpeed, initialSpeed);
+        if (curveFactor > 0.0f) {
             // Calculate deflection based on stance + angle
             // naturalFade: -1 = left (backhand), +1 = right (forehand), 0 = none (overhand)
             // angleBias: -1 = hyzer (exaggerate fade), +1 = anhyzer (counteract fade), 0 = flat
@@ -250,27 +269,32 @@ public final class DiscFlightSimulator {
             // Hyzer exaggerates natural fade, anhyzer counteracts it
             int totalBias = naturalFade + angleBias;
 
-            // Apply curve that increases through fade phase
-            double curveStrength = BASE_CURVE_STRENGTH * totalBias * fadeProgress;
+            // Smart curve scaling: short throws curve more, max power stays reasonable
+            // At charge=1.0: multiplier=1.0 (normal curve)
+            // At charge=0.0: multiplier=2.5 (stronger curve for short throws)
+            double curveMultiplier = 1.0 + (1.0 - Math.min(1.0f, state.charge())) * 1.5;
+
+            // Velocity-based curve: applies continuously as disc slows
+            double curveStrength = BASE_CURVE_STRENGTH * curveMultiplier * totalBias * curveFactor;
 
             // Calculate perpendicular direction (left/right of launch yaw)
-            float yawRad = (float) Math.toRadians(state.launchYawDegrees);
-            double leftX = Math.cos(yawRad + Math.PI / 2); // Perpendicular to facing direction
-            double leftZ = Math.sin(yawRad + Math.PI / 2);
+            float yawRad = (float) Math.toRadians(state.launchYawDegrees());
+            double leftX = Math.sin(yawRad);  // Left of facing direction
+            double leftZ = -Math.cos(yawRad); // Left of facing direction
 
-            // Apply lateral nudge (negative = left, positive = right)
+            // Apply lateral nudge (positive curveStrength = left, negative = right)
             newVelX += leftX * curveStrength;
             newVelZ += leftZ * curveStrength;
 
-            // Log fade for debugging (once per throw when fade starts)
-            if (fadeProgress < 0.05f && (currentTick - state.launchTick) % 10 == 0) {
+            // Log curve for debugging (occasional, velocity-driven)
+            if (currentTick % 20 == 0) {
                 McdgMod.LOGGER.debug(
-                        "DiscFlightSimulator fade start | pearl={} stance={} angle={} bias={} strength={}",
+                        "DiscFlightSimulator curve | pearl={} speed={:.2f}/{:.2f} factor={:.2f} bias={} strength={:.4f}",
                         state.pearlUuid(),
-                        state.stance(),
-                        state.angle(),
+                        currentSpeed, initialSpeed,
+                        curveFactor,
                         totalBias,
-                        String.format("%.5f", curveStrength)
+                        curveStrength
                 );
             }
         }
@@ -302,11 +326,39 @@ public final class DiscFlightSimulator {
     }
 
     /**
+     * Calculate lateral drift (left/right displacement from aim line) in feet.
+     * Positive = right of aim line, Negative = left of aim line
+     */
+    private static double calculateLateralDrift(Vec3d launchPos, float launchYawDegrees, Vec3d landingPos) {
+        // Calculate aim direction vector from yaw
+        float yawRad = (float) Math.toRadians(launchYawDegrees);
+        double aimX = -Math.sin(yawRad); // Minecraft yaw: 0 = south (positive Z), so x = -sin(yaw)
+        double aimZ = Math.cos(yawRad);  // z = cos(yaw)
+
+        // Calculate throw displacement vector
+        double dx = landingPos.x - launchPos.x;
+        double dz = landingPos.z - launchPos.z;
+
+        // Project displacement onto aim direction to get forward distance
+        double forwardDist = dx * aimX + dz * aimZ;
+
+        // Calculate perpendicular (lateral) component
+        // Perpendicular vector to aim is (aimZ, -aimX) for rightward
+        double lateralRightX = aimZ;
+        double lateralRightZ = -aimX;
+
+        double lateralDist = dx * lateralRightX + dz * lateralRightZ;
+
+        return lateralDist * 3.0; // Convert to feet
+    }
+
+    /**
      * Clear all active flights. Called on round end/reset.
      */
     public static void reset() {
         int count = ACTIVE_FLIGHTS.size();
         ACTIVE_FLIGHTS.clear();
+        INITIAL_SPEEDS.clear();
         McdgMod.LOGGER.info("DiscFlightSimulator reset | cleared {} active flights", count);
     }
 
@@ -326,21 +378,63 @@ public final class DiscFlightSimulator {
 
     /**
      * Estimate flight distance for HUD display.
-     * Simple estimation based on charge and stance.
+     * Mirrors TrajectoryCalculator.calculateTrajectory() physics exactly so the
+     * HUD preview matches what the disc actually does in-game.
      */
-    public static int estimateDistance(float charge, ThrowStance stance) {
-        // Base distance calculation
-        float normalizedCharge = Math.min(1.25f, charge);
+    public static int estimateDistance(float charge, ThrowStance stance, float pitch) {
+        // Clamp to valid range (same as TrajectoryCalculator)
+        float normalizedCharge = Math.min(1.0f, Math.max(0.0f, charge));
 
-        // Phase 1: Simple linear estimate
-        // Full charge (100%) = ~500 ft
-        double baseDistance = normalizedCharge * 400;
+        // Compute initial velocity from charge and pitch, mirroring ChargedDiscItem:
+        //   velX = -sin(yaw)*cos(pitch)*velocity, velY = -sin(pitch)*velocity
+        // For HUD we only care about vx/vy magnitudes; use pitch directly.
+        double velocity = 0.7 + normalizedCharge * 1.6;
+        double pitchRad = Math.toRadians(pitch);
+        double vx = Math.cos(pitchRad) * velocity;
+        double vy = -Math.sin(pitchRad) * velocity;
+        boolean hasGlide = stance.hasGlide();
 
-        // Add glide bonus for non-overhand throws (Phase 2+ will refine this)
-        if (stance.hasGlide()) {
-            baseDistance += normalizedCharge * 100; // Bonus glide distance
+        // Glide duration identical to TrajectoryCalculator
+        int glideTicks = hasGlide ? 10 + Math.round(normalizedCharge * 40) : 0;
+
+        double x = 0, y = 0;
+
+        for (int tick = 1; tick <= MAX_FLIGHT_TICKS; tick++) {
+            // Per-tick upward impulse (glide phase only) - mirrors TrajectoryCalculator lines 86-94
+            double upwardImpulse = 0.0;
+            if (hasGlide) {
+                float glideProgress = Math.min(1.0f, tick / (float) glideTicks);
+                if (glideProgress > GLIDE_TAPER_START) {
+                    double taperProgress = (glideProgress - GLIDE_TAPER_START) / (1.0 - GLIDE_TAPER_START);
+                    upwardImpulse = UPWARD_IMPULSE * (1.0 - taperProgress);
+                } else {
+                    upwardImpulse = UPWARD_IMPULSE;
+                }
+            }
+
+            // Apply gravity (0.08) and lift - mirrors TrajectoryCalculator line 97
+            vy = vy + upwardImpulse - 0.08;
+
+            x += vx;
+            y += vy;
+
+            // Termination mirrors TrajectoryCalculator lines 130-143:
+            // - Glide stances: only check after glide phase completes, stop when back at launch height
+            // - Overhand: stop when 2 blocks below launch height, allowing arc to complete
+            if (vy < 0) {
+                if (hasGlide) {
+                    float glideProgress = Math.min(1.0f, tick / (float) glideTicks);
+                    if (glideProgress >= 1.0f && y <= 0) break;
+                } else {
+                    if (y <= -2.0) break;
+                }
+            }
+
+            // Safety: stop if horizontal speed negligible
+            if (vx < 0.01) break;
         }
 
-        return (int) Math.round(baseDistance);
+        // Convert blocks to feet (1 block = 3.28084 feet)
+        return (int) Math.round(x * 3.28084);
     }
 }

@@ -1,7 +1,7 @@
 # Disc Glide & Curve Physics Plan
 
-**Status:** RESTARTING - Phase 0 charge enhancements complete, Phase 1-6 pending  
-**Last Updated:** 2026-06-14  
+**Status:** Phase 1-3 complete, Phase 4-6 pending  
+**Last Updated:** 2026-06-16  
 **Strategy:** Separated charge enhancements (merged to master) from glide physics (new branch with simplified integration)  
 **Previous Attempt:** feature/glide branch abandoned due to complex integration pattern causing 9 bug fixes  
 **Goal:** Replace vanilla Ender Pearl throws with three distinct throw stances (Overhand, Backhand, Forehand), each with aerodynamic glide physics and release-angle control.
@@ -43,7 +43,8 @@
 
 ### Current Branch Status
 - **feature/glide:** Abandoned - contains working charge enhancements but complex glide integration
-- **feature/charge-enhancements:** Extracted charge work, ready to merge to master
+- **feature/charge-enhancements:** Merged to master
+- **feature/disc-glide-phase3:** Completed Phase 1-3, ready to merge to master
 - **feature/glide-v2:** Planned - fresh branch from enhanced master with simplified architecture
 
 ---
@@ -152,14 +153,16 @@ deflection  = (naturalFade + angleBias) * baseCurve * (1 - fadeProgress)
 
 ## Phased Implementation (Revised for Simplified Integration)
 
-### Phase 1: Core Glide Physics
+### Phase 1: Core Glide Physics ✅ COMPLETED
+- **Commit:** `42c779f`
 - Create `DiscFlightSimulator` with `FlightState` and server tick handler.
 - Modify `ChargedDiscItem.onStoppedUsing()`: register throw with default `OVERHAND` + `FLAT`.
 - Register tick handler in `McdgMod`.
 - Implement glide phase (upward impulse) and glide taper. No lateral curve yet.
-- Validate: 400-600 ft at full power with flat/horizontal aim.
+- **Validated:** 400-600 ft at full power with flat/horizontal aim.
 
-### Phase 2: Throw Stance Selection (SIMPLIFIED)
+### Phase 2: Throw Stance Selection (SIMPLIFIED) ✅ COMPLETED
+- **Commit:** `cd236e7`
 - Add `ThrowStance` enum (`OVERHAND`, `BACKHAND`, `FOREHAND`).
 - Add `cycleThrowStanceKey` to `ClientKeybinds` (`R` default).
 - Create `ThrowPreferenceManager` (client-side only - NO server sync).
@@ -168,12 +171,14 @@ deflection  = (naturalFade + angleBias) * baseCurve * (1 - fadeProgress)
 - Render stance name on HUD when holding disc.
 - **NO server-to-client sync packets** - stance remains client-side until throw
 
-### Phase 3: Release Angle Input
+### Phase 3: Release Angle Input ✅ COMPLETED
+- **Commits:** `0bc813f`, `461951a`, `9b4041e`
 - Add `ReleaseAngle` enum (`HYZER`, `FLAT`, `ANHYZER`).
 - Capture scroll events during charge in `McdgClientMod`.
 - Store angle in `FlightState`.
 - Apply combined stance + angle deflection formula.
 - Render angle arrow on charge HUD.
+- **Validated:** Combined stance+angle fade curves match design spec.
 
 ### Phase 4: Visual Polish (Particles & HUD)
 - Client-side particle trail following pearl path.

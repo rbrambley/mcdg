@@ -85,6 +85,34 @@ public final class McdgClientMod implements ClientModInitializer {
                     );
                 }
             });
+            // Phase 3: Release angle adjustment with Left/Right arrow keys
+            ClientKeybinds.forEachAngleLeftPress(() -> {
+                if (client.player != null && ChargedDiscItem.isClientChargeVisible()) {
+                    // Left arrow = cycle backwards through angles
+                    // Since next() goes Hyzer -> Flat -> Anhyzer -> Hyzer,
+                    // calling next() twice moves backwards
+                    ThrowPreferenceManager.cycleAngle();
+                    ThrowPreferenceManager.cycleAngle();
+                    // Send updated stance/angle to server
+                    ClientPlayNetworking.send(new ThrowStanceSync.Payload(
+                        ThrowPreferenceManager.getSelectedStance(),
+                        ThrowPreferenceManager.getSelectedAngle()
+                    ));
+                    showAngleFeedback(client);
+                }
+            });
+            ClientKeybinds.forEachAngleRightPress(() -> {
+                if (client.player != null && ChargedDiscItem.isClientChargeVisible()) {
+                    // Right arrow = cycle forward through angles
+                    ThrowPreferenceManager.cycleAngle();
+                    // Send updated stance/angle to server
+                    ClientPlayNetworking.send(new ThrowStanceSync.Payload(
+                        ThrowPreferenceManager.getSelectedStance(),
+                        ThrowPreferenceManager.getSelectedAngle()
+                    ));
+                    showAngleFeedback(client);
+                }
+            });
             WaypointManager.tick(client);
             AutoConnect.tick(client);
             MiniMapRenderer.handleMiniMapHotkeys(client);
@@ -291,4 +319,23 @@ public final class McdgClientMod implements ClientModInitializer {
         LeaderboardScreen.open(payload.courseName(), payload.totalPar(), payload.entries());
     }
 
+
+    /**
+     * Phase 3: Helper method to show angle change feedback to player
+     */
+    private static void showAngleFeedback(MinecraftClient client) {
+        if (client.player == null) return;
+
+        String angleSymbol = switch (ThrowPreferenceManager.getSelectedAngle()) {
+            case HYZER -> "^ Hyzer";
+            case FLAT -> "- Flat";
+            case ANHYZER -> "v Anhyzer";
+        };
+        client.player.sendMessage(
+            net.minecraft.text.Text.literal("Angle: ")
+                .append(net.minecraft.text.Text.literal(angleSymbol)
+                    .formatted(net.minecraft.util.Formatting.YELLOW)),
+            true
+        );
+    }
 }

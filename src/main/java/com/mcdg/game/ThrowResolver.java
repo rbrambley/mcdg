@@ -13,6 +13,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Box;
 import net.minecraft.world.Heightmap;
 
@@ -22,8 +23,6 @@ import net.minecraft.world.Heightmap;
 public final class ThrowResolver {
     private static final int MAX_THROW_RESOLUTION_WAIT_TICKS = 320;
     private static final int THROW_RELEASE_GRACE_TICKS = 8;
-    // Proximity make radius: flat putts within this distance that hit the basket column count as makes
-    private static final int PROXIMITY_MAKE_RADIUS_BLOCKS = 3;
     // Temporary safety rollback: keep core throw/lie flow stable while strict landing penalties are reworked.
     private static final boolean ENABLE_STRICT_LANDING_PENALTIES = true;
     private static final Map<UUID, Integer> LAST_PROCESSED_THROW_TOTAL = new HashMap<>();
@@ -32,6 +31,17 @@ public final class ThrowResolver {
     private static final Map<UUID, Long> LAST_THROW_RELEASE_TICK = new HashMap<>();
     private static final Map<UUID, String> LAST_RESOLUTION_REASON = new HashMap<>();
     private static final Map<UUID, Integer> LAST_THROW_DISTANCE_FEET = new HashMap<>();
+
+    // New: Track calculated throws (trajectory-based, no pearl entity)
+    private static final Map<UUID, CalculatedThrowData> CALCULATED_THROWS = new HashMap<>();
+
+    // Data class for calculated throws
+    private static record CalculatedThrowData(
+            Vec3d landingPos,
+            int flightTicks,
+            long releaseWorldTime,
+            Vec3d[] pathPoints
+    ) {}
 
     private ThrowResolver() {
     }
@@ -51,6 +61,7 @@ public final class ThrowResolver {
         LAST_THROW_RELEASE_TICK.clear();
         LAST_RESOLUTION_REASON.clear();
         LAST_THROW_DISTANCE_FEET.clear();
+        CALCULATED_THROWS.clear();
     }
 
 
@@ -144,12 +155,46 @@ public final class ThrowResolver {
         }
         LAST_THROW_PENDING_TICKS.remove(player.getUuid());
 
+        // Check for calculated throw landing position (trajectory-based system)
+        // Peek at data without removing so pathPoints survive for basket detection
+        CalculatedThrowData calc = CALCULATED_THROWS.get(player.getUuid());
+        Vec3d calcLanding = null;
+        Vec3d[] pathPoints = null;
+        if (calc != null) {
+            long elapsedTicks = world.getTime() - calc.releaseWorldTime();
+            if (elapsedTicks >= calc.flightTicks()) {
+                calcLanding = calc.landingPos();
+                pathPoints = calc.pathPoints();
+                CALCULATED_THROWS.remove(player.getUuid());
+            }
+        }
+
+        BlockPos rawCalcFeet = null;
+        if (calcLanding != null) {
+            rawCalcFeet = new BlockPos((int) Math.round(calcLanding.x), (int) Math.round(calcLanding.y), (int) Math.round(calcLanding.z));
+
+            // Teleport to calculated position (avoid solid blocks)
+            BlockPos safeCalcPos = rawCalcFeet;
+            if (!SafePositionFinder.isStandableFeet(world, rawCalcFeet)) {
+                safeCalcPos = SafePositionFinder.findNearestStandableFeet(world, rawCalcFeet);
+            }
+            player.teleport(safeCalcPos.getX() + 0.5, safeCalcPos.getY(), safeCalcPos.getZ() + 0.5);
+            currentFeet = safeCalcPos;
+
+            McdgMod.LOGGER.info(
+                    "Player teleported to calculated landing | player={} pos={},{},{} distFromThrow={}ft source=CALCULATED_THROW",
+                    player.getGameProfile().getName(),
+                    rawCalcFeet.getX(), rawCalcFeet.getY(), rawCalcFeet.getZ(),
+                    String.format("%.1f", (double) DistanceUtils.distanceFeet(throwLie, rawCalcFeet))
+            );
+        }
+
         BlockPos landingFeet = SafePositionFinder.findNearestStandableFeet(world, currentFeet);
 
         // Made shot detection: check BEFORE applying any penalties so a successful
         // basket shot is never penalized regardless of landing terrain.
-        boolean madeShot = isDiscThroughBasket(throwLie, currentFeet, basket)
-                || isCloseProximityMake(throwLie, currentFeet, basket);
+        boolean madeShot = isDiscThroughBasket(pathPoints, throwLie, currentFeet, basket)
+                || isCloseProximityMake(throwLie, rawCalcFeet, currentFeet, basket);
 
         BlockPos resultingLie = landingFeet;
         BlockPos firstOutCrossing = null;
@@ -158,9 +203,11 @@ public final class ThrowResolver {
         if (madeShot) {
             // Successful basket shot - no penalties apply, lie is set to basket
             resultingLie = basket.up();
-            player.teleport(resultingLie.getX() + 0.5, resultingLie.getY() + 1.0, resultingLie.getZ() + 0.5);
+            player.teleport(resultingLie.getX() + 0.5, resultingLie.getY(), resultingLie.getZ() + 0.5);
             state = roundStateManager.markLastThrowPenalty(player.getUuid(), false).orElse(state);
+            McdgMod.LOGGER.info("Made shot detected | player={} hole={}", player.getGameProfile().getName(), state.currentHole());
         } else if (ENABLE_STRICT_LANDING_PENALTIES && rulesetManager.isStrict()) {
+            // Classify current position (same for both calculated throws and pearls)
             StrictPenaltyType currentFeetPenalty = OutOfBoundsClassifier.classifyOutType(world, currentFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
             StrictPenaltyType standableFeetPenalty = OutOfBoundsClassifier.classifyOutType(world, landingFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
             landingPenalty = combinePenalty(currentFeetPenalty, standableFeetPenalty);
@@ -180,6 +227,7 @@ public final class ThrowResolver {
                     );
                 }
                 if (landingPenalty == StrictPenaltyType.OB) {
+                    // Find last in-bounds position (same for both calculated throws and pearls)
                     CrossingResolution crossing = findLastSolidBeforeOutCrossing(
                             world,
                             throwLie,
@@ -187,7 +235,7 @@ public final class ThrowResolver {
                             currentHole,
                             tee,
                             basket,
-                                alternateAnchor,
+                            alternateAnchor,
                             rulesetManager
                     );
                     resultingLie = crossing.safeLie();
@@ -203,10 +251,12 @@ public final class ThrowResolver {
                     roundStateManager.applyPenaltyStrokes(player.getUuid(), penaltyStrokes);
                 }
 
+                // Find safe position before teleporting to avoid suffocation
+                BlockPos safePos = SafePositionFinder.findNearestStandableFeet(world, resultingLie);
                 player.teleport(
-                        resultingLie.getX() + 0.5,
-                        resultingLie.getY() + 1.0,
-                        resultingLie.getZ() + 0.5
+                        safePos.getX() + 0.5,
+                        safePos.getY(),
+                        safePos.getZ() + 0.5
                 );
 
                 String label = landingPenalty == StrictPenaltyType.OB ? "OB" : "Hazard";
@@ -232,6 +282,7 @@ public final class ThrowResolver {
 
         if (landingPenalty == StrictPenaltyType.NONE && !madeShot) {
             state = roundStateManager.markLastThrowPenalty(player.getUuid(), false).orElse(state);
+            McdgMod.LOGGER.info("Made shot detected | player={} hole={}", player.getGameProfile().getName(), state.currentHole());
         }
 
         // Basket make already handled above; this block removed as part of Option A refactor.
@@ -240,7 +291,7 @@ public final class ThrowResolver {
         if (!madeShot && shouldBounceOffBasketStructure(resultingLie, basket)) {
             BlockPos bounced = basketBouncePosition(world, basket);
             resultingLie = bounced;
-            player.teleport(resultingLie.getX() + 0.5, resultingLie.getY() + 1.0, resultingLie.getZ() + 0.5);
+            player.teleport(resultingLie.getX() + 0.5, resultingLie.getY(), resultingLie.getZ() + 0.5);
             GolfTitleMessenger.sendClankTitle(player);
         }
 
@@ -279,6 +330,28 @@ public final class ThrowResolver {
         LAST_THROW_PEARL_UUID.put(playerId, pearlId);
         LAST_THROW_RELEASE_TICK.put(playerId, worldTime);
         LAST_THROW_PENDING_TICKS.remove(playerId);
+    }
+
+    /**
+     * Register a calculated throw (trajectory-based, no pearl entity).
+     * Used by the new trajectory calculation system.
+     */
+    static void registerCalculatedThrow(UUID playerId, long worldTime, Vec3d landingPos, int flightTicks, Vec3d[] pathPoints) {
+        CALCULATED_THROWS.put(playerId, new CalculatedThrowData(landingPos, flightTicks, worldTime, pathPoints));
+        LAST_THROW_RELEASE_TICK.put(playerId, worldTime);
+        LAST_THROW_PENDING_TICKS.remove(playerId);
+        // No pearl UUID for calculated throws
+        LAST_THROW_PEARL_UUID.remove(playerId);
+
+        McdgMod.LOGGER.info(
+                "Calculated throw registered | player={} flightTicks={} landing={},{},{} dist={}ft",
+                playerId,
+                flightTicks,
+                String.format("%.1f", landingPos.x),
+                String.format("%.1f", landingPos.y),
+                String.format("%.1f", landingPos.z),
+                String.format("%.1f", landingPos.distanceTo(new Vec3d(landingPos.x, landingPos.y, landingPos.z)) * 3.0)
+        );
     }
 
     /**
@@ -328,6 +401,19 @@ public final class ThrowResolver {
     }
 
     private static boolean hasTrackedPearlInFlight(ServerWorld world, ServerPlayerEntity player, BlockPos origin) {
+        // Check for calculated throws first (new trajectory system)
+        CalculatedThrowData calc = CALCULATED_THROWS.get(player.getUuid());
+        if (calc != null) {
+            long elapsedTicks = world.getTime() - calc.releaseWorldTime();
+            boolean inFlight = elapsedTicks < calc.flightTicks();
+            if (inFlight) {
+                return true; // Calculated throw is still "flying"
+            }
+            // Flight complete - calculated throw is ready for resolution
+            return false;
+        }
+
+        // Legacy: Check for pearl entity (old system, backward compatibility)
         UUID trackedPearlId = LAST_THROW_PEARL_UUID.get(player.getUuid());
         if (trackedPearlId == null) {
             return false;
@@ -339,6 +425,26 @@ public final class ThrowResolver {
                 search,
                 pearl -> trackedPearlId.equals(pearl.getUuid()) && !pearl.isRemoved()
         ).isEmpty();
+    }
+
+    /**
+     * Get the landing position for a calculated throw (if available).
+     * Returns null if no calculated throw exists or if it's still in flight.
+     */
+    private static Vec3d getCalculatedLandingPosition(ServerWorld world, UUID playerId) {
+        CalculatedThrowData calc = CALCULATED_THROWS.get(playerId);
+        if (calc == null) {
+            return null;
+        }
+
+        long elapsedTicks = world.getTime() - calc.releaseWorldTime();
+        if (elapsedTicks < calc.flightTicks()) {
+            return null; // Still in flight
+        }
+
+        // Flight complete - return landing position and clean up
+        CALCULATED_THROWS.remove(playerId);
+        return calc.landingPos();
     }
 
     private static boolean isWithinThrowReleaseGrace(ServerWorld world, UUID playerId) {
@@ -390,7 +496,24 @@ public final class ThrowResolver {
         return new CrossingResolution(lastInBoundsSolid.toImmutable(), firstOut);
     }
 
-    private static boolean isDiscThroughBasket(BlockPos throwLie, BlockPos landingFeet, BlockPos basket) {
+    private static boolean isDiscThroughBasket(Vec3d[] pathPoints, BlockPos throwLie, BlockPos landingFeet, BlockPos basket) {
+        // If we have the actual curved trajectory path, check it against the basket volume.
+        if (pathPoints != null && pathPoints.length >= 2) {
+            int targetX = basket.getX();
+            int targetZ = basket.getZ();
+            int minY = basket.getY();
+            int maxY = basket.getY() + 2;
+            for (int i = 1; i < pathPoints.length; i++) {
+                Vec3d p0 = pathPoints[i - 1];
+                Vec3d p1 = pathPoints[i];
+                if (segmentHitsBasketVolume(p0, p1, targetX, minY, maxY, targetZ)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Fallback: straight-line check for legacy pearl throws
         int targetX = basket.getX();
         int targetZ = basket.getZ();
         int targetY = basket.getY() + 1;
@@ -408,17 +531,44 @@ public final class ThrowResolver {
         return false;
     }
 
-    private static boolean isCloseProximityMake(BlockPos throwLie, BlockPos landingFeet, BlockPos basket) {
-        // Must land on the basket column (same X/Z as basket)
-        if (landingFeet.getX() != basket.getX() || landingFeet.getZ() != basket.getZ()) {
+    private static boolean segmentHitsBasketVolume(Vec3d p0, Vec3d p1, int targetX, int minY, int maxY, int targetZ) {
+        int samples = Math.max(4, (int) Math.ceil(p0.distanceTo(p1) * 2.0));
+        for (int s = 1; s <= samples; s++) {
+            double t = s / (double) samples;
+            double x = p0.x + (p1.x - p0.x) * t;
+            double y = p0.y + (p1.y - p0.y) * t;
+            double z = p0.z + (p1.z - p0.z) * t;
+            int bx = (int) Math.floor(x);
+            int by = (int) Math.floor(y);
+            int bz = (int) Math.floor(z);
+            if (bx == targetX && bz == targetZ && by >= minY && by <= maxY) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isCloseProximityMake(BlockPos throwLie, BlockPos rawCalcFeet, BlockPos currentFeet, BlockPos basket) {
+        // If the disc lands on the basket column within the make-zone, it is a make.
+        // Check raw calculated landing first (before SafePositionFinder nudges away).
+        if (rawCalcFeet != null) {
+            int dx = rawCalcFeet.getX() - basket.getX();
+            int dz = rawCalcFeet.getZ() - basket.getZ();
+            if (dx == 0 && dz == 0) {
+                int dy = rawCalcFeet.getY() - basket.getY();
+                if (dy >= 0 && dy <= 2) {
+                    return true;
+                }
+            }
+        }
+        // Fallback: check actual player position (for pearl throws or already-teleported state).
+        int dx = currentFeet.getX() - basket.getX();
+        int dz = currentFeet.getZ() - basket.getZ();
+        if (dx != 0 || dz != 0) {
             return false;
         }
-        // Check if throw started within proximity radius (horizontal distance only)
-        int dx = throwLie.getX() - basket.getX();
-        int dz = throwLie.getZ() - basket.getZ();
-        int horizontalDistSq = dx * dx + dz * dz;
-        int radiusSq = PROXIMITY_MAKE_RADIUS_BLOCKS * PROXIMITY_MAKE_RADIUS_BLOCKS;
-        return horizontalDistSq <= radiusSq;
+        int dy = currentFeet.getY() - basket.getY();
+        return dy >= 0 && dy <= 2;
     }
 
     private static boolean shouldBounceOffBasketStructure(BlockPos liePos, BlockPos basketPos) {
@@ -432,8 +582,8 @@ public final class ThrowResolver {
             return false;
         }
 
-        // Made basket remains hopper + one block above; upper basket structure should bounce.
-        return liePos.getY() >= (basketPos.getY() + 2);
+        // Make-zone is basket.y through basket.y + 2; upper basket structure should bounce.
+        return liePos.getY() >= (basketPos.getY() + 3);
     }
 
     private static BlockPos basketBouncePosition(ServerWorld world, BlockPos basket) {
