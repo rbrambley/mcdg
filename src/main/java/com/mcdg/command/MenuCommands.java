@@ -279,12 +279,7 @@ public final class MenuCommands {
 
         List<MenuScreenSync.CourseEntry> courses = new ArrayList<>();
         for (PracticeCourseStorage.ReusableCourseEntry entry : practiceCourseStorage.listReusable(source.getServer())) {
-            // Resort surround courses are managed via /mcdg listcourses and /mcdg removesurroundcourses;
-            // exclude them from the player-facing GUI menu to keep it clean.
-            if ("resort-surround".equals(entry.sourceTag())) {
-                continue;
-            }
-            courses.add(new MenuScreenSync.CourseEntry(entry.index(), entry.name(), entry.holeCount()));
+            courses.add(new MenuScreenSync.CourseEntry(entry.index(), entry.name(), entry.holeCount(), entry.sourceTag()));
         }
 
         if (hasSavedSession) {

@@ -41,6 +41,7 @@ import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.CourseGenerator;
 import com.mcdg.world.ResortWaypointManager;
 import com.mcdg.world.SurfaceResolver;
+import com.mcdg.world.ResortCourseBuilder;
 import com.mcdg.world.WorldSpawnHandler;
 import com.mcdg.world.PlacementAutoTestService;
 import com.mcdg.world.SeededCourseGenerator;
@@ -193,6 +194,7 @@ public final class McdgMod implements ModInitializer {
         ServerTickEvents.END_SERVER_TICK.register(AUTO_COURSE_SERVICE::tick);
         ServerTickEvents.END_SERVER_TICK.register(McdgMod::handlePendingAutoStrictSetup);
         ServerTickEvents.END_SERVER_TICK.register(McdgMod::autosaveRoundSession);
+	ServerTickEvents.END_SERVER_TICK.register(ResortCourseBuilder::tick);
 	ServerTickEvents.END_SERVER_TICK.register(DiscFlightSimulator::tick);
         ServerLifecycleEvents.SERVER_STARTED.register(server -> WaypointSync.clearAll());
         ServerLifecycleEvents.SERVER_STARTED.register(server -> ResortWaypointManager.clearResortWaypoint());
@@ -211,10 +213,12 @@ public final class McdgMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> LEADERBOARD_MANAGER.save(server));
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> WaypointSync.clearAll());
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> ResortWaypointManager.clearResortWaypoint());
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> ResortCourseBuilder.reset());
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
             server.execute(() -> {
                 restoreRoundParticipantOnJoin(handler.player, server);
                 ResortWaypointManager.broadcastToPlayer(handler.player);
+                ResortCourseBuilder.onPlayerJoin(handler.player);
                 // Warm storage caches on join so the first G key press is instant.
                 PRACTICE_COURSE_STORAGE.listReusable(server);
                 PLAYER_ROUND_SESSION_STORAGE.loadPlayer(server, handler.player.getUuid(), null);

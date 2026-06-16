@@ -16,15 +16,16 @@ public final class MenuScreenSync {
     private MenuScreenSync() {
     }
 
-    public record CourseEntry(int index, String name, int holeCount) {
+    public record CourseEntry(int index, String name, int holeCount, String sourceTag) {
         static CourseEntry read(RegistryByteBuf buf) {
-            return new CourseEntry(buf.readVarInt(), buf.readString(), buf.readVarInt());
+            return new CourseEntry(buf.readVarInt(), buf.readString(), buf.readVarInt(), buf.readString());
         }
 
         void write(RegistryByteBuf buf) {
             buf.writeVarInt(index);
             buf.writeString(name != null ? name : "");
             buf.writeVarInt(holeCount);
+            buf.writeString(sourceTag != null ? sourceTag : "");
         }
     }
 
