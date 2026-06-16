@@ -1,5 +1,8 @@
 package com.mcdg.game;
 
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
 /**
@@ -7,6 +10,7 @@ import net.minecraft.util.math.Vec3d;
  * Simulates flight physics mathematically to determine landing position,
  * flight duration, and path points for visual trails.
  *
+ * Terrain-aware: respects block collisions (walls, trees) and lands on actual ground.
  * Phase 4: Supports visual trail rendering along calculated path.
  */
 public final class TrajectoryCalculator {
@@ -19,6 +23,12 @@ public final class TrajectoryCalculator {
 
     // Maximum simulation ticks (safety limit, not timeout)
     private static final int MAX_SIMULATION_TICKS = 400;
+
+    // Ticks to skip collision checks near the thrower (avoids self-collision)
+    private static final int THROW_COLLISION_GRACE_TICKS = 3;
+
+    // Release height offset from player feet (shoulder height)
+    private static final double RELEASE_HEIGHT_OFFSET = 1.5;
 
     private TrajectoryCalculator() {
         // Utility class
@@ -38,7 +48,8 @@ public final class TrajectoryCalculator {
     /**
      * Calculate complete throw trajectory from launch to landing.
      *
-     * @param startPos Initial position (player's throwing position)
+     * @param world The server world for terrain/collision lookups
+     * @param startPos Initial position (player's throwing position / feet)
      * @param initialVelocity Initial velocity vector
      * @param launchYawDegrees Player's facing direction when throwing
      * @param charge Power level (0.0 - 1.25)
@@ -47,6 +58,7 @@ public final class TrajectoryCalculator {
      * @return TrajectoryResult with landing position and flight data
      */
     public static TrajectoryResult calculateTrajectory(
+            ServerWorld world,
             Vec3d startPos,
             Vec3d initialVelocity,
             float launchYawDegrees,
@@ -55,7 +67,9 @@ public final class TrajectoryCalculator {
             ReleaseAngle angle
     ) {
         // Current position and velocity (simulation state)
-        Vec3d pos = startPos;
+        // Offset upward to shoulder height so the disc doesn't immediately collide with the ground
+        Vec3d pos = new Vec3d(startPos.x, startPos.y + RELEASE_HEIGHT_OFFSET, startPos.z);
+        Vec3d prevPos = pos;
         Vec3d vel = initialVelocity;
         double initialSpeed = vel.horizontalLength();
 
@@ -72,12 +86,13 @@ public final class TrajectoryCalculator {
 
         // Path points for visual trail (sample every 5 ticks to save memory)
         java.util.List<Vec3d> pathList = new java.util.ArrayList<>();
-        pathList.add(startPos);
+        pathList.add(pos);
 
         // Simulate flight tick by tick
         int tick = 0;
         while (tick < MAX_SIMULATION_TICKS) {
             tick++;
+            prevPos = pos;
 
             // Calculate glide progress (0.0 to 1.0) - only for glide stances
             float glideProgress = hasGlide ? Math.min(1.0f, tick / (float) glideTicks) : 1.0f;
@@ -124,21 +139,29 @@ public final class TrajectoryCalculator {
                 pathList.add(pos);
             }
 
-            // Check for ground collision
-            // For stances with glide: only after glide phase completes
-            // For overhand: wait until disc has fallen significantly below throw height
-            if (glideProgress >= 1.0f && velY < 0) {
-                boolean shouldStop;
-                if (hasGlide) {
-                    // Glide stance: stop when back to throw height
-                    shouldStop = pos.y <= startPos.y + 1.0;
-                } else {
-                    // Overhand: stop when fallen 3+ blocks below throw height
-                    // This allows natural arc to complete
-                    shouldStop = pos.y <= startPos.y - 2.0;
-                }
-                if (shouldStop) {
+            // Terrain-aware collision checks (skip grace period near thrower)
+            if (tick > THROW_COLLISION_GRACE_TICKS) {
+                BlockPos blockPos = new BlockPos(
+                        MathHelper.floor(pos.x),
+                        MathHelper.floor(pos.y),
+                        MathHelper.floor(pos.z)
+                );
+
+                // Obstacle collision: disc inside a solid block (wall, tree, building)
+                if (!world.getBlockState(blockPos).getCollisionShape(world, blockPos).isEmpty()) {
+                    // Hit something solid — roll back to previous position and stop
+                    pos = prevPos;
                     break;
+                }
+
+                // Ground landing: after glide phase, when descending, check if block below is solid
+                if (glideProgress >= 1.0f && velY < 0) {
+                    BlockPos groundPos = blockPos.down();
+                    if (!world.getBlockState(groundPos).getCollisionShape(world, groundPos).isEmpty()) {
+                        // Landed on actual terrain — snap to standable height
+                        pos = new Vec3d(pos.x, groundPos.getY() + 1.0, pos.z);
+                        break;
+                    }
                 }
             }
 
@@ -148,7 +171,7 @@ public final class TrajectoryCalculator {
             }
         }
 
-        // Calculate final statistics
+        // Calculate final statistics (distance measured from original feet position)
         double dx = pos.x - startPos.x;
         double dz = pos.z - startPos.z;
         double distanceBlocks = Math.sqrt(dx * dx + dz * dz);

@@ -275,8 +275,9 @@ public final class ChargedDiscItem extends Item {
 
         Vec3d startPos = new Vec3d(serverPlayer.getX(), serverPlayer.getY(), serverPlayer.getZ());
 
-        // Calculate complete trajectory
+        // Calculate complete trajectory (terrain-aware collision)
         TrajectoryCalculator.TrajectoryResult trajectory = TrajectoryCalculator.calculateTrajectory(
+                serverPlayer.getServerWorld(),
                 startPos,
                 initialVelocity,
                 yaw,
