@@ -58,6 +58,41 @@ Open / next:
 
 ---
 
+## Resort Course Reliability -- Async Builder + Compact Cone (2026-06-16)
+
+Implemented / validated:
+
+- **Non-blocking resort startup**: WorldSpawnHandler now builds the resort
+  structure synchronously (lobby, courtyard, housing) but queues surround
+  courses for background tick-spread building. Players can join and explore
+  the resort immediately instead of waiting minutes on a frozen loading screen.
+- **Background course builder**: ResortCourseBuilder processes one candidate
+  per server tick, avoiding server thread stalls.
+- **ServerBossBar progress indicator**: Green progress bar shows
+  Building resort courses... X/3 to all players in the overworld.
+  Joining players are auto-added to the bar if a build is active.
+- **Compact cone for resort courses**: Changed from large hub-to-resort-distance
+  cone to aseLineDistance=25 with hubOrigin as origin, matching the
+  proven player auto-build geometry. This keeps each course self-contained
+  within the terrain that ResortCoursePlacement scored.
+- **Retry all candidates**: Increased candidate pool from 3 to 6 and tries
+  every location until 3 courses succeed (or candidates exhausted).
+- **Admin /mcdg buildresort rebuild**: Also uses compact cone for consistency.
+
+Key commits:
+- 124fd54 Async resort course builder with compact cone and progress bar
+
+Branch: eature/resort-course-reliability
+
+Deployment status:
+- Build passing (./gradlew build)
+- quickRegression passing
+- Pending: smokeRegression, ATLauncher manual test on fresh world
+
+Open / next:
+- Multiplayer live validation (2-player full round still pending).
+---
+
 ## Menu UX Refactor + Session Resume (2026-06-05)
 
 Implemented / validated:
