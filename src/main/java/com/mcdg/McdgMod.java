@@ -233,7 +233,8 @@ public final class McdgMod implements ModInitializer {
             TOURNAMENT_RULESET_MANAGER,
             LEADERBOARD_MANAGER,
             config.enableHudScoringDebug(),
-            config.enableStrictFlowDebug()
+            config.enableStrictFlowDebug(),
+            config.enableSurvivalRewards()
         );
         RoundRespawnHandler.register(
             ACTIVE_COURSE_MANAGER,
@@ -259,7 +260,7 @@ public final class McdgMod implements ModInitializer {
             return ActionResult.PASS;
         });
 
-        LOGGER.info("Initialized {} (defaultHoles={}, protection={}, hudScoringDebug={}, strictFlowDebug={}, skipRoundPresentation={}, rulesetDefault={}, strictRespawnPenaltyStrokes={})",
+        LOGGER.info("Initialized {} (defaultHoles={}, protection={}, hudScoringDebug={}, strictFlowDebug={}, skipRoundPresentation={}, rulesetDefault={}, strictRespawnPenaltyStrokes={}, survivalRewards={})",
                 MOD_ID,
                 config.defaultHoleCount(),
             config.enforceCourseProtection(),
@@ -267,7 +268,8 @@ public final class McdgMod implements ModInitializer {
             config.enableStrictFlowDebug(),
             config.skipRoundPresentation(),
             TOURNAMENT_RULESET_MANAGER.getActiveRuleset().name().toLowerCase(),
-            config.respawnPenaltyStrokes());
+            config.respawnPenaltyStrokes(),
+            config.enableSurvivalRewards());
     }
 
     private static void maybeStartHeadlessAutoTest(net.minecraft.server.MinecraftServer server) {
@@ -599,7 +601,7 @@ public final class McdgMod implements ModInitializer {
         if (targetLie != null && player.getWorld().getRegistryKey().equals(world.getRegistryKey())) {
             BlockPos safeLie = resolveSafeFeetNearWithin(world, targetLie, 2);
             ROUND_STATE_MANAGER.setState(player.getUuid(), currentState == null
-                    ? new PlayerRoundState(1, safeLie, 0, 0, false)
+                    ? new PlayerRoundState(1, safeLie, 0, 0, false, 0)
                     : currentState.withLie(safeLie));
             player.teleport(safeLie.getX() + 0.5, safeLie.getY() + 1.0, safeLie.getZ() + 0.5);
             currentState = ROUND_STATE_MANAGER.getState(player.getUuid()).orElse(null);

@@ -136,6 +136,7 @@ public final class PlayerRoundSessionStorage {
             int holeStrokes,
             int totalStrokes,
             boolean lastThrowPenalty,
+            int aceCount,
             long savedAtMs
     ) {
         private static PlayerSessionSnapshot from(Course course, PlacedCourseState placed, PlayerRoundState state) {
@@ -152,6 +153,7 @@ public final class PlayerRoundSessionStorage {
                     state.holeStrokes(),
                     state.totalStrokes(),
                     state.lastThrowPenalty(),
+                    state.aceCount(),
                     System.currentTimeMillis()
             );
         }
@@ -169,7 +171,8 @@ public final class PlayerRoundSessionStorage {
                         new BlockPos(lieX, lieY, lieZ),
                         holeStrokes,
                         totalStrokes,
-                        lastThrowPenalty
+                        lastThrowPenalty,
+                        aceCount
                 );
             } catch (RuntimeException ex) {
                 return Optional.empty();

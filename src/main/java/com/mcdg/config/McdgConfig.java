@@ -6,14 +6,16 @@ public record McdgConfig(
         boolean skipRoundPresentation,
         int respawnPenaltyStrokes,
         int defaultHoleCount,
-        boolean enforceCourseProtection
+        boolean enforceCourseProtection,
+        boolean enableSurvivalRewards
 ) {
     public static McdgConfig loadDefault() {
         boolean hudScoringDebug = readBoolEnv("MCDG_DEBUG_HUD_SCORING");
     boolean strictFlowDebug = readBoolEnv("MCDG_DEBUG_STRICT_FLOW");
         boolean skipPresentation = readBoolEnv("MCDG_SKIP_ROUND_PRESENTATION");
         int respawnPenaltyStrokes = readIntEnv("MCDG_RESPAWN_PENALTY_STROKES", 1, 0, 5);
-    return new McdgConfig(hudScoringDebug, strictFlowDebug, skipPresentation, respawnPenaltyStrokes, 9, true);
+        boolean survivalRewards = readBoolEnv("MCDG_SURVIVAL_REWARDS");
+    return new McdgConfig(hudScoringDebug, strictFlowDebug, skipPresentation, respawnPenaltyStrokes, 9, true, survivalRewards);
     }
 
     private static boolean readBoolEnv(String name) {
