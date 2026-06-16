@@ -560,7 +560,7 @@ public final class AutoCourseService {
         return new Course(seed, name, holes);
     }
 
-    private static int computePar(int distanceFeet) {
+    static int computePar(int distanceFeet) {
         if (distanceFeet <= PAR3_MAX_FEET) {
             return 3;
         }

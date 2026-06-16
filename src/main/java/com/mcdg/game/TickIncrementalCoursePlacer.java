@@ -31,7 +31,6 @@ public final class TickIncrementalCoursePlacer {
     private final ServerWorld world;
     private final BlockPos hubOrigin;
     private final Course course;
-    private final boolean skipHub;
     private final Consumer<String> progressMessage;
 
     private final List<Hole> builtHoles = new ArrayList<>();
@@ -48,6 +47,12 @@ public final class TickIncrementalCoursePlacer {
     private String failureMessage = null;
     private AutoCourseService.AutoCourseScenarioResult result = null;
 
+    /**
+     * @param skipHub retained for API symmetry with {@code placeCourseIncrementally}. Each hole is
+     *                placed independently with no central hub (matching the original behavior, which
+     *                always passed {@code skipHub=true} to the per-hole placement), so this flag is
+     *                intentionally not consulted here.
+     */
     public TickIncrementalCoursePlacer(
             CoursePlacementService placementService,
             ServerWorld world,
@@ -56,12 +61,14 @@ public final class TickIncrementalCoursePlacer {
             boolean skipHub,
             Consumer<String> progressMessage
     ) {
+        if (course == null || course.holes().isEmpty()) {
+            throw new IllegalArgumentException("TickIncrementalCoursePlacer requires a course with at least one hole");
+        }
         this.placementService = placementService;
         this.layoutValidator = new HoleLayoutValidator();
         this.world = world;
         this.hubOrigin = hubOrigin;
         this.course = course;
-        this.skipHub = skipHub;
         this.progressMessage = progressMessage;
     }
 
@@ -152,7 +159,7 @@ public final class TickIncrementalCoursePlacer {
 
         int actualFeet = layoutValidator.distanceFeetFromBlocks(
                 actualTee.getX(), actualTee.getZ(), actualBasket.getX(), actualBasket.getZ());
-        int effectivePar = placed.effectiveHolePars().getOrDefault(hole.index(), computePar(actualFeet));
+        int effectivePar = placed.effectiveHolePars().getOrDefault(hole.index(), AutoCourseService.computePar(actualFeet));
         Hole actualHole = new Hole(
                 hole.index(), effectivePar, actualFeet,
                 new TeePoint(actualTee.getX(), actualTee.getY(), actualTee.getZ()),
@@ -197,12 +204,6 @@ public final class TickIncrementalCoursePlacer {
     public boolean isFailed() { return failed; }
     public AutoCourseService.AutoCourseScenarioResult getResult() { return result; }
     public String getFailureMessage() { return failureMessage; }
-    public float getProgress() { return course.holes().isEmpty() ? 1.0f : (float) nextHoleIndex / course.holes().size(); }
-    public Map<BlockPos, BlockState> getMergedOriginals() { return mergedOriginals; }
-
-    private static int computePar(int distanceFeet) {
-        if (distanceFeet <= 450) return 3;
-        if (distanceFeet <= 900) return 4;
-        return 5;
-    }
+    public float getProgress() { return (float) nextHoleIndex / course.holes().size(); }
+    public Map<BlockPos, BlockState> getMergedOriginals() { return java.util.Collections.unmodifiableMap(mergedOriginals); }
 }
