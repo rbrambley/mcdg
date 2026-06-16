@@ -106,6 +106,17 @@ Open / next:
 - Option: refactor `placeCourseIncrementally` to place one hole per tick
   for smooth background building without lag spikes.
 
+Key commits:
+- `0bdb806` feat: tick-incremental course placement (one hole per tick)
+- `7407f45` refactor: address review feedback on tick-incremental placer
+
+Deployment status:
+- Build passing (`./gradlew build`)
+- quickRegression passing
+- Manual ATLauncher testing: new world join is smooth, no lag spikes during
+  resort surround course builds. Progress bar updates per-hole.
+- Test instance jar updated successfully
+
 ---
 
 ## Menu UX Refactor + Session Resume (2026-06-05)
