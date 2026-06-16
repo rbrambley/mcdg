@@ -222,7 +222,8 @@ public final class McdgMenuScreen extends Screen {
             MenuScreenSync.CourseEntry entry = courses.get(i);
             boolean isActive = entry.index() == state.activeCatalogIndex();
             String prefix = isActive ? "▶ " : "";
-            String label = prefix + entry.name() + "  (" + entry.holeCount() + "H)";
+            String resortTag = "resort-surround".equals(entry.sourceTag()) ? "[RESORT] " : "";
+            String label = prefix + resortTag + entry.name() + "  (" + entry.holeCount() + "H)";
             int idx = entry.index();
             int textCol = isActive ? TEXT_GREEN : TEXT_WHITE;
             int tintCol = isActive ? BTN_TINT_GREEN : BTN_TINT_NONE;
