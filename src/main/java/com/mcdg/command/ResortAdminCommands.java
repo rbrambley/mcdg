@@ -202,7 +202,9 @@ public final class ResortAdminCommands {
 
             long seed = random.nextLong();
             float facingYaw = (float) Math.toDegrees(angle);
-            Course course = autoCourseService.generateOutwardConeCourse(seed, center, facingYaw, distance, 80);
+            // Use compact cone (baseLineDistance=25) with hubOrigin as origin
+            // for reliable terrain fitting, same as player auto-build
+            Course course = autoCourseService.generateOutwardConeCourse(seed, hubOrigin, facingYaw, 25, 80);
 
             try {
                 AutoCourseService.AutoCourseScenarioResult result = autoCourseService.placeCourseIncrementally(world, hubOrigin, course, true, msg -> {
