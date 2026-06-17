@@ -216,6 +216,7 @@ public final class McdgMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> WaypointSync.clearAll());
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> ResortWaypointManager.clearResortWaypoint());
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> ResortCourseBuilder.reset());
+        ResortChestReplenisher.registerInteractionHandler();
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> ResortChestReplenisher.clear());
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
             server.execute(() -> {

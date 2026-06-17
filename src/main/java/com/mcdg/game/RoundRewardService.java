@@ -65,8 +65,9 @@ public final class RoundRewardService {
 
         PlayerInventory inventory = player.getInventory();
         for (ItemStack stack : rewards) {
-            if (!stack.isEmpty()) {
-                inventory.insertStack(stack);
+            if (!stack.isEmpty() && !inventory.insertStack(stack)) {
+                // Inventory full - drop the remainder so rewards are never lost.
+                player.dropItem(stack, false);
             }
         }
         inventory.markDirty();

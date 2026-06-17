@@ -325,7 +325,6 @@ public final class ResortBuilder {
             // Register the first chest (i == -1) for starter item dispenser
             if (i == -1) {
                 ResortChestReplenisher.setChestPosition(chestPos);
-                ResortChestReplenisher.registerInteractionHandler();
             }
         }
     }
