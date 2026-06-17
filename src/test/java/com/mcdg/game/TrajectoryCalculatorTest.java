@@ -27,9 +27,9 @@ public class TrajectoryCalculatorTest {
         
         int naturalFade = stance.naturalFadeDirection();
         int angleBias = angle.angleBias();
-        int totalBias = naturalFade + angleBias;
+        int totalBias = naturalFade * (1 - angleBias);
         
-        // OVERHAND + FLAT should have zero bias
+        // OVERHAND + FLAT should have zero bias (naturalFade = 0)
         assertEquals(0, totalBias, "OVERHAND + FLAT should have zero lateral bias");
     }
 
@@ -45,9 +45,10 @@ public class TrajectoryCalculatorTest {
         
         int naturalFade = stance.naturalFadeDirection();
         int angleBias = angle.angleBias();
-        int totalBias = naturalFade + angleBias;
+        int totalBias = naturalFade * (1 - angleBias);
         
         // BACKHAND natural fade is left (-1), FLAT has no bias (0)
+        // Formula: naturalFade * (1 - angleBias) = -1 * (1 - 0) = -1
         assertEquals(-1, naturalFade, "BACKHAND should fade left");
         assertEquals(0, angleBias, "FLAT should have no angle bias");
         assertEquals(-1, totalBias, "BACKHAND + FLAT should have left bias");
@@ -65,52 +66,55 @@ public class TrajectoryCalculatorTest {
         
         int naturalFade = stance.naturalFadeDirection();
         int angleBias = angle.angleBias();
-        int totalBias = naturalFade + angleBias;
+        int totalBias = naturalFade * (1 - angleBias);
         
         // FOREHAND natural fade is right (+1), FLAT has no bias (0)
+        // Formula: naturalFade * (1 - angleBias) = 1 * (1 - 0) = 1
         assertEquals(1, naturalFade, "FOREHAND should fade right");
         assertEquals(0, angleBias, "FLAT should have no angle bias");
         assertEquals(1, totalBias, "FOREHAND + FLAT should have right bias");
     }
 
     /**
-     * Test that BACKHAND + ANHYZER counteracts natural left fade.
-     * Expected: Combined bias should be reduced or reversed.
+     * Test that BACKHAND + ANHYZER neutralizes natural left fade.
+     * Expected: Combined bias should be neutral (0).
      */
     @Test
-    @DisplayName("BACKHAND + ANHYZER should counteract left fade")
-    public void testBackhandAnhyzerCounteractsFade() {
+    @DisplayName("BACKHAND + ANHYZER should neutralize left fade")
+    public void testBackhandAnhyzerNeutralizesFade() {
         ThrowStance stance = ThrowStance.BACKHAND;
         ReleaseAngle angle = ReleaseAngle.ANHYZER;
         
         int naturalFade = stance.naturalFadeDirection();
         int angleBias = angle.angleBias();
-        int totalBias = naturalFade + angleBias;
+        int totalBias = naturalFade * (1 - angleBias);
         
         // BACKHAND natural fade is left (-1), ANHYZER bias is right (+1)
+        // Formula: naturalFade * (1 - angleBias) = -1 * (1 - 1) = 0
         assertEquals(-1, naturalFade, "BACKHAND should fade left");
         assertEquals(1, angleBias, "ANHYZER should have right bias");
         assertEquals(0, totalBias, "BACKHAND + ANHYZER should have neutral bias");
     }
 
     /**
-     * Test that FOREHAND + HYZER counteracts natural right fade.
-     * Expected: Combined bias should be reduced or reversed.
+     * Test that FOREHAND + HYZER exaggerates natural right fade.
+     * Expected: Combined bias should be 2x natural (stronger right fade).
      */
     @Test
-    @DisplayName("FOREHAND + HYZER should counteract right fade")
-    public void testForehandHyzerCounteractsFade() {
+    @DisplayName("FOREHAND + HYZER should exaggerate right fade")
+    public void testForehandHyzerExaggeratesFade() {
         ThrowStance stance = ThrowStance.FOREHAND;
         ReleaseAngle angle = ReleaseAngle.HYZER;
         
         int naturalFade = stance.naturalFadeDirection();
         int angleBias = angle.angleBias();
-        int totalBias = naturalFade + angleBias;
+        int totalBias = naturalFade * (1 - angleBias);
         
         // FOREHAND natural fade is right (+1), HYZER bias is left (-1)
+        // Formula: naturalFade * (1 - angleBias) = 1 * (1 - (-1)) = 2
         assertEquals(1, naturalFade, "FOREHAND should fade right");
         assertEquals(-1, angleBias, "HYZER should have left bias");
-        assertEquals(0, totalBias, "FOREHAND + HYZER should have neutral bias");
+        assertEquals(2, totalBias, "FOREHAND + HYZER should have 2x right bias");
     }
 
     /**
@@ -119,34 +123,34 @@ public class TrajectoryCalculatorTest {
     @Test
     @DisplayName("HYZER should exaggerate natural fade direction")
     public void testHyzerExaggeratesFade() {
-        // BACKHAND + HYZER: left fade (-1) + left bias (-1) = stronger left (-2)
+        // BACKHAND + HYZER: left fade (-1) * (1 - (-1)) = stronger left (-2)
         ThrowStance backhand = ThrowStance.BACKHAND;
         ReleaseAngle hyzer = ReleaseAngle.HYZER;
-        int backhandHyzerBias = backhand.naturalFadeDirection() + hyzer.angleBias();
-        assertEquals(-2, backhandHyzerBias, "BACKHAND + HYZER should have strong left bias");
+        int backhandHyzerBias = backhand.naturalFadeDirection() * (1 - hyzer.angleBias());
+        assertEquals(-2, backhandHyzerBias, "BACKHAND + HYZER should have 2x left bias");
         
-        // FOREHAND + HYZER: right fade (+1) + left bias (-1) = neutral (0)
+        // FOREHAND + HYZER: right fade (+1) * (1 - (-1)) = stronger right (+2)
         ThrowStance forehand = ThrowStance.FOREHAND;
-        int forehandHyzerBias = forehand.naturalFadeDirection() + hyzer.angleBias();
-        assertEquals(0, forehandHyzerBias, "FOREHAND + HYZER should have neutral bias");
+        int forehandHyzerBias = forehand.naturalFadeDirection() * (1 - hyzer.angleBias());
+        assertEquals(2, forehandHyzerBias, "FOREHAND + HYZER should have 2x right bias");
     }
 
     /**
-     * Test that ANHYZER counteracts natural fade direction.
+     * Test that ANHYZER neutralizes natural fade direction.
      */
     @Test
-    @DisplayName("ANHYZER should counteract natural fade direction")
-    public void testAnhyzerCounteractsFade() {
-        // BACKHAND + ANHYZER: left fade (-1) + right bias (+1) = neutral (0)
+    @DisplayName("ANHYZER should neutralize natural fade direction")
+    public void testAnhyzerNeutralizesFade() {
+        // BACKHAND + ANHYZER: left fade (-1) * (1 - 1) = neutral (0)
         ThrowStance backhand = ThrowStance.BACKHAND;
         ReleaseAngle anhyzer = ReleaseAngle.ANHYZER;
-        int backhandAnhyzerBias = backhand.naturalFadeDirection() + anhyzer.angleBias();
+        int backhandAnhyzerBias = backhand.naturalFadeDirection() * (1 - anhyzer.angleBias());
         assertEquals(0, backhandAnhyzerBias, "BACKHAND + ANHYZER should have neutral bias");
         
-        // FOREHAND + ANHYZER: right fade (+1) + right bias (+1) = stronger right (+2)
+        // FOREHAND + ANHYZER: right fade (+1) * (1 - 1) = neutral (0)
         ThrowStance forehand = ThrowStance.FOREHAND;
-        int forehandAnhyzerBias = forehand.naturalFadeDirection() + anhyzer.angleBias();
-        assertEquals(2, forehandAnhyzerBias, "FOREHAND + ANHYZER should have strong right bias");
+        int forehandAnhyzerBias = forehand.naturalFadeDirection() * (1 - anhyzer.angleBias());
+        assertEquals(0, forehandAnhyzerBias, "FOREHAND + ANHYZER should have neutral bias");
     }
 
     /**

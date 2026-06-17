@@ -78,9 +78,10 @@ public final class TrajectoryCalculator {
         int glideTicks = hasGlide ? 10 + Math.round(normalizedCharge * 40) : 0;
 
         // Stance/angle curve calculation
+        // HYZER exaggerates natural fade (2x), FLAT keeps natural (1x), ANHYZER neutralizes (0x)
         int naturalFade = stance.naturalFadeDirection();
         int angleBias = angle.angleBias();
-        int totalBias = naturalFade + angleBias;
+        int totalBias = naturalFade * (1 - angleBias); // HYZER(-1) = 2x, FLAT(0) = 1x, ANHYZER(+1) = 0x
         double curveMultiplier = 1.0 + (1.0 - normalizedCharge) * 1.5; // Smart scaling
 
         // Path points for visual trail (sample every 5 ticks to save memory)
@@ -116,13 +117,15 @@ public final class TrajectoryCalculator {
             if (!hasGlide) {
                 curveFactor = 0.0;
             } else {
-                int fadeStartTick = (int) Math.round(glideTicks * 0.6);
+                // Fade window is 40% of glide duration (proportional for all throw lengths)
+                int fadeWindowTicks = (int) Math.round(glideTicks * 0.4);
+                int fadeStartTick = glideTicks - fadeWindowTicks;
                 if (tick < fadeStartTick) {
                     curveFactor = 0.0;
                 } else if (tick >= glideTicks) {
                     curveFactor = 1.0;
                 } else {
-                    curveFactor = (double) (tick - fadeStartTick) / (glideTicks - fadeStartTick);
+                    curveFactor = (double) (tick - fadeStartTick) / fadeWindowTicks;
                 }
             }
 

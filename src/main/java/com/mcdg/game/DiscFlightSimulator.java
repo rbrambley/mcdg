@@ -80,7 +80,7 @@ public final class DiscFlightSimulator {
 
         /**
          * Returns time-based curve factor (0.0 to 1.0).
-         * Fade intensifies in latter part of glide phase (60-100%).
+         * Fade intensifies in latter part of glide phase (last 40%).
          * No glide stances return 0.0.
          */
         public float curveFactor(int currentServerTick) {
@@ -89,13 +89,15 @@ public final class DiscFlightSimulator {
             }
             int elapsed = ticksSinceLaunch(currentServerTick);
             int total = glideTicks();
-            int fadeStartTick = (int) Math.round(total * 0.6);
+            // Fade window is 40% of glide duration (proportional for all throw lengths)
+            int fadeWindowTicks = (int) Math.round(total * 0.4);
+            int fadeStartTick = total - fadeWindowTicks;
             if (elapsed < fadeStartTick) {
                 return 0.0f;
             } else if (elapsed >= total) {
                 return 1.0f;
             } else {
-                return (float) (elapsed - fadeStartTick) / (total - fadeStartTick);
+                return (float) (elapsed - fadeStartTick) / fadeWindowTicks;
             }
         }
     }
@@ -261,9 +263,8 @@ public final class DiscFlightSimulator {
             int naturalFade = state.stance().naturalFadeDirection();
             int angleBias = state.angle().angleBias();
 
-            // Combined deflection: natural fade + angle bias
-            // Hyzer exaggerates natural fade, anhyzer counteracts it
-            int totalBias = naturalFade + angleBias;
+            // Combined deflection: HYZER exaggerates natural fade (2x), FLAT keeps natural (1x), ANHYZER neutralizes (0x)
+            int totalBias = naturalFade * (1 - angleBias);
 
             // Smart curve scaling: short throws curve more, max power stays reasonable
             // At charge=1.0: multiplier=1.0 (normal curve)
