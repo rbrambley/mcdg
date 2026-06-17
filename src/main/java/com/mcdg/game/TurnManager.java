@@ -161,6 +161,7 @@ public final class TurnManager {
             ServerWorld world = server.getWorld(placed.worldKey());
             if (world != null) {
                 BlockPos safeTee = SafePositionFinder.resolveSafeFeetNear(world, tee);
+                world.getChunk(safeTee.getX() >> 4, safeTee.getZ() >> 4);
                 roundStateManager.updateLie(playerId, safeTee);
                 ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
                 if (player != null && player.getWorld().getRegistryKey() == placed.worldKey()) {

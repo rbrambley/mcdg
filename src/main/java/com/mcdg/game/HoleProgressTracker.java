@@ -325,6 +325,7 @@ public final class HoleProgressTracker {
 
                 int completedHolePar = currentHole.par();
                 BlockPos safeNextTee = SafePositionFinder.resolveSafeFeetNear(player.getServerWorld(), nextTee);
+                player.getServerWorld().getChunk(safeNextTee.getX() >> 4, safeNextTee.getZ() >> 4);
                 roundStateManager.advanceToNextHole(player.getUuid(), safeNextTee);
                 player.teleport(safeNextTee.getX() + 0.5, safeNextTee.getY() + 1.0, safeNextTee.getZ() + 0.5);
                 LieMarkerService.updateLieMarker(player, safeNextTee);
