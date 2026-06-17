@@ -2,6 +2,7 @@ package com.mcdg.game;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.mcdg.McdgMod;
 import com.mcdg.data.Course;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -181,6 +182,10 @@ public final class RoundSessionStorage {
 
         private Optional<LoadedRoundSession> toLoadedRoundSession() {
             if (version <= 0 || version > CURRENT_VERSION) {
+                if (version > CURRENT_VERSION) {
+                    McdgMod.LOGGER.warn("Round session version {} is newer than supported {}; discarding.",
+                            version, CURRENT_VERSION);
+                }
                 return Optional.empty();
             }
             if (!roundActive) {

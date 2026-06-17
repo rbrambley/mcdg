@@ -83,6 +83,10 @@ public final class PlayerRoundSessionStorage {
             String json = Files.readString(path);
             SessionsFileSnapshot parsed = GSON.fromJson(json, SessionsFileSnapshot.class);
             if (parsed == null || parsed.sessions == null || parsed.version <= 0 || parsed.version > CURRENT_VERSION) {
+                if (logger != null && parsed != null && parsed.version > CURRENT_VERSION) {
+                    logger.warn("Player round sessions version {} is newer than supported {}; discarding {}.",
+                            parsed.version, CURRENT_VERSION, path);
+                }
                 return new SessionsFileSnapshot(CURRENT_VERSION, new HashMap<>());
             }
             SessionsFileSnapshot snapshot = new SessionsFileSnapshot(CURRENT_VERSION, new HashMap<>(parsed.sessions));
