@@ -14,6 +14,17 @@
 - VS Code task "Build + Deploy to ATLauncher Test Instance" is wired with the path above.
 - Manual: `powershell -File scripts\deploy-to-atlauncher.ps1` (requires `ATLAUNCHER_TEST_MODS_DIR` env var if run outside VS Code).
 
+## Testing
+- **TrajectoryCalculatorTest**: Mathematical unit tests for disc flight physics
+  - Tests stance/angle combinations (OVERHAND, BACKHAND, FOREHAND with HYZER/FLAT/ANHYZER)
+  - Validates lateral drift calculations and fade behavior
+  - Tests stance/angle cycling logic
+  - Located in `src/test/java/com/mcdg/game/TrajectoryCalculatorTest.java`
+- **ThrowAutoTestService**: Legacy pearl-based autotest (deprecated for new system)
+  - Designed for old ender pearl throw mechanics
+  - Not compatible with new calculated trajectory system
+  - Kept for baseline regression testing if needed
+
 ## Code Conventions
 - Java 21, Fabric 1.20.6
 - Records for DTOs (see `McdgClientMod.MiniMapState`, `WaypointSync.WaypointEntry`)
