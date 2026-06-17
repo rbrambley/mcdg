@@ -38,6 +38,14 @@ public final class WorldSpawnHandler {
             return;
         }
 
+        // Re-establish the starter-chest dispenser for resorts built on previous runs
+        // (existing worlds never re-run placeResort, so chestPos would otherwise be null).
+        ResortData existing = loadResortData(server);
+        if (existing != null) {
+            ResortBuilder.registerStarterChestFromCenter(
+                    overworld, new BlockPos(existing.centerX, existing.centerY, existing.centerZ));
+        }
+
         if (!isFreshWorld(server)) {
             McdgMod.LOGGER.info("World is not fresh, skipping resort auto-build.");
             return;

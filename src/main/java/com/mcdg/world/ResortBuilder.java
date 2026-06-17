@@ -329,6 +329,31 @@ public final class ResortBuilder {
         }
     }
 
+    /**
+     * Computes the starter-chest position from a stored resort center and registers it
+     * with {@link ResortChestReplenisher}. Used to re-establish the dispenser on existing
+     * worlds where the resort was built before this feature existed (no rebuild required).
+     * Scans the Y column at the exact chest X/Z so it is robust to base-Y differences.
+     */
+    public static void registerStarterChestFromCenter(ServerWorld world, BlockPos center) {
+        int buildingDist = PLAZA_SIZE / 2 + 10;
+        int chestX = center.getX() - buildingDist - 3;
+        int chestZ = center.getZ() + 2;
+        for (int y = world.getTopY(); y >= world.getBottomY(); y--) {
+            BlockPos candidate = new BlockPos(chestX, y, chestZ);
+            if (world.getBlockState(candidate).isOf(Blocks.CHEST)) {
+                ResortChestReplenisher.setChestPosition(candidate);
+                com.mcdg.McdgMod.LOGGER.info(
+                        "Registered resort starter chest at ({}, {}, {}).",
+                        candidate.getX(), candidate.getY(), candidate.getZ());
+                return;
+            }
+        }
+        com.mcdg.McdgMod.LOGGER.warn(
+                "Resort starter chest not found in column at ({}, ?, {}); dispenser not registered.",
+                chestX, chestZ);
+    }
+
     private static void addShopInterior(ServerWorld world, BlockPos center,
             Map<BlockPos, BlockState> originalBlocks, Set<BlockPos> protectedPositions) {
         // Display cases
