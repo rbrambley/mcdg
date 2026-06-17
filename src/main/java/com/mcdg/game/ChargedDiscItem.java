@@ -353,6 +353,9 @@ public final class ChargedDiscItem extends Item {
 
     @Override
     public UseAction getUseAction(ItemStack stack) {
+        // Phase 6: Use different UseAction per stance for visual feedback
+        // For now, return BOW as default since client-side access is not available in main source set
+        // Future enhancement: Could add server-side stance tracking or move this to client source set
         return UseAction.BOW;
     }
 
