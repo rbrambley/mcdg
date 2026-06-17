@@ -23,9 +23,9 @@ public class ChargedDiscItemMixin {
         
         // Return different UseAction based on stance for visual feedback
         cir.setReturnValue(switch (stance) {
-            case OVERHAND -> UseAction.BOW;
-            case BACKHAND -> UseAction.SPEAR;
-            case FOREHAND -> UseAction.CROSSBOW;
+            case OVERHAND -> UseAction.SPEAR;
+            case BACKHAND -> UseAction.CROSSBOW;
+            case FOREHAND -> UseAction.BOW;
         });
     }
 }

@@ -227,9 +227,9 @@ deflection  = (naturalFade + angleBias) * baseCurve * (1 - fadeProgress)
 - **Status:** Completed with simplified approach
 - **Implementation:**
   - Decided to use vanilla `UseAction` values per stance as placeholder approach
-  - Overhand -> `BOW` (default behavior)
-  - Backhand -> `SPEAR` (different arm pose)
-  - Forehand -> `CROSSBOW` (different arm pose)
+  - Overhand -> `SPEAR` (default behavior)
+  - Backhand -> `CROSSBOW` (different arm pose)
+  - Forehand -> `BOW` (different arm pose)
 - **Rationale:** Custom mixin approach encountered build complexity with client-side dependencies
 - **Benefits:** Immediate visual feedback without complex mixin infrastructure
 - **Future Enhancement:** Custom arm animations can be added later if needed via proper mixin setup
@@ -238,9 +238,9 @@ deflection  = (naturalFade + angleBias) * baseCurve * (1 - fadeProgress)
   - ✅ No build errors or dependency issues
   - ✅ Minimal code changes required
   - ✅ Players can see stance change in arm pose during charging
-  - Overhand -> `BOW`
-  - Backhand -> `SPEAR`
-  - Forehand -> `CROSSBOW`
+
+
+
 
 ---
 
