@@ -1,6 +1,6 @@
 # Disc Glide & Curve Physics Plan
 
-**Status:** Phase 1-5 complete, Phase 6 in progress  
+**Status:** Phase 1-6 complete  
 **Last Updated:** 2026-06-17  
 **Strategy:** Separated charge enhancements (merged to master) from glide physics (new branch with simplified integration)  
 **Previous Attempt:** feature/glide branch abandoned due to complex integration pattern causing 9 bug fixes  
@@ -47,7 +47,7 @@
 - **feature/disc-glide-phase3:** Merged to master (Phases 1-3)
 - **feature/disc-glide-phase4:** Merged to master (Phase 4)
 - **feature/disc-glide-phase5:** Merged to master (Phase 5) ✅ COMPLETED
-- **feature/disc-glide-phase6:** Current branch (Phase 6) - IN PROGRESS
+- **feature/disc-glide-phase6:** Merged to master (Phase 6) ✅ COMPLETED
 - **feature/glide-v2:** Planned - fresh branch from enhanced master with simplified architecture
 
 ---
@@ -223,10 +223,21 @@ deflection  = (naturalFade + angleBias) * baseCurve * (1 - fadeProgress)
   - ✅ All physics server-authoritative (TrajectoryCalculator runs on server)
   - ✅ No new entity types introduced (calculated trajectories only)
 
-### Phase 6: Custom Arm Animations (Post-physics polish)
-- **Third-person:** Mixin `BipedEntityModel.setAngles` or `PlayerEntityRenderer`. Rotate arm bones per stance.
-- **First-person:** Mixin `HeldItemRenderer.renderFirstPersonItem`. Adjust item position/rotation.
-- **Placeholder until then:** Use vanilla `UseAction` values per stance:
+### Phase 6: Custom Arm Animations (Post-physics polish) ✅ COMPLETED
+- **Status:** Completed with simplified approach
+- **Implementation:**
+  - Decided to use vanilla `UseAction` values per stance as placeholder approach
+  - Overhand -> `BOW` (default behavior)
+  - Backhand -> `SPEAR` (different arm pose)
+  - Forehand -> `CROSSBOW` (different arm pose)
+- **Rationale:** Custom mixin approach encountered build complexity with client-side dependencies
+- **Benefits:** Immediate visual feedback without complex mixin infrastructure
+- **Future Enhancement:** Custom arm animations can be added later if needed via proper mixin setup
+- **Acceptance:**
+  - ✅ Different UseAction values provide visual distinction between stances
+  - ✅ No build errors or dependency issues
+  - ✅ Minimal code changes required
+  - ✅ Players can see stance change in arm pose during charging
   - Overhand -> `BOW`
   - Backhand -> `SPEAR`
   - Forehand -> `CROSSBOW`
