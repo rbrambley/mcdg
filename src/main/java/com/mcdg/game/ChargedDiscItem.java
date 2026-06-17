@@ -3,6 +3,7 @@ package com.mcdg.game;
 import com.mcdg.McdgMod;
 import com.mcdg.game.ThrowStance;
 import com.mcdg.game.ReleaseAngle;
+
 import com.mcdg.rules.TournamentRulesetManager;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -21,6 +22,7 @@ import net.minecraft.util.UseAction;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -87,6 +89,7 @@ public final class ChargedDiscItem extends Item {
             // Reset server-side power lock state on new charge
             SERVER_POWER_LOCKED.remove(user.getUuid());
             SERVER_LOCKED_CHARGE.remove(user.getUuid());
+            SERVER_LOCKED_TICKS.remove(user.getUuid());
         }
 
         user.setCurrentHand(hand);
@@ -303,7 +306,11 @@ public final class ChargedDiscItem extends Item {
                 world.getTime(),
                 trajectory.landingPosition(),
                 trajectory.flightTicks(),
-                trajectory.pathPoints()
+                trajectory.pathPoints(),
+                trajectory.totalDistanceFt(),
+                trajectory.lateralDriftFt(),
+                stance,
+                angle
         );
 
         // Clear server-side power lock state after throw

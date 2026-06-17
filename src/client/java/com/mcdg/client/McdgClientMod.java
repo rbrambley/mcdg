@@ -118,6 +118,7 @@ public final class McdgClientMod implements ClientModInitializer {
             MiniMapRenderer.handleMiniMapHotkeys(client);
             MiniMapRenderer.tickMiniMapJoinPrime(client);
             CinematicOverlay.tick(client);
+            DiscTrailRenderer.tick();
             RoundInfoOverlay.updateTweens(MiniMapRenderer.getMiniMapState());
                     // Spawn lime beacon beam above active basket during rounds
                     if (client.world != null) {
@@ -188,6 +189,7 @@ public final class McdgClientMod implements ClientModInitializer {
             RunningScoreboardOverlay.render(drawContext, runningRoundScoreState, hudAlpha);
             HudOverlays.renderCompass(drawContext);
             HudOverlays.renderPower(drawContext);
+            HudOverlays.renderThrowStats(drawContext, MinecraftClient.getInstance());
             CinematicOverlay.render(drawContext);
         });
         WorldRenderEvents.AFTER_TRANSLUCENT.register(WaypointManager::renderWaypointWorldLabels);
@@ -252,6 +254,7 @@ public final class McdgClientMod implements ClientModInitializer {
             MiniMapRenderer.setMiniMapJoinWarmupPending(true);
             MiniMapRenderer.setMiniMapJoinPrimeTicksRemaining(MiniMapRenderer.MINIMAP_JOIN_PRIME_TICKS);
             MiniMapRenderer.setLastMiniMapRenderAtMs(0L);
+            DiscTrailRenderer.clearStats();
             return;
         }
 

@@ -11,6 +11,7 @@ import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.WaypointSync;
 import com.mcdg.net.WaypointRemovedSync;
 import com.mcdg.net.ThrowPowerLockSync;
+import com.mcdg.net.ThrowTrailSync;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 /**
@@ -71,6 +72,18 @@ public final class ClientNetworking {
         ClientPlayNetworking.registerGlobalReceiver(ThrowPowerLockSync.ID, (payload, context) ->
             context.client().execute(() -> {
                 ChargedDiscItem.setPowerLocked(payload.locked());
+            })
+        );
+        ClientPlayNetworking.registerGlobalReceiver(ThrowTrailSync.ID, (payload, context) ->
+            context.client().execute(() -> {
+                DiscTrailRenderer.startTrail(
+                        payload.pathPoints(),
+                        payload.totalDistanceFt(),
+                        payload.lateralDriftFt(),
+                        payload.stance(),
+                        payload.angle(),
+                        payload.flightTicks()
+                );
             })
         );
     }

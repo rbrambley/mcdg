@@ -16,6 +16,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Box;
 import net.minecraft.world.Heightmap;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import com.mcdg.net.ThrowTrailSync;
 
 /**
  * Resolves throw landings, tracks pearl flight, and enforces strict landing penalties.
@@ -40,7 +42,11 @@ public final class ThrowResolver {
             Vec3d landingPos,
             int flightTicks,
             long releaseWorldTime,
-            Vec3d[] pathPoints
+            Vec3d[] pathPoints,
+            double totalDistanceFt,
+            double lateralDriftFt,
+            ThrowStance stance,
+            ReleaseAngle angle
     ) {}
 
     private ThrowResolver() {
@@ -304,6 +310,18 @@ public final class ThrowResolver {
 
         roundStateManager.updateLie(player.getUuid(), resultingLie);
         LAST_THROW_DISTANCE_FEET.put(player.getUuid(), DistanceUtils.distanceFeet(throwLie, resultingLie));
+
+        // Send trail packet to client for visual trail and stats
+        if (calc != null && pathPoints != null) {
+            ServerPlayNetworking.send(player, new ThrowTrailSync.Payload(
+                    pathPoints,
+                    calc.totalDistanceFt(),
+                    calc.lateralDriftFt(),
+                    calc.stance(),
+                    calc.angle(),
+                    calc.flightTicks()
+            ));
+        }
         LieMarkerService.updateLieMarker(player, resultingLie);
         PlayerRoundState updated = roundStateManager.getState(player.getUuid()).orElse(state);
         if (strictFlowDebug) {
@@ -336,8 +354,8 @@ public final class ThrowResolver {
      * Register a calculated throw (trajectory-based, no pearl entity).
      * Used by the new trajectory calculation system.
      */
-    static void registerCalculatedThrow(UUID playerId, long worldTime, Vec3d landingPos, int flightTicks, Vec3d[] pathPoints) {
-        CALCULATED_THROWS.put(playerId, new CalculatedThrowData(landingPos, flightTicks, worldTime, pathPoints));
+    static void registerCalculatedThrow(UUID playerId, long worldTime, Vec3d landingPos, int flightTicks, Vec3d[] pathPoints, double totalDistanceFt, double lateralDriftFt, ThrowStance stance, ReleaseAngle angle) {
+        CALCULATED_THROWS.put(playerId, new CalculatedThrowData(landingPos, flightTicks, worldTime, pathPoints, totalDistanceFt, lateralDriftFt, stance, angle));
         LAST_THROW_RELEASE_TICK.put(playerId, worldTime);
         LAST_THROW_PENDING_TICKS.remove(playerId);
         // No pearl UUID for calculated throws
