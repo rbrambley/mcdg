@@ -83,6 +83,10 @@ public final class PlayerRoundSessionStorage {
             String json = Files.readString(path);
             SessionsFileSnapshot parsed = GSON.fromJson(json, SessionsFileSnapshot.class);
             if (parsed == null || parsed.sessions == null || parsed.version <= 0 || parsed.version > CURRENT_VERSION) {
+                if (logger != null && parsed != null && parsed.version > CURRENT_VERSION) {
+                    logger.warn("Player round sessions version {} is newer than supported {}; discarding {}.",
+                            parsed.version, CURRENT_VERSION, path);
+                }
                 return new SessionsFileSnapshot(CURRENT_VERSION, new HashMap<>());
             }
             SessionsFileSnapshot snapshot = new SessionsFileSnapshot(CURRENT_VERSION, new HashMap<>(parsed.sessions));
@@ -136,6 +140,7 @@ public final class PlayerRoundSessionStorage {
             int holeStrokes,
             int totalStrokes,
             boolean lastThrowPenalty,
+            int aceCount,
             long savedAtMs
     ) {
         private static PlayerSessionSnapshot from(Course course, PlacedCourseState placed, PlayerRoundState state) {
@@ -152,6 +157,7 @@ public final class PlayerRoundSessionStorage {
                     state.holeStrokes(),
                     state.totalStrokes(),
                     state.lastThrowPenalty(),
+                    state.aceCount(),
                     System.currentTimeMillis()
             );
         }
@@ -169,7 +175,8 @@ public final class PlayerRoundSessionStorage {
                         new BlockPos(lieX, lieY, lieZ),
                         holeStrokes,
                         totalStrokes,
-                        lastThrowPenalty
+                        lastThrowPenalty,
+                        aceCount
                 );
             } catch (RuntimeException ex) {
                 return Optional.empty();

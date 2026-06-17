@@ -67,7 +67,8 @@ public final class HoleProgressTracker {
             TournamentRulesetManager rulesetManager,
             LeaderboardManager leaderboardManager,
             boolean hudScoringDebug,
-            boolean strictFlowDebug
+            boolean strictFlowDebug,
+            boolean enableSurvivalRewards
     ) {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             MiniMapSyncService.tickPendingInactive(server);
@@ -83,6 +84,7 @@ public final class HoleProgressTracker {
                     LAST_BREADCRUMB_POSITION.clear();
                     CACHED_CORRIDOR_HALF_WIDTH.clear();
                     AceCompanionService.reset();
+                    RoundRewardService.reset();
                     MiniMapSyncService.reset();
                     if (LAST_RUNNING_SCOREBOARD_HASH != Integer.MIN_VALUE) {
                         sendRunningScoreboardInactive(server);
@@ -247,6 +249,7 @@ public final class HoleProgressTracker {
                     }
 
                     if (state.holeStrokes() == 1) {
+                        roundStateManager.recordAce(player.getUuid());
                         ServerPlayNetworking.send(player, AceCinematicSync.Payload.active(state.currentHole(), currentHole.distanceFeet()));
                         AceCompanionService.scheduleForPlayer(player.getUuid(), server.getOverworld().getTime());
                     }
@@ -283,6 +286,10 @@ public final class HoleProgressTracker {
                             player.getUuid(),
                             server.getOverworld().getTime() + MiniMapSyncService.hudLingerTicks()
                     );
+
+                    if (enableSurvivalRewards) {
+                        RoundRewardService.grantRoundRewards(player, state.totalStrokes(), totalPar, state.aceCount(), rulesetManager.isStrict());
+                    }
 
                     roundStateManager.clearPlayer(player.getUuid());
 
@@ -322,6 +329,7 @@ public final class HoleProgressTracker {
                 player.teleport(safeNextTee.getX() + 0.5, safeNextTee.getY() + 1.0, safeNextTee.getZ() + 0.5);
                 LieMarkerService.updateLieMarker(player, safeNextTee);
                 if (state.holeStrokes() == 1) {
+                    roundStateManager.recordAce(player.getUuid());
                     ServerPlayNetworking.send(player, AceCinematicSync.Payload.active(state.currentHole(), currentHole.distanceFeet()));
                     AceCompanionService.scheduleForPlayer(player.getUuid(), server.getOverworld().getTime());
                 }

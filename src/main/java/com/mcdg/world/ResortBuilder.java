@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.Set;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -320,7 +321,37 @@ public final class ResortBuilder {
             PlacementUtils.setTrackedBlock(world, chestPos, Blocks.CHEST.getDefaultState(), originalBlocks);
             protectedPositions.add(bedPos);
             protectedPositions.add(chestPos);
+
+            // Register the first chest (i == -1) for starter item dispenser
+            if (i == -1) {
+                ResortChestReplenisher.setChestPosition(chestPos);
+            }
         }
+    }
+
+    /**
+     * Computes the starter-chest position from a stored resort center and registers it
+     * with {@link ResortChestReplenisher}. Used to re-establish the dispenser on existing
+     * worlds where the resort was built before this feature existed (no rebuild required).
+     * Scans the Y column at the exact chest X/Z so it is robust to base-Y differences.
+     */
+    public static void registerStarterChestFromCenter(ServerWorld world, BlockPos center) {
+        int buildingDist = PLAZA_SIZE / 2 + 10;
+        int chestX = center.getX() - buildingDist - 3;
+        int chestZ = center.getZ() + 2;
+        for (int y = world.getTopY(); y >= world.getBottomY(); y--) {
+            BlockPos candidate = new BlockPos(chestX, y, chestZ);
+            if (world.getBlockState(candidate).isOf(Blocks.CHEST)) {
+                ResortChestReplenisher.setChestPosition(candidate);
+                com.mcdg.McdgMod.LOGGER.info(
+                        "Registered resort starter chest at ({}, {}, {}).",
+                        candidate.getX(), candidate.getY(), candidate.getZ());
+                return;
+            }
+        }
+        com.mcdg.McdgMod.LOGGER.warn(
+                "Resort starter chest not found in column at ({}, ?, {}); dispenser not registered.",
+                chestX, chestZ);
     }
 
     private static void addShopInterior(ServerWorld world, BlockPos center,

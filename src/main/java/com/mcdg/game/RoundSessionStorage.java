@@ -2,6 +2,7 @@ package com.mcdg.game;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.mcdg.McdgMod;
 import com.mcdg.data.Course;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -181,6 +182,10 @@ public final class RoundSessionStorage {
 
         private Optional<LoadedRoundSession> toLoadedRoundSession() {
             if (version <= 0 || version > CURRENT_VERSION) {
+                if (version > CURRENT_VERSION) {
+                    McdgMod.LOGGER.warn("Round session version {} is newer than supported {}; discarding.",
+                            version, CURRENT_VERSION);
+                }
                 return Optional.empty();
             }
             if (!roundActive) {
@@ -254,7 +259,8 @@ public final class RoundSessionStorage {
             int lieZ,
             int holeStrokes,
             int totalStrokes,
-            boolean lastThrowPenalty
+            boolean lastThrowPenalty,
+            int aceCount
     ) {
         private static PlayerStateSnapshot from(PlayerRoundState state) {
             BlockPos lie = state.lie();
@@ -265,7 +271,8 @@ public final class RoundSessionStorage {
                     lie.getZ(),
                     state.holeStrokes(),
                     state.totalStrokes(),
-                    state.lastThrowPenalty()
+                    state.lastThrowPenalty(),
+                    state.aceCount()
             );
         }
 
@@ -280,7 +287,8 @@ public final class RoundSessionStorage {
                         new BlockPos(lieX, lieY, lieZ),
                         holeStrokes,
                         totalStrokes,
-                        lastThrowPenalty
+                        lastThrowPenalty,
+                        aceCount
                 );
             } catch (RuntimeException ex) {
                 return null;

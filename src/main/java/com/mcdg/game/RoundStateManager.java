@@ -63,6 +63,14 @@ public final class RoundStateManager {
         return Optional.ofNullable(updated);
     }
 
+    public Optional<PlayerRoundState> recordAce(UUID playerId) {
+        PlayerRoundState updated = stateByPlayer.computeIfPresent(
+                playerId,
+                (id, existing) -> existing.recordAce()
+        );
+        return Optional.ofNullable(updated);
+    }
+
     public void recordCompletedRound(UUID playerId, int totalStrokes) {
         completedTotalByPlayer.put(playerId, totalStrokes);
     }
