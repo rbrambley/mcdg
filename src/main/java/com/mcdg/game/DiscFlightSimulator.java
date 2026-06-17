@@ -79,25 +79,29 @@ public final class DiscFlightSimulator {
         }
 
         /**
-         * Returns velocity-based curve factor (0.0 to 1.0).
-         * Disc curves more as it slows down (like real disc golf).
-         * No tick-based phases - purely velocity driven.
+         * Returns time-based curve factor (0.0 to 1.0).
+         * Fade intensifies in latter part of glide phase (60-100%).
+         * No glide stances return 0.0.
          */
-        public float curveFactor(double currentSpeed, double initialSpeed) {
-            if (initialSpeed <= 0 || currentSpeed >= initialSpeed) {
-                return 0.0f; // No curve at launch
+        public float curveFactor(int currentServerTick) {
+            if (!stance.hasGlide()) {
+                return 0.0f;
             }
-            // Curve increases as disc slows: 0.0 at full speed, up to 1.0 as it stops
-            double factor = 1.0 - (currentSpeed / initialSpeed);
-            return (float) Math.min(1.0f, Math.max(0.0f, factor));
+            int elapsed = ticksSinceLaunch(currentServerTick);
+            int total = glideTicks();
+            int fadeStartTick = (int) Math.round(total * 0.6);
+            if (elapsed < fadeStartTick) {
+                return 0.0f;
+            } else if (elapsed >= total) {
+                return 1.0f;
+            } else {
+                return (float) (elapsed - fadeStartTick) / (total - fadeStartTick);
+            }
         }
     }
 
     // Active flights keyed by pearl UUID
     private static final Map<UUID, FlightState> ACTIVE_FLIGHTS = new ConcurrentHashMap<>();
-
-    // Track initial speeds for velocity-based curve calculation
-    private static final Map<UUID, Double> INITIAL_SPEEDS = new ConcurrentHashMap<>();
 
     // Physics constants - Aligned with TrajectoryCalculator for consistent flight physics
     private static final double UPWARD_IMPULSE = 0.06;      // Aligned with TrajectoryCalculator - must be less than GRAVITY (0.08)
@@ -247,17 +251,9 @@ public final class DiscFlightSimulator {
         double newVelY = velocity.y + upwardImpulse;
         double newVelZ = velocity.z;
 
-        // Apply velocity-based lateral curve (Phase 2 - now tick-independent)
-        // Capture initial speed on first tick if not already stored
+        // Apply time-based lateral curve (fade intensifies in latter part of glide)
         double currentSpeed = velocity.horizontalLength();
-        double initialSpeed = INITIAL_SPEEDS.getOrDefault(state.pearlUuid(), 0.0);
-        if (initialSpeed == 0.0 && currentSpeed > 0.1) {
-            initialSpeed = currentSpeed;
-            INITIAL_SPEEDS.put(state.pearlUuid(), initialSpeed);
-        }
-
-        // Calculate curve factor: more curve as disc slows down (like real disc golf)
-        float curveFactor = state.curveFactor(currentSpeed, initialSpeed);
+        float curveFactor = state.curveFactor(currentTick);
         if (curveFactor > 0.0f) {
             // Calculate deflection based on stance + angle
             // naturalFade: -1 = left (backhand), +1 = right (forehand), 0 = none (overhand)
@@ -274,24 +270,24 @@ public final class DiscFlightSimulator {
             // At charge=0.0: multiplier=2.5 (stronger curve for short throws)
             double curveMultiplier = 1.0 + (1.0 - Math.min(1.0f, state.charge())) * 1.5;
 
-            // Velocity-based curve: applies continuously as disc slows
+            // Time-based curve: applies during fade phase (60-100% of glide)
             double curveStrength = BASE_CURVE_STRENGTH * curveMultiplier * totalBias * curveFactor;
 
-            // Calculate perpendicular direction (left/right of launch yaw)
+            // Calculate perpendicular direction for curve (left of facing direction)
             float yawRad = (float) Math.toRadians(state.launchYawDegrees());
-            double leftX = Math.sin(yawRad);  // Left of facing direction
-            double leftZ = -Math.cos(yawRad); // Left of facing direction
+            double leftX = -Math.cos(yawRad);
+            double leftZ = -Math.sin(yawRad);
 
             // Apply lateral nudge (positive curveStrength = left, negative = right)
             newVelX += leftX * curveStrength;
             newVelZ += leftZ * curveStrength;
 
-            // Log curve for debugging (occasional, velocity-driven)
+            // Log curve for debugging (occasional, time-driven)
             if (currentTick % 20 == 0) {
                 McdgMod.LOGGER.debug(
-                        "DiscFlightSimulator curve | pearl={} speed={:.2f}/{:.2f} factor={:.2f} bias={} strength={:.4f}",
+                        "DiscFlightSimulator curve | pearl={} speed={:.2f} factor={:.2f} bias={} strength={:.4f}",
                         state.pearlUuid(),
-                        currentSpeed, initialSpeed,
+                        currentSpeed,
                         curveFactor,
                         totalBias,
                         curveStrength
@@ -358,7 +354,6 @@ public final class DiscFlightSimulator {
     public static void reset() {
         int count = ACTIVE_FLIGHTS.size();
         ACTIVE_FLIGHTS.clear();
-        INITIAL_SPEEDS.clear();
         McdgMod.LOGGER.info("DiscFlightSimulator reset | cleared {} active flights", count);
     }
 

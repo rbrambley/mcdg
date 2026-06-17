@@ -71,7 +71,6 @@ public final class TrajectoryCalculator {
         Vec3d pos = new Vec3d(startPos.x, startPos.y + RELEASE_HEIGHT_OFFSET, startPos.z);
         Vec3d prevPos = pos;
         Vec3d vel = initialVelocity;
-        double initialSpeed = vel.horizontalLength();
 
         // Glide duration based on charge (only for stances with glide)
         float normalizedCharge = Math.min(1.0f, charge);
@@ -111,19 +110,28 @@ public final class TrajectoryCalculator {
             // Apply gravity
             double velY = vel.y + upwardImpulse - GRAVITY;
 
-            // Apply velocity-based curve (curves more as it slows)
+            // Apply time-based fade curve (fade intensifies in latter part of glide)
             double currentSpeed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
-            double curveFactor = 0.0;
-            if (initialSpeed > 0 && currentSpeed < initialSpeed) {
-                curveFactor = 1.0 - (currentSpeed / initialSpeed);
+            double curveFactor;
+            if (!hasGlide) {
+                curveFactor = 0.0;
+            } else {
+                int fadeStartTick = (int) Math.round(glideTicks * 0.6);
+                if (tick < fadeStartTick) {
+                    curveFactor = 0.0;
+                } else if (tick >= glideTicks) {
+                    curveFactor = 1.0;
+                } else {
+                    curveFactor = (double) (tick - fadeStartTick) / (glideTicks - fadeStartTick);
+                }
             }
 
             double curveStrength = BASE_CURVE_STRENGTH * curveMultiplier * totalBias * curveFactor;
 
-            // Calculate perpendicular direction for curve
+            // Calculate perpendicular direction for curve (left of facing direction)
             float yawRad = (float) Math.toRadians(launchYawDegrees);
-            double leftX = Math.sin(yawRad);
-            double leftZ = -Math.cos(yawRad);
+            double leftX = -Math.cos(yawRad);
+            double leftZ = -Math.sin(yawRad);
 
             double velX = vel.x + leftX * curveStrength;
             double velZ = vel.z + leftZ * curveStrength;
