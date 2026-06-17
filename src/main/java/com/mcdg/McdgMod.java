@@ -49,6 +49,7 @@ import com.mcdg.world.SeededCourseGenerator;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -196,7 +197,6 @@ public final class McdgMod implements ModInitializer {
         ServerTickEvents.END_SERVER_TICK.register(McdgMod::handlePendingAutoStrictSetup);
         ServerTickEvents.END_SERVER_TICK.register(McdgMod::autosaveRoundSession);
 	ServerTickEvents.END_SERVER_TICK.register(ResortCourseBuilder::tick);
-	ServerTickEvents.END_SERVER_TICK.register(ResortChestReplenisher::tick);
 	ServerTickEvents.END_SERVER_TICK.register(DiscFlightSimulator::tick);
         ServerLifecycleEvents.SERVER_STARTED.register(server -> WaypointSync.clearAll());
         ServerLifecycleEvents.SERVER_STARTED.register(server -> ResortWaypointManager.clearResortWaypoint());

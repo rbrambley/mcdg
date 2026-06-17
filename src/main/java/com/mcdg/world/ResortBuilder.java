@@ -322,9 +322,10 @@ public final class ResortBuilder {
             protectedPositions.add(bedPos);
             protectedPositions.add(chestPos);
 
-            // Register the first chest (i == -1) for auto-replenishment
+            // Register the first chest (i == -1) for starter item dispenser
             if (i == -1) {
                 ResortChestReplenisher.setChestPosition(chestPos);
+                ResortChestReplenisher.registerInteractionHandler();
             }
         }
     }

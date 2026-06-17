@@ -1,20 +1,26 @@
 package com.mcdg.world;
 
-import net.minecraft.block.entity.ChestBlockEntity;
+import com.mcdg.McdgMod;
+import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.ActionResult;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
- * Periodically replenishes the starter chest in the resort housing building.
- * Ensures wooden tools and apples are always available for players.
+ * Gives starter tools and apples to players when they interact with the resort starter chest.
+ * Each player has a 5-minute cooldown per interaction.
  */
 public final class ResortChestReplenisher {
-    private static final int REPLENISH_INTERVAL_TICKS = 100; // Check every 5 seconds
+    private static final long COOLDOWN_TICKS = 6000; // 5 minutes (60 seconds * 5)
     private static BlockPos chestPos = null;
-    private static int tickCounter = 0;
+    private static final Map<UUID, Long> lastReplenishTimeByPlayer = new ConcurrentHashMap<>();
 
     private ResortChestReplenisher() {}
 
@@ -24,57 +30,65 @@ public final class ResortChestReplenisher {
 
     public static void clear() {
         chestPos = null;
-        tickCounter = 0;
+        lastReplenishTimeByPlayer.clear();
     }
 
-    public static void tick(MinecraftServer server) {
-        if (chestPos == null) {
-            return;
-        }
+    public static void registerInteractionHandler() {
+        PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, entity) -> {
+            if (chestPos == null) {
+                return true;
+            }
 
-        tickCounter++;
-        if (tickCounter < REPLENISH_INTERVAL_TICKS) {
-            return;
-        }
-        tickCounter = 0;
+            if (!pos.equals(chestPos)) {
+                return true;
+            }
 
-        ServerWorld world = server.getOverworld();
-        if (world == null) {
-            return;
-        }
+            if (!(player instanceof ServerPlayerEntity serverPlayer)) {
+                return true;
+            }
 
-        if (!(world.getBlockEntity(chestPos) instanceof ChestBlockEntity chest)) {
-            return;
-        }
+            long now = world.getTime();
+            UUID playerId = serverPlayer.getUuid();
+            Long lastReplenish = lastReplenishTimeByPlayer.get(playerId);
 
-        replenishChest(chest);
+            if (lastReplenish != null && (now - lastReplenish) < COOLDOWN_TICKS) {
+                long remainingTicks = COOLDOWN_TICKS - (now - lastReplenish);
+                long remainingSeconds = remainingTicks / 20;
+                serverPlayer.sendMessage(
+                        net.minecraft.text.Text.literal("Starter chest cooldown: " + remainingSeconds + "s remaining")
+                                .formatted(net.minecraft.util.Formatting.YELLOW),
+                        true
+                );
+                return true;
+            }
+
+            // Give items directly to player inventory
+            giveStarterItems(serverPlayer);
+
+            // Update cooldown
+            lastReplenishTimeByPlayer.put(playerId, now);
+
+            McdgMod.LOGGER.info(
+                    "Starter chest used by player={} at pos=({}, {}, {})",
+                    serverPlayer.getGameProfile().getName(),
+                    pos.getX(), pos.getY(), pos.getZ()
+            );
+
+            return true;
+        });
     }
 
-    private static void replenishChest(ChestBlockEntity chest) {
-        // Slot 0: Wooden axe
-        if (!hasItem(chest, 0, Items.WOODEN_AXE)) {
-            chest.setStack(0, new ItemStack(Items.WOODEN_AXE));
-        }
+    private static void giveStarterItems(ServerPlayerEntity player) {
+        player.getInventory().insertStack(new ItemStack(Items.WOODEN_AXE));
+        player.getInventory().insertStack(new ItemStack(Items.WOODEN_PICKAXE));
+        player.getInventory().insertStack(new ItemStack(Items.WOODEN_SHOVEL));
+        player.getInventory().insertStack(new ItemStack(Items.APPLE, 6));
+        player.getInventory().markDirty();
 
-        // Slot 1: Wooden pickaxe
-        if (!hasItem(chest, 1, Items.WOODEN_PICKAXE)) {
-            chest.setStack(1, new ItemStack(Items.WOODEN_PICKAXE));
-        }
-
-        // Slot 2: Wooden shovel
-        if (!hasItem(chest, 2, Items.WOODEN_SHOVEL)) {
-            chest.setStack(2, new ItemStack(Items.WOODEN_SHOVEL));
-        }
-
-        // Slot 3: 6 apples (replenish if count < 6)
-        ItemStack appleStack = chest.getStack(3);
-        if (appleStack.isEmpty() || appleStack.getItem() != Items.APPLE || appleStack.getCount() < 6) {
-            chest.setStack(3, new ItemStack(Items.APPLE, 6));
-        }
-    }
-
-    private static boolean hasItem(ChestBlockEntity chest, int slot, net.minecraft.item.Item item) {
-        ItemStack stack = chest.getStack(slot);
-        return !stack.isEmpty() && stack.getItem() == item;
+        player.sendMessage(
+                net.minecraft.text.Text.literal("Received starter tools and apples!")
+                        .formatted(net.minecraft.util.Formatting.GREEN),
+                true
+        );
     }
 }
