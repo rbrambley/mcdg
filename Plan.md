@@ -22,7 +22,7 @@ Next:
 
 ---
 
-## Disc Glide Physics -- Phases 1-3 (2026-06-14 to 2026-06-16) ✅ COMPLETED
+## Disc Glide Physics -- Phases 1-4 (2026-06-14 to 2026-06-17) ✅ COMPLETED
 
 Implemented / validated:
 
@@ -33,6 +33,8 @@ Implemented / validated:
 - **Phase 3: Release Angle + Curve Physics** (scroll during charge cycles
   Hyzer/Flat/Anhyzer, combined stance+angle fade formula, power meter HUD shows
   stance/angle, basket detection uses curved trajectory path).
+- **Phase 4: Visual Polish** (particle trails with stance-based colors, after-throw stats HUD,
+  `ThrowTrailSync` packet for server-to-client trajectory data, `DiscTrailRenderer` client class).
 
 Key commits:
 - `42c779f` Phase 1: Core Glide Physics for Disc Flight Simulator
@@ -44,17 +46,20 @@ Key commits:
 - `461951a` Add player pitch to HUD distance estimation
 - `0bc813f` Fix basket detection to use curved trajectory path and expanded make-zone
 - `777777b` Remove temporary fix scripts from repo
+- `022014b` Phase 4: Add particle trails and after-throw stats HUD for disc throws
 
-Branch: `feature/disc-glide-phase3` (ready to merge to master)
+Branch: `feature/disc-glide-phase3` (merged to master)
+Branch: `feature/disc-glide-phase4` (merged to master)
 
 Deployment status:
 - quickRegression and smokeRegression passing
 - Manual ATLauncher testing: glide distances, stance cycling, fade curves validated
+- Manual ATLauncher testing: particle trails and after-throw stats HUD validated
 - Test instance jar updated successfully
 
 Open / next:
-- Phase 4: Visual polish (particle trails, sound cues)
-- Phase 5: Autotest integration with aim-off compensation
+- Phase 5: Balance, Autotest & Validation (aim-off compensation, flight mode override)
+- Phase 6: Custom Arm Animations (post-physics polish)
 
 ---
 

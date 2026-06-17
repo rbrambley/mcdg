@@ -1,7 +1,7 @@
 # Disc Glide & Curve Physics Plan
 
-**Status:** Phase 1-3 complete, Phase 4-6 pending  
-**Last Updated:** 2026-06-16  
+**Status:** Phase 1-4 complete, Phase 5-6 pending  
+**Last Updated:** 2026-06-17  
 **Strategy:** Separated charge enhancements (merged to master) from glide physics (new branch with simplified integration)  
 **Previous Attempt:** feature/glide branch abandoned due to complex integration pattern causing 9 bug fixes  
 **Goal:** Replace vanilla Ender Pearl throws with three distinct throw stances (Overhand, Backhand, Forehand), each with aerodynamic glide physics and release-angle control.
@@ -44,7 +44,8 @@
 ### Current Branch Status
 - **feature/glide:** Abandoned - contains working charge enhancements but complex glide integration
 - **feature/charge-enhancements:** Merged to master
-- **feature/disc-glide-phase3:** Completed Phase 1-3, ready to merge to master
+- **feature/disc-glide-phase3:** Merged to master (Phases 1-3)
+- **feature/disc-glide-phase4:** Merged to master (Phase 4)
 - **feature/glide-v2:** Planned - fresh branch from enhanced master with simplified architecture
 
 ---
@@ -180,12 +181,18 @@ deflection  = (naturalFade + angleBias) * baseCurve * (1 - fadeProgress)
 - Render angle arrow on charge HUD.
 - **Validated:** Combined stance+angle fade curves match design spec.
 
-### Phase 4: Visual Polish (Particles & HUD)
+### Phase 4: Visual Polish (Particles & HUD) ✅ COMPLETED
+- **Commit:** `022014b`
 - Client-side particle trail following pearl path.
-- Trail color per stance (or per angle).
-- Sound cue when fade phase begins (optional).
-- Clean HUD stance/angle indicator.
-- After-throw stats display (glide, fade, total distance).
+- Trail color per stance (aqua=backhand, green=forehand, gray=overhand).
+- `ThrowTrailSync` packet (S2C) to send trajectory data to client.
+- `DiscTrailRenderer` client class to render particle trails.
+- Trails fade out over 3 seconds.
+- After-throw stats HUD showing distance, drift, stance, and angle.
+- Stats persist for entire round and update after each throw.
+- Stats are sent after throw lands (when lie is updated in ThrowResolver).
+- HUD positioned below Round HUD with dynamic spacing.
+- **Validated:** Particle trails and stats display working correctly in ATLauncher testing.
 
 ### Phase 5: Balance, Autotest & Validation
 - Tune `glideTicks` and curve magnitude:
