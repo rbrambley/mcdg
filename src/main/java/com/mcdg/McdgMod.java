@@ -40,6 +40,7 @@ import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.CourseGenerator;
 import com.mcdg.world.ResortWaypointManager;
+import com.mcdg.world.ResortChestReplenisher;
 import com.mcdg.world.SurfaceResolver;
 import com.mcdg.world.ResortCourseBuilder;
 import com.mcdg.world.WorldSpawnHandler;
@@ -195,6 +196,7 @@ public final class McdgMod implements ModInitializer {
         ServerTickEvents.END_SERVER_TICK.register(McdgMod::handlePendingAutoStrictSetup);
         ServerTickEvents.END_SERVER_TICK.register(McdgMod::autosaveRoundSession);
 	ServerTickEvents.END_SERVER_TICK.register(ResortCourseBuilder::tick);
+	ServerTickEvents.END_SERVER_TICK.register(ResortChestReplenisher::tick);
 	ServerTickEvents.END_SERVER_TICK.register(DiscFlightSimulator::tick);
         ServerLifecycleEvents.SERVER_STARTED.register(server -> WaypointSync.clearAll());
         ServerLifecycleEvents.SERVER_STARTED.register(server -> ResortWaypointManager.clearResortWaypoint());
@@ -214,6 +216,7 @@ public final class McdgMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> WaypointSync.clearAll());
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> ResortWaypointManager.clearResortWaypoint());
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> ResortCourseBuilder.reset());
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> ResortChestReplenisher.clear());
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
             server.execute(() -> {
                 restoreRoundParticipantOnJoin(handler.player, server);

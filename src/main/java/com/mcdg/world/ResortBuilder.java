@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.Set;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -320,6 +321,11 @@ public final class ResortBuilder {
             PlacementUtils.setTrackedBlock(world, chestPos, Blocks.CHEST.getDefaultState(), originalBlocks);
             protectedPositions.add(bedPos);
             protectedPositions.add(chestPos);
+
+            // Register the first chest (i == -1) for auto-replenishment
+            if (i == -1) {
+                ResortChestReplenisher.setChestPosition(chestPos);
+            }
         }
     }
 
