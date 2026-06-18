@@ -272,16 +272,23 @@ public final class DiscFlightSimulator {
             double curveMultiplier = 1.0 + (1.0 - Math.min(1.0f, state.charge())) * 1.5;
 
             // Time-based curve: applies during fade phase (60-100% of glide)
-            double curveStrength = BASE_CURVE_STRENGTH * curveMultiplier * totalBias * curveFactor;
+            double curveStrength = BASE_CURVE_STRENGTH * curveMultiplier * Math.abs(totalBias) * curveFactor;
 
-            // Calculate perpendicular direction for curve (left of facing direction)
+            // Calculate perpendicular direction for curve
+            // totalBias sign determines direction: negative = left, positive = right
             float yawRad = (float) Math.toRadians(state.launchYawDegrees());
-            double leftX = -Math.cos(yawRad);
-            double leftZ = -Math.sin(yawRad);
+            double perpX = -Math.cos(yawRad);
+            double perpZ = -Math.sin(yawRad);
 
-            // Apply lateral nudge (positive curveStrength = left, negative = right)
-            newVelX += leftX * curveStrength;
-            newVelZ += leftZ * curveStrength;
+            // Flip direction for right fade (positive totalBias)
+            if (totalBias > 0) {
+                perpX = -perpX;
+                perpZ = -perpZ;
+            }
+
+            // Apply lateral nudge
+            newVelX += perpX * curveStrength;
+            newVelZ += perpZ * curveStrength;
 
             // Log curve for debugging (occasional, time-driven)
             if (currentTick % 20 == 0) {

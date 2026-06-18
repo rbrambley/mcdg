@@ -129,15 +129,22 @@ public final class TrajectoryCalculator {
                 }
             }
 
-            double curveStrength = BASE_CURVE_STRENGTH * curveMultiplier * totalBias * curveFactor;
+            double curveStrength = BASE_CURVE_STRENGTH * curveMultiplier * Math.abs(totalBias) * curveFactor;
 
-            // Calculate perpendicular direction for curve (left of facing direction)
+            // Calculate perpendicular direction for curve
+            // totalBias sign determines direction: negative = left, positive = right
             float yawRad = (float) Math.toRadians(launchYawDegrees);
-            double leftX = -Math.cos(yawRad);
-            double leftZ = -Math.sin(yawRad);
+            double perpX = -Math.cos(yawRad);
+            double perpZ = -Math.sin(yawRad);
 
-            double velX = vel.x + leftX * curveStrength;
-            double velZ = vel.z + leftZ * curveStrength;
+            // Flip direction for right fade (positive totalBias)
+            if (totalBias > 0) {
+                perpX = -perpX;
+                perpZ = -perpZ;
+            }
+
+            double velX = vel.x + perpX * curveStrength;
+            double velZ = vel.z + perpZ * curveStrength;
 
             // Update velocity
             vel = new Vec3d(velX, velY, velZ);
