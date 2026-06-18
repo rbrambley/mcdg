@@ -324,11 +324,10 @@ public final class HoleProgressTracker {
                 }
 
                 int completedHolePar = currentHole.par();
-                BlockPos safeNextTee = SafePositionFinder.resolveSafeFeetNear(player.getServerWorld(), nextTee);
-                player.getServerWorld().getChunk(safeNextTee.getX() >> 4, safeNextTee.getZ() >> 4);
-                roundStateManager.advanceToNextHole(player.getUuid(), safeNextTee);
-                player.teleport(safeNextTee.getX() + 0.5, safeNextTee.getY() + 1.0, safeNextTee.getZ() + 0.5);
-                LieMarkerService.updateLieMarker(player, safeNextTee);
+                player.getServerWorld().getChunk(nextTee.getX() >> 4, nextTee.getZ() >> 4);
+                roundStateManager.advanceToNextHole(player.getUuid(), nextTee);
+                player.teleport(nextTee.getX() + 0.5, nextTee.getY() + 1.0, nextTee.getZ() + 0.5);
+                LieMarkerService.updateLieMarker(player, nextTee);
                 if (state.holeStrokes() == 1) {
                     roundStateManager.recordAce(player.getUuid());
                     ServerPlayNetworking.send(player, AceCinematicSync.Payload.active(state.currentHole(), currentHole.distanceFeet()));

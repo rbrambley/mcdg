@@ -1,7 +1,6 @@
 package com.mcdg.game;
 
 import com.mcdg.data.Course;
-import com.mcdg.world.SafePositionFinder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -160,12 +159,11 @@ public final class TurnManager {
         if (tee != null) {
             ServerWorld world = server.getWorld(placed.worldKey());
             if (world != null) {
-                BlockPos safeTee = SafePositionFinder.resolveSafeFeetNear(world, tee);
-                world.getChunk(safeTee.getX() >> 4, safeTee.getZ() >> 4);
-                roundStateManager.updateLie(playerId, safeTee);
+                world.getChunk(tee.getX() >> 4, tee.getZ() >> 4);
+                roundStateManager.updateLie(playerId, tee);
                 ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
                 if (player != null && player.getWorld().getRegistryKey() == placed.worldKey()) {
-                    player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
+                    player.teleport(tee.getX() + 0.5, tee.getY() + 1.0, tee.getZ() + 0.5);
                     player.sendMessage(Text.literal("Turn timeout: +1 stroke. Reset to tee, turn passed."), true);
                 }
             }
