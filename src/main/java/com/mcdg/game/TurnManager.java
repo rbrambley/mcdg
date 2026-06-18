@@ -5,12 +5,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
+import net.minecraft.registry.RegistryKey;
 
 /**
  * Enforces turn timeouts and manages active-turn state per hole.
@@ -71,6 +75,7 @@ public final class TurnManager {
             PlacedCourseState placed,
             Map<UUID, PlayerRoundState> snapshot
     ) {
+        Map<Integer, UUID> previousActiveByHole = new HashMap<>(ACTIVE_TURN_PLAYER_BY_HOLE);
         Map<Integer, UUID> updatedActiveByHole = new HashMap<>();
         Map<Integer, Long> updatedStartedAtByHole = new HashMap<>();
         Map<Integer, Integer> updatedTurnTotalByHole = new HashMap<>();
@@ -144,6 +149,37 @@ public final class TurnManager {
         ACTIVE_TURN_STARTED_AT_BY_HOLE.putAll(updatedStartedAtByHole);
         ACTIVE_TURN_TOTAL_STROKES_BY_HOLE.clear();
         ACTIVE_TURN_TOTAL_STROKES_BY_HOLE.putAll(updatedTurnTotalByHole);
+
+        for (Map.Entry<Integer, UUID> entry : updatedActiveByHole.entrySet()) {
+            Integer hole = entry.getKey();
+            UUID newPlayer = entry.getValue();
+            UUID oldPlayer = previousActiveByHole.get(hole);
+            if (newPlayer != null && !newPlayer.equals(oldPlayer)) {
+                broadcastTurnChange(server, placed.worldKey(), hole, newPlayer, courseManager.getActiveParticipantIds());
+            }
+        }
+    }
+
+    private static void broadcastTurnChange(
+            MinecraftServer server,
+            RegistryKey<World> worldKey,
+            int hole,
+            UUID newPlayerId,
+            Set<UUID> participantIds
+    ) {
+        ServerPlayerEntity newPlayer = server.getPlayerManager().getPlayer(newPlayerId);
+        if (newPlayer == null) {
+            return;
+        }
+        String name = newPlayer.getGameProfile().getName();
+        Text message = Text.literal("It's now " + name + "'s turn on Hole " + hole)
+                .formatted(Formatting.GREEN);
+        for (UUID id : participantIds) {
+            ServerPlayerEntity viewer = server.getPlayerManager().getPlayer(id);
+            if (viewer != null && viewer.getWorld().getRegistryKey() == worldKey) {
+                viewer.sendMessage(message, false);
+            }
+        }
     }
 
     private static void applyTurnTimeoutPenalty(

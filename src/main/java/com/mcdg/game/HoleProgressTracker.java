@@ -37,6 +37,7 @@ import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.world.Heightmap;
@@ -240,6 +241,7 @@ public final class HoleProgressTracker {
 
                 ScorecardManager.recordHoleScore(player, state.currentHole(), state.holeStrokes());
                 recordHoleScore(player.getUuid(), state.currentHole(), state.holeStrokes());
+                broadcastHoleCompletion(server, placed.worldKey(), player, state.currentHole(), state.holeStrokes(), state.totalStrokes(), course.holes().size());
 
                 if (state.currentHole() >= course.holes().size()) {
                     int totalPar = totalCoursePar(course);
@@ -731,7 +733,31 @@ public final class HoleProgressTracker {
         return dy > 1;
     }
 
-
+    private static void broadcastHoleCompletion(
+            MinecraftServer server,
+            RegistryKey<net.minecraft.world.World> worldKey,
+            ServerPlayerEntity player,
+            int hole,
+            int holeStrokes,
+            int totalStrokes,
+            int totalHoles
+    ) {
+        boolean isLastHole = hole >= totalHoles;
+        String name = player.getGameProfile().getName();
+        Text message;
+        if (isLastHole) {
+            message = Text.literal(name + " finished the round! Total: " + totalStrokes + " strokes")
+                    .formatted(Formatting.GOLD);
+        } else {
+            message = Text.literal(name + " finished hole " + hole + " in " + holeStrokes + " strokes")
+                    .formatted(Formatting.GREEN);
+        }
+        for (ServerPlayerEntity viewer : server.getPlayerManager().getPlayerList()) {
+            if (viewer.getWorld().getRegistryKey() == worldKey) {
+                viewer.sendMessage(message, false);
+            }
+        }
+    }
 
 }
 
