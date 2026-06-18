@@ -329,9 +329,17 @@ public final class HudOverlays {
             case ANHYZER -> Formatting.YELLOW;
         };
 
+        String stanceHint = "[" + ClientKeybinds.getCycleStanceKeyText().getString() + "]";
+        String angleHint = "[" + ClientKeybinds.getAngleLeftKeyText().getString() + "/" + ClientKeybinds.getAngleRightKeyText().getString() + "]";
+
         int stanceW = Math.round(client.textRenderer.getWidth(stanceName) * THROW_HUD_SCALE);
         int angleW = Math.round(client.textRenderer.getWidth(angleName) * THROW_HUD_SCALE);
-        int maxTextW = Math.max(stanceW, angleW);
+        int stanceHintW = Math.round(client.textRenderer.getWidth(stanceHint) * THROW_HUD_SCALE);
+        int angleHintW = Math.round(client.textRenderer.getWidth(angleHint) * THROW_HUD_SCALE);
+
+        int stanceRowW = stanceW + 8 + stanceHintW;
+        int angleRowW = angleW + 8 + angleHintW;
+        int maxTextW = Math.max(stanceRowW, angleRowW);
 
         int panelW = Math.max(RoundInfoOverlay.getSharedPanelWidth(), maxTextW + 16);
         RoundInfoOverlay.setSharedPanelWidth(panelW);
@@ -351,10 +359,15 @@ public final class HudOverlays {
         int row = y + 16;
         int stanceTextColor = HudUtil.withAlpha(colorFromFormatting(stanceColor), hudAlpha);
         int angleTextColor = HudUtil.withAlpha(colorFromFormatting(angleColor), hudAlpha);
+        int hintColor = HudUtil.withAlpha(0xAAAAAA, hudAlpha);
 
         HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(stanceName).formatted(stanceColor), drawX, row, stanceTextColor, THROW_HUD_SCALE);
+        int stanceHintX = x + panelW - 6 - stanceHintW;
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(stanceHint).formatted(Formatting.DARK_GRAY), stanceHintX, row, hintColor, THROW_HUD_SCALE);
         row += THROW_ROW_SPACING;
         HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(angleName).formatted(angleColor), drawX, row, angleTextColor, THROW_HUD_SCALE);
+        int angleHintX = x + panelW - 6 - angleHintW;
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(angleHint).formatted(Formatting.DARK_GRAY), angleHintX, row, hintColor, THROW_HUD_SCALE);
     }
 
     private static int colorFromFormatting(Formatting fmt) {

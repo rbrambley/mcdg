@@ -197,6 +197,7 @@ public final class HoleProgressTracker {
                         corridorHalfWidth,
                         cumulativeParDelta,
                         ThrowResolver.lastThrowDistanceFeetForPlayer(player.getUuid()),
+                        ThrowResolver.lastThrowStatsForPlayer(player.getUuid()),
                         strictFlowDebug
                 );
                 if (!suppressHud && hudScoringDebug && (server.getTicks() % 20) == 0) {
@@ -279,6 +280,7 @@ public final class HoleProgressTracker {
                             finalCorridorHalfWidth,
                             finalCumulativeDelta,
                             ThrowResolver.lastThrowDistanceFeetForPlayer(player.getUuid()),
+                            ThrowResolver.lastThrowStatsForPlayer(player.getUuid()),
                             strictFlowDebug
                     );
 

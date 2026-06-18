@@ -92,6 +92,18 @@ public final class ClientKeybinds {
         return openMenuKey.getBoundKeyLocalizedText();
     }
 
+    public static net.minecraft.text.Text getCycleStanceKeyText() {
+        return cycleThrowStanceKey.getBoundKeyLocalizedText();
+    }
+
+    public static net.minecraft.text.Text getAngleLeftKeyText() {
+        return angleLeftKey.getBoundKeyLocalizedText();
+    }
+
+    public static net.minecraft.text.Text getAngleRightKeyText() {
+        return angleRightKey.getBoundKeyLocalizedText();
+    }
+
     public static void forEachOpenMenuPress(Runnable action) {
         while (openMenuKey.wasPressed()) {
             action.run();

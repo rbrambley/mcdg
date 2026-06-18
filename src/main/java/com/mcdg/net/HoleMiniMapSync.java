@@ -1,6 +1,9 @@
 package com.mcdg.net;
 
 import com.mcdg.McdgMod;
+import com.mcdg.game.ReleaseAngle;
+import com.mcdg.game.StrictPenaltyType;
+import com.mcdg.game.ThrowStance;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.network.RegistryByteBuf;
@@ -48,7 +51,18 @@ public final class HoleMiniMapSync {
             int corridorEntryBearing,
             int waterGapStartFeet,
             int waterGapEndFeet,
-            boolean hasWaterGap
+            boolean hasWaterGap,
+            boolean hasLastThrowStats,
+            double lastThrowTotalDistanceFt,
+            double lastThrowLateralDriftFt,
+            ThrowStance lastThrowStance,
+            ReleaseAngle lastThrowAngle,
+            int lastThrowFlightTicks,
+            StrictPenaltyType lastThrowPenaltyType,
+            int lastThrowPenaltyStrokes,
+            String lastThrowPenaltyReason,
+            int lastThrowObCrossingFeet,
+            int lastThrowReturnedToFeet
     ) implements CustomPayload {
         public static Payload read(RegistryByteBuf buf) {
             boolean active = buf.readBoolean();
@@ -87,6 +101,46 @@ public final class HoleMiniMapSync {
                 holeTeeZs.add(buf.readVarInt());
             }
 
+            int lastThrowDistanceFeet = buf.readVarInt();
+            int corridorEntryFeet = buf.readVarInt();
+            int corridorEntryBearing = buf.readVarInt();
+            int waterGapStartFeet = buf.readVarInt();
+            int waterGapEndFeet = buf.readVarInt();
+            boolean hasWaterGap = buf.readBoolean();
+
+            boolean hasLastThrowStats = buf.readBoolean();
+            double lastThrowTotalDistanceFt = 0.0;
+            double lastThrowLateralDriftFt = 0.0;
+            ThrowStance lastThrowStance = ThrowStance.OVERHAND;
+            ReleaseAngle lastThrowAngle = ReleaseAngle.FLAT;
+            int lastThrowFlightTicks = 0;
+            StrictPenaltyType lastThrowPenaltyType = StrictPenaltyType.NONE;
+            int lastThrowPenaltyStrokes = 0;
+            String lastThrowPenaltyReason = "";
+            int lastThrowObCrossingFeet = 0;
+            int lastThrowReturnedToFeet = 0;
+            if (hasLastThrowStats) {
+                lastThrowTotalDistanceFt = buf.readDouble();
+                lastThrowLateralDriftFt = buf.readDouble();
+                int stanceOrd = buf.readVarInt();
+                if (stanceOrd >= 0 && stanceOrd < ThrowStance.values().length) {
+                    lastThrowStance = ThrowStance.values()[stanceOrd];
+                }
+                int angleOrd = buf.readVarInt();
+                if (angleOrd >= 0 && angleOrd < ReleaseAngle.values().length) {
+                    lastThrowAngle = ReleaseAngle.values()[angleOrd];
+                }
+                lastThrowFlightTicks = buf.readVarInt();
+                int penaltyOrd = buf.readVarInt();
+                if (penaltyOrd >= 0 && penaltyOrd < StrictPenaltyType.values().length) {
+                    lastThrowPenaltyType = StrictPenaltyType.values()[penaltyOrd];
+                }
+                lastThrowPenaltyStrokes = buf.readVarInt();
+                lastThrowPenaltyReason = buf.readString(64);
+                lastThrowObCrossingFeet = buf.readVarInt();
+                lastThrowReturnedToFeet = buf.readVarInt();
+            }
+
             return active(
                     holeIndex,
                     teeX,
@@ -112,12 +166,23 @@ public final class HoleMiniMapSync {
                     totalHoles,
                     holeTeeXs,
                     holeTeeZs,
-                    buf.readVarInt(),
-                    buf.readVarInt(),
-                    buf.readVarInt(),
-                    buf.readVarInt(),
-                    buf.readVarInt(),
-                    buf.readBoolean()
+                    lastThrowDistanceFeet,
+                    corridorEntryFeet,
+                    corridorEntryBearing,
+                    waterGapStartFeet,
+                    waterGapEndFeet,
+                    hasWaterGap,
+                    hasLastThrowStats,
+                    lastThrowTotalDistanceFt,
+                    lastThrowLateralDriftFt,
+                    lastThrowStance,
+                    lastThrowAngle,
+                    lastThrowFlightTicks,
+                    lastThrowPenaltyType,
+                    lastThrowPenaltyStrokes,
+                    lastThrowPenaltyReason,
+                    lastThrowObCrossingFeet,
+                    lastThrowReturnedToFeet
             );
         }
 
@@ -161,10 +226,23 @@ public final class HoleMiniMapSync {
             buf.writeVarInt(waterGapStartFeet);
             buf.writeVarInt(waterGapEndFeet);
             buf.writeBoolean(hasWaterGap);
+            buf.writeBoolean(hasLastThrowStats);
+            if (hasLastThrowStats) {
+                buf.writeDouble(lastThrowTotalDistanceFt);
+                buf.writeDouble(lastThrowLateralDriftFt);
+                buf.writeVarInt(lastThrowStance.ordinal());
+                buf.writeVarInt(lastThrowAngle.ordinal());
+                buf.writeVarInt(lastThrowFlightTicks);
+                buf.writeVarInt(lastThrowPenaltyType.ordinal());
+                buf.writeVarInt(lastThrowPenaltyStrokes);
+                buf.writeString(lastThrowPenaltyReason);
+                buf.writeVarInt(lastThrowObCrossingFeet);
+                buf.writeVarInt(lastThrowReturnedToFeet);
+            }
         }
 
         public static Payload inactive() {
-            return new Payload(false, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, false, 0, 0, false, 0, 0, 0, "", 0, 0, 0, List.of(), List.of(), 0, 0, 0, 0, 0, false);
+            return new Payload(false, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, false, 0, 0, false, 0, 0, 0, "", 0, 0, 0, List.of(), List.of(), 0, 0, 0, 0, 0, false, false, 0.0, 0.0, ThrowStance.OVERHAND, ReleaseAngle.FLAT, 0, StrictPenaltyType.NONE, 0, "", 0, 0);
         }
 
         public static Payload active(
@@ -197,7 +275,18 @@ public final class HoleMiniMapSync {
                 int corridorEntryBearing,
                 int waterGapStartFeet,
                 int waterGapEndFeet,
-                boolean hasWaterGap
+                boolean hasWaterGap,
+                boolean hasLastThrowStats,
+                double lastThrowTotalDistanceFt,
+                double lastThrowLateralDriftFt,
+                ThrowStance lastThrowStance,
+                ReleaseAngle lastThrowAngle,
+                int lastThrowFlightTicks,
+                StrictPenaltyType lastThrowPenaltyType,
+                int lastThrowPenaltyStrokes,
+                String lastThrowPenaltyReason,
+                int lastThrowObCrossingFeet,
+                int lastThrowReturnedToFeet
         ) {
             return new Payload(
                     true,
@@ -230,7 +319,18 @@ public final class HoleMiniMapSync {
                     ((corridorEntryBearing % 360) + 360) % 360,
                     Math.max(0, waterGapStartFeet),
                     Math.max(0, waterGapEndFeet),
-                    hasWaterGap
+                    hasWaterGap,
+                    hasLastThrowStats,
+                    lastThrowTotalDistanceFt,
+                    lastThrowLateralDriftFt,
+                    lastThrowStance,
+                    lastThrowAngle,
+                    lastThrowFlightTicks,
+                    lastThrowPenaltyType,
+                    lastThrowPenaltyStrokes,
+                    lastThrowPenaltyReason != null ? lastThrowPenaltyReason : "",
+                    lastThrowObCrossingFeet,
+                    lastThrowReturnedToFeet
             );
         }
 

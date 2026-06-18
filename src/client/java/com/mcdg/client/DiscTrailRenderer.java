@@ -178,6 +178,34 @@ public final class DiscTrailRenderer {
     }
 
     /**
+     * Set stats directly (for round resume without trail).
+     */
+    public static void setStats(
+            double totalDistanceFt,
+            double lateralDriftFt,
+            ThrowStance stance,
+            ReleaseAngle angle,
+            int flightTicks,
+            StrictPenaltyType penaltyType,
+            int penaltyStrokes,
+            String penaltyReason,
+            int obCrossingFeet,
+            int returnedToFeet
+    ) {
+        DiscTrailRenderer.totalDistanceFt = totalDistanceFt;
+        DiscTrailRenderer.lateralDriftFt = lateralDriftFt;
+        DiscTrailRenderer.stance = stance;
+        DiscTrailRenderer.angle = angle;
+        DiscTrailRenderer.flightTicks = flightTicks;
+        DiscTrailRenderer.penaltyType = penaltyType;
+        DiscTrailRenderer.penaltyStrokes = penaltyStrokes;
+        DiscTrailRenderer.penaltyReason = penaltyReason;
+        DiscTrailRenderer.obCrossingFeet = obCrossingFeet;
+        DiscTrailRenderer.returnedToFeet = returnedToFeet;
+        statsActive = true;
+    }
+
+    /**
      * Clear stats when round ends.
      */
     public static void clearStats() {

@@ -64,6 +64,7 @@ public final class MiniMapSyncService {
             int corridorHalfWidth,
             int cumulativeParDelta,
             int lastThrowDistanceFeet,
+            ThrowResolver.LastThrowStats lastThrowStats,
             boolean strictFlowDebug
     ) {
         UUID playerId = player.getUuid();
@@ -94,7 +95,8 @@ public final class MiniMapSyncService {
                 alternateAnchor,
                 lastThrowDistanceFeet,
                 corridorEntryFeet,
-                corridorEntryBearing
+                corridorEntryBearing,
+                lastThrowStats
         );
 
         if (strictFlowDebug && (server.getTicks() % 20) == 0) {
@@ -142,6 +144,7 @@ public final class MiniMapSyncService {
             int corridorHalfWidth,
             int cumulativeParDelta,
             int lastThrowDistanceFeet,
+            ThrowResolver.LastThrowStats lastThrowStats,
             boolean strictFlowDebug
     ) {
         UUID playerId = player.getUuid();
@@ -172,7 +175,8 @@ public final class MiniMapSyncService {
                 alternateAnchor,
                 lastThrowDistanceFeet,
                 corridorEntryFeet,
-                corridorEntryBearing
+                corridorEntryBearing,
+                lastThrowStats
         );
 
         ServerPlayNetworking.send(player, miniMapPayload);
@@ -201,7 +205,8 @@ public final class MiniMapSyncService {
             BlockPos alternateAnchor,
             int lastThrowDistanceFeet,
             int corridorEntryFeet,
-            int corridorEntryBearing
+            int corridorEntryBearing,
+            ThrowResolver.LastThrowStats lastThrowStats
     ) {
         int[] waterGap = OutOfBoundsClassifier.findLongestWaterGap(world, lie, basket);
         int waterGapStartFeet = waterGap[2] > 0 ? Math.round(waterGap[0] * 3.28084f) : 0;
@@ -268,7 +273,18 @@ public final class MiniMapSyncService {
                 corridorEntryBearing,
                 waterGapStartFeet,
                 waterGapEndFeet,
-                hasWaterGap
+                hasWaterGap,
+                lastThrowStats != null,
+                lastThrowStats != null ? lastThrowStats.totalDistanceFt() : 0.0,
+                lastThrowStats != null ? lastThrowStats.lateralDriftFt() : 0.0,
+                lastThrowStats != null ? lastThrowStats.stance() : ThrowStance.OVERHAND,
+                lastThrowStats != null ? lastThrowStats.angle() : ReleaseAngle.FLAT,
+                lastThrowStats != null ? lastThrowStats.flightTicks() : 0,
+                lastThrowStats != null ? lastThrowStats.penaltyType() : StrictPenaltyType.NONE,
+                lastThrowStats != null ? lastThrowStats.penaltyStrokes() : 0,
+                lastThrowStats != null ? lastThrowStats.penaltyReason() : "",
+                lastThrowStats != null ? lastThrowStats.obCrossingFeet() : 0,
+                lastThrowStats != null ? lastThrowStats.returnedToFeet() : 0
         );
     }
 

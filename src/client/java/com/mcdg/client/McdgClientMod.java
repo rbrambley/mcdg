@@ -87,7 +87,7 @@ public final class McdgClientMod implements ClientModInitializer {
             });
             // Phase 3: Release angle adjustment with Left/Right arrow keys
             ClientKeybinds.forEachAngleLeftPress(() -> {
-                if (client.player != null && ChargedDiscItem.isClientChargeVisible()) {
+                if (client.player != null) {
                     // Left arrow = cycle backwards through angles
                     // Since next() goes Hyzer -> Flat -> Anhyzer -> Hyzer,
                     // calling next() twice moves backwards
@@ -102,7 +102,7 @@ public final class McdgClientMod implements ClientModInitializer {
                 }
             });
             ClientKeybinds.forEachAngleRightPress(() -> {
-                if (client.player != null && ChargedDiscItem.isClientChargeVisible()) {
+                if (client.player != null) {
                     // Right arrow = cycle forward through angles
                     ThrowPreferenceManager.cycleAngle();
                     // Send updated stance/angle to server
@@ -276,6 +276,21 @@ public final class McdgClientMod implements ClientModInitializer {
 
         // New round starting — cancel any pending hide and show immediately
         MiniMapRenderer.setHudHideSinceMs(0L);
+
+        if (payload.hasLastThrowStats()) {
+            DiscTrailRenderer.setStats(
+                    payload.lastThrowTotalDistanceFt(),
+                    payload.lastThrowLateralDriftFt(),
+                    payload.lastThrowStance(),
+                    payload.lastThrowAngle(),
+                    payload.lastThrowFlightTicks(),
+                    payload.lastThrowPenaltyType(),
+                    payload.lastThrowPenaltyStrokes(),
+                    payload.lastThrowPenaltyReason(),
+                    payload.lastThrowObCrossingFeet(),
+                    payload.lastThrowReturnedToFeet()
+            );
+        }
 
         MiniMapRenderer.setMiniMapState(new MiniMapState(
                 payload.holeIndex(),

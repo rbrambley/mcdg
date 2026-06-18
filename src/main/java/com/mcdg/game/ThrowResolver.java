@@ -37,6 +37,9 @@ public final class ThrowResolver {
     // New: Track calculated throws (trajectory-based, no pearl entity)
     private static final Map<UUID, CalculatedThrowData> CALCULATED_THROWS = new HashMap<>();
 
+    // Cached last throw stats for HUD sync on round resume
+    private static final Map<UUID, LastThrowStats> LAST_THROW_STATS = new HashMap<>();
+
     // Data class for calculated throws
     private static record CalculatedThrowData(
             Vec3d landingPos,
@@ -49,11 +52,28 @@ public final class ThrowResolver {
             ReleaseAngle angle
     ) {}
 
+    public record LastThrowStats(
+            double totalDistanceFt,
+            double lateralDriftFt,
+            ThrowStance stance,
+            ReleaseAngle angle,
+            int flightTicks,
+            StrictPenaltyType penaltyType,
+            int penaltyStrokes,
+            String penaltyReason,
+            int obCrossingFeet,
+            int returnedToFeet
+    ) {}
+
     private ThrowResolver() {
     }
 
     public static int lastThrowDistanceFeetForPlayer(UUID playerId) {
         return LAST_THROW_DISTANCE_FEET.getOrDefault(playerId, 0);
+    }
+
+    public static LastThrowStats lastThrowStatsForPlayer(UUID playerId) {
+        return LAST_THROW_STATS.get(playerId);
     }
 
     public static void recordResolutionReason(UUID playerId, String reason) {
@@ -68,6 +88,7 @@ public final class ThrowResolver {
         LAST_RESOLUTION_REASON.clear();
         LAST_THROW_DISTANCE_FEET.clear();
         CALCULATED_THROWS.clear();
+        LAST_THROW_STATS.clear();
     }
 
 
@@ -330,6 +351,18 @@ public final class ThrowResolver {
                     returnedToFeet
             ));
         }
+        LAST_THROW_STATS.put(player.getUuid(), new LastThrowStats(
+                calc != null ? calc.totalDistanceFt() : lastThrowDistance,
+                calc != null ? calc.lateralDriftFt() : 0.0,
+                calc != null ? calc.stance() : ThrowStance.OVERHAND,
+                calc != null ? calc.angle() : ReleaseAngle.FLAT,
+                calc != null ? calc.flightTicks() : 0,
+                landingPenalty,
+                penaltyStrokes,
+                penaltyReason,
+                obCrossingFeet,
+                returnedToFeet
+        ));
         LieMarkerService.updateLieMarker(player, resultingLie);
         PlayerRoundState updated = roundStateManager.getState(player.getUuid()).orElse(state);
         if (strictFlowDebug) {
