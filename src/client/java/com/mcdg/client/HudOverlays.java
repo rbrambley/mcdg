@@ -182,6 +182,10 @@ public final class HudOverlays {
 
     private static final float THROW_HUD_SCALE = 0.85f;
     private static final int THROW_ROW_SPACING = 10; // spacing for 0.85x text
+    private static final int HUD_CARD_SPACING = 10;
+    private static int lastThrowStatsPanelHeight = 38;
+    private static int lastThrowStatsPanelWidth = 120;
+    private static boolean throwStatsRenderedThisFrame = false;
 
     /**
      * Render after-throw statistics display.
@@ -190,10 +194,12 @@ public final class HudOverlays {
      * Panel width is shared with Round HUD so both boxes stay aligned.
      */
     public static void renderThrowStats(DrawContext drawContext, MinecraftClient client, float hudAlpha) {
+        throwStatsRenderedThisFrame = false;
         DiscTrailRenderer.ThrowStats stats = DiscTrailRenderer.getStats();
         if (stats == null) {
             return;
         }
+        throwStatsRenderedThisFrame = true;
 
         int width = drawContext.getScaledWindowWidth();
 
@@ -205,6 +211,7 @@ public final class HudOverlays {
         boolean hasPenalty = stats.penaltyType() != StrictPenaltyType.NONE;
         int contentRows = hasPenalty ? 3 : 3; // always 3 content rows, penalty merges into row 3
         int panelH = 16 + (contentRows * THROW_ROW_SPACING) + 6;
+        lastThrowStatsPanelHeight = panelH;
 
         // Compute throw text width (scaled) and share with Round HUD
         int row1W = Math.round(client.textRenderer.getWidth(row1) * THROW_HUD_SCALE);
@@ -220,10 +227,11 @@ public final class HudOverlays {
         int throwPanelW = maxThrowTextW + 16;
         int panelW = Math.max(RoundInfoOverlay.getSharedPanelWidth(), throwPanelW);
         RoundInfoOverlay.setSharedPanelWidth(panelW);
+        lastThrowStatsPanelWidth = panelW;
 
         int x = width - panelW - 8;
         int roundHudBaseHeight = RoundInfoOverlay.getLastPanelHeight();
-        int y = 8 + roundHudBaseHeight + 10;
+        int y = 8 + roundHudBaseHeight + HUD_CARD_SPACING;
 
         HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, "Throw", hudAlpha);
 
@@ -271,6 +279,93 @@ public final class HudOverlays {
             case OB -> "OB+" + stats.penaltyStrokes() + " " + stats.penaltyReason() + " " + stats.obCrossingFeet() + "ft -> " + stats.returnedToFeet() + "ft";
             case HAZARD -> "Hazard+" + stats.penaltyStrokes() + " " + stats.penaltyReason() + " " + stats.returnedToFeet() + "ft";
             default -> null;
+        };
+    }
+
+    public static int getLastThrowStatsPanelHeight() {
+        return lastThrowStatsPanelHeight;
+    }
+
+    public static int getLastThrowStatsPanelWidth() {
+        return lastThrowStatsPanelWidth;
+    }
+
+    /**
+     * Render current stance and release angle settings as a compact card beneath the Throw HUD.
+     * Uses the same shared panel width, scaling, and card style as the Throw HUD.
+     */
+    public static void renderStanceSettings(DrawContext drawContext, MinecraftClient client, float hudAlpha) {
+        if (client.player == null || client.options.hudHidden || client.textRenderer == null) {
+            return;
+        }
+        if (MiniMapRenderer.getMiniMapState() == null) {
+            return;
+        }
+
+        ThrowStance stance = ThrowPreferenceManager.getSelectedStance();
+        ReleaseAngle angle = ThrowPreferenceManager.getSelectedAngle();
+
+        String stanceName = switch (stance) {
+            case OVERHAND -> "Overhand";
+            case BACKHAND -> "Backhand";
+            case FOREHAND -> "Forehand";
+        };
+
+        String angleName = switch (angle) {
+            case HYZER -> "Hyzer";
+            case FLAT -> "Flat";
+            case ANHYZER -> "Anhyzer";
+        };
+
+        Formatting stanceColor = switch (stance) {
+            case OVERHAND -> Formatting.GRAY;
+            case BACKHAND -> Formatting.AQUA;
+            case FOREHAND -> Formatting.GREEN;
+        };
+
+        Formatting angleColor = switch (angle) {
+            case HYZER -> Formatting.RED;
+            case FLAT -> Formatting.WHITE;
+            case ANHYZER -> Formatting.YELLOW;
+        };
+
+        int stanceW = Math.round(client.textRenderer.getWidth(stanceName) * THROW_HUD_SCALE);
+        int angleW = Math.round(client.textRenderer.getWidth(angleName) * THROW_HUD_SCALE);
+        int maxTextW = Math.max(stanceW, angleW);
+
+        int panelW = Math.max(RoundInfoOverlay.getSharedPanelWidth(), maxTextW + 16);
+        RoundInfoOverlay.setSharedPanelWidth(panelW);
+
+        int contentRows = 2;
+        int panelH = 16 + (contentRows * THROW_ROW_SPACING) + 4;
+
+        int x = drawContext.getScaledWindowWidth() - panelW - 8;
+        int roundHudBottom = 8 + RoundInfoOverlay.getLastPanelHeight();
+        int y = throwStatsRenderedThisFrame
+                ? (roundHudBottom + HUD_CARD_SPACING + getLastThrowStatsPanelHeight() + HUD_CARD_SPACING)
+                : (roundHudBottom + HUD_CARD_SPACING);
+
+        HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, "Setup", hudAlpha);
+
+        int drawX = x + 6;
+        int row = y + 16;
+        int stanceTextColor = HudUtil.withAlpha(colorFromFormatting(stanceColor), hudAlpha);
+        int angleTextColor = HudUtil.withAlpha(colorFromFormatting(angleColor), hudAlpha);
+
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(stanceName).formatted(stanceColor), drawX, row, stanceTextColor, THROW_HUD_SCALE);
+        row += THROW_ROW_SPACING;
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(angleName).formatted(angleColor), drawX, row, angleTextColor, THROW_HUD_SCALE);
+    }
+
+    private static int colorFromFormatting(Formatting fmt) {
+        return switch (fmt) {
+            case GRAY -> 0xAAAAAA;
+            case AQUA -> 0x55FFFF;
+            case GREEN -> 0x55FF55;
+            case RED -> 0xFF5555;
+            case WHITE -> 0xFFFFFF;
+            case YELLOW -> 0xFFFF55;
+            default -> 0xFFFFFF;
         };
     }
 }

@@ -39,7 +39,7 @@ public final class MiniMapRenderer {
     private static long miniMapReceivedAtMs;
     private static int miniMapStyleIndex = 1;
     private static MiniMapRenderCache miniMapRenderCache;
-    private static long hudVisibleSinceMs;
+    private static long hudHideSinceMs;
     private static MiniMapRenderDebug miniMapRenderDebug = MiniMapRenderDebug.empty();
     private static long lastMiniMapRenderAtMs = 0L;
     private static boolean miniMapJoinWarmupPending;
@@ -71,16 +71,12 @@ public final class MiniMapRenderer {
         return miniMapStyleIndex;
     }
 
-    public static void setHudVisibleSinceMs(long timestamp) {
-        hudVisibleSinceMs = timestamp;
+    public static long getHudHideSinceMs() {
+        return hudHideSinceMs;
     }
 
-    public static long getHudVisibleSinceMs() {
-        return hudVisibleSinceMs;
-    }
-
-    public static void setHudVisibleSinceMsFromSync(long timestamp) {
-        hudVisibleSinceMs = timestamp;
+    public static void setHudHideSinceMs(long timestamp) {
+        hudHideSinceMs = timestamp;
     }
 
     public static void setMiniMapJoinWarmupPending(boolean pending) {
@@ -117,7 +113,11 @@ public final class MiniMapRenderer {
     }
 
     public static boolean isRoundWaypointModeActive() {
-        return (System.currentTimeMillis() - miniMapReceivedAtMs) <= MINIMAP_STALE_TIMEOUT_MS;
+        long elapsed = System.currentTimeMillis() - miniMapReceivedAtMs;
+        if (hudHideSinceMs > 0) {
+            return true; // keep waypoint context alive during fade-out
+        }
+        return elapsed <= MINIMAP_STALE_TIMEOUT_MS;
     }
 
     private record MiniMapRenderCache(
@@ -859,10 +859,13 @@ public final class MiniMapRenderer {
     }
 
     public static float hudFadeAlpha() {
-        if (hudVisibleSinceMs <= 0L) {
-            return 1.0f;
+        if (hudHideSinceMs > 0L) {
+            long elapsed = System.currentTimeMillis() - hudHideSinceMs;
+            if (elapsed >= 30000L) {
+                return 0.0f;
+            }
+            return Math.max(0.0f, 1.0f - (elapsed / 30000.0f));
         }
-        long elapsed = System.currentTimeMillis() - hudVisibleSinceMs;
-        return Math.max(0.0f, Math.min(1.0f, elapsed / 180.0f));
+        return 1.0f; // visible immediately when showing
     }
 }

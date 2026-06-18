@@ -1,6 +1,5 @@
 package com.mcdg.client;
 
-import com.mcdg.net.HoleMiniMapSync;
 import com.mcdg.net.WaypointSync;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -38,7 +37,6 @@ public final class WaypointManager {
     private static final int WAYPOINT_EDGE_ARROW_MAX_BLOCKS = 800;
     private static final int UNKNOWN_WAYPOINT_Y = Integer.MIN_VALUE;
     private static final int WAYPOINT_COURSE_COLOR = 0xFF66CC66;
-    private static final int WAYPOINT_HOLE_TEMP_COLOR = 0xFFFFFFFF;
     private static int nextWaypointIndex = 1;
     private static boolean waypointLabelsVisible = true;
     private static boolean waypointsDirty = false;
@@ -47,7 +45,6 @@ public final class WaypointManager {
     private static String lastSentWaypointSyncSignature = "";
     private static String loadedWaypointDimensionKey = "";
     private static final List<ClientWaypoint> clientWaypoints = new ArrayList<>();
-    private static final List<ClientWaypoint> roundHoleWaypoints = new ArrayList<>();
     private static final Map<String, WaypointRenderMode> waypointRenderModes = new HashMap<>();
 
     private WaypointManager() {}
@@ -81,7 +78,6 @@ public final class WaypointManager {
     public static void clearRoundState() {
         activeRoundCourseWaypointName = "";
         lastSentWaypointSyncSignature = "";
-        roundHoleWaypoints.clear();
         waypointRenderModes.clear();
         loadedWaypointDimensionKey = "";
         loadedWaypointContextKey = "";
@@ -119,7 +115,6 @@ public final class WaypointManager {
                     }
                 }
             }
-            visible.addAll(roundHoleWaypoints);
             return visible;
         }
         visible.addAll(currentDimensionWaypoints);
@@ -413,16 +408,6 @@ public final class WaypointManager {
         waypointsDirty = true;
     }
 
-
-    public static void syncRoundHoleWaypointsFromPayload(HoleMiniMapSync.Payload payload) {
-        roundHoleWaypoints.clear();
-        if (payload == null || payload.totalHoles() <= 0) return;
-        int count = Math.min(payload.totalHoles(), Math.min(payload.holeTeeXs().size(), payload.holeTeeZs().size()));
-        for (int hole = 1; hole <= count; hole++) {
-            int idx = hole - 1;
-            roundHoleWaypoints.add(new ClientWaypoint("Hole " + hole, payload.holeTeeXs().get(idx), UNKNOWN_WAYPOINT_Y, payload.holeTeeZs().get(idx), WAYPOINT_HOLE_TEMP_COLOR, currentWaypointDimensionKey(MinecraftClient.getInstance())));
-        }
-    }
 
     public static void renderWaypointWorldLabels(WorldRenderContext context) {
         MinecraftClient client = MinecraftClient.getInstance();

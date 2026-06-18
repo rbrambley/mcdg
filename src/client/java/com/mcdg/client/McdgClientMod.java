@@ -120,6 +120,23 @@ public final class McdgClientMod implements ClientModInitializer {
             CinematicOverlay.tick(client);
             DiscTrailRenderer.tick();
             RoundInfoOverlay.updateTweens(MiniMapRenderer.getMiniMapState());
+
+            // If HUDs are fading out after round end, keep miniMapReceivedAtMs fresh so
+            // the stale timeout doesn't cut the fade short. Once 30 seconds pass, clear state.
+            long hideSince = MiniMapRenderer.getHudHideSinceMs();
+            if (hideSince > 0) {
+                long elapsed = System.currentTimeMillis() - hideSince;
+                if (elapsed >= 30000L) {
+                    MiniMapRenderer.setMiniMapState(null);
+                    MiniMapRenderer.setMiniMapReceivedAtMs(0L);
+                    MiniMapRenderer.setHudHideSinceMs(0L);
+                    MiniMapRenderer.setLastMiniMapRenderAtMs(0L);
+                    DiscTrailRenderer.clearStats();
+                } else {
+                    MiniMapRenderer.setMiniMapReceivedAtMs(System.currentTimeMillis());
+                }
+            }
+
                     // Spawn lime beacon beam above active basket during rounds
                     if (client.world != null) {
                         MiniMapState state = MiniMapRenderer.getMiniMapState();
@@ -177,7 +194,9 @@ public final class McdgClientMod implements ClientModInitializer {
             MiniMapRenderer.setMiniMapJoinPrimeTicksRemaining(0);
             MiniMapRenderer.setMiniMapState(null);
             MiniMapRenderer.setMiniMapReceivedAtMs(0L);
+            MiniMapRenderer.setHudHideSinceMs(0L);
             MiniMapRenderer.clearMiniMapRenderCache(client);
+            DiscTrailRenderer.clearStats();
         });
         ClientNetworking.registerReceivers();
         HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {
@@ -190,6 +209,7 @@ public final class McdgClientMod implements ClientModInitializer {
             HudOverlays.renderCompass(drawContext);
             HudOverlays.renderPower(drawContext);
             HudOverlays.renderThrowStats(drawContext, MinecraftClient.getInstance(), hudAlpha);
+            HudOverlays.renderStanceSettings(drawContext, MinecraftClient.getInstance(), hudAlpha);
             CinematicOverlay.render(drawContext);
         });
         WorldRenderEvents.AFTER_TRANSLUCENT.register(WaypointManager::renderWaypointWorldLabels);
@@ -246,21 +266,16 @@ public final class McdgClientMod implements ClientModInitializer {
     public static void onHoleMiniMapSync(HoleMiniMapSync.Payload payload, MinecraftClient client) {
         if (!payload.active()) {
             String courseToRemove = WaypointManager.getActiveRoundCourseWaypointName();
-            MiniMapRenderer.setMiniMapState(null);
-            MiniMapRenderer.setMiniMapReceivedAtMs(0L);
             WaypointManager.setActiveRoundCourseWaypointName("");
             WaypointManager.removeWaypoint(courseToRemove);
-            MiniMapRenderer.setHudVisibleSinceMsFromSync(0L);
+            MiniMapRenderer.setHudHideSinceMs(System.currentTimeMillis());
             MiniMapRenderer.setMiniMapJoinWarmupPending(true);
             MiniMapRenderer.setMiniMapJoinPrimeTicksRemaining(MiniMapRenderer.MINIMAP_JOIN_PRIME_TICKS);
-            MiniMapRenderer.setLastMiniMapRenderAtMs(0L);
-            DiscTrailRenderer.clearStats();
             return;
         }
 
-        if (MiniMapRenderer.getMiniMapState() == null) {
-            MiniMapRenderer.setHudVisibleSinceMsFromSync(System.currentTimeMillis());
-        }
+        // New round starting — cancel any pending hide and show immediately
+        MiniMapRenderer.setHudHideSinceMs(0L);
 
         MiniMapRenderer.setMiniMapState(new MiniMapState(
                 payload.holeIndex(),
@@ -295,7 +310,7 @@ public final class McdgClientMod implements ClientModInitializer {
                 payload.courseWaypointX(),
                 payload.courseWaypointZ()
         );
-        WaypointManager.syncRoundHoleWaypointsFromPayload(payload);
+        // Per-hole waypoints disabled on client and server.
         MiniMapRenderer.setMiniMapReceivedAtMs(System.currentTimeMillis());
         MiniMapRenderer.refreshMiniMapRenderCache(client, MiniMapRenderer.PASSIVE_MINIMAP_SPAN_BLOCKS);
     }

@@ -263,16 +263,9 @@ public final class MiniMapSyncService {
         int courseWaypointX = courseAnchor.getX();
         int courseWaypointZ = courseAnchor.getZ();
 
-        List<Integer> holeTeeXs = new ArrayList<>();
-        List<Integer> holeTeeZs = new ArrayList<>();
-        int totalHoles = course.holes().size();
-        for (int i = 1; i <= totalHoles; i++) {
-            BlockPos holeTee = placed.holeTees().get(i);
-            BlockPos holeBasket = placed.holeBaskets().get(i);
-            BlockPos holeAnchor = resolveWaypointAnchor(holeTee, holeBasket, tee, basket);
-            holeTeeXs.add(holeAnchor.getX());
-            holeTeeZs.add(holeAnchor.getZ());
-        }
+        List<Integer> holeTeeXs = List.of();
+        List<Integer> holeTeeZs = List.of();
+        int totalHoles = 0;
 
         return HoleMiniMapSync.Payload.active(
                 holeIndex,
