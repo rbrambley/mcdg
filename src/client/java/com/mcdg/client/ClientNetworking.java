@@ -12,6 +12,7 @@ import com.mcdg.net.WaypointSync;
 import com.mcdg.net.WaypointRemovedSync;
 import com.mcdg.net.ThrowPowerLockSync;
 import com.mcdg.net.ThrowTrailSync;
+import com.mcdg.net.RoundInviteNotification;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 /**
@@ -89,6 +90,19 @@ public final class ClientNetworking {
                         payload.obCrossingFeet(),
                         payload.returnedToFeet()
                 );
+            })
+        );
+        ClientPlayNetworking.registerGlobalReceiver(RoundInviteNotification.ID, (payload, context) ->
+            context.client().execute(() -> {
+                if (context.client().currentScreen instanceof RoundInviteScreen) {
+                    return; // already have an invite open
+                }
+                context.client().setScreen(new RoundInviteScreen(
+                        payload.initiatorId(),
+                        payload.initiatorName(),
+                        payload.courseName(),
+                        payload.catalogIndex()
+                ));
             })
         );
     }

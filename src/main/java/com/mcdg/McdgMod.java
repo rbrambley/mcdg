@@ -23,6 +23,7 @@ import com.mcdg.game.RoundSessionStorage;
 import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.ScorecardManager;
 import com.mcdg.game.ThrowAutoTestService;
+import com.mcdg.game.RoundInviteManager;
 import com.mcdg.net.AceCinematicSync;
 
 import com.mcdg.net.HoleMiniMapSync;
@@ -37,6 +38,9 @@ import com.mcdg.net.WaypointRemovedSync;
 import com.mcdg.net.ThrowPowerLockSync;
 import com.mcdg.net.ThrowStanceSync;
 import com.mcdg.net.ThrowTrailSync;
+import com.mcdg.net.RoundInviteRequest;
+import com.mcdg.net.RoundInviteNotification;
+import com.mcdg.net.RoundInviteResponse;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
@@ -152,6 +156,12 @@ public final class McdgMod implements ModInitializer {
             ROUND_STATE_MANAGER,
             AUTO_COURSE_SERVICE
     );
+    private static final RoundInviteManager ROUND_INVITE_MANAGER = new RoundInviteManager(
+            ACTIVE_COURSE_MANAGER,
+            ROUND_STATE_MANAGER,
+            PRACTICE_COURSE_STORAGE,
+            ROUND_PRESENTATION_SERVICE
+    );
         private static Long pendingAutoStrictSetupSeed;
         private static int pendingAutoStrictSetupWaitTicks;
         private static int roundSessionAutosaveTicks;
@@ -176,6 +186,10 @@ public final class McdgMod implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(WaypointRemovedSync.ID, WaypointRemovedSync.CODEC);
         PayloadTypeRegistry.playS2C().register(ThrowPowerLockSync.ID, ThrowPowerLockSync.CODEC);
         PayloadTypeRegistry.playS2C().register(ThrowTrailSync.ID, ThrowTrailSync.CODEC);
+
+        PayloadTypeRegistry.playC2S().register(RoundInviteRequest.ID, RoundInviteRequest.CODEC);
+        PayloadTypeRegistry.playS2C().register(RoundInviteNotification.ID, RoundInviteNotification.CODEC);
+        PayloadTypeRegistry.playC2S().register(RoundInviteResponse.ID, RoundInviteResponse.CODEC);
 
         ResourceManagerHelper.registerBuiltinResourcePack(
                 new Identifier(MOD_ID, "mcdg-test-resources"),
@@ -204,6 +218,22 @@ public final class McdgMod implements ModInitializer {
                     ChargedDiscItem.setServerStance(context.player().getUuid(), payload.stance(), payload.angle());
                     McdgMod.LOGGER.info("Server received stance sync: player={} stance={} angle={}", context.player().getUuid(), payload.stance(), payload.angle());
                 })
+        );
+        ServerPlayNetworking.registerGlobalReceiver(RoundInviteRequest.ID, (payload, context) ->
+                context.server().execute(() -> ROUND_INVITE_MANAGER.handleInviteRequest(
+                        context.server(),
+                        context.player(),
+                        payload.targetPlayerIds(),
+                        payload.catalogIndex()
+                ))
+        );
+        ServerPlayNetworking.registerGlobalReceiver(RoundInviteResponse.ID, (payload, context) ->
+                context.server().execute(() -> ROUND_INVITE_MANAGER.handleInviteResponse(
+                        context.server(),
+                        context.player(),
+                        payload.initiatorId(),
+                        payload.accepted()
+                ))
         );
         McdgConfig config = McdgConfig.loadDefault();
         McdgItems.register(ACTIVE_COURSE_MANAGER, ROUND_STATE_MANAGER, TOURNAMENT_RULESET_MANAGER, config.enableStrictFlowDebug());
@@ -262,6 +292,14 @@ public final class McdgMod implements ModInitializer {
             long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
             if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
                 LOGGER.warn("AUTO_COURSE_SERVICE tick took {}ms", elapsedMs);
+            }
+        });
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long start = System.nanoTime();
+            ROUND_INVITE_MANAGER.tick(server);
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
+                LOGGER.warn("ROUND_INVITE_MANAGER tick took {}ms", elapsedMs);
             }
         });
         ServerTickEvents.END_SERVER_TICK.register(server -> {

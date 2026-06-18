@@ -208,11 +208,12 @@ public final class McdgMenuScreen extends Screen {
         }
 
         int tpW = 28;
-        int playW = 42;
+        int playW = 34;
+        int inviteW = 34;
         int removeW = 16;
         int gap = 3;
-        int scoresW = 20;
-        int totalBtnsW = tpW + scoresW + playW + removeW + (gap * 3);
+        int scoresW = 18;
+        int totalBtnsW = tpW + scoresW + playW + inviteW + removeW + (gap * 4);
         int visibleRows = Math.min(ROWS_VISIBLE, courses.size());
         int maxOffset = Math.max(0, courses.size() - visibleRows);
         playScrollOffset = Math.max(0, Math.min(playScrollOffset, maxOffset));
@@ -248,6 +249,22 @@ public final class McdgMenuScreen extends Screen {
                 addBtn("[PLAY]", "/mcdg playcourse " + idx, x, y, playW, TEXT_GOLD, BTN_TINT_GOLD);
             }
             x += playW + gap;
+            // Invite button: open player picker for any non-active course
+            if (state.roundActive() && isActive) {
+                addBtn("[INV]", null, x, y, inviteW, TEXT_MUTED, BTN_TINT_MUTED);
+            } else {
+                int finalIdx = idx;
+                String finalCourseName = entry.name();
+                ButtonWidget inviteBtn = ButtonWidget.builder(Text.literal("[INV]"), b -> {
+                    if (client != null) {
+                        client.setScreen(new PlayerPickerScreen(this, finalIdx, finalCourseName));
+                    }
+                }).dimensions(x, y, inviteW, BTN_H).build();
+                contentButtons.add(inviteBtn);
+                buttonTints.add(new int[]{x, y, inviteW, BTN_H, BTN_TINT_GOLD});
+                addDrawableChild(inviteBtn);
+            }
+            x += inviteW + gap;
             addConfirmBtn("[X]", "/mcdg cleanupcoursebyindex " + idx, x, y, removeW);
             y += BTN_H + BTN_GAP;
         }
