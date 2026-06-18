@@ -598,7 +598,7 @@ public final class MiniMapRenderer {
                     return;
                 }
                 long now = System.currentTimeMillis();
-                if ((now - lastMiniMapRenderAtMs) < 350L) {
+                if ((now - lastMiniMapRenderAtMs) < 750L) {
                     return;
                 }
             }

@@ -84,7 +84,8 @@ public final class McdgMod implements ModInitializer {
     private static final String AUTOTEST_BASE_SEED_ENV = "MCDG_AUTOTEST_BASE_SEED";
     private static final String AUTO_STRICT_SETUP_ENV = "MCDG_AUTO_STRICT_SETUP";
     private static final int AUTO_STRICT_SETUP_MAX_WAIT_TICKS = 20 * 120;
-    private static final int ROUND_SESSION_AUTOSAVE_INTERVAL_TICKS = 20;
+    private static final int ROUND_SESSION_AUTOSAVE_INTERVAL_TICKS = 100;
+    private static final long TICK_HANDLER_WARNING_THRESHOLD_MS = 10L;
 
     private static final CourseGenerator COURSE_GENERATOR = new SeededCourseGenerator();
     private static final ActiveCourseManager ACTIVE_COURSE_MANAGER = new ActiveCourseManager();
@@ -191,15 +192,78 @@ public final class McdgMod implements ModInitializer {
             BUILD_COURSE_SESSION_MANAGER,
             AUTO_COURSE_SERVICE
         );
-        ServerTickEvents.END_SERVER_TICK.register(PLACEMENT_AUTO_TEST_SERVICE::tick);
-        ServerTickEvents.END_SERVER_TICK.register(THROW_AUTO_TEST_SERVICE::tick);
-        ServerTickEvents.END_SERVER_TICK.register(ROUND_PRESENTATION_SERVICE::tick);
-        ServerTickEvents.END_SERVER_TICK.register(BUILD_COURSE_SESSION_MANAGER::tick);
-        ServerTickEvents.END_SERVER_TICK.register(AUTO_COURSE_SERVICE::tick);
-        ServerTickEvents.END_SERVER_TICK.register(McdgMod::handlePendingAutoStrictSetup);
-        ServerTickEvents.END_SERVER_TICK.register(McdgMod::autosaveRoundSession);
-	ServerTickEvents.END_SERVER_TICK.register(ResortCourseBuilder::tick);
-	ServerTickEvents.END_SERVER_TICK.register(DiscFlightSimulator::tick);
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long start = System.nanoTime();
+            PLACEMENT_AUTO_TEST_SERVICE.tick(server);
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
+                LOGGER.warn("PLACEMENT_AUTO_TEST_SERVICE tick took {}ms", elapsedMs);
+            }
+        });
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long start = System.nanoTime();
+            THROW_AUTO_TEST_SERVICE.tick(server);
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
+                LOGGER.warn("THROW_AUTO_TEST_SERVICE tick took {}ms", elapsedMs);
+            }
+        });
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long start = System.nanoTime();
+            ROUND_PRESENTATION_SERVICE.tick(server);
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
+                LOGGER.warn("ROUND_PRESENTATION_SERVICE tick took {}ms", elapsedMs);
+            }
+        });
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long start = System.nanoTime();
+            BUILD_COURSE_SESSION_MANAGER.tick(server);
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
+                LOGGER.warn("BUILD_COURSE_SESSION_MANAGER tick took {}ms", elapsedMs);
+            }
+        });
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long start = System.nanoTime();
+            AUTO_COURSE_SERVICE.tick(server);
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
+                LOGGER.warn("AUTO_COURSE_SERVICE tick took {}ms", elapsedMs);
+            }
+        });
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long start = System.nanoTime();
+            handlePendingAutoStrictSetup(server);
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
+                LOGGER.warn("handlePendingAutoStrictSetup tick took {}ms", elapsedMs);
+            }
+        });
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long start = System.nanoTime();
+            autosaveRoundSession(server);
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
+                LOGGER.warn("autosaveRoundSession tick took {}ms", elapsedMs);
+            }
+        });
+		ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long start = System.nanoTime();
+            ResortCourseBuilder.tick(server);
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
+                LOGGER.warn("ResortCourseBuilder tick took {}ms", elapsedMs);
+            }
+        });
+		ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long start = System.nanoTime();
+            DiscFlightSimulator.tick(server);
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
+                LOGGER.warn("DiscFlightSimulator tick took {}ms", elapsedMs);
+            }
+        });
         ServerLifecycleEvents.SERVER_STARTED.register(server -> WaypointSync.clearAll());
         ServerLifecycleEvents.SERVER_STARTED.register(server -> ResortWaypointManager.clearResortWaypoint());
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::loadPersistedPracticeCourse);

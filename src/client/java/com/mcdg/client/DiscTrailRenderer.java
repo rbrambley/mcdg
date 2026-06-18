@@ -13,7 +13,7 @@ import net.minecraft.util.math.Vec3d;
  * Receives trajectory data from server and renders particles along the path.
  */
 public final class DiscTrailRenderer {
-    private static final int TRAIL_DURATION_TICKS = 60; // 3 seconds
+    private static final int TRAIL_DURATION_TICKS = 40; // 2 seconds
 
     // Active trail data
     private static Vec3d[] pathPoints;
