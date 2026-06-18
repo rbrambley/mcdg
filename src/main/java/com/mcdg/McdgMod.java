@@ -8,6 +8,7 @@ import com.mcdg.game.LeaderboardManager;
 import com.mcdg.game.McdgItems;
 import com.mcdg.game.PlayerRoundState;
 import com.mcdg.game.PlayerRoundSessionStorage;
+import com.mcdg.game.PlacedCourseState;
 import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import com.mcdg.game.BuildCourseSessionManager;
@@ -69,11 +70,16 @@ import net.minecraft.util.ActionResult;
 import net.minecraft.util.math.BlockPos;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,8 +90,33 @@ public final class McdgMod implements ModInitializer {
     private static final String AUTOTEST_BASE_SEED_ENV = "MCDG_AUTOTEST_BASE_SEED";
     private static final String AUTO_STRICT_SETUP_ENV = "MCDG_AUTO_STRICT_SETUP";
     private static final int AUTO_STRICT_SETUP_MAX_WAIT_TICKS = 20 * 120;
-    private static final int ROUND_SESSION_AUTOSAVE_INTERVAL_TICKS = 100;
+    private static final int ROUND_SESSION_AUTOSAVE_INTERVAL_TICKS = 200;
     private static final long TICK_HANDLER_WARNING_THRESHOLD_MS = 10L;
+    private static final ExecutorService AUTOSAVE_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "MCDG-Autosave");
+        t.setDaemon(true);
+        return t;
+    });
+    
+    static {
+        // Add shutdown hook to ensure executor is cleaned up even if normal shutdown fails
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                AUTOSAVE_EXECUTOR.shutdown();
+                if (!AUTOSAVE_EXECUTOR.awaitTermination(2, TimeUnit.SECONDS)) {
+                    LOGGER.warn("Autosave executor did not terminate gracefully in shutdown hook, forcing shutdown");
+                    AUTOSAVE_EXECUTOR.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                LOGGER.warn("Interrupted while waiting for autosave executor shutdown in shutdown hook", e);
+                AUTOSAVE_EXECUTOR.shutdownNow();
+                Thread.currentThread().interrupt();
+            } catch (RuntimeException e) {
+                LOGGER.error("Unexpected exception during autosave executor shutdown in shutdown hook", e);
+                AUTOSAVE_EXECUTOR.shutdownNow();
+            }
+        }, "MCDG-Autosave-ShutdownHook"));
+    }
 
     private static final CourseGenerator COURSE_GENERATOR = new SeededCourseGenerator();
     private static final ActiveCourseManager ACTIVE_COURSE_MANAGER = new ActiveCourseManager();
@@ -124,7 +155,8 @@ public final class McdgMod implements ModInitializer {
         private static Long pendingAutoStrictSetupSeed;
         private static int pendingAutoStrictSetupWaitTicks;
         private static int roundSessionAutosaveTicks;
-        private static String lastRoundSessionSignature = "";
+        private static volatile String lastRoundSessionSignature = "";
+        private static volatile String lastPracticeCourseSignature = "";
 
     @Override
     public void onInitialize() {
@@ -482,6 +514,11 @@ public final class McdgMod implements ModInitializer {
                 CourseFireProtection.apply(courseWorld);
             }
 
+            // Initialize the practice course signature to avoid unnecessary saves on first autosave
+            if (snapshot.placedCourseState() != null) {
+                lastPracticeCourseSignature = buildPracticeCourseSignature(snapshot.course(), snapshot.placedCourseState());
+            }
+
             LOGGER.info(
                     "Loaded persisted practice course '{}' with {} holes.",
                     snapshot.course().name(),
@@ -537,8 +574,19 @@ public final class McdgMod implements ModInitializer {
             );
         });
 
+        // Initialize signatures after loading to avoid unnecessary saves on first autosave
         lastRoundSessionSignature = buildRoundSessionSignature();
         roundSessionAutosaveTicks = 0;
+        
+        // Also initialize practice course signature if a course is loaded
+        var loadedCourse = ACTIVE_COURSE_MANAGER.getActiveCourse().orElse(null);
+        var loadedPlaced = ACTIVE_COURSE_MANAGER.getPlacedCourseState().orElse(null);
+        if (loadedCourse != null && loadedPlaced != null) {
+            lastPracticeCourseSignature = buildPracticeCourseSignature(loadedCourse, loadedPlaced);
+        } else {
+            // Initialize to empty string if no course loaded
+            lastPracticeCourseSignature = "";
+        }
     }
 
     private static void autosaveRoundSession(MinecraftServer server) {
@@ -547,11 +595,45 @@ public final class McdgMod implements ModInitializer {
             return;
         }
         roundSessionAutosaveTicks = 0;
-        persistRoundSession(server, false);
+        
+        // Submit async save task to avoid blocking server tick
+        AUTOSAVE_EXECUTOR.submit(() -> {
+            long start = System.nanoTime();
+            try {
+                persistRoundSession(server, false);
+                long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+                if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
+                    LOGGER.warn("Async autosave took {}ms", elapsedMs);
+                }
+            } catch (RuntimeException ex) {
+                LOGGER.error("Async autosave failed due to runtime exception", ex);
+            } catch (Exception ex) {
+                LOGGER.error("Async autosave failed due to unexpected exception", ex);
+            }
+        });
     }
 
     private static void flushRoundSessionOnShutdown(MinecraftServer server) {
+        // Run synchronously during shutdown to ensure data is saved before exit
         persistRoundSession(server, true);
+        
+        // Shutdown the executor gracefully (may already be shut down by shutdown hook)
+        if (!AUTOSAVE_EXECUTOR.isShutdown()) {
+            try {
+                AUTOSAVE_EXECUTOR.shutdown();
+                if (!AUTOSAVE_EXECUTOR.awaitTermination(5, TimeUnit.SECONDS)) {
+                    LOGGER.warn("Autosave executor did not terminate gracefully, forcing shutdown");
+                    AUTOSAVE_EXECUTOR.shutdownNow();
+                }
+            } catch (InterruptedException ex) {
+                LOGGER.warn("Interrupted while waiting for autosave executor shutdown", ex);
+                AUTOSAVE_EXECUTOR.shutdownNow();
+                Thread.currentThread().interrupt();
+            } catch (RuntimeException ex) {
+                LOGGER.error("Unexpected exception during autosave executor shutdown", ex);
+                AUTOSAVE_EXECUTOR.shutdownNow();
+            }
+        }
     }
 
     private static void persistRoundSession(MinecraftServer server, boolean force) {
@@ -565,7 +647,11 @@ public final class McdgMod implements ModInitializer {
             var placed = ACTIVE_COURSE_MANAGER.getPlacedCourseState().orElse(null);
             if (course != null && placed != null) {
                 // Keep the latest playable layout available so persisted round sessions can restore after restart.
-                PRACTICE_COURSE_STORAGE.save(server, course, placed);
+                String practiceSignature = buildPracticeCourseSignature(course, placed);
+                if (force || !Objects.equals(practiceSignature, lastPracticeCourseSignature)) {
+                    PRACTICE_COURSE_STORAGE.save(server, course, placed);
+                    lastPracticeCourseSignature = practiceSignature;
+                }
             }
         }
 
@@ -629,6 +715,24 @@ public final class McdgMod implements ModInitializer {
         Collections.sort(completedTokens);
         builder.append("|completed=").append(String.join(",", completedTokens));
 
+        return builder.toString();
+    }
+
+    private static String buildPracticeCourseSignature(Course course, PlacedCourseState placed) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("seed=").append(course.seed());
+        builder.append("|holes=").append(course.holes().size());
+        builder.append("|world=").append(placed.worldKey().getValue());
+        builder.append("|tees=").append(placed.holeTees().size());
+        builder.append("|baskets=").append(placed.holeBaskets().size());
+        
+        // Include hash of tee and basket positions to detect layout changes
+        // Using hash codes is more efficient than full position strings
+        int teeHash = placed.holeTees().hashCode();
+        int basketHash = placed.holeBaskets().hashCode();
+        builder.append("|teeHash=").append(teeHash);
+        builder.append("|basketHash=").append(basketHash);
+        
         return builder.toString();
     }
 
