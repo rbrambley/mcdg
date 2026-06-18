@@ -3,10 +3,9 @@ MCDG Test Pack Release 2026-06-17-r1
 
 Release Contents:
 -----------------
-- 2026-06-17-r1-client.zip - Client test pack (includes resource pack)
+- 2026-06-17-r1-client.zip - Client test pack
 - 2026-06-17-r1-server.zip - Server test pack
-- 2026-06-17-r1-all-in-one.zip - Complete package with everything
-- MCDG-Test-Resources.zip - Standalone resource pack for manual installation
+- MCDG-Test-Resources.zip - Resource pack for testing
 - MANUAL-TEST-NOTES.md - Manual testing notes and regression snapshots
 - MULTIPLAYER-TEST-SHEET.md - Comprehensive multiplayer test cases
 - MULTIPLAYER-TEST-SHEET-QUICKPASS.md - Quick pass multiplayer verification
@@ -40,14 +39,6 @@ Mod Versions:
 
 Installation:
 -------------
-Option 1 - All-in-One (Recommended):
-1. Extract 2026-06-17-r1-all-in-one.zip
-2. Extract 2026-06-17-r1-client.zip to .minecraft directory
-3. Extract 2026-06-17-r1-server.zip to server directory
-4. Resource pack is already included in client pack
-5. Review test documentation for testing procedures
-
-Option 2 - Individual Downloads:
 1. Extract the appropriate zip (client or server) to your Minecraft instance
 2. For client: Extract to .minecraft directory
 3. For server: Extract to server directory
@@ -56,9 +47,8 @@ Option 2 - Individual Downloads:
 
 Verification:
 -------------
-Client SHA256: 4402dcbb861133d61208194e9660b0f22c7d50c6a1e2009025b0a49db0f8ae11
+Client SHA256: a6d35a21f6bd033fcbbcf511cab775e34c350cebc8d43d57a1ecfec7e7f7967e
 Server SHA256: 08f2e385d177c8398025c6e85a057f8bb3c95d715f478372b5b91ad0a8407194
-All-in-One SHA256: 3481c914140b66abb4b0a384776d54e9e2595d2e3c98d9eedc1d73cc1bea40f6
 
 Testing Focus:
 --------------

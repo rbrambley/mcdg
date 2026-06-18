@@ -1,0 +1,26 @@
+{
+  "sfx.make": {
+    "sounds": [
+      {
+        "name": "mcdg:sfx/make",
+        "stream": false
+      }
+    ]
+  },
+  "sfx.clank": {
+    "sounds": [
+      {
+        "name": "mcdg:sfx/clank",
+        "stream": false
+      }
+    ]
+  },
+  "sfx.penalty": {
+    "sounds": [
+      {
+        "name": "mcdg:sfx/penalty",
+        "stream": false
+      }
+    ]
+  }
+}
