@@ -3,7 +3,7 @@
 Date: __________
 Host: __________
 Tester(s): __________
-Build/Commit: __________
+Build/Commit: bf27d8b (2026-06-17)
 Mode: LAN / e4mc / Dedicated
 
 ## Goal

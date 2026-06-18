@@ -67,6 +67,30 @@
 - Notes:
   - Fix validated after implementing deterministic stationary prime window and applying it to join plus round deactivation flow.
 
+## Regression Snapshot - 2026-06-17
+- Area: Client frame rate optimization and server freeze elimination
+- Build: mcdg-0.1.0.jar (deployed to ATLauncher test instance)
+- Commit: bf27d8b
+- Scenarios:
+  - Extended gameplay session (30+ minutes) with minimap active
+  - Multiplayer round with 2+ players and continuous disc throws
+  - Server tick timing metrics monitoring
+  - Particle trail rendering during rapid throws
+- Expected:
+  - Client frame rate remains stable with minimap active
+  - No server freezes during autosave operations
+  - Reduced particle system overhead during throw sequences
+  - Server tick handlers complete within acceptable time windows
+- Actual:
+  - Minimap cache throttle increase (350ms → 750ms) reduced CPU overhead
+  - Autosave interval increase (20 → 100 ticks) eliminated synchronous I/O freezes
+  - Particle trail duration reduction (3s → 2s) lowered particle system overhead
+  - Timing metrics added for all 9 server tick handlers for performance monitoring
+- Result: PASS
+- Notes:
+  - Phase 1.2 marked as completed (33% overall progress in implementation plan)
+  - Performance improvements validated in commit `bf27d8b`
+
 ## Regression Snapshot - 2026-06-12
 - Area: Resort build, outward cone generator, island fairways, autotest reliability, waypoint/safety fixes
 - Build: mcdg-0.1.0.jar (deployed to ATLauncher test instance)

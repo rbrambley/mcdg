@@ -12,6 +12,8 @@ This is a scaffold resource pack for private multiplayer testing.
 - Folder skeleton is ready.
 - Asset specs are in ASSET-SPECS.md.
 - No production art has been added yet.
+- Latest build: mcdg-0.1.0.jar (commit bf27d8b, 2026-06-17)
+- Performance optimizations deployed: minimap cache throttle, autosave interval, particle trail duration
 
 ## Important Note About Current Item Models
 
