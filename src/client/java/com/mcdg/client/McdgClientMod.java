@@ -189,7 +189,7 @@ public final class McdgClientMod implements ClientModInitializer {
             RunningScoreboardOverlay.render(drawContext, runningRoundScoreState, hudAlpha);
             HudOverlays.renderCompass(drawContext);
             HudOverlays.renderPower(drawContext);
-            HudOverlays.renderThrowStats(drawContext, MinecraftClient.getInstance());
+            HudOverlays.renderThrowStats(drawContext, MinecraftClient.getInstance(), hudAlpha);
             CinematicOverlay.render(drawContext);
         });
         WorldRenderEvents.AFTER_TRANSLUCENT.register(WaypointManager::renderWaypointWorldLabels);

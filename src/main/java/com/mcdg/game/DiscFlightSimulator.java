@@ -277,8 +277,8 @@ public final class DiscFlightSimulator {
             // Calculate perpendicular direction for curve
             // totalBias sign determines direction: negative = left, positive = right
             float yawRad = (float) Math.toRadians(state.launchYawDegrees());
-            double perpX = -Math.cos(yawRad);
-            double perpZ = -Math.sin(yawRad);
+            double perpX = Math.cos(yawRad);
+            double perpZ = Math.sin(yawRad);
 
             // Flip direction for right fade (positive totalBias)
             if (totalBias > 0) {
@@ -347,9 +347,9 @@ public final class DiscFlightSimulator {
         double forwardDist = dx * aimX + dz * aimZ;
 
         // Calculate perpendicular (lateral) component
-        // Perpendicular vector to aim is (aimZ, -aimX) for rightward
-        double lateralRightX = aimZ;
-        double lateralRightZ = -aimX;
+        // Perpendicular vector to aim is (-aimZ, aimX) for rightward
+        double lateralRightX = -aimZ;
+        double lateralRightZ = aimX;
 
         double lateralDist = dx * lateralRightX + dz * lateralRightZ;
 

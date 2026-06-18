@@ -184,7 +184,7 @@ public final class HudOverlays {
      * Shows distance, drift, stance, and angle for the last throw.
      * Updates after each throw, positioned in top right under round HUD.
      */
-    public static void renderThrowStats(DrawContext drawContext, MinecraftClient client) {
+    public static void renderThrowStats(DrawContext drawContext, MinecraftClient client, float hudAlpha) {
         DiscTrailRenderer.ThrowStats stats = DiscTrailRenderer.getStats();
         if (stats == null) {
             return;
@@ -197,22 +197,18 @@ public final class HudOverlays {
         String row1 = String.format("%dft | %s %dft", (int) stats.totalDistanceFt(), driftDirection, (int) Math.abs(stats.lateralDriftFt()));
         String row2 = String.format("%s | %s", stats.stance(), stats.angle());
 
-        int row1Width = client.textRenderer.getWidth(row1);
-        int row2Width = client.textRenderer.getWidth(row2);
-        int maxRowWidth = Math.max(row1Width, row2Width);
-
-        // Position in top right, below round HUD (round HUD is at y=8)
-        int x = width - maxRowWidth - 8;
+        int panelW = RoundInfoOverlay.getLastPanelWidth();
+        int panelH = 42;
+        int x = width - panelW - 8;
         int roundHudBaseHeight = RoundInfoOverlay.getLastPanelHeight();
         int y = 8 + roundHudBaseHeight + 10; // Below round HUD with 10px gap
 
-        // Background box
-        drawContext.fill(x - 4, y - 4, x + maxRowWidth + 4, y + 24, 0x70000000);
+        HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, "Throw", hudAlpha);
 
         // Draw row 1 (distance and drift)
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(row1).formatted(Formatting.WHITE), x, y, 0xFFFFFF);
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(row1).formatted(Formatting.WHITE), x + 6, y + 16, HudUtil.withAlpha(0xFFFFFF, hudAlpha));
 
         // Draw row 2 (stance and angle)
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(row2).formatted(Formatting.GRAY), x, y + 12, 0xAAAAAA);
+        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(row2).formatted(Formatting.GRAY), x + 6, y + 28, HudUtil.withAlpha(0xAAAAAA, hudAlpha));
     }
 }

@@ -134,8 +134,8 @@ public final class TrajectoryCalculator {
             // Calculate perpendicular direction for curve
             // totalBias sign determines direction: negative = left, positive = right
             float yawRad = (float) Math.toRadians(launchYawDegrees);
-            double perpX = -Math.cos(yawRad);
-            double perpZ = -Math.sin(yawRad);
+            double perpX = Math.cos(yawRad);
+            double perpZ = Math.sin(yawRad);
 
             // Flip direction for right fade (positive totalBias)
             if (totalBias > 0) {
@@ -216,8 +216,8 @@ public final class TrajectoryCalculator {
         double dx = landingPos.x - launchPos.x;
         double dz = landingPos.z - launchPos.z;
 
-        double lateralRightX = aimZ;
-        double lateralRightZ = -aimX;
+        double lateralRightX = -aimZ;
+        double lateralRightZ = aimX;
 
         double lateralDist = dx * lateralRightX + dz * lateralRightZ;
         return lateralDist * 3.0; // Convert to feet

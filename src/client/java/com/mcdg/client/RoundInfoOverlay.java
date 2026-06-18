@@ -15,6 +15,7 @@ public final class RoundInfoOverlay {
     private static float displayedTotalStrokes = Float.NaN;
     private static float displayedCumulativeDelta = Float.NaN;
     private static int lastPanelHeight = 54;
+    private static int lastPanelWidth = 120;
 
     private RoundInfoOverlay() {
     }
@@ -81,6 +82,7 @@ public final class RoundInfoOverlay {
         int panelW = maxTextWidth + 16;
         int panelH = 54 + (extraRows * 12);
         lastPanelHeight = panelH;
+        lastPanelWidth = panelW;
         int x = drawContext.getScaledWindowWidth() - panelW - 8;
         int y = client.getDebugHud().shouldShowDebugHud() ? 76 : 8;
 
@@ -112,5 +114,9 @@ public final class RoundInfoOverlay {
 
     public static int getLastPanelHeight() {
         return lastPanelHeight;
+    }
+
+    public static int getLastPanelWidth() {
+        return lastPanelWidth;
     }
 }

@@ -97,14 +97,6 @@ public final class OutOfBoundsClassifier {
             return StrictPenaltyType.OB;
         }
 
-        double lateral = distanceFromPlayableRouteXZ(feet, tee, basket, alternateAnchor);
-        if (lateral > corridorHalfWidth) {
-            if (debug) {
-                McdgMod.LOGGER.info("[OBClassifier] feet={} lateral={} corridor={} -> CORRIDOR_OB", formatPos(feet), lateral, corridorHalfWidth);
-            }
-            return StrictPenaltyType.OB;
-        }
-
         if (rulesetManager.strictEnableSlopeHazard() && isSteepSlopeHazard(world, feet, rulesetManager.strictSlopeHazardDeltaY())) {
             if (debug) {
                 McdgMod.LOGGER.info("[OBClassifier] feet={} -> SLOPE_HAZARD", formatPos(feet));
