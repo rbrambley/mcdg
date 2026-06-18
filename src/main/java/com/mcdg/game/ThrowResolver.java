@@ -205,6 +205,8 @@ public final class ThrowResolver {
         BlockPos resultingLie = landingFeet;
         BlockPos firstOutCrossing = null;
         StrictPenaltyType landingPenalty = StrictPenaltyType.NONE;
+        String penaltyReason = "In Bounds";
+        int penaltyStrokes = 0;
 
         if (madeShot) {
             // Successful basket shot - no penalties apply, lie is set to basket
@@ -214,22 +216,24 @@ public final class ThrowResolver {
             McdgMod.LOGGER.info("Made shot detected | player={} hole={}", player.getGameProfile().getName(), state.currentHole());
         } else if (ENABLE_STRICT_LANDING_PENALTIES && rulesetManager.isStrict()) {
             // Classify current position (same for both calculated throws and pearls)
-            StrictPenaltyType currentFeetPenalty = OutOfBoundsClassifier.classifyOutType(world, currentFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
-            StrictPenaltyType standableFeetPenalty = OutOfBoundsClassifier.classifyOutType(world, landingFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
-            landingPenalty = combinePenalty(currentFeetPenalty, standableFeetPenalty);
+            OutOfBoundsClassifier.PenaltyDetail currentFeetDetail = OutOfBoundsClassifier.classifyWithDetail(world, currentFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
+            OutOfBoundsClassifier.PenaltyDetail standableFeetDetail = OutOfBoundsClassifier.classifyWithDetail(world, landingFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
+            landingPenalty = combinePenalty(currentFeetDetail.type(), standableFeetDetail.type());
+            penaltyReason = currentFeetDetail.reason();
             if (landingPenalty != StrictPenaltyType.NONE) {
                 if (strictFlowDebug) {
                     McdgMod.LOGGER.info(
-                            "Strict landing classified | player={} hole={} total={} throwLie={} currentFeet={} landingFeet={} currentPenalty={} standablePenalty={} penalty={}",
+                            "Strict landing classified | player={} hole={} total={} throwLie={} currentFeet={} landingFeet={} currentPenalty={} standablePenalty={} penalty={} reason={}",
                             player.getGameProfile().getName(),
                             state.currentHole(),
                             state.totalStrokes(),
                             OutOfBoundsClassifier.formatPos(throwLie),
                             OutOfBoundsClassifier.formatPos(currentFeet),
                             OutOfBoundsClassifier.formatPos(landingFeet),
-                            currentFeetPenalty.name(),
-                            standableFeetPenalty.name(),
-                            landingPenalty.name()
+                            currentFeetDetail.type().name(),
+                            standableFeetDetail.type().name(),
+                            landingPenalty.name(),
+                            penaltyReason
                     );
                 }
                 if (landingPenalty == StrictPenaltyType.OB) {
@@ -250,7 +254,7 @@ public final class ThrowResolver {
                     resultingLie = currentFeet.toImmutable();
                 }
 
-                int penaltyStrokes = landingPenalty == StrictPenaltyType.OB
+                penaltyStrokes = landingPenalty == StrictPenaltyType.OB
                         ? rulesetManager.strictObPenaltyStrokes()
                         : rulesetManager.strictHazardPenaltyStrokes();
                 if (penaltyStrokes > 0) {
@@ -311,6 +315,9 @@ public final class ThrowResolver {
         roundStateManager.updateLie(player.getUuid(), resultingLie);
         LAST_THROW_DISTANCE_FEET.put(player.getUuid(), DistanceUtils.distanceFeet(throwLie, resultingLie));
 
+        int obCrossingFeet = firstOutCrossing != null ? DistanceUtils.distanceFeet(throwLie, firstOutCrossing) : 0;
+        int returnedToFeet = DistanceUtils.distanceFeet(throwLie, resultingLie);
+
         // Send trail packet to client for visual trail and stats
         if (calc != null && pathPoints != null) {
             ServerPlayNetworking.send(player, new ThrowTrailSync.Payload(
@@ -319,7 +326,12 @@ public final class ThrowResolver {
                     calc.lateralDriftFt(),
                     calc.stance(),
                     calc.angle(),
-                    calc.flightTicks()
+                    calc.flightTicks(),
+                    landingPenalty,
+                    penaltyStrokes,
+                    penaltyReason,
+                    obCrossingFeet,
+                    returnedToFeet
             ));
         }
         LieMarkerService.updateLieMarker(player, resultingLie);

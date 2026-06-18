@@ -2,6 +2,7 @@ package com.mcdg.net;
 
 import com.mcdg.McdgMod;
 import com.mcdg.game.ReleaseAngle;
+import com.mcdg.game.StrictPenaltyType;
 import com.mcdg.game.ThrowStance;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
@@ -28,7 +29,12 @@ public final class ThrowTrailSync {
             double lateralDriftFt,   // Left/right drift from aim line in feet
             ThrowStance stance,      // Throw stance for trail color + stats
             ReleaseAngle angle,      // Release angle for stats
-            int flightTicks          // Flight duration for fade sound timing
+            int flightTicks,         // Flight duration for fade sound timing
+            StrictPenaltyType penaltyType, // Penalty classification
+            int penaltyStrokes,      // Stroke penalty applied
+            String penaltyReason,    // Human-readable penalty reason
+            int obCrossingFeet,      // Distance from throw lie to first OB crossing
+            int returnedToFeet       // Distance from throw lie to resulting lie
     ) implements CustomPayload {
         public static Payload read(RegistryByteBuf buf) {
             int pathLength = buf.readVarInt();
@@ -55,7 +61,16 @@ public final class ThrowTrailSync {
             }
             ReleaseAngle angle = ReleaseAngle.values()[angleOrdinal];
             int flightTicks = buf.readVarInt();
-            return new Payload(pathPoints, totalDistanceFt, lateralDriftFt, stance, angle, flightTicks);
+            int penaltyOrdinal = buf.readVarInt();
+            if (penaltyOrdinal < 0 || penaltyOrdinal >= StrictPenaltyType.values().length) {
+                penaltyOrdinal = 0;
+            }
+            StrictPenaltyType penaltyType = StrictPenaltyType.values()[penaltyOrdinal];
+            int penaltyStrokes = buf.readVarInt();
+            String penaltyReason = buf.readString(64);
+            int obCrossingFeet = buf.readVarInt();
+            int returnedToFeet = buf.readVarInt();
+            return new Payload(pathPoints, totalDistanceFt, lateralDriftFt, stance, angle, flightTicks, penaltyType, penaltyStrokes, penaltyReason, obCrossingFeet, returnedToFeet);
         }
 
         public void write(RegistryByteBuf buf) {
@@ -70,6 +85,11 @@ public final class ThrowTrailSync {
             buf.writeVarInt(stance.ordinal());
             buf.writeVarInt(angle.ordinal());
             buf.writeVarInt(flightTicks);
+            buf.writeVarInt(penaltyType.ordinal());
+            buf.writeVarInt(penaltyStrokes);
+            buf.writeString(penaltyReason);
+            buf.writeVarInt(obCrossingFeet);
+            buf.writeVarInt(returnedToFeet);
         }
 
         @Override

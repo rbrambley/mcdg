@@ -1,6 +1,7 @@
 package com.mcdg.client;
 
 import com.mcdg.game.ReleaseAngle;
+import com.mcdg.game.StrictPenaltyType;
 import com.mcdg.game.ThrowStance;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.particle.Particle;
@@ -22,6 +23,11 @@ public final class DiscTrailRenderer {
     private static ThrowStance stance;
     private static ReleaseAngle angle;
     private static int flightTicks;
+    private static StrictPenaltyType penaltyType;
+    private static int penaltyStrokes;
+    private static String penaltyReason;
+    private static int obCrossingFeet;
+    private static int returnedToFeet;
 
     // Timing
     private static int trailStartTick;
@@ -42,7 +48,12 @@ public final class DiscTrailRenderer {
             double lateralDriftFt,
             ThrowStance stance,
             ReleaseAngle angle,
-            int flightTicks
+            int flightTicks,
+            StrictPenaltyType penaltyType,
+            int penaltyStrokes,
+            String penaltyReason,
+            int obCrossingFeet,
+            int returnedToFeet
     ) {
         DiscTrailRenderer.pathPoints = pathPoints;
         DiscTrailRenderer.totalDistanceFt = totalDistanceFt;
@@ -50,6 +61,11 @@ public final class DiscTrailRenderer {
         DiscTrailRenderer.stance = stance;
         DiscTrailRenderer.angle = angle;
         DiscTrailRenderer.flightTicks = flightTicks;
+        DiscTrailRenderer.penaltyType = penaltyType;
+        DiscTrailRenderer.penaltyStrokes = penaltyStrokes;
+        DiscTrailRenderer.penaltyReason = penaltyReason;
+        DiscTrailRenderer.obCrossingFeet = obCrossingFeet;
+        DiscTrailRenderer.returnedToFeet = returnedToFeet;
 
         trailStartTick = (int) MinecraftClient.getInstance().world.getTime();
         trailActive = true;
@@ -153,7 +169,12 @@ public final class DiscTrailRenderer {
         if (!statsActive) {
             return null;
         }
-        return new ThrowStats(totalDistanceFt, lateralDriftFt, stance, angle, flightTicks);
+        return new ThrowStats(totalDistanceFt, lateralDriftFt, stance, angle, flightTicks,
+                penaltyType != null ? penaltyType : StrictPenaltyType.NONE,
+                penaltyStrokes,
+                penaltyReason != null ? penaltyReason : "In Bounds",
+                obCrossingFeet,
+                returnedToFeet);
     }
 
     /**
@@ -172,6 +193,11 @@ public final class DiscTrailRenderer {
             double lateralDriftFt,
             ThrowStance stance,
             ReleaseAngle angle,
-            int flightTicks
+            int flightTicks,
+            StrictPenaltyType penaltyType,
+            int penaltyStrokes,
+            String penaltyReason,
+            int obCrossingFeet,
+            int returnedToFeet
     ) {}
 }

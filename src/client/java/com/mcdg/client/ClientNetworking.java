@@ -82,7 +82,12 @@ public final class ClientNetworking {
                         payload.lateralDriftFt(),
                         payload.stance(),
                         payload.angle(),
-                        payload.flightTicks()
+                        payload.flightTicks(),
+                        payload.penaltyType(),
+                        payload.penaltyStrokes(),
+                        payload.penaltyReason(),
+                        payload.obCrossingFeet(),
+                        payload.returnedToFeet()
                 );
             })
         );

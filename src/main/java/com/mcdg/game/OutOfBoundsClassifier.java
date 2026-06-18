@@ -26,6 +26,13 @@ public final class OutOfBoundsClassifier {
     private OutOfBoundsClassifier() {}
 
     /**
+     * Detailed penalty classification including human-readable reason.
+     */
+    public record PenaltyDetail(StrictPenaltyType type, String reason) {
+        public static final PenaltyDetail NONE = new PenaltyDetail(StrictPenaltyType.NONE, "In Bounds");
+    }
+
+    /**
      * Enables or disables debug logging for out-of-bounds classification.
      * When enabled, each classification decision is logged with details.
      */
@@ -50,6 +57,19 @@ public final class OutOfBoundsClassifier {
         return classifyOutTypeWithCorridor(world, feet, currentHole, tee, basket, alternateAnchor, rulesetManager, corridorHalfWidth);
     }
 
+    public static PenaltyDetail classifyWithDetail(
+            ServerWorld world,
+            BlockPos feet,
+            Hole currentHole,
+            BlockPos tee,
+            BlockPos basket,
+            BlockPos alternateAnchor,
+            TournamentRulesetManager rulesetManager
+    ) {
+        int corridorHalfWidth = strictCorridorHalfWidth(currentHole, world, tee, basket, rulesetManager);
+        return classifyWithDetailAndCorridor(world, feet, currentHole, tee, basket, alternateAnchor, rulesetManager, corridorHalfWidth);
+    }
+
     public static StrictPenaltyType classifyOutTypeWithCorridor(
             ServerWorld world,
             BlockPos feet,
@@ -63,7 +83,34 @@ public final class OutOfBoundsClassifier {
         return classifyOutTypeWithCorridorDebug(world, feet, currentHole, tee, basket, alternateAnchor, rulesetManager, corridorHalfWidth, debugLoggingEnabled);
     }
 
+    public static PenaltyDetail classifyWithDetailAndCorridor(
+            ServerWorld world,
+            BlockPos feet,
+            Hole currentHole,
+            BlockPos tee,
+            BlockPos basket,
+            BlockPos alternateAnchor,
+            TournamentRulesetManager rulesetManager,
+            int corridorHalfWidth
+    ) {
+        return classifyWithDetailAndCorridorDebug(world, feet, currentHole, tee, basket, alternateAnchor, rulesetManager, corridorHalfWidth, debugLoggingEnabled);
+    }
+
     public static StrictPenaltyType classifyOutTypeWithCorridorDebug(
+            ServerWorld world,
+            BlockPos feet,
+            Hole currentHole,
+            BlockPos tee,
+            BlockPos basket,
+            BlockPos alternateAnchor,
+            TournamentRulesetManager rulesetManager,
+            int corridorHalfWidth,
+            boolean debug
+    ) {
+        return classifyWithDetailAndCorridorDebug(world, feet, currentHole, tee, basket, alternateAnchor, rulesetManager, corridorHalfWidth, debug).type();
+    }
+
+    public static PenaltyDetail classifyWithDetailAndCorridorDebug(
             ServerWorld world,
             BlockPos feet,
             Hole currentHole,
@@ -79,7 +126,7 @@ public final class OutOfBoundsClassifier {
             if (debug) {
                 McdgMod.LOGGER.info("[OBClassifier] feet={} basket={} -> BASKET_GREEN_SAFE", formatPos(feet), formatPos(basket));
             }
-            return StrictPenaltyType.NONE;
+            return PenaltyDetail.NONE;
         }
 
         // Basket column (hopper, pole, lantern) is always safe.
@@ -87,34 +134,34 @@ public final class OutOfBoundsClassifier {
             if (debug) {
                 McdgMod.LOGGER.info("[OBClassifier] feet={} basket={} -> BASKET_COLUMN_SAFE", formatPos(feet), formatPos(basket));
             }
-            return StrictPenaltyType.NONE;
+            return PenaltyDetail.NONE;
         }
 
         if (isFluidPenaltyZone(world, feet)) {
             if (debug) {
                 McdgMod.LOGGER.info("[OBClassifier] feet={} -> FLUID_OB", formatPos(feet));
             }
-            return StrictPenaltyType.OB;
+            return new PenaltyDetail(StrictPenaltyType.OB, "Water");
         }
 
         if (rulesetManager.strictEnableSlopeHazard() && isSteepSlopeHazard(world, feet, rulesetManager.strictSlopeHazardDeltaY())) {
             if (debug) {
                 McdgMod.LOGGER.info("[OBClassifier] feet={} -> SLOPE_HAZARD", formatPos(feet));
             }
-            return StrictPenaltyType.HAZARD;
+            return new PenaltyDetail(StrictPenaltyType.HAZARD, "Slope");
         }
 
         if (rulesetManager.strictEnableRoughHazard() && isDenseRoughHazard(world, feet, rulesetManager.strictRoughHazardLeafLogThreshold())) {
             if (debug) {
                 McdgMod.LOGGER.info("[OBClassifier] feet={} -> ROUGH_HAZARD", formatPos(feet));
             }
-            return StrictPenaltyType.HAZARD;
+            return new PenaltyDetail(StrictPenaltyType.HAZARD, "Rough");
         }
 
         if (debug) {
             McdgMod.LOGGER.info("[OBClassifier] feet={} -> NONE (in bounds)", formatPos(feet));
         }
-        return StrictPenaltyType.NONE;
+        return PenaltyDetail.NONE;
     }
 
     static boolean isBasketGreenSafe(BlockPos feet, BlockPos basketSurface) {
