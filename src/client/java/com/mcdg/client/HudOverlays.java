@@ -330,7 +330,7 @@ public final class HudOverlays {
         };
 
         String stanceHint = "[" + ClientKeybinds.getCycleStanceKeyText().getString() + "]";
-        String angleHint = "[" + ClientKeybinds.getAngleLeftKeyText().getString() + "/" + ClientKeybinds.getAngleRightKeyText().getString() + "]";
+        String angleHint = "[L Arw | R Arw]";
 
         int stanceW = Math.round(client.textRenderer.getWidth(stanceName) * THROW_HUD_SCALE);
         int angleW = Math.round(client.textRenderer.getWidth(angleName) * THROW_HUD_SCALE);
