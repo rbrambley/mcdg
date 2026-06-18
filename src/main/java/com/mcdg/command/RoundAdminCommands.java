@@ -7,7 +7,7 @@ import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import com.mcdg.data.SignatureHoleType;
 import com.mcdg.game.ActiveCourseManager;
-import com.mcdg.game.CourseFireProtection;
+
 import com.mcdg.game.HoleProgressTracker;
 import com.mcdg.game.PlayerRoundSessionStorage;
 import com.mcdg.game.PlacedCourseState;

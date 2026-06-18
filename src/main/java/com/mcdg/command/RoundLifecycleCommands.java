@@ -3,7 +3,7 @@ package com.mcdg.command;
 import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import com.mcdg.game.ActiveCourseManager;
-import com.mcdg.game.CourseFireProtection;
+
 import com.mcdg.game.HoleProgressTracker;
 import com.mcdg.game.PlacedCourseState;
 import com.mcdg.game.PracticeCourseStorage;
@@ -297,7 +297,6 @@ public final class RoundLifecycleCommands {
             source.sendError(Text.literal("Placed course world is unavailable."));
             return 0;
         }
-        CourseFireProtection.apply(world);
 
         if (courseManager.isLegacyPracticeSnapshot()) {
             source.sendFeedback(() -> Text.literal(
@@ -397,7 +396,6 @@ public final class RoundLifecycleCommands {
         }
         evacuatePlayersBeforeCleanup(source, world, placed);
         placementService.resetPlacedCourse(world, placed);
-        CourseFireProtection.remove(world);
         CommandUtils.removeJunkDropsNearCourse(world, placed);
         CommandUtils.removeRoundThrowItemsFromCourseWorldPlayers(source, courseManager);
 
@@ -451,9 +449,6 @@ public final class RoundLifecycleCommands {
             courseManager.setRoundActive(false);
             CommandUtils.clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
             practiceCourseStorage.clear(source.getServer());
-        }
-        if (!activeInSameWorld) {
-            CourseFireProtection.remove(world);
         }
         HoleProgressTracker.resetAllState(source.getServer());
 

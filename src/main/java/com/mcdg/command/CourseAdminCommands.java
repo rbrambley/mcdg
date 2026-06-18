@@ -4,7 +4,7 @@ import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import com.mcdg.data.SignatureHoleType;
 import com.mcdg.game.ActiveCourseManager;
-import com.mcdg.game.CourseFireProtection;
+
 import com.mcdg.game.HoleProgressTracker;
 import com.mcdg.game.PlayerRoundSessionStorage;
 import com.mcdg.game.PlacedCourseState;
@@ -147,7 +147,6 @@ public final class CourseAdminCommands {
             courseManager.setActiveCourse(ensureSingleSignatureHole(loaded.course()));
             courseManager.setActiveCourseCatalogIndex(oneBasedIndex);
             courseManager.setPlacedCourseState(loaded.placedCourseState());
-            CourseFireProtection.apply(world);
             courseManager.setPersistentPlacedCourse(true);
             courseManager.setLegacyPracticeSnapshot(loaded.legacyFormat());
             courseManager.setRoundActive(false);
@@ -287,12 +286,7 @@ public final class CourseAdminCommands {
                     	playerRoundSessionStorage.clearPlayer(source.getServer(), playerId, com.mcdg.McdgMod.LOGGER);
                     }
                     practiceCourseStorage.clear(source.getServer());
-                    if (activePlaced != null) {
-                            ServerWorld activeWorld = source.getServer().getWorld(activePlaced.worldKey());
-                            if (activeWorld != null) {
-                                    CourseFireProtection.remove(activeWorld);
-                            }
-                    }
+
             }
             HoleProgressTracker.resetAllState(source.getServer());
 

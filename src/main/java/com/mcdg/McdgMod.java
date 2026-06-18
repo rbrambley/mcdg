@@ -17,7 +17,6 @@ import com.mcdg.game.DiscFlightSimulator;
 import com.mcdg.game.PracticeCourseStorage;
 import com.mcdg.game.RoundInventoryCleaner;
 import com.mcdg.game.RoundPresentationService;
-import com.mcdg.game.CourseFireProtection;
 import com.mcdg.game.RoundRespawnHandler;
 import com.mcdg.game.RoundSessionStorage;
 import com.mcdg.game.RoundStateManager;
@@ -70,6 +69,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
+import net.minecraft.world.GameRules;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.math.BlockPos;
 import java.util.ArrayList;
@@ -382,7 +382,11 @@ public final class McdgMod implements ModInitializer {
             TOURNAMENT_RULESET_MANAGER,
             config.respawnPenaltyStrokes()
         );
-        CourseFireProtection.registerDamageHandler(ACTIVE_COURSE_MANAGER);
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            for (ServerWorld world : server.getWorlds()) {
+                world.getGameRules().get(GameRules.DO_MOB_GRIEFING).set(false, server);
+            }
+        });
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
             if (!(player instanceof ServerPlayerEntity serverPlayer)) {
                 return ActionResult.PASS;
@@ -549,7 +553,7 @@ public final class McdgMod implements ModInitializer {
 
             ServerWorld courseWorld = server.getWorld(snapshot.placedCourseState().worldKey());
             if (courseWorld != null) {
-                CourseFireProtection.apply(courseWorld);
+                // mobGriefing is already set to false on server start.
             }
 
             // Initialize the practice course signature to avoid unnecessary saves on first autosave
