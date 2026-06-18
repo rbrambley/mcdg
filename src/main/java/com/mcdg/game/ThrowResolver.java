@@ -269,15 +269,6 @@ public final class ThrowResolver {
                         safePos.getZ() + 0.5
                 );
 
-                String label = landingPenalty == StrictPenaltyType.OB ? "OB" : "Hazard";
-                String penaltyText = landingPenalty == StrictPenaltyType.OB
-                        ? "Returned to last in-bounds solid block."
-                        : "Play next throw from hazard lie.";
-                player.sendMessage(
-                    Text.literal(label + " landing in strict mode: +" + penaltyStrokes + " stroke. " + penaltyText),
-                    true
-                );
-                GolfTitleMessenger.sendStrictPenaltyTitle(player, landingPenalty, penaltyStrokes);
                 state = roundStateManager.markLastThrowPenalty(player.getUuid(), true).orElse(state);
                 }
 
@@ -313,7 +304,12 @@ public final class ThrowResolver {
         }
 
         roundStateManager.updateLie(player.getUuid(), resultingLie);
-        LAST_THROW_DISTANCE_FEET.put(player.getUuid(), DistanceUtils.distanceFeet(throwLie, resultingLie));
+        // Use calculated trajectory distance when available so Throw HUD and Round HUD "Last" match.
+        // Falls back to block-to-block distance for legacy pearl throws.
+        int lastThrowDistance = calc != null
+                ? (int) Math.round(calc.totalDistanceFt())
+                : DistanceUtils.distanceFeet(throwLie, resultingLie);
+        LAST_THROW_DISTANCE_FEET.put(player.getUuid(), lastThrowDistance);
 
         int obCrossingFeet = firstOutCrossing != null ? DistanceUtils.distanceFeet(throwLie, firstOutCrossing) : 0;
         int returnedToFeet = DistanceUtils.distanceFeet(throwLie, resultingLie);

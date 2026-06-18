@@ -38,4 +38,16 @@ public final class HudUtil {
             drawContext.drawTextWithShadow(client.textRenderer, net.minecraft.text.Text.literal(title), x + 4, y + 2, withAlpha(0xE8EEF7, alpha));
         }
     }
+
+    /**
+     * Draw scaled text using matrix transformations.
+     * Text is rendered at (x, y) with the given scale factor applied.
+     */
+    public static void drawScaledText(DrawContext drawContext, net.minecraft.client.font.TextRenderer renderer, net.minecraft.text.Text text, int x, int y, int color, float scale) {
+        drawContext.getMatrices().push();
+        drawContext.getMatrices().translate(x, y, 0);
+        drawContext.getMatrices().scale(scale, scale, 1.0f);
+        drawContext.drawTextWithShadow(renderer, text, 0, 0, color);
+        drawContext.getMatrices().pop();
+    }
 }

@@ -180,11 +180,14 @@ public final class HudOverlays {
         drawContext.drawTextWithShadow(client.textRenderer, angleText, textX + client.textRenderer.getWidth(stanceText), textY, 0xFFFFFF);
     }
 
+    private static final float THROW_HUD_SCALE = 0.85f;
+    private static final int THROW_ROW_SPACING = 10; // spacing for 0.85x text
+
     /**
      * Render after-throw statistics display.
      * Shows distance, drift, stance, angle, and penalty feedback for the last throw.
-     * Updates after each throw, positioned in top right under round HUD.
-     * Color-coded by result: green (in bounds), yellow (hazard), red (OB).
+     * Compact 0.85x scaled text. Penalty info consolidated into fewer rows.
+     * Panel width is shared with Round HUD so both boxes stay aligned.
      */
     public static void renderThrowStats(DrawContext drawContext, MinecraftClient client, float hudAlpha) {
         DiscTrailRenderer.ThrowStats stats = DiscTrailRenderer.getStats();
@@ -194,69 +197,80 @@ public final class HudOverlays {
 
         int width = drawContext.getScaledWindowWidth();
 
-        String driftDirection = stats.lateralDriftFt() > 0 ? "RIGHT" : "LEFT";
-        String row1 = String.format("%dft | %s %dft", (int) stats.totalDistanceFt(), driftDirection, (int) Math.abs(stats.lateralDriftFt()));
-        String row2 = String.format("%s | %s", stats.stance(), stats.angle());
+        // Compact abbreviations
+        String driftDir = stats.lateralDriftFt() > 0 ? "R" : "L";
+        String row1 = (int) stats.totalDistanceFt() + "ft " + driftDir + (int) Math.abs(stats.lateralDriftFt());
+        String row2 = stanceAbbrev(stats.stance()) + " " + angleAbbrev(stats.angle());
 
         boolean hasPenalty = stats.penaltyType() != StrictPenaltyType.NONE;
-        int extraRows = hasPenalty ? 2 : 1;
-        int panelH = 54 + (extraRows * 12);
-        int panelW = RoundInfoOverlay.getLastPanelWidth();
+        int contentRows = hasPenalty ? 3 : 3; // always 3 content rows, penalty merges into row 3
+        int panelH = 16 + (contentRows * THROW_ROW_SPACING) + 6;
+
+        // Compute throw text width (scaled) and share with Round HUD
+        int row1W = Math.round(client.textRenderer.getWidth(row1) * THROW_HUD_SCALE);
+        int row2W = Math.round(client.textRenderer.getWidth(row2) * THROW_HUD_SCALE);
+        int maxThrowTextW = Math.max(row1W, row2W);
+
+        String penaltyRow = buildPenaltyRow(stats);
+        if (penaltyRow != null) {
+            int penaltyW = Math.round(client.textRenderer.getWidth(penaltyRow) * THROW_HUD_SCALE);
+            maxThrowTextW = Math.max(maxThrowTextW, penaltyW);
+        }
+
+        int throwPanelW = maxThrowTextW + 16;
+        int panelW = Math.max(RoundInfoOverlay.getSharedPanelWidth(), throwPanelW);
+        RoundInfoOverlay.setSharedPanelWidth(panelW);
+
         int x = width - panelW - 8;
         int roundHudBaseHeight = RoundInfoOverlay.getLastPanelHeight();
-        int y = 8 + roundHudBaseHeight + 10; // Below round HUD with 10px gap
+        int y = 8 + roundHudBaseHeight + 10;
 
         HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, "Throw", hudAlpha);
 
+        int drawX = x + 6;
         int row = y + 16;
-        // Row 1: distance and drift
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(row1).formatted(Formatting.WHITE), x + 6, row, HudUtil.withAlpha(0xFFFFFF, hudAlpha));
-        row += 12;
+        int colorWhite = HudUtil.withAlpha(0xFFFFFF, hudAlpha);
+        int colorGray = HudUtil.withAlpha(0xAAAAAA, hudAlpha);
 
-        // Row 2: stance and angle
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(row2).formatted(Formatting.GRAY), x + 6, row, HudUtil.withAlpha(0xAAAAAA, hudAlpha));
-        row += 12;
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(row1).formatted(Formatting.WHITE), drawX, row, colorWhite, THROW_HUD_SCALE);
+        row += THROW_ROW_SPACING;
 
-        // Row 3+: color-coded penalty feedback
-        int statusColor;
-        int detailColor;
-        String statusLabel;
-        String detailLine;
-        String resultLine;
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(row2).formatted(Formatting.GRAY), drawX, row, colorGray, THROW_HUD_SCALE);
+        row += THROW_ROW_SPACING;
 
-        switch (stats.penaltyType()) {
-            case OB -> {
-                statusColor = 0xFF5555;
-                detailColor = 0xFF8888;
-                statusLabel = "OB +" + stats.penaltyStrokes();
-                detailLine = stats.penaltyReason() + " at " + stats.obCrossingFeet() + "ft";
-                resultLine = "Returned to " + stats.returnedToFeet() + "ft";
-            }
-            case HAZARD -> {
-                statusColor = 0xFFCC44;
-                detailColor = 0xFFDD88;
-                statusLabel = "HAZARD +" + stats.penaltyStrokes();
-                detailLine = stats.penaltyReason() + " at " + stats.returnedToFeet() + "ft";
-                resultLine = "Playing from hazard";
-            }
-            default -> {
-                statusColor = 0x55FF55;
-                detailColor = 0x88FF88;
-                statusLabel = "In Bounds";
-                detailLine = null;
-                resultLine = null;
-            }
+        if (penaltyRow != null) {
+            int penaltyColor = switch (stats.penaltyType()) {
+                case OB -> HudUtil.withAlpha(0xFF5555, hudAlpha);
+                case HAZARD -> HudUtil.withAlpha(0xFFCC44, hudAlpha);
+                default -> HudUtil.withAlpha(0x55FF55, hudAlpha);
+            };
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(penaltyRow).formatted(Formatting.BOLD), drawX, row, penaltyColor, THROW_HUD_SCALE);
+        } else {
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal("In Bounds").formatted(Formatting.BOLD), drawX, row, HudUtil.withAlpha(0x55FF55, hudAlpha), THROW_HUD_SCALE);
         }
+    }
 
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(statusLabel).formatted(Formatting.BOLD), x + 6, row, HudUtil.withAlpha(statusColor, hudAlpha));
-        row += 12;
+    private static String stanceAbbrev(ThrowStance stance) {
+        return switch (stance) {
+            case OVERHAND -> "Overhand";
+            case BACKHAND -> "Backhand";
+            case FOREHAND -> "Forehand";
+        };
+    }
 
-        if (detailLine != null) {
-            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(detailLine), x + 6, row, HudUtil.withAlpha(detailColor, hudAlpha));
-            row += 12;
-        }
-        if (resultLine != null) {
-            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(resultLine), x + 6, row, HudUtil.withAlpha(detailColor, hudAlpha));
-        }
+    private static String angleAbbrev(ReleaseAngle angle) {
+        return switch (angle) {
+            case HYZER -> "Hyzer";
+            case FLAT -> "Flat";
+            case ANHYZER -> "Anhyzer";
+        };
+    }
+
+    private static String buildPenaltyRow(DiscTrailRenderer.ThrowStats stats) {
+        return switch (stats.penaltyType()) {
+            case OB -> "OB+" + stats.penaltyStrokes() + " " + stats.penaltyReason() + " " + stats.obCrossingFeet() + "ft -> " + stats.returnedToFeet() + "ft";
+            case HAZARD -> "Hazard+" + stats.penaltyStrokes() + " " + stats.penaltyReason() + " " + stats.returnedToFeet() + "ft";
+            default -> null;
+        };
     }
 }

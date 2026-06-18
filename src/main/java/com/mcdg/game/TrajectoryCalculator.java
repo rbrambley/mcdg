@@ -193,7 +193,7 @@ public final class TrajectoryCalculator {
         double dx = pos.x - startPos.x;
         double dz = pos.z - startPos.z;
         double distanceBlocks = Math.sqrt(dx * dx + dz * dz);
-        double distanceFeet = distanceBlocks * 3.0;
+        double distanceFeet = distanceBlocks * 3.28084;
 
         // Calculate lateral drift
         double lateralDrift = calculateLateralDrift(startPos, launchYawDegrees, pos);
@@ -220,6 +220,6 @@ public final class TrajectoryCalculator {
         double lateralRightZ = aimX;
 
         double lateralDist = dx * lateralRightX + dz * lateralRightZ;
-        return lateralDist * 3.0; // Convert to feet
+        return lateralDist * 3.28084; // Convert to feet
     }
 }

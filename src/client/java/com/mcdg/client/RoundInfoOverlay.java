@@ -16,8 +16,17 @@ public final class RoundInfoOverlay {
     private static float displayedCumulativeDelta = Float.NaN;
     private static int lastPanelHeight = 54;
     private static int lastPanelWidth = 120;
+    private static int sharedHudPanelWidth = 120;
 
     private RoundInfoOverlay() {
+    }
+
+    public static int getSharedPanelWidth() {
+        return sharedHudPanelWidth;
+    }
+
+    public static void setSharedPanelWidth(int width) {
+        sharedHudPanelWidth = Math.max(80, width);
     }
 
     private static String buildWaterGapLine(int startFeet, int endFeet, boolean hasGap) {
@@ -79,10 +88,11 @@ public final class RoundInfoOverlay {
         );
 
         int extraRows = (line4.isEmpty() ? 0 : 1) + (line5.isEmpty() ? 0 : 1) + (line5b.isEmpty() ? 0 : 1);
-        int panelW = maxTextWidth + 16;
+        int panelW = Math.max(maxTextWidth + 16, sharedHudPanelWidth);
         int panelH = 54 + (extraRows * 12);
         lastPanelHeight = panelH;
         lastPanelWidth = panelW;
+        sharedHudPanelWidth = panelW;
         int x = drawContext.getScaledWindowWidth() - panelW - 8;
         int y = client.getDebugHud().shouldShowDebugHud() ? 76 : 8;
 

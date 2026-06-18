@@ -326,7 +326,7 @@ public final class DiscFlightSimulator {
         double dx = to.x - from.x;
         double dz = to.z - from.z;
         double blocks = Math.sqrt(dx * dx + dz * dz);
-        return blocks * 3.0; // Convert to feet
+        return blocks * 3.28084; // Convert to feet
     }
 
     /**
@@ -353,7 +353,7 @@ public final class DiscFlightSimulator {
 
         double lateralDist = dx * lateralRightX + dz * lateralRightZ;
 
-        return lateralDist * 3.0; // Convert to feet
+        return lateralDist * 3.28084; // Convert to feet
     }
 
     /**
