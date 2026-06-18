@@ -71,7 +71,6 @@ public final class HoleProgressTracker {
             boolean enableSurvivalRewards
     ) {
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            MiniMapSyncService.tickPendingInactive(server);
             AceCompanionService.tick(server);
             if (!courseManager.isRoundActive()) {
                 if (ROUND_WAS_ACTIVE) {
@@ -85,11 +84,11 @@ public final class HoleProgressTracker {
                     CACHED_CORRIDOR_HALF_WIDTH.clear();
                     AceCompanionService.reset();
                     RoundRewardService.reset();
-                    MiniMapSyncService.reset();
                     if (LAST_RUNNING_SCOREBOARD_HASH != Integer.MIN_VALUE) {
                         sendRunningScoreboardInactive(server);
                     }
                     MiniMapSyncService.sendInactive(server);
+                    MiniMapSyncService.reset();
                     LAST_RUNNING_SCOREBOARD_HASH = Integer.MIN_VALUE;
                     LieMarkerService.clearAllLieMarkers(server);
                     HoleTeeMapManager.clearAllRoundHoleMaps(server);
@@ -281,10 +280,6 @@ public final class HoleProgressTracker {
                             finalCumulativeDelta,
                             ThrowResolver.lastThrowDistanceFeetForPlayer(player.getUuid()),
                             strictFlowDebug
-                    );
-                    MiniMapSyncService.scheduleInactiveForPlayer(
-                            player.getUuid(),
-                            server.getOverworld().getTime() + MiniMapSyncService.hudLingerTicks()
                     );
 
                     if (enableSurvivalRewards) {

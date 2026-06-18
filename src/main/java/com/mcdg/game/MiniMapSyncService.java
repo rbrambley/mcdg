@@ -21,46 +21,17 @@ import net.minecraft.util.math.BlockPos;
  * Tracks per-player payload hashes to avoid redundant network sends.
  */
 public final class MiniMapSyncService {
-    private static final int HUD_LINGER_TICKS = 600;
     private static final Map<UUID, Integer> LAST_MINIMAP_HOLE = new HashMap<>();
     private static final Map<UUID, Integer> LAST_MINIMAP_PAYLOAD_HASH = new HashMap<>();
-    private static final Map<UUID, Long> PENDING_INACTIVE_TICK = new HashMap<>();
     private static boolean ACTIVE_SENT = false;
 
     private MiniMapSyncService() {
     }
 
-    public static int hudLingerTicks() {
-        return HUD_LINGER_TICKS;
-    }
-
     public static void reset() {
         LAST_MINIMAP_HOLE.clear();
         LAST_MINIMAP_PAYLOAD_HASH.clear();
-        PENDING_INACTIVE_TICK.clear();
         ACTIVE_SENT = false;
-    }
-
-    public static void scheduleInactiveForPlayer(UUID playerId, long atTick) {
-        PENDING_INACTIVE_TICK.put(playerId, atTick);
-    }
-
-    public static void tickPendingInactive(MinecraftServer server) {
-        if (PENDING_INACTIVE_TICK.isEmpty()) {
-            return;
-        }
-        long now = server.getOverworld().getTime();
-        HoleMiniMapSync.Payload inactive = HoleMiniMapSync.Payload.inactive();
-        PENDING_INACTIVE_TICK.entrySet().removeIf(entry -> {
-            if (now < entry.getValue()) {
-                return false;
-            }
-            ServerPlayerEntity player = server.getPlayerManager().getPlayer(entry.getKey());
-            if (player != null) {
-                ServerPlayNetworking.send(player, inactive);
-            }
-            return true;
-        });
     }
 
     public static void sendInactive(MinecraftServer server) {
