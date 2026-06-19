@@ -9,6 +9,7 @@ import com.mcdg.game.HoleProgressTracker;
 import com.mcdg.game.PlayerRoundSessionStorage;
 import com.mcdg.game.PlacedCourseState;
 import com.mcdg.game.PracticeCourseStorage;
+import com.mcdg.game.RoundChunkLoader;
 import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.RoundPresentationService;
 import java.util.ArrayList;
@@ -277,6 +278,12 @@ public final class CourseAdminCommands {
             PlacedCourseState activePlaced = courseManager.getPlacedCourseState().orElse(null);
             if (wasActiveMatch || courseManager.isRoundActive()) {
             	java.util.List<UUID> participantsToClear = new java.util.ArrayList<>(courseManager.getActiveParticipantIds());
+                    if (activePlaced != null) {
+                        ServerWorld worldToUnload = source.getServer().getWorld(activePlaced.worldKey());
+                        if (worldToUnload != null) {
+                            RoundChunkLoader.unloadAll(worldToUnload);
+                        }
+                    }
                     courseManager.setActiveCourse(null);
                     courseManager.clearPlacedCourseState();
                     courseManager.setActiveCourseCatalogIndex(null);

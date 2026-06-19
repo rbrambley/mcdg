@@ -10,6 +10,7 @@ import com.mcdg.game.PracticeCourseStorage;
 import com.mcdg.game.RoundPresentationService;
 import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.ScorecardManager;
+import com.mcdg.game.RoundChunkLoader;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.SafePositionFinder;
@@ -68,6 +69,7 @@ public final class RoundLifecycleCommands {
             ServerWorld existingWorld = source.getServer().getWorld(existingPlaced.worldKey());
             if (existingWorld != null) {
                 placementService.resetPlacedCourse(existingWorld, existingPlaced);
+                RoundChunkLoader.unloadAll(existingWorld);
             }
             courseManager.clearPlacedCourseState();
             practiceCourseStorage.clear(source.getServer());
@@ -205,6 +207,7 @@ public final class RoundLifecycleCommands {
                 practiceCourseStorage.clear(source.getServer());
             }
             courseManager.setPlacedCourseState(placed);
+            RoundChunkLoader.loadCourseChunks(world, placed);
             if (persistentCourse) {
                 int catalogIndex = practiceCourseStorage.saveReusable(
                         source.getServer(),
@@ -318,6 +321,7 @@ public final class RoundLifecycleCommands {
 
         CommandUtils.clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
         CommandUtils.removeRoundThrowItemsFromPlayers(participants);
+        RoundChunkLoader.loadCourseChunks(world, placed);
 
         List<UUID> participantIds = new ArrayList<>();
         BlockPos firstTee = placed.holeTees().get(1);
@@ -394,6 +398,7 @@ public final class RoundLifecycleCommands {
             source.sendError(Text.literal("Course overlaps with the resort area. Cleanup blocked to protect the resort."));
             return 0;
         }
+        RoundChunkLoader.unloadAll(world);
         evacuatePlayersBeforeCleanup(source, world, placed);
         placementService.resetPlacedCourse(world, placed);
         CommandUtils.removeJunkDropsNearCourse(world, placed);
@@ -434,6 +439,7 @@ public final class RoundLifecycleCommands {
             return 0;
         }
 
+        RoundChunkLoader.unloadAll(world);
         evacuatePlayersBeforeCleanup(source, world, placed);
         placementService.resetPlacedCourse(world, placed);
         CommandUtils.removeJunkDropsNearCourse(world, placed);

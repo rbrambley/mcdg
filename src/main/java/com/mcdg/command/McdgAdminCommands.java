@@ -11,6 +11,7 @@ import com.mcdg.game.HoleProgressTracker;
 import com.mcdg.game.McdgItems;
 import com.mcdg.game.PlacedCourseState;
 import com.mcdg.game.PracticeCourseStorage;
+import com.mcdg.game.RoundChunkLoader;
 import com.mcdg.game.RoundInventoryCleaner;
 import com.mcdg.game.RoundPresentationService;
 import com.mcdg.game.RoundStateManager;
@@ -706,6 +707,7 @@ public final class McdgAdminCommands {
                         ServerWorld existingWorld = source.getServer().getWorld(existingPlaced.worldKey());
                         if (existingWorld != null) {
                                 placementService.resetPlacedCourse(existingWorld, existingPlaced);
+                                RoundChunkLoader.unloadAll(existingWorld);
                         }
                         courseManager.clearPlacedCourseState();
                         practiceCourseStorage.clear(source.getServer());
@@ -1422,6 +1424,7 @@ public final class McdgAdminCommands {
                 }
 
                 evacuatePlayersBeforeCleanup(source, world, placed);
+                RoundChunkLoader.unloadAll(world);
                 placementService.resetPlacedCourse(world, placed);
                 removeJunkDropsNearCourse(world, placed);
                 removeRoundThrowItemsFromCourseWorldPlayers(source, courseManager);
@@ -2239,10 +2242,10 @@ public final class McdgAdminCommands {
         }
 
         evacuatePlayersBeforeCleanup(source, world, placed);
+        RoundChunkLoader.unloadAll(world);
         placementService.resetPlacedCourse(world, placed);
         removeJunkDropsNearCourse(world, placed);
         removeRoundThrowItemsFromCourseWorldPlayers(source, courseManager);
-        courseManager.clearPlacedCourseState();
         courseManager.setRoundActive(false);
         clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
 

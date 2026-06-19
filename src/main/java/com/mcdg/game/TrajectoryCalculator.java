@@ -66,11 +66,16 @@ public final class TrajectoryCalculator {
             ThrowStance stance,
             ReleaseAngle angle
     ) {
-        // Current position and velocity (simulation state)
-        // Offset upward to shoulder height so the disc doesn't immediately collide with the ground
-        Vec3d pos = new Vec3d(startPos.x, startPos.y + RELEASE_HEIGHT_OFFSET, startPos.z);
-        Vec3d prevPos = pos;
-        Vec3d vel = initialVelocity;
+        // Current position and velocity (simulation state) — use primitives to avoid GC churn
+        double px = startPos.x;
+        double py = startPos.y + RELEASE_HEIGHT_OFFSET;
+        double pz = startPos.z;
+        double prevPx = px;
+        double prevPy = py;
+        double prevPz = pz;
+        double vx = initialVelocity.x;
+        double vy = initialVelocity.y;
+        double vz = initialVelocity.z;
 
         // Glide duration based on charge (only for stances with glide)
         float normalizedCharge = Math.min(1.0f, charge);
@@ -86,13 +91,15 @@ public final class TrajectoryCalculator {
 
         // Path points for visual trail (sample every 5 ticks to save memory)
         java.util.List<Vec3d> pathList = new java.util.ArrayList<>();
-        pathList.add(pos);
+        pathList.add(new Vec3d(px, py, pz));
 
         // Simulate flight tick by tick
         int tick = 0;
         while (tick < MAX_SIMULATION_TICKS) {
             tick++;
-            prevPos = pos;
+            prevPx = px;
+            prevPy = py;
+            prevPz = pz;
 
             // Calculate glide progress (0.0 to 1.0) - only for glide stances
             float glideProgress = hasGlide ? Math.min(1.0f, tick / (float) glideTicks) : 1.0f;
@@ -109,10 +116,10 @@ public final class TrajectoryCalculator {
             }
 
             // Apply gravity
-            double velY = vel.y + upwardImpulse - GRAVITY;
+            double velY = vy + upwardImpulse - GRAVITY;
 
             // Apply time-based fade curve (fade intensifies in latter part of glide)
-            double currentSpeed = Math.sqrt(vel.x * vel.x + vel.z * vel.z);
+            double currentSpeed = Math.sqrt(vx * vx + vz * vz);
             double curveFactor;
             if (!hasGlide) {
                 curveFactor = 0.0;
@@ -143,32 +150,38 @@ public final class TrajectoryCalculator {
                 perpZ = -perpZ;
             }
 
-            double velX = vel.x + perpX * curveStrength;
-            double velZ = vel.z + perpZ * curveStrength;
+            double velX = vx + perpX * curveStrength;
+            double velZ = vz + perpZ * curveStrength;
 
             // Update velocity
-            vel = new Vec3d(velX, velY, velZ);
+            vx = velX;
+            vy = velY;
+            vz = velZ;
 
             // Update position
-            pos = pos.add(vel);
+            px += vx;
+            py += vy;
+            pz += vz;
 
             // Record path point every 5 ticks
             if (tick % 5 == 0) {
-                pathList.add(pos);
+                pathList.add(new Vec3d(px, py, pz));
             }
 
             // Terrain-aware collision checks (skip grace period near thrower)
             if (tick > THROW_COLLISION_GRACE_TICKS) {
                 BlockPos blockPos = new BlockPos(
-                        MathHelper.floor(pos.x),
-                        MathHelper.floor(pos.y),
-                        MathHelper.floor(pos.z)
+                        MathHelper.floor(px),
+                        MathHelper.floor(py),
+                        MathHelper.floor(pz)
                 );
 
                 // Obstacle collision: disc inside a solid block (wall, tree, building)
                 if (!world.getBlockState(blockPos).getCollisionShape(world, blockPos).isEmpty()) {
                     // Hit something solid — roll back to previous position and stop
-                    pos = prevPos;
+                    px = prevPx;
+                    py = prevPy;
+                    pz = prevPz;
                     break;
                 }
 
@@ -177,7 +190,7 @@ public final class TrajectoryCalculator {
                     BlockPos groundPos = blockPos.down();
                     if (!world.getBlockState(groundPos).getCollisionShape(world, groundPos).isEmpty()) {
                         // Landed on actual terrain — snap to standable height
-                        pos = new Vec3d(pos.x, groundPos.getY() + 1.0, pos.z);
+                        py = groundPos.getY() + 1.0;
                         break;
                     }
                 }
@@ -188,6 +201,8 @@ public final class TrajectoryCalculator {
                 break;
             }
         }
+
+        Vec3d pos = new Vec3d(px, py, pz);
 
         // Calculate final statistics (distance measured from original feet position)
         double dx = pos.x - startPos.x;
