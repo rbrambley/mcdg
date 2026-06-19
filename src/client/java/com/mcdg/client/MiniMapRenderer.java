@@ -128,10 +128,12 @@ public final class MiniMapRenderer {
             int centerX,
             int centerZ
     ) {
+        private static final int POSITION_THRESHOLD = 4;
+
         private boolean matches(int activeMapSpan, int playerFeetX, int playerFeetZ) {
             return mapSpan == activeMapSpan
-                    && centerX == playerFeetX
-                    && centerZ == playerFeetZ;
+                    && Math.abs(centerX - playerFeetX) <= POSITION_THRESHOLD
+                    && Math.abs(centerZ - playerFeetZ) <= POSITION_THRESHOLD;
         }
     }
 
@@ -441,19 +443,6 @@ public final class MiniMapRenderer {
         float mapRadius = (miniMapSize / 2.0f) - 1.0f;
         MiniMapDrawingUtils.drawFilledCircle(drawContext, mapCenterX, mapCenterY, mapRadius, HudUtil.withAlpha((surfaceAlpha << 24) | 0x121212, hudAlpha));
 
-        drawMiniMapBiomeFallbackSurface(
-            drawContext,
-            client,
-            mapX,
-            mapY,
-            miniMapSize,
-            mapSpan,
-            playerWorldX,
-            playerWorldZ,
-            mapRotationDegrees,
-            hudAlpha
-        );
-
         if (miniMapRenderCache != null && miniMapRenderCache.textureId() != null) {
             drawContext.enableScissor(mapX, mapY, mapX + miniMapSize, mapY + miniMapSize);
             var matrices = drawContext.getMatrices();
@@ -660,13 +649,17 @@ public final class MiniMapRenderer {
                 BlockPos tee = new BlockPos(state.teeX(), 0, state.teeZ());
                 BlockPos basket = new BlockPos(state.basketX(), 0, state.basketZ());
                 BlockPos basketSurface = basket.down();
-                HazardOverlayRenderer.StrictSurfacePresetClient preset = HazardOverlayRenderer.strictPresetFromOrdinal(state.strictSurfacePresetOrdinal());
+                // Use FAST preset for baked hazard grid to avoid expensive slope/rough checks
+                // during texture rebuild. The per-frame overlay (drawMiniMapStrictHazardOverlay)
+                // already handles detailed hazard rendering if the user wants it.
+                HazardOverlayRenderer.StrictSurfacePresetClient preset = HazardOverlayRenderer.StrictSurfacePresetClient.FAST;
+                BlockPos.Mutable feet = new BlockPos.Mutable();
                 for (int hz = 0; hz < hazardHeight; hz++) {
                     int wz = hazardMinZ + hz;
                     for (int hx = 0; hx < hazardWidth; hx++) {
                         int wx = hazardMinX + hx;
                         int feetY = client.world.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, wx, wz) - 1;
-                        BlockPos feet = new BlockPos(wx, feetY, wz);
+                        feet.set(wx, feetY, wz);
                         hazardGrid[hz * hazardWidth + hx] = HazardOverlayRenderer.isHazardPenaltyAt(
                                 client.world, feet, tee, basket, basketSurface, state.corridorHalfWidth(), preset);
                     }

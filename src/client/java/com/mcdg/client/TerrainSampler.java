@@ -30,7 +30,7 @@ final class TerrainSampler {
         LAVA
     }
 
-    record SurfaceResolveResult(BlockPos surface, MiniMapSampleSource source) {
+    record SurfaceResolveResult(int surfaceY, MiniMapSampleSource source) {
     }
 
     record TerrainSampleResult(
@@ -59,38 +59,30 @@ final class TerrainSampler {
 
     static SurfaceResolveResult resolveVisibleSurfaceForSampling(ClientWorld world, int x, int z, int startY) {
         int y = Math.max(world.getBottomY(), Math.min(startY, world.getTopY() - 1));
-        int attempts = 0;
-        int maxDownChecks = 6;
         boolean usedHeightmapFallback = false;
-        while (y > world.getBottomY() && attempts < maxDownChecks) {
-            BlockPos probe = new BlockPos(x, y, z);
-            if (!world.getBlockState(probe).isAir() || !world.getFluidState(probe).isEmpty()) {
-                break;
-            }
-            y--;
-            attempts++;
-        }
+        BlockPos.Mutable probe = new BlockPos.Mutable(x, y, z);
 
-        BlockPos resolved = new BlockPos(x, y, z);
-        if (world.getBlockState(resolved).isAir() && world.getFluidState(resolved).isEmpty()) {
+        // Fast-path: startY from WORLD_SURFACE heightmap is already the highest non-air block,
+        // so it is almost always solid. Skip the redundant down-walk if confirmed.
+        if (world.getBlockState(probe).isAir() && world.getFluidState(probe).isEmpty()) {
             int fallbackY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z) - 1;
             y = Math.max(world.getBottomY(), Math.min(fallbackY, world.getTopY() - 1));
-            attempts = 0;
             usedHeightmapFallback = true;
+            int attempts = 0;
+            probe.set(x, y, z);
             while (y > world.getBottomY() && attempts < 6) {
-                BlockPos probe = new BlockPos(x, y, z);
                 if (!world.getBlockState(probe).isAir() || !world.getFluidState(probe).isEmpty()) {
                     break;
                 }
                 y--;
                 attempts++;
+                probe.setY(y);
             }
-            resolved = new BlockPos(x, y, z);
         }
 
         int noiseSkips = 0;
+        probe.set(x, y, z);
         while (y > world.getBottomY() && noiseSkips < 3) {
-            BlockPos probe = new BlockPos(x, y, z);
             if (!world.getFluidState(probe).isEmpty()) {
                 break;
             }
@@ -99,11 +91,11 @@ final class TerrainSampler {
             }
             y--;
             noiseSkips++;
+            probe.setY(y);
         }
-        resolved = new BlockPos(x, y, z);
 
         MiniMapSampleSource source = usedHeightmapFallback ? MiniMapSampleSource.HEIGHTMAP_FALLBACK : MiniMapSampleSource.VISIBLE_SURFACE;
-        return new SurfaceResolveResult(resolved, source);
+        return new SurfaceResolveResult(y, source);
     }
 
     static TerrainSampleResult sampleClientWorldTerrain(ClientWorld world, int x, int z) {
@@ -132,7 +124,8 @@ final class TerrainSampler {
         }
 
         SurfaceResolveResult resolvedSurface = resolveVisibleSurfaceForSampling(world, x, z, startY);
-        BlockPos surface = resolvedSurface.surface();
+        int surfaceY = resolvedSurface.surfaceY();
+        BlockPos surface = new BlockPos(x, surfaceY, z);
         BlockState state = world.getBlockState(surface);
         if (world.getFluidState(surface).isIn(FluidTags.LAVA)) {
             return new TerrainSampleResult(
@@ -140,7 +133,7 @@ final class TerrainSampler {
                     false,
                     resolvedSurface.source(),
                     MiniMapFluidKind.LAVA,
-                    surface.getY()
+                    surfaceY
             );
         }
         if (world.getFluidState(surface).isIn(FluidTags.WATER)) {
@@ -149,7 +142,7 @@ final class TerrainSampler {
                     true,
                     resolvedSurface.source(),
                     MiniMapFluidKind.WATER,
-                    surface.getY()
+                    surfaceY
             );
         }
 
@@ -160,11 +153,11 @@ final class TerrainSampler {
                     false,
                     resolvedSurface.source(),
                     MiniMapFluidKind.NONE,
-                    surface.getY()
+                    surfaceY
             );
         }
 
-        int terrainClass = classifyClientMiniMapTerrainClass(world, x, z, surface.getY());
+        int terrainClass = classifyClientMiniMapTerrainClass(world, surface);
         int color = miniMapTerrainColor(terrainClass);
         if (color == 0) {
             return new TerrainSampleResult(
@@ -172,7 +165,7 @@ final class TerrainSampler {
                     false,
                     resolvedSurface.source(),
                     MiniMapFluidKind.NONE,
-                    surface.getY()
+                    surfaceY
             );
         }
         return new TerrainSampleResult(
@@ -180,16 +173,15 @@ final class TerrainSampler {
                 false,
                 resolvedSurface.source(),
                 MiniMapFluidKind.NONE,
-                surface.getY()
+                surfaceY
         );
     }
 
-    static int classifyClientMiniMapTerrainClass(ClientWorld world, int x, int z, int surfaceY) {
-        if (surfaceY < world.getBottomY()) {
+    static int classifyClientMiniMapTerrainClass(ClientWorld world, BlockPos surface) {
+        if (surface.getY() < world.getBottomY()) {
             return 0;
         }
 
-        BlockPos surface = new BlockPos(x, surfaceY, z);
         BlockState state = world.getBlockState(surface);
         if (world.getFluidState(surface).isIn(FluidTags.LAVA)) {
             return 10;
