@@ -808,20 +808,6 @@ public final class MiniMapRenderer {
     }
 
     public static void handleMiniMapHotkeys(MinecraftClient client) {
-        ClientKeybinds.forEachMinimapSizeUpPress(() -> {
-            miniMapStyleIndex = Math.min(MINIMAP_SIZES.length - 1, miniMapStyleIndex + 1);
-            if (client.player != null) {
-                client.player.sendMessage(Text.literal("Mini-map size: " + MINIMAP_SIZES[miniMapStyleIndex] + "px").formatted(Formatting.GRAY), true);
-            }
-        });
-
-        ClientKeybinds.forEachMinimapSizeDownPress(() -> {
-            miniMapStyleIndex = Math.max(0, miniMapStyleIndex - 1);
-            if (client.player != null) {
-                client.player.sendMessage(Text.literal("Mini-map size: " + MINIMAP_SIZES[miniMapStyleIndex] + "px").formatted(Formatting.GRAY), true);
-            }
-        });
-
         WaypointManager.handleKeybinds(client);
     }
 

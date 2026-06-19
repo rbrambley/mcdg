@@ -517,6 +517,20 @@ public final class CoursePlacementService {
             CourseStructureBuilder.placeTeePad(world, hole1Tee, originalBlocks);
         }
 
+        // Compute hazard grids for all holes (for hole map rendering)
+        com.mcdg.game.HoleHazardGridService.reset();
+        com.mcdg.rules.TournamentRulesetManager rulesetManager = com.mcdg.McdgMod.getRulesetManager();
+        String courseKey = com.mcdg.game.HoleHazardGridService.courseKey(course.name(), course.seed());
+        for (Hole hole : course.holes()) {
+            BlockPos tee = holeTees.get(hole.index());
+            BlockPos basket = holeBaskets.get(hole.index());
+            if (tee != null && basket != null) {
+                com.mcdg.game.HoleHazardGridService.CachedHazardGrid grid =
+                        com.mcdg.game.HoleHazardGridService.computeGrid(world, hole, tee, basket, rulesetManager);
+                com.mcdg.game.HoleHazardGridService.cacheGrid(courseKey, hole.index(), grid);
+            }
+        }
+
         // Phase 4 intentionally disabled for now (fairway lantern pass) to avoid long generation stalls.
 
         return new PlacedCourseState(world.getRegistryKey(), originalBlocks, holeTees, holeBaskets, holeAlternateAnchors, holeEffectivePars);

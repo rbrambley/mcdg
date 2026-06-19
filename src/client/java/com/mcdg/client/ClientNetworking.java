@@ -3,7 +3,7 @@ package com.mcdg.client;
 import com.mcdg.game.ChargedDiscItem;
 import com.mcdg.net.AceCinematicSync;
 
-import com.mcdg.net.HoleMiniMapSync;
+import com.mcdg.net.HoleMapSync;
 import com.mcdg.net.LeaderboardResponse;
 import com.mcdg.net.MenuScreenSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
@@ -23,8 +23,8 @@ public final class ClientNetworking {
     }
 
     public static void registerReceivers() {
-        ClientPlayNetworking.registerGlobalReceiver(HoleMiniMapSync.ID, (payload, context) ->
-            context.client().execute(() -> McdgClientMod.onHoleMiniMapSync(payload, context.client()))
+        ClientPlayNetworking.registerGlobalReceiver(HoleMapSync.ID, (payload, context) ->
+            context.client().execute(() -> McdgClientMod.onHoleMapSync(payload, context.client()))
         );
         ClientPlayNetworking.registerGlobalReceiver(AceCinematicSync.ID, (payload, context) -> {
             context.client().execute(() -> {

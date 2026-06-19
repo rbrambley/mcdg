@@ -28,7 +28,7 @@ public final class HoleLayoutValidator {
     }
 
     public int distanceFeetFromBlocks(int ax, int az, int bx, int bz) {
-        return distance2d(ax, az, bx, bz) * 3;
+        return Math.round(distance2d(ax, az, bx, bz) * 3.28084f);
     }
 
     private static int distance2d(int ax, int az, int bx, int bz) {

@@ -11,8 +11,7 @@ import org.lwjgl.glfw.GLFW;
  */
 public final class ClientKeybinds {
     private static KeyBinding openMenuKey;
-    private static KeyBinding increaseMiniMapSizeKey;
-    private static KeyBinding decreaseMiniMapSizeKey;
+    private static KeyBinding toggleHoleMapKey;
     private static KeyBinding addWaypointKey;
     private static KeyBinding removeNearestWaypointKey;
     private static KeyBinding toggleWaypointLabelsKey;
@@ -31,16 +30,10 @@ public final class ClientKeybinds {
                 GLFW.GLFW_KEY_G,
                 "category.mcdg"
         ));
-        increaseMiniMapSizeKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.mcdg.minimap_size_up",
+        toggleHoleMapKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.mcdg.toggle_hole_map",
                 InputUtil.Type.KEYSYM,
-                GLFW.GLFW_KEY_EQUAL,
-                "category.mcdg"
-        ));
-        decreaseMiniMapSizeKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.mcdg.minimap_size_down",
-                InputUtil.Type.KEYSYM,
-                GLFW.GLFW_KEY_MINUS,
+                GLFW.GLFW_KEY_H,
                 "category.mcdg"
         ));
         addWaypointKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
@@ -92,6 +85,10 @@ public final class ClientKeybinds {
         return openMenuKey.getBoundKeyLocalizedText();
     }
 
+    public static net.minecraft.text.Text getHoleMapKeyText() {
+        return toggleHoleMapKey.getBoundKeyLocalizedText();
+    }
+
     public static net.minecraft.text.Text getCycleStanceKeyText() {
         return cycleThrowStanceKey.getBoundKeyLocalizedText();
     }
@@ -110,14 +107,8 @@ public final class ClientKeybinds {
         }
     }
 
-    public static void forEachMinimapSizeUpPress(Runnable action) {
-        while (increaseMiniMapSizeKey.wasPressed()) {
-            action.run();
-        }
-    }
-
-    public static void forEachMinimapSizeDownPress(Runnable action) {
-        while (decreaseMiniMapSizeKey.wasPressed()) {
+    public static void forEachHoleMapTogglePress(Runnable action) {
+        while (toggleHoleMapKey.wasPressed()) {
             action.run();
         }
     }

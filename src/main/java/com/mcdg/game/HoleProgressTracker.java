@@ -89,11 +89,10 @@ public final class HoleProgressTracker {
                     if (LAST_RUNNING_SCOREBOARD_HASH != Integer.MIN_VALUE) {
                         sendRunningScoreboardInactive(server);
                     }
-                    MiniMapSyncService.sendInactive(server);
-                    MiniMapSyncService.reset();
+                    HoleMapSyncService.sendInactive(server);
+                    HoleMapSyncService.reset();
                     LAST_RUNNING_SCOREBOARD_HASH = Integer.MIN_VALUE;
                     LieMarkerService.clearAllLieMarkers(server);
-                    HoleTeeMapManager.clearAllRoundHoleMaps(server);
                 }
                 return;
             }
@@ -131,10 +130,6 @@ public final class HoleProgressTracker {
                     continue;
                 }
 
-                if (tee != null) {
-                    HoleTeeMapManager.ensureHoleMapForPlayer(player, state.currentHole(), tee, basket);
-                }
-
                 BlockPos currentLie = state.lie();
                 BlockPos lastLie = LAST_LIE_POSITION.get(player.getUuid());
                 if (lastLie == null || !currentLie.equals(lastLie)) {
@@ -170,7 +165,7 @@ public final class HoleProgressTracker {
                 );
                 int cumulativeParDelta = state.totalStrokes() - runningExpectedThrows;
                 UUID playerId = player.getUuid();
-                Integer cachedHole = MiniMapSyncService.lastHoleForPlayer(playerId);
+                Integer cachedHole = HoleMapSyncService.lastHoleForPlayer(playerId);
                 int corridorHalfWidth;
                 if (cachedHole == null || cachedHole != state.currentHole() || !CACHED_CORRIDOR_HALF_WIDTH.containsKey(playerId)) {
                     corridorHalfWidth = OutOfBoundsClassifier.strictCorridorHalfWidth(
@@ -186,10 +181,9 @@ public final class HoleProgressTracker {
                 }
 
                 if ((server.getTicks() % 5) == 0) {
-                    MiniMapSyncService.sync(
+                    HoleMapSyncService.sync(
                             server,
                             player,
-                            courseManager,
                             course,
                             placed,
                             state,
@@ -271,10 +265,9 @@ public final class HoleProgressTracker {
                     int finalRunningExpected = finalCompletedPar + state.holeStrokes();
                     int finalCumulativeDelta = state.totalStrokes() - finalRunningExpected;
                     int finalCorridorHalfWidth = CACHED_CORRIDOR_HALF_WIDTH.getOrDefault(player.getUuid(), 24);
-                    MiniMapSyncService.forceSync(
+                    HoleMapSyncService.forceSync(
                             server,
                             player,
-                            courseManager,
                             course,
                             placed,
                             state,
@@ -330,6 +323,34 @@ public final class HoleProgressTracker {
                 roundStateManager.advanceToNextHole(player.getUuid(), nextTee);
                 player.teleport(nextTee.getX() + 0.5, nextTee.getY() + 1.0, nextTee.getZ() + 0.5);
                 LieMarkerService.updateLieMarker(player, nextTee);
+
+                // Force sync hole map to show next hole immediately
+                PlayerRoundState nextState = roundStateManager.getState(player.getUuid()).orElse(null);
+                if (nextState != null) {
+                    Hole nextHoleData = course.holes().get(nextState.currentHole() - 1);
+                    BlockPos nextBasket = placed.holeBaskets().get(nextState.currentHole());
+                    BlockPos nextAlternateAnchor = placed.holeAlternateAnchors().get(nextState.currentHole());
+                    int nextCorridorHalfWidth = CACHED_CORRIDOR_HALF_WIDTH.getOrDefault(player.getUuid(), 24);
+                    int nextCumulativeDelta = nextState.totalStrokes() - (cumulativeParThroughHole(course, nextState.currentHole() - 1) + nextState.holeStrokes());
+                    HoleMapSyncService.forceSync(
+                            server,
+                            player,
+                            course,
+                            placed,
+                            nextState,
+                            nextHoleData,
+                            nextTee,
+                            nextBasket,
+                            nextAlternateAnchor,
+                            rulesetManager,
+                            nextCorridorHalfWidth,
+                            nextCumulativeDelta,
+                            0,
+                            null,
+                            strictFlowDebug
+                    );
+                }
+
                 if (state.holeStrokes() == 1) {
                     roundStateManager.recordAce(player.getUuid());
                     ServerPlayNetworking.send(player, AceCinematicSync.Payload.active(state.currentHole(), currentHole.distanceFeet()));
@@ -708,15 +729,14 @@ public final class HoleProgressTracker {
         LAST_LIE_POSITION.clear();
         LAST_BREADCRUMB_POSITION.clear();
         CACHED_CORRIDOR_HALF_WIDTH.clear();
-        MiniMapSyncService.reset();
+        HoleMapSyncService.reset();
         LieMarkerService.reset();
-        MiniMapSyncService.sendInactive(server);
+        HoleMapSyncService.sendInactive(server);
         if (LAST_RUNNING_SCOREBOARD_HASH != Integer.MIN_VALUE) {
             sendRunningScoreboardInactive(server);
         }
         LAST_RUNNING_SCOREBOARD_HASH = Integer.MIN_VALUE;
         LieMarkerService.clearAllLieMarkers(server);
-        HoleTeeMapManager.clearAllRoundHoleMaps(server);
     }
     private static void removeRoundThrowItems(ServerPlayerEntity player) {
         RoundInventoryCleaner.purgeRoundItemsAndJunk(player);

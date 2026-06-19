@@ -10,8 +10,13 @@ import net.minecraft.text.Text;
 public final class RunningScoreboardOverlay {
     private static final int HUD_CARD_TEXT = 0xE8EEF7;
     private static final int HUD_CARD_MUTED_TEXT = 0xAAB8CC;
+    private static int lastPanelWidth = 0;
 
     private RunningScoreboardOverlay() {
+    }
+
+    public static int getLastPanelWidth() {
+        return lastPanelWidth;
     }
 
     public static void render(DrawContext drawContext, McdgClientMod.RunningRoundScoreState state, float hudAlpha) {
@@ -40,6 +45,7 @@ public final class RunningScoreboardOverlay {
         int rowHeight = 10;
         int panelW = 8 + nameColW + colGap + (visibleHoleCount * (holeColW + 2)) + colGap + totalColW + 8;
         int panelH = 22 + ((state.rows().size() + 1) * rowHeight);
+        lastPanelWidth = panelW;
         int x = 8;
         int y = drawContext.getScaledWindowHeight() - panelH - 8;
 

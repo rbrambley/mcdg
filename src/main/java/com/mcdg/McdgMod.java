@@ -3,6 +3,7 @@ package com.mcdg;
 import com.mcdg.command.McdgAdminCommands;
 import com.mcdg.config.McdgConfig;
 import com.mcdg.game.ActiveCourseManager;
+import com.mcdg.game.HoleMapSyncService;
 import com.mcdg.game.HoleProgressTracker;
 import com.mcdg.game.LeaderboardManager;
 import com.mcdg.game.McdgItems;
@@ -26,7 +27,7 @@ import com.mcdg.game.ThrowAutoTestService;
 import com.mcdg.game.RoundInviteManager;
 import com.mcdg.net.AceCinematicSync;
 
-import com.mcdg.net.HoleMiniMapSync;
+import com.mcdg.net.HoleMapSync;
 import com.mcdg.net.LeaderboardRequest;
 import com.mcdg.net.LeaderboardResponse;
 import com.mcdg.net.WaypointSync;
@@ -134,6 +135,10 @@ public final class McdgMod implements ModInitializer {
     private static final RoundStateManager ROUND_STATE_MANAGER = new RoundStateManager();
     private static final TournamentRulesetManager TOURNAMENT_RULESET_MANAGER = new TournamentRulesetManager();
     private static final LeaderboardManager LEADERBOARD_MANAGER = new LeaderboardManager();
+
+    public static TournamentRulesetManager getRulesetManager() {
+        return TOURNAMENT_RULESET_MANAGER;
+    }
     private static final RoundPresentationService ROUND_PRESENTATION_SERVICE = new RoundPresentationService();
     private static final PracticeCourseStorage PRACTICE_COURSE_STORAGE = new PracticeCourseStorage();
     private static final RoundSessionStorage ROUND_SESSION_STORAGE = new RoundSessionStorage();
@@ -181,7 +186,7 @@ public final class McdgMod implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(ThrowPowerLockSync.ID, ThrowPowerLockSync.CODEC);
         PayloadTypeRegistry.playC2S().register(ThrowStanceSync.ID, ThrowStanceSync.CODEC);
         PayloadTypeRegistry.playS2C().register(AceCinematicSync.ID, AceCinematicSync.CODEC);
-        PayloadTypeRegistry.playS2C().register(HoleMiniMapSync.ID, HoleMiniMapSync.CODEC);
+        PayloadTypeRegistry.playS2C().register(HoleMapSync.ID, HoleMapSync.CODEC);
         PayloadTypeRegistry.playS2C().register(RoundRunningScoresSync.ID, RoundRunningScoresSync.CODEC);
         PayloadTypeRegistry.playS2C().register(RoundCompleteCinematicSync.ID, RoundCompleteCinematicSync.CODEC);
         PayloadTypeRegistry.playS2C().register(MenuScreenSync.ID, MenuScreenSync.CODEC);
@@ -378,7 +383,10 @@ public final class McdgMod implements ModInitializer {
             })
         );
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
-            server.execute(() -> WaypointSync.clear(handler.player))
+            server.execute(() -> {
+                WaypointSync.clear(handler.player);
+                HoleMapSyncService.onPlayerDisconnect(handler.player.getUuid());
+            })
         );
         HoleProgressTracker.register(
             ACTIVE_COURSE_MANAGER,
