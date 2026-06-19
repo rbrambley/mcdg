@@ -21,7 +21,7 @@ final class HazardOverlayRenderer {
 
     private HazardOverlayRenderer() {}
 
-    private enum StrictSurfacePresetClient {
+    enum StrictSurfacePresetClient {
         FAST,
         BALANCED,
         TOURNAMENT

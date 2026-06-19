@@ -44,6 +44,7 @@ public final class MiniMapRenderer {
     private static long lastMiniMapRenderAtMs = 0L;
     private static boolean miniMapJoinWarmupPending;
     private static int miniMapJoinPrimeTicksRemaining;
+    private static int miniMapJoinPrimeRebuildCounter;
 
     private MiniMapRenderer() {}
 
@@ -380,8 +381,20 @@ public final class MiniMapRenderer {
         drawContext.drawTexture(texture, centerX - half, centerY - half, 0, 0, size, size, size, size);
     }
 
-
-
+    private static int blendHazardColor(int baseArgb) {
+        float hazardA = 0x8C / 255.0f;
+        int hazardR = 0xFF;
+        int hazardG = 0x9A;
+        int hazardB = 0x32;
+        int baseA = (baseArgb >>> 24) & 0xFF;
+        int baseR = (baseArgb >>> 16) & 0xFF;
+        int baseG = (baseArgb >>> 8) & 0xFF;
+        int baseB = baseArgb & 0xFF;
+        int r = Math.round(baseR * (1.0f - hazardA) + hazardR * hazardA);
+        int g = Math.round(baseG * (1.0f - hazardA) + hazardG * hazardA);
+        int b = Math.round(baseB * (1.0f - hazardA) + hazardB * hazardA);
+        return (baseA << 24) | (Math.min(255, r) << 16) | (Math.min(255, g) << 8) | Math.min(255, b);
+    }
 
     public static void renderHoleMiniMapOverlay(DrawContext drawContext) {
         MinecraftClient client = MinecraftClient.getInstance();
@@ -454,22 +467,6 @@ public final class MiniMapRenderer {
 
             McdgClientMod.MiniMapState state = miniMapState;
             if (state != null && (System.currentTimeMillis() - miniMapReceivedAtMs) <= MINIMAP_STALE_TIMEOUT_MS) {
-                HazardOverlayRenderer.drawMiniMapStrictHazardOverlay(
-                    drawContext,
-                    client,
-                    state,
-                    playerWorldX,
-                    playerWorldZ,
-                    mapCenterX,
-                    mapCenterY,
-                    mapScale,
-                    mapRotationDegrees,
-                    hudAlpha,
-                    mapCenterX,
-                    mapCenterY,
-                    mapRadius
-                );
-
                 drawMiniMapHoleGuides(
                         drawContext,
                         state,
@@ -646,6 +643,37 @@ public final class MiniMapRenderer {
         int chunkUnloadedSourcePixels = 0;
         int unresolvedSurfacePixels = 0;
 
+        // Precompute hazard grid once per texture rebuild instead of every frame
+        McdgClientMod.MiniMapState state = miniMapState;
+        int hazardMinX = 0, hazardMinZ = 0, hazardWidth = 0, hazardHeight = 0;
+        boolean[] hazardGrid = null;
+        if (state != null && (System.currentTimeMillis() - miniMapReceivedAtMs) <= MINIMAP_STALE_TIMEOUT_MS) {
+            int pad = 2;
+            hazardMinX = net.minecraft.util.math.MathHelper.floor(centerWorldX - (mapSpan / 2.0f)) - pad;
+            hazardMinZ = net.minecraft.util.math.MathHelper.floor(centerWorldZ - (mapSpan / 2.0f)) - pad;
+            int hazardMaxX = net.minecraft.util.math.MathHelper.floor(centerWorldX + (mapSpan / 2.0f)) + pad;
+            int hazardMaxZ = net.minecraft.util.math.MathHelper.floor(centerWorldZ + (mapSpan / 2.0f)) + pad;
+            hazardWidth = hazardMaxX - hazardMinX + 1;
+            hazardHeight = hazardMaxZ - hazardMinZ + 1;
+            if (hazardWidth > 0 && hazardHeight > 0 && hazardWidth <= 260 && hazardHeight <= 260) {
+                hazardGrid = new boolean[hazardWidth * hazardHeight];
+                BlockPos tee = new BlockPos(state.teeX(), 0, state.teeZ());
+                BlockPos basket = new BlockPos(state.basketX(), 0, state.basketZ());
+                BlockPos basketSurface = basket.down();
+                HazardOverlayRenderer.StrictSurfacePresetClient preset = HazardOverlayRenderer.strictPresetFromOrdinal(state.strictSurfacePresetOrdinal());
+                for (int hz = 0; hz < hazardHeight; hz++) {
+                    int wz = hazardMinZ + hz;
+                    for (int hx = 0; hx < hazardWidth; hx++) {
+                        int wx = hazardMinX + hx;
+                        int feetY = client.world.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, wx, wz) - 1;
+                        BlockPos feet = new BlockPos(wx, feetY, wz);
+                        hazardGrid[hz * hazardWidth + hx] = HazardOverlayRenderer.isHazardPenaltyAt(
+                                client.world, feet, tee, basket, basketSurface, state.corridorHalfWidth(), preset);
+                    }
+                }
+            }
+        }
+
         for (int py = 0; py < MINIMAP_TEXTURE_SIZE; py++) {
             float dz = (py - centerPy) / texDenominator;
             int worldZ = net.minecraft.util.math.MathHelper.floor(centerWorldZ + (dz * mapSpan));
@@ -673,7 +701,17 @@ public final class MiniMapRenderer {
                     baseColor = TerrainSampler.miniMapBiomeFallbackColor(client.world, worldX, worldZ);
                 }
 
-                int shadedArgb = TerrainSampler.applyVisibleSurfaceShading(client.world, worldX, worldZ, baseColor);
+                // Apply hazard overlay baked into the cached texture
+                if (hazardGrid != null) {
+                    int hazardGx = worldX - hazardMinX;
+                    int hazardGz = worldZ - hazardMinZ;
+                    if (hazardGx >= 0 && hazardGx < hazardWidth && hazardGz >= 0 && hazardGz < hazardHeight
+                            && hazardGrid[hazardGz * hazardWidth + hazardGx]) {
+                        baseColor = blendHazardColor(baseColor);
+                    }
+                }
+
+                int shadedArgb = TerrainSampler.applyVisibleSurfaceShadingFast(baseColor, terrainSample.surfaceY());
                 image.setColor(px, py, TerrainSampler.argbToAbgr(shadedArgb));
             }
         }
@@ -803,8 +841,11 @@ public final class MiniMapRenderer {
             return;
         }
 
-        lastMiniMapRenderAtMs = 0L;
-        refreshMiniMapRenderCache(client, resolveActiveMiniMapSpan(client));
+        miniMapJoinPrimeRebuildCounter++;
+        if (miniMapJoinPrimeRebuildCounter % 5 == 0) {
+            lastMiniMapRenderAtMs = 0L;
+            refreshMiniMapRenderCache(client, resolveActiveMiniMapSpan(client));
+        }
 
         if (miniMapJoinPrimeTicksRemaining > 0) {
             miniMapJoinPrimeTicksRemaining--;
@@ -849,10 +890,6 @@ public final class MiniMapRenderer {
                 int worldZ = net.minecraft.util.math.MathHelper.floor(playerWorldZ + ((worldDelta[1] / Math.max(1.0f, miniMapSize)) * mapSpan));
 
                 int color = TerrainSampler.miniMapBiomeFallbackColor(client.world, worldX, worldZ);
-                if (client.world.isChunkLoaded(worldX >> 4, worldZ >> 4)) {
-                    color = TerrainSampler.applyVisibleSurfaceShading(client.world, worldX, worldZ, color);
-                }
-
                 drawContext.fill(mapX + px, mapY + py, mapX + px + 1, mapY + py + 1, HudUtil.withAlpha(color, hudAlpha));
             }
         }

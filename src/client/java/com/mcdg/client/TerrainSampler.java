@@ -319,6 +319,25 @@ final class TerrainSampler {
         return scaleColor(baseColor, shade);
     }
 
+    /**
+     * Fast variant of surface shading that avoids world lookups.
+     * Uses only the known surface Y for subtle height dithering.
+     */
+    static int applyVisibleSurfaceShadingFast(int baseColor, int surfaceY) {
+        if (baseColor == MiniMapRenderer.MINIMAP_COLOR_UNSET) {
+            return 0xFF5E6F86;
+        }
+        float shade = 1.0f;
+        if (Math.floorMod(surfaceY, 4) == 0) {
+            shade *= 0.93f;
+        }
+        if (Math.floorMod(surfaceY, 2) == 0) {
+            shade *= 0.97f;
+        }
+        shade = Math.max(0.65f, Math.min(1.35f, shade));
+        return scaleColor(baseColor, shade);
+    }
+
     public static int scaleColor(int argb, float multiplier) {
         int a = (argb >>> 24) & 0xFF;
         int r = Math.max(0, Math.min(255, Math.round(((argb >>> 16) & 0xFF) * multiplier)));

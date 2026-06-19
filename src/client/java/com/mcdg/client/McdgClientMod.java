@@ -142,12 +142,12 @@ public final class McdgClientMod implements ClientModInitializer {
                         MiniMapState state = MiniMapRenderer.getMiniMapState();
                         if (state != null) {
                             basketBeamTick++;
-                            if (basketBeamTick % 4 == 0) {
+                            if (basketBeamTick % 10 == 0) {
                                 int bx = state.basketX();
                                 int bz = state.basketZ();
                                 int by = client.world.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, bx, bz);
-                                for (int j = 0; j < 30; j++) {
-                                    double py = by + 1.0 + j * 0.6;
+                                for (int j = 0; j < 6; j++) {
+                                    double py = by + 1.0 + j * 3.0;
                                     client.world.addParticle(
                                             new DustParticleEffect(new Vector3f(0.5f, 1.0f, 0.2f), 0.5f),
                                             bx + 0.5, py, bz + 0.5,
