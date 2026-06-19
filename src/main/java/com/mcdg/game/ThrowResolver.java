@@ -101,8 +101,9 @@ public final class ThrowResolver {
             BlockPos alternateAnchor,
             RoundStateManager roundStateManager,
             TournamentRulesetManager rulesetManager,
-                boolean hudScoringDebug,
-                boolean strictFlowDebug
+            ActiveCourseManager courseManager,
+            boolean hudScoringDebug,
+            boolean strictFlowDebug
     ) {
         Integer processedTotalObj = LAST_PROCESSED_THROW_TOTAL.get(player.getUuid());
         int processedTotal;
@@ -335,9 +336,10 @@ public final class ThrowResolver {
         int obCrossingFeet = firstOutCrossing != null ? DistanceUtils.distanceFeet(throwLie, firstOutCrossing) : 0;
         int returnedToFeet = DistanceUtils.distanceFeet(throwLie, resultingLie);
 
-        // Send trail packet to client for visual trail and stats
+        // Send trail packet to all active participants for visual trail and stats
         if (calc != null && pathPoints != null) {
-            ServerPlayNetworking.send(player, new ThrowTrailSync.Payload(
+            ThrowTrailSync.Payload payload = new ThrowTrailSync.Payload(
+                    player.getUuid(),
                     pathPoints,
                     calc.totalDistanceFt(),
                     calc.lateralDriftFt(),
@@ -349,7 +351,13 @@ public final class ThrowResolver {
                     penaltyReason,
                     obCrossingFeet,
                     returnedToFeet
-            ));
+            );
+            for (UUID participantId : courseManager.getActiveParticipantIds()) {
+                ServerPlayerEntity participant = player.getServer().getPlayerManager().getPlayer(participantId);
+                if (participant != null) {
+                    ServerPlayNetworking.send(participant, payload);
+                }
+            }
         }
         LAST_THROW_STATS.put(player.getUuid(), new LastThrowStats(
                 calc != null ? calc.totalDistanceFt() : lastThrowDistance,

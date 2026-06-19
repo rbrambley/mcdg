@@ -9,6 +9,7 @@ import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
+import java.util.UUID;
 
 /**
  * Server-to-client packet for disc throw visual trail and stats.
@@ -24,6 +25,7 @@ public final class ThrowTrailSync {
     }
 
     public record Payload(
+            UUID throwerId,          // Player who threw the disc
             Vec3d[] pathPoints,      // Trajectory points for particle trail
             double totalDistanceFt,  // Total horizontal distance in feet
             double lateralDriftFt,   // Left/right drift from aim line in feet
@@ -37,6 +39,7 @@ public final class ThrowTrailSync {
             int returnedToFeet       // Distance from throw lie to resulting lie
     ) implements CustomPayload {
         public static Payload read(RegistryByteBuf buf) {
+            UUID throwerId = buf.readUuid();
             int pathLength = buf.readVarInt();
             if (pathLength < 0 || pathLength > 1000) {
                 pathLength = 0;
@@ -70,10 +73,11 @@ public final class ThrowTrailSync {
             String penaltyReason = buf.readString(64);
             int obCrossingFeet = buf.readVarInt();
             int returnedToFeet = buf.readVarInt();
-            return new Payload(pathPoints, totalDistanceFt, lateralDriftFt, stance, angle, flightTicks, penaltyType, penaltyStrokes, penaltyReason, obCrossingFeet, returnedToFeet);
+            return new Payload(throwerId, pathPoints, totalDistanceFt, lateralDriftFt, stance, angle, flightTicks, penaltyType, penaltyStrokes, penaltyReason, obCrossingFeet, returnedToFeet);
         }
 
         public void write(RegistryByteBuf buf) {
+            buf.writeUuid(throwerId);
             buf.writeVarInt(pathPoints.length);
             for (Vec3d point : pathPoints) {
                 buf.writeDouble(point.x);

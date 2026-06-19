@@ -196,7 +196,7 @@ public final class McdgClientMod implements ClientModInitializer {
             MiniMapRenderer.setMiniMapReceivedAtMs(0L);
             MiniMapRenderer.setHudHideSinceMs(0L);
             MiniMapRenderer.clearMiniMapRenderCache(client);
-            DiscTrailRenderer.clearStats();
+            DiscTrailRenderer.clearAllStats();
         });
         ClientNetworking.registerReceivers();
         HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {

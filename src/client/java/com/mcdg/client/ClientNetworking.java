@@ -78,6 +78,7 @@ public final class ClientNetworking {
         ClientPlayNetworking.registerGlobalReceiver(ThrowTrailSync.ID, (payload, context) ->
             context.client().execute(() -> {
                 DiscTrailRenderer.startTrail(
+                        payload.throwerId(),
                         payload.pathPoints(),
                         payload.totalDistanceFt(),
                         payload.lateralDriftFt(),

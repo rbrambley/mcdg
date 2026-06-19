@@ -151,6 +151,7 @@ public final class HoleProgressTracker {
                             alternateAnchor,
                             roundStateManager,
                             rulesetManager,
+                            courseManager,
                             hudScoringDebug,
                             strictFlowDebug
                     );
@@ -366,6 +367,13 @@ public final class HoleProgressTracker {
                 null
         );
         if (expectedPlayer == null || expectedPlayer.equals(player.getUuid())) {
+            return ThrowTurnGate.allowed();
+        }
+
+        // Allow other players to throw when the expected player's previous throw is still resolving.
+        // This prevents deadlocks where the expected player is blocked waiting for their throw to land.
+        PlayerRoundState expectedState = snapshot.get(expectedPlayer);
+        if (expectedState != null && ThrowResolver.isThrowResolutionPending(expectedPlayer, expectedState.totalStrokes())) {
             return ThrowTurnGate.allowed();
         }
 
