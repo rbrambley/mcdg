@@ -28,7 +28,7 @@ public final class PlacementUtils {
         }
 
         originalBlocks.computeIfAbsent(immutablePos, p -> current);
-        world.setBlockState(immutablePos, newState, Block.NOTIFY_ALL);
+        world.setBlockState(immutablePos, newState, Block.NOTIFY_LISTENERS);
     }
 
     static BlockPos orientedOffset(BlockPos origin, int[] side, int[] forward, int sideSteps, int forwardSteps, int yOffset) {

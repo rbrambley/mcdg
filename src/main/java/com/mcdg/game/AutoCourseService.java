@@ -164,16 +164,21 @@ public final class AutoCourseService {
         return 1;
     }
 
+    private static final int SLOW_PLACEMENT_MS = 100;
+    private static final int EXTRA_DELAY_TICKS = 60;
+
     public void tick(MinecraftServer server) {
         if (state == null) {
             return;
         }
 
         state.ticksWaited++;
-        if (state.ticksWaited < TICKS_BETWEEN_HOLES) {
+        int requiredWait = TICKS_BETWEEN_HOLES + state.cooldownTicks;
+        if (state.ticksWaited < requiredWait) {
             return;
         }
         state.ticksWaited = 0;
+        state.cooldownTicks = 0;
 
         if (state.placer == null) {
             state.placer = new TickIncrementalCoursePlacer(
@@ -181,7 +186,15 @@ public final class AutoCourseService {
                     msg -> broadcastProgress(server, msg));
         }
 
+        long start = System.nanoTime();
         state.placer.tick();
+        long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+        if (elapsedMs > SLOW_PLACEMENT_MS) {
+            state.cooldownTicks = EXTRA_DELAY_TICKS;
+            McdgMod.LOGGER.warn(
+                    "Slow autocourse placement ({}ms), adding {} tick cooldown before next hole",
+                    elapsedMs, EXTRA_DELAY_TICKS);
+        }
 
         if (state.placer.isDone()) {
             try {
@@ -620,6 +633,7 @@ public final class AutoCourseService {
         private final BlockPos origin;
         private final ServerWorld world;
         private int ticksWaited = TICKS_BETWEEN_HOLES;
+        private int cooldownTicks = 0;
         private TickIncrementalCoursePlacer placer = null;
 
         private AutoBuildState(UUID ownerUuid, String courseName, long seed, Course course, BlockPos origin, ServerWorld world) {
