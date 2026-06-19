@@ -424,7 +424,9 @@ public final class McdgAdminCommands {
                                                 )))))
                         .then(literal("cancelthrowtest").requires(McdgAdminCommands::canUseAdminCommands)
                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
-                                .executes(context -> executeCancelThrowTest(context.getSource(), throwAutoTestService, roundSessionStorage, playerRoundSessionStorage, buildCourseSessionManager, autoCourseService)))));
+                                .executes(context -> executeCancelThrowTest(context.getSource(), throwAutoTestService, roundSessionStorage, playerRoundSessionStorage, buildCourseSessionManager, autoCourseService)))
+                        .then(buildCourseSessionManager.registerNode().requires(McdgAdminCommands::canUseAdminCommands))
+                        ));
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             dispatcher.register(literal("mcdg")
