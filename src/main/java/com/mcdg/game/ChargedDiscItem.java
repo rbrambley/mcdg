@@ -71,7 +71,7 @@ public final class ChargedDiscItem extends Item {
     @Override
     public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
         ItemStack stack = user.getStackInHand(hand);
-        if (!courseManager.isRoundActive()) {
+        if (!world.isClient() && !courseManager.isRoundActive()) {
             if (user instanceof ServerPlayerEntity serverPlayer) {
                 serverPlayer.sendMessage(Text.literal("No active round. Use /mcdg startround."), true);
             }
@@ -98,14 +98,7 @@ public final class ChargedDiscItem extends Item {
 
     @Override
     public void usageTick(World world, LivingEntity user, ItemStack stack, int remainingUseTicks) {
-        if (!courseManager.isRoundActive()) {
-            if (world.isClient()) {
-                clientChargeVisible = false;
-                clientChargePercent = 0.0f;
-                powerLocked = false;
-                lockedChargePercent = 0.0f;
-                lastAudioThreshold = 0;
-            }
+        if (!world.isClient() && !courseManager.isRoundActive()) {
             return;
         }
 

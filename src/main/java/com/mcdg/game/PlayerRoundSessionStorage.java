@@ -2,6 +2,7 @@ package com.mcdg.game;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.mcdg.McdgMod;
 import com.mcdg.data.Course;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -37,7 +38,12 @@ public final class PlayerRoundSessionStorage {
 
         SessionsFileSnapshot fileSnapshot = readFileSnapshot(resolvePath(server), logger);
         fileSnapshot.sessions.put(playerId.toString(), PlayerSessionSnapshot.from(course, placed, state));
-        return writeFileSnapshot(resolvePath(server), fileSnapshot, logger);
+        sessionsCache = fileSnapshot;
+        Path path = resolvePath(server);
+        McdgMod.autosaveExecutor().execute(() -> {
+            writeFileSnapshot(path, fileSnapshot, logger);
+        });
+        return true;
     }
 
     public Optional<LoadedPlayerRoundSession> loadPlayer(MinecraftServer server, UUID playerId, Logger logger) {

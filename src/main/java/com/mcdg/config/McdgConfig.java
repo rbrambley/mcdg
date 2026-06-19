@@ -7,16 +7,18 @@ public record McdgConfig(
         int respawnPenaltyStrokes,
         int defaultHoleCount,
         boolean enforceCourseProtection,
-        boolean enableSurvivalRewards
+        boolean enableSurvivalRewards,
+        boolean productionMode
 ) {
     public static McdgConfig loadDefault() {
-        boolean hudScoringDebug = readBoolEnv("MCDG_DEBUG_HUD_SCORING");
-    boolean strictFlowDebug = readBoolEnv("MCDG_DEBUG_STRICT_FLOW");
+        boolean productionMode = readBoolEnvWithDefault("MCDG_PRODUCTION_MODE", true);
+        boolean hudScoringDebug = !productionMode && readBoolEnv("MCDG_DEBUG_HUD_SCORING");
+    boolean strictFlowDebug = !productionMode && readBoolEnv("MCDG_DEBUG_STRICT_FLOW");
         boolean skipPresentation = readBoolEnv("MCDG_SKIP_ROUND_PRESENTATION");
         int respawnPenaltyStrokes = readIntEnv("MCDG_RESPAWN_PENALTY_STROKES", 1, 0, 5);
         // Survival rewards enabled by default; disable via MCDG_SURVIVAL_REWARDS=false.
         boolean survivalRewards = readBoolEnvWithDefault("MCDG_SURVIVAL_REWARDS", true);
-    return new McdgConfig(hudScoringDebug, strictFlowDebug, skipPresentation, respawnPenaltyStrokes, 9, true, survivalRewards);
+    return new McdgConfig(hudScoringDebug, strictFlowDebug, skipPresentation, respawnPenaltyStrokes, 9, true, survivalRewards, productionMode);
     }
 
     private static boolean readBoolEnv(String name) {

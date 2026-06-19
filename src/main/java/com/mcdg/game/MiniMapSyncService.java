@@ -25,13 +25,45 @@ public final class MiniMapSyncService {
     private static final Map<UUID, Integer> LAST_MINIMAP_PAYLOAD_HASH = new HashMap<>();
     private static boolean ACTIVE_SENT = false;
 
+    private static final Map<UUID, CachedExtras> EXTRAS_CACHE = new HashMap<>();
+
+    private record CachedExtras(
+            BlockPos lie,
+            int corridorHalfWidth,
+            int[] corridorEntry,
+            int[] waterGap
+    ) {}
+
     private MiniMapSyncService() {
     }
 
     public static void reset() {
         LAST_MINIMAP_HOLE.clear();
         LAST_MINIMAP_PAYLOAD_HASH.clear();
+        EXTRAS_CACHE.clear();
         ACTIVE_SENT = false;
+    }
+
+    private static CachedExtras resolveCachedExtras(
+            UUID playerId,
+            BlockPos lie,
+            int corridorHalfWidth,
+            BlockPos tee,
+            BlockPos basket,
+            BlockPos alternateAnchor,
+            ServerWorld world
+    ) {
+        CachedExtras cached = EXTRAS_CACHE.get(playerId);
+        if (cached != null && cached.lie().equals(lie) && cached.corridorHalfWidth() == corridorHalfWidth) {
+            return cached;
+        }
+        int[] corridorEntry = tee != null
+                ? OutOfBoundsClassifier.nearestForwardCorridorEntry(lie, tee, basket, alternateAnchor, corridorHalfWidth)
+                : null;
+        int[] waterGap = OutOfBoundsClassifier.findLongestWaterGap(world, lie, basket);
+        CachedExtras extras = new CachedExtras(lie, corridorHalfWidth, corridorEntry, waterGap);
+        EXTRAS_CACHE.put(playerId, extras);
+        return extras;
     }
 
     public static void sendInactive(MinecraftServer server) {
@@ -69,11 +101,15 @@ public final class MiniMapSyncService {
     ) {
         UUID playerId = player.getUuid();
         BlockPos mapFocus = player.getBlockPos();
-        int[] corridorEntry = tee != null
-                ? OutOfBoundsClassifier.nearestForwardCorridorEntry(state.lie(), tee, basket, alternateAnchor, corridorHalfWidth)
-                : null;
+        CachedExtras extras = resolveCachedExtras(
+                playerId, state.lie(), corridorHalfWidth, tee, basket, alternateAnchor, (ServerWorld) player.getWorld()
+        );
+        int[] corridorEntry = extras.corridorEntry();
         int corridorEntryFeet = corridorEntry != null ? corridorEntry[0] : 0;
         int corridorEntryBearing = corridorEntry != null ? corridorEntry[1] : 0;
+        int waterGapStartFeet = extras.waterGap()[2] > 0 ? Math.round(extras.waterGap()[0] * 3.28084f) : 0;
+        int waterGapEndFeet = extras.waterGap()[2] > 0 ? Math.round(extras.waterGap()[1] * 3.28084f) : 0;
+        boolean hasWaterGap = extras.waterGap()[2] > 0;
 
         HoleMiniMapSync.Payload miniMapPayload = buildMiniMapPayload(
                 (ServerWorld) player.getWorld(),
@@ -96,6 +132,9 @@ public final class MiniMapSyncService {
                 lastThrowDistanceFeet,
                 corridorEntryFeet,
                 corridorEntryBearing,
+                waterGapStartFeet,
+                waterGapEndFeet,
+                hasWaterGap,
                 lastThrowStats
         );
 
@@ -149,11 +188,15 @@ public final class MiniMapSyncService {
     ) {
         UUID playerId = player.getUuid();
         BlockPos mapFocus = player.getBlockPos();
-        int[] corridorEntry = tee != null
-                ? OutOfBoundsClassifier.nearestForwardCorridorEntry(state.lie(), tee, basket, alternateAnchor, corridorHalfWidth)
-                : null;
+        CachedExtras extras = resolveCachedExtras(
+                playerId, state.lie(), corridorHalfWidth, tee, basket, alternateAnchor, (ServerWorld) player.getWorld()
+        );
+        int[] corridorEntry = extras.corridorEntry();
         int corridorEntryFeet = corridorEntry != null ? corridorEntry[0] : 0;
         int corridorEntryBearing = corridorEntry != null ? corridorEntry[1] : 0;
+        int waterGapStartFeet = extras.waterGap()[2] > 0 ? Math.round(extras.waterGap()[0] * 3.28084f) : 0;
+        int waterGapEndFeet = extras.waterGap()[2] > 0 ? Math.round(extras.waterGap()[1] * 3.28084f) : 0;
+        boolean hasWaterGap = extras.waterGap()[2] > 0;
 
         HoleMiniMapSync.Payload miniMapPayload = buildMiniMapPayload(
                 (ServerWorld) player.getWorld(),
@@ -176,6 +219,9 @@ public final class MiniMapSyncService {
                 lastThrowDistanceFeet,
                 corridorEntryFeet,
                 corridorEntryBearing,
+                waterGapStartFeet,
+                waterGapEndFeet,
+                hasWaterGap,
                 lastThrowStats
         );
 
@@ -206,12 +252,11 @@ public final class MiniMapSyncService {
             int lastThrowDistanceFeet,
             int corridorEntryFeet,
             int corridorEntryBearing,
+            int waterGapStartFeet,
+            int waterGapEndFeet,
+            boolean hasWaterGap,
             ThrowResolver.LastThrowStats lastThrowStats
     ) {
-        int[] waterGap = OutOfBoundsClassifier.findLongestWaterGap(world, lie, basket);
-        int waterGapStartFeet = waterGap[2] > 0 ? Math.round(waterGap[0] * 3.28084f) : 0;
-        int waterGapEndFeet = waterGap[2] > 0 ? Math.round(waterGap[1] * 3.28084f) : 0;
-        boolean hasWaterGap = waterGap[2] > 0;
 
         int span;
         int minX = Math.min(Math.min(tee.getX(), basket.getX()), mapFocus.getX());

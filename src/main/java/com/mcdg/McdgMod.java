@@ -94,13 +94,17 @@ public final class McdgMod implements ModInitializer {
     private static final String AUTOTEST_BASE_SEED_ENV = "MCDG_AUTOTEST_BASE_SEED";
     private static final String AUTO_STRICT_SETUP_ENV = "MCDG_AUTO_STRICT_SETUP";
     private static final int AUTO_STRICT_SETUP_MAX_WAIT_TICKS = 20 * 120;
-    private static final int ROUND_SESSION_AUTOSAVE_INTERVAL_TICKS = 200;
+    private static final int ROUND_SESSION_AUTOSAVE_INTERVAL_TICKS = 600;
     private static final long TICK_HANDLER_WARNING_THRESHOLD_MS = 10L;
     private static final ExecutorService AUTOSAVE_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "MCDG-Autosave");
         t.setDaemon(true);
         return t;
     });
+
+    public static ExecutorService autosaveExecutor() {
+        return AUTOSAVE_EXECUTOR;
+    }
     
     static {
         // Add shutdown hook to ensure executor is cleaned up even if normal shutdown fails
@@ -404,7 +408,7 @@ public final class McdgMod implements ModInitializer {
             return ActionResult.PASS;
         });
 
-        LOGGER.info("Initialized {} (defaultHoles={}, protection={}, hudScoringDebug={}, strictFlowDebug={}, skipRoundPresentation={}, rulesetDefault={}, strictRespawnPenaltyStrokes={}, survivalRewards={})",
+        LOGGER.info("Initialized {} (defaultHoles={}, protection={}, hudScoringDebug={}, strictFlowDebug={}, skipRoundPresentation={}, rulesetDefault={}, strictRespawnPenaltyStrokes={}, survivalRewards={}, productionMode={})",
                 MOD_ID,
                 config.defaultHoleCount(),
             config.enforceCourseProtection(),
@@ -413,7 +417,8 @@ public final class McdgMod implements ModInitializer {
             config.skipRoundPresentation(),
             TOURNAMENT_RULESET_MANAGER.getActiveRuleset().name().toLowerCase(),
             config.respawnPenaltyStrokes(),
-            config.enableSurvivalRewards());
+            config.enableSurvivalRewards(),
+            config.productionMode());
     }
 
     private static void maybeStartHeadlessAutoTest(net.minecraft.server.MinecraftServer server) {

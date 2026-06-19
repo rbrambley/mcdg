@@ -183,24 +183,26 @@ public final class HoleProgressTracker {
                     corridorHalfWidth = CACHED_CORRIDOR_HALF_WIDTH.get(playerId);
                 }
 
-                MiniMapSyncService.sync(
-                        server,
-                        player,
-                        courseManager,
-                        course,
-                        placed,
-                        state,
-                        currentHole,
-                        tee,
-                        basket,
-                        alternateAnchor,
-                        rulesetManager,
-                        corridorHalfWidth,
-                        cumulativeParDelta,
-                        ThrowResolver.lastThrowDistanceFeetForPlayer(player.getUuid()),
-                        ThrowResolver.lastThrowStatsForPlayer(player.getUuid()),
-                        strictFlowDebug
-                );
+                if ((server.getTicks() % 5) == 0) {
+                    MiniMapSyncService.sync(
+                            server,
+                            player,
+                            courseManager,
+                            course,
+                            placed,
+                            state,
+                            currentHole,
+                            tee,
+                            basket,
+                            alternateAnchor,
+                            rulesetManager,
+                            corridorHalfWidth,
+                            cumulativeParDelta,
+                            ThrowResolver.lastThrowDistanceFeetForPlayer(player.getUuid()),
+                            ThrowResolver.lastThrowStatsForPlayer(player.getUuid()),
+                            strictFlowDebug
+                    );
+                }
                 if (!suppressHud && hudScoringDebug && (server.getTicks() % 20) == 0) {
                     McdgMod.LOGGER.info(
                             "HUD score debug | player={} hole={} par={} holeDistFt={} lieDistMeters={} lieDistFeet={} holeStrokes={} totalStrokes={} expectedRunning={} holeDelta={} totalDelta={}",
