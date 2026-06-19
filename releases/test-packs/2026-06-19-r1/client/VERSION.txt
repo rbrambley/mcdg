@@ -1,0 +1,18 @@
+﻿Release ID: 2026-06-19-r1
+Generated At: 2026-06-19 14:32:17 -04:00
+Minecraft: 1.20.6
+Fabric Loader: 0.19.3
+Java: 21
+
+Server mod snapshot:
+fabric-api-0.100.8+1.20.6.jar
+ferritecore-6.1.1-fabric.jar
+lithium-fabric-mc1.20.6-0.12.5.jar
+mcdg-0.1.0.jar
+
+Build commit: 4ce0963
+Changes: 4ce0963 perf: optimize minimap rendering and cache rebuilds
+a0abcdc fix: wire buildcourse subcommand into /mcdg command tree
+0292252 perf: fix autocourse lag spikes on OCI server
+5f49ef9 Merge branch 'server-testing'
+d520b9c perf: reduce EntityCapper scan cost, expand RoundChunkLoader radius, and eliminate TrajectoryCalculator GC churn

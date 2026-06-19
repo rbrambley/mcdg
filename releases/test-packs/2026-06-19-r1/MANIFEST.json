@@ -1,0 +1,28 @@
+﻿{
+    "Git":  {
+                "Dirty":  false,
+                "Commit":  "4ce09630ddf34d27cb924666baf6d9aee254ee69"
+            },
+    "Artifacts":  {
+                      "ServerZip":  {
+                                        "Sha256":  "FA985A4126FCE09F82098968F0AF90CAF58DF29D9A6FA7C046B97BC0E5227B65",
+                                        "File":  "2026-06-19-r1-server.zip"
+                                    },
+                      "AllInOneZip":  {
+                                          "Sha256":  "5F1FFE07F2058BB7ADC00E10D3CFD6C750483A736C0FF8078969137791381D5A",
+                                          "File":  "2026-06-19-r1-all-in-one.zip"
+                                      },
+                      "ClientZip":  {
+                                        "Sha256":  "298AB1F29379B2D503BCF64731F394A24C189607E168807773CB6AAF1B96BE04",
+                                        "File":  "2026-06-19-r1-client.zip"
+                                    }
+                  },
+    "GeneratedAt":  "2026-06-19 14:32:18 -04:00",
+    "GateProfile":  "baseline-v1",
+    "ReleaseId":  "2026-06-19-r1",
+    "Runtime":  {
+                    "MinecraftVersion":  "1.20.6",
+                    "FabricLoaderVersion":  "0.19.3",
+                    "JavaVersion":  "21"
+                }
+}
