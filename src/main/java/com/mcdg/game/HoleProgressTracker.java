@@ -2,6 +2,7 @@ package com.mcdg.game;
 
 import com.mcdg.McdgMod;
 import com.mcdg.data.Course;
+import com.mcdg.game.RoundChunkLoader;
 import com.mcdg.data.Hole;
 import com.mcdg.net.AceCinematicSync;
 import com.mcdg.net.HoleMiniMapSync;
@@ -308,6 +309,10 @@ public final class HoleProgressTracker {
                     if (roundEnded) {
                         RoundLeaderboardHelper.sendRoundCompleteCinematic(server, placed.worldKey(), roundStateManager, totalPar);
                         courseManager.setRoundActive(false);
+                        ServerWorld courseWorld = server.getWorld(placed.worldKey());
+                        if (courseWorld != null) {
+                            RoundChunkLoader.unloadAll(courseWorld);
+                        }
                         courseManager.clearPlacedCourseState();
                     }
                     continue;
@@ -322,7 +327,6 @@ public final class HoleProgressTracker {
                 }
 
                 int completedHolePar = currentHole.par();
-                player.getServerWorld().getChunk(nextTee.getX() >> 4, nextTee.getZ() >> 4);
                 roundStateManager.advanceToNextHole(player.getUuid(), nextTee);
                 player.teleport(nextTee.getX() + 0.5, nextTee.getY() + 1.0, nextTee.getZ() + 0.5);
                 LieMarkerService.updateLieMarker(player, nextTee);

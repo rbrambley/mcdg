@@ -195,7 +195,6 @@ public final class TurnManager {
         if (tee != null) {
             ServerWorld world = server.getWorld(placed.worldKey());
             if (world != null) {
-                world.getChunk(tee.getX() >> 4, tee.getZ() >> 4);
                 roundStateManager.updateLie(playerId, tee);
                 ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
                 if (player != null && player.getWorld().getRegistryKey() == placed.worldKey()) {
