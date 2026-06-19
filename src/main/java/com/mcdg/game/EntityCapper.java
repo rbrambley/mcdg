@@ -8,11 +8,13 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.Box;
 import net.minecraft.world.World;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public final class EntityCapper {
     private static final int TICK_INTERVAL = 200;
-    private static final int SCAN_RADIUS = 400;
+    private static final int SCAN_RADIUS = 96;
     private static final double KEEP_DISTANCE_SQ = 50.0 * 50.0;
     private static int tickCounter = 0;
 
@@ -34,38 +36,42 @@ public final class EntityCapper {
                 continue;
             }
 
-            double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE, minZ = Double.MAX_VALUE;
-            double maxX = -Double.MAX_VALUE, maxY = -Double.MAX_VALUE, maxZ = -Double.MAX_VALUE;
-            for (ServerPlayerEntity p : players) {
-                double px = p.getX();
-                double py = p.getY();
-                double pz = p.getZ();
-                minX = Math.min(minX, px - SCAN_RADIUS);
-                minY = Math.min(minY, py - 100);
-                minZ = Math.min(minZ, pz - SCAN_RADIUS);
-                maxX = Math.max(maxX, px + SCAN_RADIUS);
-                maxY = Math.max(maxY, py + 100);
-                maxZ = Math.max(maxZ, pz + SCAN_RADIUS);
-            }
-            Box box = new Box(minX, minY, minZ, maxX, maxY, maxZ);
-
-            List<MobEntity> mobs = world.getEntitiesByClass(MobEntity.class, box, e -> {
-                SpawnGroup group = e.getType().getSpawnGroup();
-                return group == SpawnGroup.MONSTER || group == SpawnGroup.AMBIENT;
-            });
-
+            Set<MobEntity> checked = new HashSet<>();
             int removed = 0;
-            for (MobEntity mob : mobs) {
-                boolean nearPlayer = false;
-                for (PlayerEntity player : players) {
-                    if (player.squaredDistanceTo(mob) < KEEP_DISTANCE_SQ) {
-                        nearPlayer = true;
-                        break;
+
+            for (ServerPlayerEntity player : players) {
+                double px = player.getX();
+                double py = player.getY();
+                double pz = player.getZ();
+                Box box = new Box(
+                        px - SCAN_RADIUS, py - 100, pz - SCAN_RADIUS,
+                        px + SCAN_RADIUS, py + 100, pz + SCAN_RADIUS
+                );
+
+                List<MobEntity> mobs = world.getEntitiesByClass(MobEntity.class, box, e -> {
+                    SpawnGroup group = e.getType().getSpawnGroup();
+                    return group == SpawnGroup.MONSTER || group == SpawnGroup.AMBIENT;
+                });
+
+                for (MobEntity mob : mobs) {
+                    if (!checked.add(mob)) {
+                        continue;
                     }
-                }
-                if (!nearPlayer) {
-                    mob.discard();
-                    removed++;
+                    // Fast path: mob is near the scanning player
+                    if (player.squaredDistanceTo(mob) < KEEP_DISTANCE_SQ) {
+                        continue;
+                    }
+                    boolean nearAny = false;
+                    for (PlayerEntity p : players) {
+                        if (p.squaredDistanceTo(mob) < KEEP_DISTANCE_SQ) {
+                            nearAny = true;
+                            break;
+                        }
+                    }
+                    if (!nearAny) {
+                        mob.discard();
+                        removed++;
+                    }
                 }
             }
 
