@@ -4,11 +4,11 @@ A Fabric mod for Minecraft 1.20.6 that brings disc golf to your world. Build pro
 
 ## Quick Links
 
-- [Latest Test Pack Release](releases/test-packs/2026-06-18-r2)
+- [Latest Test Pack Release](releases/test-packs/2026-06-18-r3)
 - [Multiplayer Test Sheet](MULTIPLAYER-TEST-SHEET.md)
 - [User Guide](USERGUIDE.md)
 - [Server Setup Guide](SERVER-SETUP-GUIDE.md)
-- [Bug Report Template](releases/test-packs/2026-06-18-r2/client/BUG-REPORT-TEMPLATE.txt)
+- [Bug Report Template](releases/test-packs/2026-06-18-r3/client/BUG-REPORT-TEMPLATE.txt)
 
 ## Requirements
 
@@ -18,37 +18,35 @@ A Fabric mod for Minecraft 1.20.6 that brings disc golf to your world. Build pro
 | Fabric Loader | 0.16.10 |
 | Java | 21 |
 
-## Latest Release (2026-06-18-r2)
+## Latest Release (2026-06-18-r3)
 
-**Download:** See the [releases/test-packs/2026-06-18-r2](releases/test-packs/2026-06-18-r2) directory.
+**Download:** See the [releases/test-packs/2026-06-18-r3](releases/test-packs/2026-06-18-r3) directory.
 
 | Pack | File |
 |------|------|
-| Client | `2026-06-18-r2-client.zip` |
-| Server | `2026-06-18-r2-server.zip` |
-| All-in-One | `2026-06-18-r2-all-in-one.zip` |
+| Client | `2026-06-18-r3-client.zip` |
+| Server | `2026-06-18-r3-server.zip` |
+| All-in-One | `2026-06-18-r3-all-in-one.zip` |
 
 ### Recent Changes
 
-- FIX: Power bar now appears correctly on dedicated server multiplayer
-- PERF: Minimap terrain scan cached per player (eliminates ~85k heightmap lookups/tick)
-- PERF: Minimap sync throttled from 20 Hz to 4 Hz (every 5 ticks)
-- PERF: Player session save is now async (Save & Leave Round no longer blocks tick)
-- PERF: Round session autosave interval increased from 10s to 30s
-- FEAT: productionMode config flag (default true) disables debug logging in production
+- PERF: Hazard overlay baked into cached minimap texture (eliminates ~10k world lookups/frame)
+- PERF: Minimap join-warmup rebuilds throttled from every tick to every 5 ticks
+- PERF: Surface shading uses fast path with zero world lookups (was 5 getTopY calls per pixel)
+- PERF: Basket beacon particles reduced from 30 every 4 ticks to 6 every 10 ticks
 
 ## Installation
 
 ### Client
 
-1. Download `2026-06-18-r2-client.zip`.
+1. Download `2026-06-18-r3-client.zip`.
 2. Extract into your Minecraft instance directory.
 3. Launch with the Fabric profile.
 4. The MCDG-Test-Resources pack is built into the mod jar and auto-enabled.
 
 ### Server (Oracle Cloud / Self-Hosted)
 
-1. Download `2026-06-18-r2-server.zip`.
+1. Download `2026-06-18-r3-server.zip`.
 2. Stop your server and back up the server directory.
 3. Extract the server pack into the server directory.
 4. Start the server and verify mod loading in the console log.
