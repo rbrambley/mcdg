@@ -17,9 +17,7 @@ public final class SurfaceResolver {
     private SurfaceResolver() {}
 
     public static BlockPos resolveSurfacePos(ServerWorld world, int x, int z) {
-        // Force chunk generation/loading so heightmap values are valid.
-        ChunkPos chunkPos = new ChunkPos(x >> 4, z >> 4);
-        world.getChunk(chunkPos.x, chunkPos.z);
+        // getTopY forces chunk generation/loading so heightmap values are valid.
 
         // Start near the top, then walk down to a truly walkable ground block.
         int solidY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
@@ -102,7 +100,6 @@ public final class SurfaceResolver {
     }
 
     static BlockPos resolveWorldSurfaceGround(ServerWorld world, int x, int z) {
-        world.getChunk(x >> 4, z >> 4);
         int surfaceY = world.getTopY(Heightmap.Type.WORLD_SURFACE, x, z) - 1;
         if (surfaceY <= world.getBottomY()) {
             surfaceY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;

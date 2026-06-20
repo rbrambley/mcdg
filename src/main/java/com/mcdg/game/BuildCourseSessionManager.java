@@ -1040,10 +1040,11 @@ public final class BuildCourseSessionManager {
     }
 
     private static BlockPos resolveSafeFeetNear(ServerWorld world, BlockPos anchor) {
-        world.getChunk(anchor.getX() >> 4, anchor.getZ() >> 4);
-        BlockPos candidate = anchor.withY(world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, anchor.getX(), anchor.getZ()));
-        if (isStandableFeet(world, candidate)) {
-            return candidate;
+        if (world.isChunkLoaded(anchor.getX() >> 4, anchor.getZ() >> 4)) {
+            BlockPos candidate = anchor.withY(world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, anchor.getX(), anchor.getZ()));
+            if (isStandableFeet(world, candidate)) {
+                return candidate;
+            }
         }
 
         int[] deltas = {1, -1, 2, -2, 3, -3, 4, -4};
@@ -1051,18 +1052,22 @@ public final class BuildCourseSessionManager {
             for (int dz : deltas) {
                 int x = anchor.getX() + dx;
                 int z = anchor.getZ() + dz;
-                world.getChunk(x >> 4, z >> 4);
-                BlockPos probe = new BlockPos(x, world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z), z);
-                if (isStandableFeet(world, probe)) {
-                    return probe;
+                if (world.isChunkLoaded(x >> 4, z >> 4)) {
+                    BlockPos probe = new BlockPos(x, world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z), z);
+                    if (isStandableFeet(world, probe)) {
+                        return probe;
+                    }
                 }
             }
         }
 
-        return candidate;
+        return anchor;
     }
 
     private static boolean isStandableFeet(ServerWorld world, BlockPos feet) {
+        if (!world.isChunkLoaded(feet.getX() >> 4, feet.getZ() >> 4)) {
+            return false;
+        }
         BlockPos below = feet.down();
         if (!world.getBlockState(feet).getCollisionShape(world, feet).isEmpty()) {
             return false;

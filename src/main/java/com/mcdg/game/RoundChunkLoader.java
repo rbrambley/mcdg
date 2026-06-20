@@ -59,21 +59,4 @@ public final class RoundChunkLoader {
         world.getChunkManager().removeTicket(MCDG_THROW_LANDING, cp, THROW_LANDING_RADIUS, TICKET_VALUE);
     }
 
-    /**
-     * Forces the chunk at the given block position (and a small 3x3 neighborhood) to be
-     * loaded synchronously on the server thread. This prevents teleport freezes by
-     * doing the expensive chunk generation/loading work before the player is moved.
-     */
-    public static void preloadChunksAround(ServerWorld world, BlockPos center, int chunkRadius) {
-        ChunkPos centerCp = new ChunkPos(center);
-        for (int dx = -chunkRadius; dx <= chunkRadius; dx++) {
-            for (int dz = -chunkRadius; dz <= chunkRadius; dz++) {
-                try {
-                    world.getChunk(centerCp.x + dx, centerCp.z + dz);
-                } catch (Exception ignored) {
-                    // Chunk may be outside world bounds; skip
-                }
-            }
-        }
-    }
 }

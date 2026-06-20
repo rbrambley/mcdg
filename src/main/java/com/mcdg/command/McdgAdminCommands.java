@@ -828,7 +828,6 @@ public final class McdgAdminCommands {
                         for (ServerPlayerEntity player : participants) {
                                 BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
                                 roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
-                                RoundChunkLoader.preloadChunksAround(world, safeTee, 1);
                                 player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
                                 ensureSingleRoundThrowItem(player);
                                 ScorecardManager.initializeScorecard(player, course, placed);
@@ -979,7 +978,6 @@ public final class McdgAdminCommands {
                 for (ServerPlayerEntity player : participants) {
                         BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
                         roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
-                        RoundChunkLoader.preloadChunksAround(world, safeTee, 1);
                         player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
                         ensureSingleRoundThrowItem(player);
                         ScorecardManager.initializeScorecard(player, course, placed);
@@ -1568,7 +1566,6 @@ public final class McdgAdminCommands {
                         roundStateManager.startRoundForPlayer(sourcePlayer.getUuid(), safeTee);
                 }
 
-                RoundChunkLoader.preloadChunksAround(world, safeTee, 1);
                 sourcePlayer.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
         }
 
@@ -1589,9 +1586,6 @@ public final class McdgAdminCommands {
                         var player = source.getPlayerOrThrow();
                         ServerWorld world = source.getServer().getWorld(placed.worldKey());
                         BlockPos safeTee = world == null ? firstTee : resolveSafeFeetNear(world, firstTee);
-                        if (world != null) {
-                                RoundChunkLoader.preloadChunksAround(world, safeTee, 1);
-                        }
                         player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
                         source.sendFeedback(() -> Text.literal("Teleported to Hole 1 tee."), false);
                         return 1;
@@ -2238,9 +2232,6 @@ public final class McdgAdminCommands {
             ServerPlayerEntity player = source.getPlayerOrThrow();
             ServerWorld world = source.getServer().getWorld(placed.worldKey());
             BlockPos safeTee = world == null ? firstTee : resolveSafeFeetNear(world, firstTee);
-            if (world != null) {
-                RoundChunkLoader.preloadChunksAround(world, safeTee, 1);
-            }
             player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
             source.sendFeedback(() -> Text.literal("Teleported to Hole 1 tee."), false);
             return 1;

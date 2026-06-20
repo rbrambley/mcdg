@@ -200,7 +200,6 @@ public final class RoundLifecycleCommands {
             for (ServerPlayerEntity player : participants) {
                 BlockPos safeTee = SafePositionFinder.resolveSafeFeetNear(world, firstTee);
                 roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
-                RoundChunkLoader.preloadChunksAround(world, safeTee, 1);
                 player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
                 CommandUtils.ensureSingleRoundThrowItem(player);
                 ScorecardManager.initializeScorecard(player, course, placed);
@@ -484,9 +483,6 @@ public final class RoundLifecycleCommands {
             var player = source.getPlayerOrThrow();
             ServerWorld world = source.getServer().getWorld(placed.worldKey());
             BlockPos safeTee = world == null ? firstTee : SafePositionFinder.resolveSafeFeetNear(world, firstTee);
-            if (world != null) {
-                RoundChunkLoader.preloadChunksAround(world, safeTee, 1);
-            }
             player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
             source.sendFeedback(() -> Text.literal("Teleported to Hole 1 tee."), false);
             return 1;
@@ -519,7 +515,6 @@ public final class RoundLifecycleCommands {
         try {
             var player = source.getPlayerOrThrow();
             BlockPos safeTee = SafePositionFinder.resolveSafeFeetNear(world, firstTee);
-            RoundChunkLoader.preloadChunksAround(world, safeTee, 1);
             player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
             source.sendFeedback(() -> Text.literal("Teleported to Hole 1 of course #" + oneBasedIndex + "."), false);
             return 1;
@@ -756,7 +751,6 @@ public final class RoundLifecycleCommands {
             roundStateManager.startRoundForPlayer(sourcePlayer.getUuid(), safeTee);
         }
 
-        RoundChunkLoader.preloadChunksAround(world, safeTee, 1);
         sourcePlayer.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
     }
 }

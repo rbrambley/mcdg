@@ -637,6 +637,9 @@ public final class McdgMod implements ModInitializer {
     }
 
     private static void autosaveRoundSession(MinecraftServer server) {
+        if (!ACTIVE_COURSE_MANAGER.isRoundActive()) {
+            return;
+        }
         roundSessionAutosaveTicks++;
         if (roundSessionAutosaveTicks < ROUND_SESSION_AUTOSAVE_INTERVAL_TICKS) {
             return;
@@ -644,6 +647,9 @@ public final class McdgMod implements ModInitializer {
         roundSessionAutosaveTicks = 0;
         
         // Submit async save task to avoid blocking server tick
+        if (AUTOSAVE_EXECUTOR.isShutdown()) {
+            return;
+        }
         AUTOSAVE_EXECUTOR.submit(() -> {
             long start = System.nanoTime();
             try {

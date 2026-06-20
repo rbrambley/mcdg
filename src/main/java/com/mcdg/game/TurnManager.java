@@ -198,7 +198,6 @@ public final class TurnManager {
                 roundStateManager.updateLie(playerId, tee);
                 ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
                 if (player != null && player.getWorld().getRegistryKey() == placed.worldKey()) {
-                    RoundChunkLoader.preloadChunksAround(world, tee, 1);
                     player.teleport(tee.getX() + 0.5, tee.getY() + 1.0, tee.getZ() + 0.5);
                     player.sendMessage(Text.literal("Turn timeout: +1 stroke. Reset to tee, turn passed."), true);
                 }
