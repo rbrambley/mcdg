@@ -12,12 +12,17 @@ public final class RunningScoreboardOverlay {
     private static final int HUD_CARD_MUTED_TEXT = 0xAAB8CC;
     private static final int HUD_SPACING = 8;
     private static int lastPanelWidth = 0;
+    private static int lastPanelHeight = 0;
 
     private RunningScoreboardOverlay() {
     }
 
     public static int getLastPanelWidth() {
         return lastPanelWidth;
+    }
+
+    public static int getLastPanelHeight() {
+        return lastPanelHeight;
     }
 
     public static void render(DrawContext drawContext, McdgClientMod.RunningRoundScoreState state, float hudAlpha) {
@@ -47,6 +52,7 @@ public final class RunningScoreboardOverlay {
         int panelW = 8 + nameColW + colGap + (visibleHoleCount * (holeColW + 2)) + colGap + totalColW + 8;
         int panelH = 22 + ((state.rows().size() + 1) * rowHeight);
         lastPanelWidth = panelW;
+        lastPanelHeight = panelH;
         int x = 8;
         
         // Position in bottom third, anchored near bottom of screen

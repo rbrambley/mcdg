@@ -114,8 +114,8 @@ public final class HoleMapSync {
 
             int hazardGridMinX = buf.readVarInt();
             int hazardGridMinZ = buf.readVarInt();
-            int hazardGridWidth = buf.readVarInt();
-            int hazardGridHeight = buf.readVarInt();
+            int hazardGridWidth = Math.max(0, buf.readVarInt());
+            int hazardGridHeight = Math.max(0, buf.readVarInt());
             int hazardGridSize = hazardGridWidth * hazardGridHeight;
             byte[] hazardGridData = new byte[hazardGridSize];
             if (hazardGridSize > 0) {
@@ -221,10 +221,14 @@ public final class HoleMapSync {
 
             buf.writeVarInt(hazardGridMinX);
             buf.writeVarInt(hazardGridMinZ);
-            buf.writeVarInt(hazardGridWidth);
-            buf.writeVarInt(hazardGridHeight);
-            if (hazardGridData != null && hazardGridData.length > 0) {
+            int expectedSize = hazardGridWidth * hazardGridHeight;
+            if (hazardGridData != null && hazardGridData.length == expectedSize && expectedSize > 0) {
+                buf.writeVarInt(hazardGridWidth);
+                buf.writeVarInt(hazardGridHeight);
                 buf.writeBytes(hazardGridData);
+            } else {
+                buf.writeVarInt(0);
+                buf.writeVarInt(0);
             }
 
             buf.writeVarInt(lieX);

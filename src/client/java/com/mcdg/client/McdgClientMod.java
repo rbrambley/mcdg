@@ -1,7 +1,6 @@
 package com.mcdg.client;
 
 import com.mcdg.game.ChargedDiscItem;
-import com.mcdg.client.ThrowPreferenceManager;
 import com.mcdg.game.McdgItems;
 import com.mcdg.net.HoleMapSync;
 import com.mcdg.net.ThrowStanceSync;
@@ -9,7 +8,6 @@ import com.mcdg.net.LeaderboardResponse;
 import com.mcdg.net.RoundRunningScoresSync;
 import java.util.ArrayList;
 import java.util.List;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -17,7 +15,6 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.item.ModelPredicateProviderRegistry;
 

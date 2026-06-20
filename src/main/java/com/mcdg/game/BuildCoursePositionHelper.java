@@ -39,10 +39,16 @@ public final class BuildCoursePositionHelper {
 
     static boolean isStandableFeet(ServerWorld world, BlockPos feet) {
         BlockPos below = feet.down();
+        if (!world.getFluidState(feet).isEmpty()) {
+            return false;
+        }
         if (!world.getBlockState(feet).getCollisionShape(world, feet).isEmpty()) {
             return false;
         }
         BlockPos head = feet.up();
+        if (!world.getFluidState(head).isEmpty()) {
+            return false;
+        }
         if (!world.getBlockState(head).getCollisionShape(world, head).isEmpty()) {
             return false;
         }

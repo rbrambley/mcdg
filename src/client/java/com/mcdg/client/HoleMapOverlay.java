@@ -3,7 +3,6 @@ package com.mcdg.client;
 import com.mcdg.data.SignatureHoleType;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.Text;
 
 /**
  * Left-side hole map HUD overlay.
@@ -86,15 +85,12 @@ public final class HoleMapOverlay {
         int panelY = XAEROS_TOP_RESERVED + HUD_SPACING;
         
         // Calculate available space to where scoreboard actually sits (near bottom)
-        int scoreboardEstimatedH = 42; // actual 1-player scoreboard height
-        int scoreboardTop = screenHeight - scoreboardEstimatedH - HUD_SPACING;
+        int scoreboardH = Math.max(RunningScoreboardOverlay.getLastPanelHeight(), 42);
+        int scoreboardTop = screenHeight - scoreboardH - HUD_SPACING;
         int availableHeight = scoreboardTop - panelY - HUD_SPACING;
         
         // Dynamic panel height: fill available space with min/max bounds
         int panelH = Math.max(MIN_PANEL_H, Math.min(availableHeight, MAX_PANEL_H));
-        
-        // DEBUG: log calculated values
-        System.out.println("[MCDG] HoleMap: screenH=" + screenHeight + " availableH=" + availableHeight + " panelH=" + panelH);
         
         // Track rendered position for scoreboard coordination
         lastRenderedY = panelY;

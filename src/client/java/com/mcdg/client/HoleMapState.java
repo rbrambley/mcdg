@@ -1,6 +1,5 @@
 package com.mcdg.client;
 
-import com.mcdg.net.HoleMapSync;
 import java.util.List;
 
 /**
@@ -8,6 +7,8 @@ import java.util.List;
  * Updated by HoleMapSync payloads; consumed by HoleMapScreen and overlays.
  */
 public final class HoleMapState {
+
+    public record FairwaySegment(int startX, int startZ, int endX, int endZ, int width) {}
 
     // --- static hole layout ---
     public final int holeIndex;
@@ -17,7 +18,7 @@ public final class HoleMapState {
     public final int teeZ;
     public final int basketX;
     public final int basketZ;
-    public final List<HoleMapSync.FairwaySegmentEntry> fairwaySegments;
+    public final List<FairwaySegment> fairwaySegments;
     public final int corridorHalfWidth;
     public final int signatureTypeOrdinal;
     // --- hazard grid ---
@@ -54,7 +55,7 @@ public final class HoleMapState {
     public final int lastThrowObCrossingFeet;
     public final int lastThrowReturnedToFeet;
 
-    public HoleMapState(HoleMapSync.Payload payload) {
+    public HoleMapState(com.mcdg.net.HoleMapSync.Payload payload) {
         this.holeIndex = payload.holeIndex();
         this.par = payload.par();
         this.distanceFeet = payload.distanceFeet();
@@ -63,7 +64,9 @@ public final class HoleMapState {
         this.basketX = payload.basketX();
         this.basketZ = payload.basketZ();
         this.fairwaySegments = payload.fairwaySegments() != null
-                ? List.copyOf(payload.fairwaySegments())
+                ? payload.fairwaySegments().stream()
+                        .map(s -> new FairwaySegment(s.startX(), s.startZ(), s.endX(), s.endZ(), s.width()))
+                        .toList()
                 : List.of();
         this.corridorHalfWidth = payload.corridorHalfWidth();
         this.signatureTypeOrdinal = payload.signatureTypeOrdinal();

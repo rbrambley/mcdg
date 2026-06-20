@@ -5,7 +5,6 @@ import com.mcdg.data.Course;
 import com.mcdg.game.RoundChunkLoader;
 import com.mcdg.data.Hole;
 import com.mcdg.net.AceCinematicSync;
-import com.mcdg.net.HoleMiniMapSync;
 import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
 import com.mcdg.rules.TournamentRulesetManager;

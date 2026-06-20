@@ -1,6 +1,5 @@
 package com.mcdg.client;
 
-import com.mcdg.net.HoleMapSync;
 import java.util.List;
 import net.minecraft.client.gui.DrawContext;
 
@@ -86,7 +85,7 @@ public final class HoleMapRenderer {
 
         double padBlocks = 18.0;
 
-        for (HoleMapSync.FairwaySegmentEntry seg : state.fairwaySegments) {
+        for (HoleMapState.FairwaySegment seg : state.fairwaySegments) {
             double[] rs = rotated(centerX, centerZ, sinTheta, cosTheta, seg.startX(), seg.startZ());
             rMinX = Math.min(rMinX, rs[0]); rMinZ = Math.min(rMinZ, rs[1]);
             rMaxX = Math.max(rMaxX, rs[0]); rMaxZ = Math.max(rMaxZ, rs[1]);
@@ -152,9 +151,9 @@ public final class HoleMapRenderer {
     public static void drawFairwaySegments(
             DrawContext ctx,
             MapTransform t,
-            List<HoleMapSync.FairwaySegmentEntry> segments
+            List<HoleMapState.FairwaySegment> segments
     ) {
-        for (HoleMapSync.FairwaySegmentEntry seg : segments) {
+        for (HoleMapState.FairwaySegment seg : segments) {
             float sx = t.worldToScreenX(seg.startX(), seg.startZ());
             float sy = t.worldToScreenY(seg.startX(), seg.startZ());
             float ex = t.worldToScreenX(seg.endX(), seg.endZ());
@@ -392,7 +391,7 @@ public final class HoleMapRenderer {
             float dy = py - cy;
             int span = (int) Math.floor(Math.sqrt(Math.max(0.0f, rSq - (dy * dy))));
             int left = (int) Math.floor(cx - span);
-            int right = (int) Math.ceil(cx + span) + 1;
+            int right = (int) Math.ceil(cx + span);
             ctx.fill(left, py, right, py + 1, color);
         }
     }
