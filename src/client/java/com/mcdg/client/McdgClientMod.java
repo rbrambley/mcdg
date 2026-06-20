@@ -49,6 +49,8 @@ public final class McdgClientMod implements ClientModInitializer {
             client.options.getChatScale().setValue(0.65);
             client.options.getChatHeightUnfocused().setValue(0.25);
             client.options.write();
+            // Calculate Xaero's minimap width on client start
+            HudUtil.recalculateXaeroWidth();
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             ClientKeybinds.forEachOpenMenuPress(() -> {
@@ -237,6 +239,9 @@ public final class McdgClientMod implements ClientModInitializer {
         hudHideSinceMs = 0L;
         holeMapState = new HoleMapState(payload);
         holeMapStateReceivedAtMs = System.currentTimeMillis();
+
+        // Recalculate Xaero's minimap width when round starts/resumes
+        HudUtil.recalculateXaeroWidth();
 
         // Show hole map by default when round starts
         HoleMapOverlay.setVisible(true);

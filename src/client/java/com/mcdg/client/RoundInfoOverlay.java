@@ -62,6 +62,8 @@ public final class RoundInfoOverlay {
             return;
         }
 
+        float scale = HudUtil.getScaleFactor(drawContext);
+
         String deltaText;
         if (state.cumulativeParDelta == 0) {
             deltaText = "E";
@@ -80,21 +82,21 @@ public final class RoundInfoOverlay {
         String line5b = buildWaterGapLine(state.waterGapStartFeet, state.waterGapEndFeet, state.hasWaterGap);
         String line6 = "Total " + state.totalStrokes + "  " + deltaText;
         int maxTextWidth = Math.max(
-                Math.max(client.textRenderer.getWidth(line1), client.textRenderer.getWidth(line2)),
-                Math.max(client.textRenderer.getWidth(line3),
-                        Math.max(client.textRenderer.getWidth(line4),
-                                Math.max(client.textRenderer.getWidth(line5),
-                                        Math.max(client.textRenderer.getWidth(line5b), client.textRenderer.getWidth(line6)))))
+                Math.max(Math.round(client.textRenderer.getWidth(line1) * scale), Math.round(client.textRenderer.getWidth(line2) * scale)),
+                Math.max(Math.round(client.textRenderer.getWidth(line3) * scale),
+                        Math.max(Math.round(client.textRenderer.getWidth(line4) * scale),
+                                Math.max(Math.round(client.textRenderer.getWidth(line5) * scale),
+                                        Math.max(Math.round(client.textRenderer.getWidth(line5b) * scale), Math.round(client.textRenderer.getWidth(line6) * scale)))))
         );
 
         int extraRows = (line4.isEmpty() ? 0 : 1) + (line5.isEmpty() ? 0 : 1) + (line5b.isEmpty() ? 0 : 1);
-        int panelW = Math.max(maxTextWidth + 16, sharedHudPanelWidth);
-        int panelH = 54 + (extraRows * 12);
+        int panelW = Math.max(maxTextWidth + Math.round(16 * scale), sharedHudPanelWidth);
+        int panelH = Math.round(54 * scale) + (extraRows * Math.round(12 * scale));
         lastPanelHeight = panelH;
         lastPanelWidth = panelW;
         sharedHudPanelWidth = panelW;
-        int x = drawContext.getScaledWindowWidth() - panelW - 8;
-        int y = client.getDebugHud().shouldShowDebugHud() ? 76 : 8;
+        int x = drawContext.getScaledWindowWidth() - panelW - Math.round(8 * scale);
+        int y = client.getDebugHud().shouldShowDebugHud() ? Math.round(76 * scale) : Math.round(8 * scale);
 
         HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, "Round", hudAlpha);
 
@@ -102,24 +104,26 @@ public final class RoundInfoOverlay {
         int animatedDelta = Math.round(displayedCumulativeDelta);
         String animatedDeltaText = animatedDelta == 0 ? "E" : (animatedDelta > 0 ? "+" + animatedDelta : Integer.toString(animatedDelta));
         String animatedLine6 = "Total " + animatedTotal + "  " + animatedDeltaText;
-        int row = y + 16;
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line2), x + 6, row, HudUtil.withAlpha(0xFFFFFF, hudAlpha));
-        row += 12;
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line3), x + 6, row, HudUtil.withAlpha(0xCFE8FF, hudAlpha));
-        row += 12;
+        int row = y + Math.round(16 * scale);
+        int rowSpacing = Math.round(12 * scale);
+        int textMargin = Math.round(6 * scale);
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(line2), x + textMargin, row, HudUtil.withAlpha(0xFFFFFF, hudAlpha), scale);
+        row += rowSpacing;
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(line3), x + textMargin, row, HudUtil.withAlpha(0xCFE8FF, hudAlpha), scale);
+        row += rowSpacing;
         if (!line4.isEmpty()) {
-            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line4), x + 6, row, HudUtil.withAlpha(0x99BBDD, hudAlpha));
-            row += 12;
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(line4), x + textMargin, row, HudUtil.withAlpha(0x99BBDD, hudAlpha), scale);
+            row += rowSpacing;
         }
         if (!line5.isEmpty()) {
-            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line5), x + 6, row, HudUtil.withAlpha(0xFFCC44, hudAlpha));
-            row += 12;
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(line5), x + textMargin, row, HudUtil.withAlpha(0xFFCC44, hudAlpha), scale);
+            row += rowSpacing;
         }
         if (!line5b.isEmpty()) {
-            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line5b), x + 6, row, HudUtil.withAlpha(0x66CCFF, hudAlpha));
-            row += 12;
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(line5b), x + textMargin, row, HudUtil.withAlpha(0x66CCFF, hudAlpha), scale);
+            row += rowSpacing;
         }
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(animatedLine6), x + 6, row, HudUtil.withAlpha(0xB5F7B5, hudAlpha));
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(animatedLine6), x + textMargin, row, HudUtil.withAlpha(0xB5F7B5, hudAlpha), scale);
     }
 
     public static int getLastPanelHeight() {

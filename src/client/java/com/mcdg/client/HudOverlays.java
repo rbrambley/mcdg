@@ -29,6 +29,8 @@ public final class HudOverlays {
             return;
         }
 
+        float scale = HudUtil.getScaleFactor(drawContext);
+
         float yaw = client.player.getYaw();
         int dirIndex = Math.floorMod(Math.round(yaw / 45.0f), COMPASS_8.length);
         int prev2 = Math.floorMod(dirIndex - 2, COMPASS_8.length);
@@ -42,22 +44,27 @@ public final class HudOverlays {
         compassText.append(Text.literal("[" + COMPASS_8[dirIndex] + "]").formatted(Formatting.GOLD));
         compassText.append(Text.literal(" " + COMPASS_8[next1] + " ").formatted(Formatting.GRAY));
         compassText.append(Text.literal(COMPASS_8[next2]).formatted(Formatting.DARK_GRAY));
-        int width = client.textRenderer.getWidth(compassText);
+        int width = Math.round(client.textRenderer.getWidth(compassText) * scale);
         int x = (drawContext.getScaledWindowWidth() - width) / 2;
-        int y = client.getDebugHud().shouldShowDebugHud() ? 56 : 8;
+        int y = client.getDebugHud().shouldShowDebugHud() ? Math.round(56 * scale) : Math.round(8 * scale);
 
-        drawContext.fill(x - 3, y - 2, x + width + 3, y + 10, 0x70000000);
-        drawContext.drawTextWithShadow(client.textRenderer, compassText, x, y, 0xE6E6E6);
+        int margin = Math.round(3 * scale);
+        int padding = Math.round(2 * scale);
+        int textHeight = Math.round(10 * scale);
+
+        drawContext.fill(x - margin, y - padding, x + width + margin, y + textHeight, 0x70000000);
+        HudUtil.drawScaledText(drawContext, client.textRenderer, compassText, x, y, 0xE6E6E6, scale);
 
         int playerX = net.minecraft.util.math.MathHelper.floor(client.player.getX());
         int playerY = net.minecraft.util.math.MathHelper.floor(client.player.getY());
         int playerZ = net.minecraft.util.math.MathHelper.floor(client.player.getZ());
         String worldCoords = "XYZ " + playerX + " " + playerY + " " + playerZ;
-        int coordsWidth = client.textRenderer.getWidth(worldCoords);
+        int coordsWidth = Math.round(client.textRenderer.getWidth(worldCoords) * scale);
         int coordsX = (drawContext.getScaledWindowWidth() - coordsWidth) / 2;
-        int coordsY = y + 12;
-        drawContext.fill(coordsX - 3, coordsY - 2, coordsX + coordsWidth + 3, coordsY + 10, 0x70000000);
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(worldCoords).formatted(Formatting.AQUA), coordsX, coordsY, 0x9BE7FF);
+        int rowSpacing = Math.round(12 * scale);
+        int coordsY = y + rowSpacing;
+        drawContext.fill(coordsX - margin, coordsY - padding, coordsX + coordsWidth + margin, coordsY + textHeight, 0x70000000);
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(worldCoords).formatted(Formatting.AQUA), coordsX, coordsY, 0x9BE7FF, scale);
     }
 
     public static void renderPower(DrawContext drawContext) {
@@ -74,34 +81,41 @@ public final class HudOverlays {
             return;
         }
 
+        float scale = HudUtil.getScaleFactor(drawContext);
         float charge = ChargedDiscItem.getClientChargePercent();
         int width = drawContext.getScaledWindowWidth();
         int height = drawContext.getScaledWindowHeight();
 
         boolean rightHandThrow = client.player.getMainArm() == Arm.RIGHT;
-        int barX = (width / 2) + (rightHandThrow ? 66 : -74);
-        int barBottom = (height / 2) + 54;
-        int barTop = barBottom - POWER_BAR_HEIGHT;
+        int barX = (width / 2) + (rightHandThrow ? Math.round(66 * scale) : Math.round(-74 * scale));
+        int barBottom = (height / 2) + Math.round(54 * scale);
+        int scaledPowerBarHeight = Math.round(POWER_BAR_HEIGHT * scale);
+        int scaledPowerBarWidth = Math.round(POWER_BAR_WIDTH * scale);
+        int barTop = barBottom - scaledPowerBarHeight;
 
-        drawContext.fill(barX - 2, barTop - 2, barX + POWER_BAR_WIDTH + 2, barBottom + 2, 0x70000000);
-        drawContext.fill(barX, barTop, barX + POWER_BAR_WIDTH, barBottom, 0xAA1B1B1B);
+        int barMargin = Math.round(2 * scale);
+        drawContext.fill(barX - barMargin, barTop - barMargin, barX + scaledPowerBarWidth + barMargin, barBottom + barMargin, 0x70000000);
+        drawContext.fill(barX, barTop, barX + scaledPowerBarWidth, barBottom, 0xAA1B1B1B);
 
         // Draw distance markers at 25%, 50%, 75%, 100%
         int[] thresholds = {25, 50, 75, 100};
         for (int threshold : thresholds) {
             float thresholdCharge = threshold / 100.0f;
-            int markY = barBottom - Math.round(thresholdCharge * POWER_BAR_HEIGHT);
-            drawContext.fill(barX - 1, markY, barX + POWER_BAR_WIDTH + 1, markY + 1, 0xFFFFFFFF);
+            int markY = barBottom - Math.round(thresholdCharge * scaledPowerBarHeight);
+            drawContext.fill(barX - 1, markY, barX + scaledPowerBarWidth + 1, markY + 1, 0xFFFFFFFF);
 
             // Distance estimation using DiscFlightSimulator with current stance
             ThrowStance stance = ThrowPreferenceManager.getSelectedStance();
             int estimatedDistance = com.mcdg.game.DiscFlightSimulator.estimateDistance(thresholdCharge, stance, client.player.getPitch());
             String distanceText = estimatedDistance + "ft";
-            int textX = rightHandThrow ? barX + POWER_BAR_WIDTH + 4 : barX - client.textRenderer.getWidth(distanceText) - 4;
-            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(distanceText).formatted(Formatting.GRAY), textX, markY - 4, 0xAAAAAA);
+            int textOffset = Math.round(4 * scale);
+            int textYOffset = Math.round(4 * scale);
+            int scaledTextWidth = Math.round(client.textRenderer.getWidth(distanceText) * scale);
+            int textX = rightHandThrow ? barX + scaledPowerBarWidth + textOffset : barX - scaledTextWidth - textOffset;
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(distanceText).formatted(Formatting.GRAY), textX, markY - textYOffset, 0xAAAAAA, scale);
         }
 
-        int filledPixels = Math.max(0, Math.min(POWER_BAR_HEIGHT, Math.round(charge * POWER_BAR_HEIGHT)));
+        int filledPixels = Math.max(0, Math.min(scaledPowerBarHeight, Math.round(charge * scaledPowerBarHeight)));
         if (filledPixels > 0) {
             int fillTop = barBottom - filledPixels;
 
@@ -114,31 +128,38 @@ public final class HudOverlays {
             } else {
                 color = 0xFFFFC336; // Yellow
             }
-            drawContext.fill(barX + 1, fillTop, barX + POWER_BAR_WIDTH - 1, barBottom - 1, color);
+            drawContext.fill(barX + 1, fillTop, barX + scaledPowerBarWidth - 1, barBottom - 1, color);
         }
 
         // Draw overcharge zone marker at 100%
-        int overchargeMarkY = barBottom - POWER_BAR_HEIGHT;
-        drawContext.fill(barX - 1, overchargeMarkY, barX + POWER_BAR_WIDTH + 1, overchargeMarkY + 1, 0xFFFF3333);
+        int overchargeMarkY = barBottom - scaledPowerBarHeight;
+        drawContext.fill(barX - 1, overchargeMarkY, barX + scaledPowerBarWidth + 1, overchargeMarkY + 1, 0xFFFF3333);
 
         // Percentage text
         int percent = Math.round(charge * 100.0f);
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(Integer.toString(percent) + "%").formatted(Formatting.WHITE), barX - 8, barTop - 12, 0xFFFFFF);
+        int percentTextXOffset = Math.round(8 * scale);
+        int percentTextYOffset = Math.round(12 * scale);
+        String percentText = Integer.toString(percent) + "%";
+        int percentTextWidth = Math.round(client.textRenderer.getWidth(percentText) * scale);
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(percentText).formatted(Formatting.WHITE), barX - percentTextXOffset - percentTextWidth, barTop - percentTextYOffset, 0xFFFFFF, scale);
 
         // LOCKED indicator
         if (ChargedDiscItem.isPowerLocked()) {
-            drawContext.drawTextWithShadow(client.textRenderer, Text.literal("LOCKED").formatted(Formatting.RED), barX - 8, barTop - 24, 0xFF5555);
+            int lockedTextYOffset = Math.round(24 * scale);
+            String lockedText = "LOCKED";
+            int lockedTextWidth = Math.round(client.textRenderer.getWidth(lockedText) * scale);
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(lockedText).formatted(Formatting.RED), barX - percentTextXOffset - lockedTextWidth, barTop - lockedTextYOffset, 0xFF5555, scale);
         }
 
         // Phase 2: Stance and Angle display
-        renderStanceIndicator(drawContext, client, barX, barTop, rightHandThrow);
+        renderStanceIndicator(drawContext, client, barX, barTop, rightHandThrow, scale);
     }
 
     /**
      * Render the stance and angle indicator near the power bar.
      * Shows stance name (Overhand/Backhand/Forehand) and angle arrow.
      */
-    private static void renderStanceIndicator(DrawContext drawContext, MinecraftClient client, int barX, int barTop, boolean rightHandThrow) {
+    private static void renderStanceIndicator(DrawContext drawContext, MinecraftClient client, int barX, int barTop, boolean rightHandThrow, float scale) {
         ThrowStance stance = ThrowPreferenceManager.getSelectedStance();
         ReleaseAngle angle = ThrowPreferenceManager.getSelectedAngle();
 
@@ -172,12 +193,15 @@ public final class HudOverlays {
         Text stanceText = Text.literal(stanceName).formatted(stanceColor);
         Text angleText = Text.literal(" " + angleSymbol).formatted(angleColor);
 
-        int stanceWidth = client.textRenderer.getWidth(stanceText) + client.textRenderer.getWidth(angleText);
-        int textX = rightHandThrow ? barX + POWER_BAR_WIDTH + 4 : barX - stanceWidth - 4;
-        int textY = barTop - 36; // Above LOCKED indicator
+        int scaledPowerBarWidth = Math.round(POWER_BAR_WIDTH * scale);
+        int textOffset = Math.round(4 * scale);
+        int stanceWidth = Math.round((client.textRenderer.getWidth(stanceText) + client.textRenderer.getWidth(angleText)) * scale);
+        int textX = rightHandThrow ? barX + scaledPowerBarWidth + textOffset : barX - stanceWidth - textOffset;
+        int textY = barTop - Math.round(36 * scale); // Above LOCKED indicator
 
-        drawContext.drawTextWithShadow(client.textRenderer, stanceText, textX, textY, 0xFFFFFF);
-        drawContext.drawTextWithShadow(client.textRenderer, angleText, textX + client.textRenderer.getWidth(stanceText), textY, 0xFFFFFF);
+        HudUtil.drawScaledText(drawContext, client.textRenderer, stanceText, textX, textY, 0xFFFFFF, scale);
+        int angleTextX = textX + Math.round(client.textRenderer.getWidth(stanceText) * scale);
+        HudUtil.drawScaledText(drawContext, client.textRenderer, angleText, angleTextX, textY, 0xFFFFFF, scale);
     }
 
     private static final float THROW_HUD_SCALE = 0.85f;
@@ -201,6 +225,7 @@ public final class HudOverlays {
         }
         throwStatsRenderedThisFrame = true;
 
+        float scale = HudUtil.getScaleFactor(drawContext);
         int width = drawContext.getScaledWindowWidth();
 
         // Compact abbreviations
@@ -210,41 +235,43 @@ public final class HudOverlays {
 
         boolean hasPenalty = stats.penaltyType() != StrictPenaltyType.NONE;
         int contentRows = hasPenalty ? 3 : 3; // always 3 content rows, penalty merges into row 3
-        int panelH = 16 + (contentRows * THROW_ROW_SPACING) + 6;
+        int scaledRowSpacing = Math.round(THROW_ROW_SPACING * scale);
+        int panelH = Math.round(16 * scale) + (contentRows * scaledRowSpacing) + Math.round(6 * scale);
         lastThrowStatsPanelHeight = panelH;
 
         // Compute throw text width (scaled) and share with Round HUD
-        int row1W = Math.round(client.textRenderer.getWidth(row1) * THROW_HUD_SCALE);
-        int row2W = Math.round(client.textRenderer.getWidth(row2) * THROW_HUD_SCALE);
+        int row1W = Math.round(client.textRenderer.getWidth(row1) * THROW_HUD_SCALE * scale);
+        int row2W = Math.round(client.textRenderer.getWidth(row2) * THROW_HUD_SCALE * scale);
         int maxThrowTextW = Math.max(row1W, row2W);
 
         String penaltyRow = buildPenaltyRow(stats);
         if (penaltyRow != null) {
-            int penaltyW = Math.round(client.textRenderer.getWidth(penaltyRow) * THROW_HUD_SCALE);
+            int penaltyW = Math.round(client.textRenderer.getWidth(penaltyRow) * THROW_HUD_SCALE * scale);
             maxThrowTextW = Math.max(maxThrowTextW, penaltyW);
         }
 
-        int throwPanelW = maxThrowTextW + 16;
+        int throwPanelW = maxThrowTextW + Math.round(16 * scale);
         int panelW = Math.max(RoundInfoOverlay.getSharedPanelWidth(), throwPanelW);
         RoundInfoOverlay.setSharedPanelWidth(panelW);
         lastThrowStatsPanelWidth = panelW;
 
-        int x = width - panelW - 8;
+        int x = width - panelW - Math.round(8 * scale);
         int roundHudBaseHeight = RoundInfoOverlay.getLastPanelHeight();
-        int y = 8 + roundHudBaseHeight + HUD_CARD_SPACING;
+        int y = Math.round(8 * scale) + roundHudBaseHeight + Math.round(HUD_CARD_SPACING * scale);
 
         HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, "Throw", hudAlpha);
 
-        int drawX = x + 6;
-        int row = y + 16;
+        int drawX = x + Math.round(6 * scale);
+        int row = y + Math.round(16 * scale);
         int colorWhite = HudUtil.withAlpha(0xFFFFFF, hudAlpha);
         int colorGray = HudUtil.withAlpha(0xAAAAAA, hudAlpha);
 
-        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(row1).formatted(Formatting.WHITE), drawX, row, colorWhite, THROW_HUD_SCALE);
-        row += THROW_ROW_SPACING;
+        float effectiveScale = THROW_HUD_SCALE * scale;
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(row1).formatted(Formatting.WHITE), drawX, row, colorWhite, effectiveScale);
+        row += scaledRowSpacing;
 
-        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(row2).formatted(Formatting.GRAY), drawX, row, colorGray, THROW_HUD_SCALE);
-        row += THROW_ROW_SPACING;
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(row2).formatted(Formatting.GRAY), drawX, row, colorGray, effectiveScale);
+        row += scaledRowSpacing;
 
         if (penaltyRow != null) {
             int penaltyColor = switch (stats.penaltyType()) {
@@ -252,9 +279,9 @@ public final class HudOverlays {
                 case HAZARD -> HudUtil.withAlpha(0xFFCC44, hudAlpha);
                 default -> HudUtil.withAlpha(0x55FF55, hudAlpha);
             };
-            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(penaltyRow).formatted(Formatting.BOLD), drawX, row, penaltyColor, THROW_HUD_SCALE);
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(penaltyRow).formatted(Formatting.BOLD), drawX, row, penaltyColor, effectiveScale);
         } else {
-            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal("In Bounds").formatted(Formatting.BOLD), drawX, row, HudUtil.withAlpha(0x55FF55, hudAlpha), THROW_HUD_SCALE);
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal("In Bounds").formatted(Formatting.BOLD), drawX, row, HudUtil.withAlpha(0x55FF55, hudAlpha), effectiveScale);
         }
     }
 
@@ -302,6 +329,7 @@ public final class HudOverlays {
             return;
         }
 
+        float scale = HudUtil.getScaleFactor(drawContext);
         ThrowStance stance = ThrowPreferenceManager.getSelectedStance();
         ReleaseAngle angle = ThrowPreferenceManager.getSelectedAngle();
 
@@ -333,40 +361,44 @@ public final class HudOverlays {
         String angleHint = "[" + ClientKeybinds.getAngleLeftKeyText().getString() + " | " + ClientKeybinds.getAngleRightKeyText().getString() + "]";
         final float HINT_SCALE = 0.65f;
 
-        int stanceW = Math.round(client.textRenderer.getWidth(stanceName) * THROW_HUD_SCALE);
-        int angleW = Math.round(client.textRenderer.getWidth(angleName) * THROW_HUD_SCALE);
-        int stanceHintW = Math.round(client.textRenderer.getWidth(stanceHint) * HINT_SCALE);
-        int angleHintW = Math.round(client.textRenderer.getWidth(angleHint) * HINT_SCALE);
+        float effectiveThrowScale = THROW_HUD_SCALE * scale;
+        float effectiveHintScale = HINT_SCALE * scale;
+        int stanceW = Math.round(client.textRenderer.getWidth(stanceName) * effectiveThrowScale);
+        int angleW = Math.round(client.textRenderer.getWidth(angleName) * effectiveThrowScale);
+        int stanceHintW = Math.round(client.textRenderer.getWidth(stanceHint) * effectiveHintScale);
+        int angleHintW = Math.round(client.textRenderer.getWidth(angleHint) * effectiveHintScale);
 
         int maxTextW = Math.max(stanceW, angleW);
 
-        int panelW = Math.max(RoundInfoOverlay.getSharedPanelWidth(), maxTextW + 16);
+        int panelW = Math.max(RoundInfoOverlay.getSharedPanelWidth(), maxTextW + Math.round(16 * scale));
         RoundInfoOverlay.setSharedPanelWidth(panelW);
 
         int contentRows = 2;
-        int panelH = 16 + (contentRows * THROW_ROW_SPACING) + 4;
+        int scaledRowSpacing = Math.round(THROW_ROW_SPACING * scale);
+        int panelH = Math.round(16 * scale) + (contentRows * scaledRowSpacing) + Math.round(4 * scale);
 
-        int x = drawContext.getScaledWindowWidth() - panelW - 8;
-        int roundHudBottom = 8 + RoundInfoOverlay.getLastPanelHeight();
+        int x = drawContext.getScaledWindowWidth() - panelW - Math.round(8 * scale);
+        int roundHudBottom = Math.round(8 * scale) + RoundInfoOverlay.getLastPanelHeight();
+        int scaledCardSpacing = Math.round(HUD_CARD_SPACING * scale);
         int y = throwStatsRenderedThisFrame
-                ? (roundHudBottom + HUD_CARD_SPACING + getLastThrowStatsPanelHeight() + HUD_CARD_SPACING)
-                : (roundHudBottom + HUD_CARD_SPACING);
+                ? (roundHudBottom + scaledCardSpacing + getLastThrowStatsPanelHeight() + scaledCardSpacing)
+                : (roundHudBottom + scaledCardSpacing);
 
         HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, "Setup", hudAlpha);
 
-        int drawX = x + 6;
-        int row = y + 16;
+        int drawX = x + Math.round(6 * scale);
+        int row = y + Math.round(16 * scale);
         int stanceTextColor = HudUtil.withAlpha(colorFromFormatting(stanceColor), hudAlpha);
         int angleTextColor = HudUtil.withAlpha(colorFromFormatting(angleColor), hudAlpha);
         int hintColor = HudUtil.withAlpha(0xAAAAAA, hudAlpha);
 
-        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(stanceName).formatted(stanceColor), drawX, row, stanceTextColor, THROW_HUD_SCALE);
-        int stanceHintX = x + panelW - 6 - stanceHintW;
-        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(stanceHint).formatted(Formatting.DARK_GRAY), stanceHintX, row, hintColor, HINT_SCALE);
-        row += THROW_ROW_SPACING;
-        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(angleName).formatted(angleColor), drawX, row, angleTextColor, THROW_HUD_SCALE);
-        int angleHintX = x + panelW - 6 - angleHintW;
-        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(angleHint).formatted(Formatting.DARK_GRAY), angleHintX, row, hintColor, HINT_SCALE);
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(stanceName).formatted(stanceColor), drawX, row, stanceTextColor, effectiveThrowScale);
+        int stanceHintX = x + panelW - Math.round(6 * scale) - stanceHintW;
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(stanceHint).formatted(Formatting.DARK_GRAY), stanceHintX, row, hintColor, effectiveHintScale);
+        row += scaledRowSpacing;
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(angleName).formatted(angleColor), drawX, row, angleTextColor, effectiveThrowScale);
+        int angleHintX = x + panelW - Math.round(6 * scale) - angleHintW;
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(angleHint).formatted(Formatting.DARK_GRAY), angleHintX, row, hintColor, effectiveHintScale);
     }
 
     private static int colorFromFormatting(Formatting fmt) {

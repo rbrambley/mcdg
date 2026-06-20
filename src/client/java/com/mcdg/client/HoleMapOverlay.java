@@ -67,30 +67,28 @@ public final class HoleMapOverlay {
             return;
         }
 
+        float scale = HudUtil.getScaleFactor(ctx);
         HoleMapState state = McdgClientMod.getHoleMapState();
         if (state == null || !state.isActive()) {
             return;
         }
 
-        // Match width to running scoreboard so the two left-side HUDs align visually.
-        int panelW = RunningScoreboardOverlay.getLastPanelWidth();
-        if (panelW <= 0) {
-            panelW = DEFAULT_PANEL_W;
-        }
+        // Match width to Xaero's minimap for visual alignment
+        int panelW = HudUtil.getXaeroMinimapWidth();
 
-        int panelX = 8;
+        int panelX = Math.round(8 * scale);
         int screenHeight = ctx.getScaledWindowHeight();
         
         // Position right after Xaero's space
-        int panelY = XAEROS_TOP_RESERVED + HUD_SPACING;
+        int panelY = Math.round(XAEROS_TOP_RESERVED * scale) + Math.round(HUD_SPACING * scale);
         
         // Calculate available space to where scoreboard actually sits (near bottom)
-        int scoreboardH = Math.max(RunningScoreboardOverlay.getLastPanelHeight(), 42);
-        int scoreboardTop = screenHeight - scoreboardH - HUD_SPACING;
-        int availableHeight = scoreboardTop - panelY - HUD_SPACING;
+        int scoreboardH = Math.max(RunningScoreboardOverlay.getLastPanelHeight(), Math.round(42 * scale));
+        int scoreboardTop = screenHeight - scoreboardH - Math.round(HUD_SPACING * scale);
+        int availableHeight = scoreboardTop - panelY - Math.round(HUD_SPACING * scale);
         
         // Dynamic panel height: fill available space with min/max bounds
-        int panelH = Math.max(MIN_PANEL_H, Math.min(availableHeight, MAX_PANEL_H));
+        int panelH = Math.max(Math.round(MIN_PANEL_H * scale), Math.min(availableHeight, Math.round(MAX_PANEL_H * scale)));
         
         // Track rendered position for scoreboard coordination
         lastRenderedY = panelY;
@@ -98,33 +96,39 @@ public final class HoleMapOverlay {
 
         // Panel background
         ctx.fill(panelX, panelY, panelX + panelW, panelY + panelH, HudUtil.withAlpha(BG_COLOR, hudAlpha));
-        ctx.fill(panelX, panelY, panelX + panelW, panelY + HEADER_H, HudUtil.withAlpha(HEADER_COLOR, hudAlpha));
+        int scaledHeaderH = Math.round(HEADER_H * scale);
+        ctx.fill(panelX, panelY, panelX + panelW, panelY + scaledHeaderH, HudUtil.withAlpha(HEADER_COLOR, hudAlpha));
         ctx.drawBorder(panelX, panelY, panelW, panelH, HudUtil.withAlpha(BORDER_COLOR, hudAlpha));
 
         // Header text (reduced size)
         String title = "Hole " + state.holeIndex;
-        ctx.drawTextWithShadow(client.textRenderer, title, panelX + 6, panelY + 4, HudUtil.withAlpha(TEXT_TITLE, hudAlpha));
+        int headerTextMargin = Math.round(6 * scale);
+        int headerTextYOffset = Math.round(4 * scale);
+        HudUtil.drawScaledText(ctx, client.textRenderer, net.minecraft.text.Text.literal(title), panelX + headerTextMargin, panelY + headerTextYOffset, HudUtil.withAlpha(TEXT_TITLE, hudAlpha), scale);
 
         String parDist = "P" + state.par + "  " + state.distanceFeet + "ft";
-        int pdw = client.textRenderer.getWidth(parDist);
-        ctx.drawTextWithShadow(client.textRenderer, parDist, panelX + panelW - pdw - 6, panelY + 4, HudUtil.withAlpha(TEXT_GREEN, hudAlpha));
+        int pdw = Math.round(client.textRenderer.getWidth(parDist) * scale);
+        HudUtil.drawScaledText(ctx, client.textRenderer, net.minecraft.text.Text.literal(parDist), panelX + panelW - pdw - headerTextMargin, panelY + headerTextYOffset, HudUtil.withAlpha(TEXT_GREEN, hudAlpha), scale);
 
         // Signature label (only if there is room)
         SignatureHoleType sig = SignatureHoleType.values()[Math.max(0, Math.min(SignatureHoleType.values().length - 1, state.signatureTypeOrdinal))];
         if (sig != SignatureHoleType.NONE) {
             String sigText = sig.displayName();
-            int sigW = client.textRenderer.getWidth(sigText);
-            int titleW = client.textRenderer.getWidth(title);
-            if (sigW + 10 + titleW + 10 + pdw < panelW) {
-                ctx.drawTextWithShadow(client.textRenderer, sigText, panelX + (panelW - sigW) / 2, panelY + 4, HudUtil.withAlpha(TEXT_GOLD, hudAlpha));
+            int sigW = Math.round(client.textRenderer.getWidth(sigText) * scale);
+            int titleW = Math.round(client.textRenderer.getWidth(title) * scale);
+            int sigSpacing = Math.round(10 * scale);
+            if (sigW + sigSpacing + titleW + sigSpacing + pdw < panelW) {
+                HudUtil.drawScaledText(ctx, client.textRenderer, net.minecraft.text.Text.literal(sigText), panelX + (panelW - sigW) / 2, panelY + headerTextYOffset, HudUtil.withAlpha(TEXT_GOLD, hudAlpha), scale);
             }
         }
 
         // Map canvas
-        float mapX = panelX + MAP_MARGIN;
-        float mapY = panelY + HEADER_H + 2;
-        float mapW = panelW - MAP_MARGIN * 2;
-        float mapH = panelH - HEADER_H - FOOTER_H - 4;
+        int scaledMapMargin = Math.round(MAP_MARGIN * scale);
+        float mapX = panelX + scaledMapMargin;
+        float mapY = panelY + scaledHeaderH + Math.round(2 * scale);
+        float mapW = panelW - scaledMapMargin * 2;
+        int scaledFooterH = Math.round(FOOTER_H * scale);
+        float mapH = panelH - scaledHeaderH - scaledFooterH - Math.round(4 * scale);
 
         HoleMapRenderer.MapTransform transform = HoleMapRenderer.computeTransform(state, mapX, mapY, mapW, mapH);
 
@@ -147,27 +151,28 @@ public final class HoleMapOverlay {
         ctx.drawBorder((int) mapX, (int) mapY, (int) mapW, (int) mapH, HudUtil.withAlpha(BORDER_COLOR, hudAlpha));
 
         // Footer info (reduced spacing)
-        int footerTop = panelY + panelH - FOOTER_H;
-        int row = footerTop + 3;
+        int footerTop = panelY + panelH - scaledFooterH;
+        int row = footerTop + Math.round(3 * scale);
+        int rowSpacing = Math.round(9 * scale);
 
         String throwLine = "Throw " + state.throwNumber + "  Strokes " + state.totalStrokes;
         if (state.cumulativeParDelta != 0) {
             String deltaStr = state.cumulativeParDelta > 0 ? "+" + state.cumulativeParDelta : String.valueOf(state.cumulativeParDelta);
             throwLine += " (" + deltaStr + ")";
         }
-        int tlw = client.textRenderer.getWidth(throwLine);
-        ctx.drawTextWithShadow(client.textRenderer, throwLine, panelX + (panelW - tlw) / 2, row, HudUtil.withAlpha(TEXT_WHITE, hudAlpha));
-        row += 9;
+        int tlw = Math.round(client.textRenderer.getWidth(throwLine) * scale);
+        HudUtil.drawScaledText(ctx, client.textRenderer, net.minecraft.text.Text.literal(throwLine), panelX + (panelW - tlw) / 2, row, HudUtil.withAlpha(TEXT_WHITE, hudAlpha), scale);
+        row += rowSpacing;
 
         if (state.hasWaterGap && state.waterGapStartFeet > 0) {
             String waterLine = "Water " + state.waterGapStartFeet + "-" + state.waterGapEndFeet + "ft";
-            int wlw = client.textRenderer.getWidth(waterLine);
-            ctx.drawTextWithShadow(client.textRenderer, waterLine, panelX + (panelW - wlw) / 2, row, HudUtil.withAlpha(0xFF66CCFF, hudAlpha));
-            row += 9;
+            int wlw = Math.round(client.textRenderer.getWidth(waterLine) * scale);
+            HudUtil.drawScaledText(ctx, client.textRenderer, net.minecraft.text.Text.literal(waterLine), panelX + (panelW - wlw) / 2, row, HudUtil.withAlpha(0xFF66CCFF, hudAlpha), scale);
+            row += rowSpacing;
         }
 
         String hint = "Press " + ClientKeybinds.getHoleMapKeyText().getString() + " to close";
-        int hw = client.textRenderer.getWidth(hint);
-        ctx.drawTextWithShadow(client.textRenderer, hint, panelX + (panelW - hw) / 2, row, HudUtil.withAlpha(TEXT_MUTED, hudAlpha));
+        int hw = Math.round(client.textRenderer.getWidth(hint) * scale);
+        HudUtil.drawScaledText(ctx, client.textRenderer, net.minecraft.text.Text.literal(hint), panelX + (panelW - hw) / 2, row, HudUtil.withAlpha(TEXT_MUTED, hudAlpha), scale);
     }
 }

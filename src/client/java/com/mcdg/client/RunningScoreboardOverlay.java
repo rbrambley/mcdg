@@ -34,87 +34,103 @@ public final class RunningScoreboardOverlay {
             return;
         }
 
+        float scale = HudUtil.getScaleFactor(drawContext);
         int focusHole = Math.max(1, Math.min(state.totalHoles(), state.focusHole()));
         int startHole = Math.max(1, focusHole - 2);
         int endHole = focusHole;
         int visibleHoleCount = Math.max(1, endHole - startHole + 1);
-        int nameColW = client.textRenderer.getWidth("Player");
-        int totalColW = client.textRenderer.getWidth("Tot");
+        
+        int nameColW = Math.round(client.textRenderer.getWidth("Player") * scale);
+        int totalColW = Math.round(client.textRenderer.getWidth("Tot") * scale);
         for (McdgClientMod.RunningRoundScoreRow row : state.rows()) {
             String displayName = row.online() ? row.playerName() : (row.playerName() + " (off)");
-            nameColW = Math.max(nameColW, client.textRenderer.getWidth(displayName));
-            totalColW = Math.max(totalColW, client.textRenderer.getWidth(Integer.toString(row.runningTotal())));
+            nameColW = Math.max(nameColW, Math.round(client.textRenderer.getWidth(displayName) * scale));
+            totalColW = Math.max(totalColW, Math.round(client.textRenderer.getWidth(Integer.toString(row.runningTotal())) * scale));
         }
 
-        int holeColW = 12;
-        int colGap = 6;
-        int rowHeight = 10;
-        int panelW = 8 + nameColW + colGap + (visibleHoleCount * (holeColW + 2)) + colGap + totalColW + 8;
-        int panelH = 22 + ((state.rows().size() + 1) * rowHeight);
+        int holeColW = Math.round(12 * scale);
+        int colGap = Math.round(6 * scale);
+        int rowHeight = Math.round(10 * scale);
+        int panelMargin = Math.round(8 * scale);
+        
+        // Calculate minimum width needed for content
+        int minContentWidth = panelMargin + nameColW + colGap + (visibleHoleCount * (holeColW + Math.round(2 * scale))) + colGap + totalColW + panelMargin;
+        
+        // Use the larger of Xaero's width or content width
+        int panelW = Math.max(HudUtil.getXaeroMinimapWidth(), minContentWidth);
+        
+        int panelH = Math.round(22 * scale) + ((state.rows().size() + 1) * rowHeight);
         lastPanelWidth = panelW;
         lastPanelHeight = panelH;
-        int x = 8;
+        int x = panelMargin;
         
         // Position in bottom third, anchored near bottom of screen
         int screenHeight = drawContext.getScaledWindowHeight();
         int bottomThirdStart = (2 * screenHeight) / 3;
-        int y = screenHeight - panelH - HUD_SPACING;
+        int scaledSpacing = Math.round(HUD_SPACING * scale);
+        int y = screenHeight - panelH - scaledSpacing;
         
         // Ensure it stays within bottom third
-        if (y < bottomThirdStart + HUD_SPACING) {
-            y = bottomThirdStart + HUD_SPACING;
+        if (y < bottomThirdStart + scaledSpacing) {
+            y = bottomThirdStart + scaledSpacing;
         }
 
         String panelTitle = (state.courseName() != null && !state.courseName().isBlank()) ? state.courseName() : "Round Scores";
         HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, panelTitle, hudAlpha);
 
-        int cursorX = x + 6;
-        int headerY = y + 14;
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Player"), cursorX, headerY, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
+        int cursorX = x + Math.round(6 * scale);
+        int headerY = y + Math.round(14 * scale);
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal("Player"), cursorX, headerY, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha), scale);
         cursorX += nameColW + colGap;
 
         for (int hole = startHole; hole <= endHole; hole++) {
             String label = Integer.toString(hole);
             int color = hole == focusHole ? 0xFFEAC26F : HUD_CARD_MUTED_TEXT;
-            drawContext.drawTextWithShadow(
+            int labelWidth = Math.round(client.textRenderer.getWidth(label) * scale);
+            HudUtil.drawScaledText(
+                    drawContext,
                     client.textRenderer,
                     Text.literal(label),
-                    cursorX + rightAlign(0, holeColW, client.textRenderer.getWidth(label)),
+                    cursorX + rightAlign(0, holeColW, labelWidth),
                     headerY,
-                    HudUtil.withAlpha(color, hudAlpha)
+                    HudUtil.withAlpha(color, hudAlpha),
+                    scale
             );
-            cursorX += holeColW + 2;
+            cursorX += holeColW + Math.round(2 * scale);
         }
 
         cursorX += colGap;
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Tot"), cursorX, headerY, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha));
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal("Tot"), cursorX, headerY, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha), scale);
 
         for (int rowIndex = 0; rowIndex < state.rows().size(); rowIndex++) {
             McdgClientMod.RunningRoundScoreRow row = state.rows().get(rowIndex);
-            int rowY = y + 24 + (rowIndex * rowHeight);
+            int rowY = y + Math.round(24 * scale) + (rowIndex * rowHeight);
             int rowColor = row.online() ? HUD_CARD_TEXT : HUD_CARD_MUTED_TEXT;
 
             String displayName = row.online() ? row.playerName() : (row.playerName() + " (off)");
-            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(displayName), x + 6, rowY, HudUtil.withAlpha(rowColor, hudAlpha));
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(displayName), x + Math.round(6 * scale), rowY, HudUtil.withAlpha(rowColor, hudAlpha), scale);
 
-            int rowCursorX = x + 6 + nameColW + colGap;
+            int rowCursorX = x + Math.round(6 * scale) + nameColW + colGap;
             for (int hole = startHole; hole <= endHole; hole++) {
                 int value = (hole - 1) < row.holeScores().size() ? row.holeScores().get(hole - 1) : -1;
                 String text = value < 0 ? "-" : Integer.toString(value);
                 int valueColor = hole == focusHole ? 0xFFF5D684 : rowColor;
-                drawContext.drawTextWithShadow(
+                int textWidth = Math.round(client.textRenderer.getWidth(text) * scale);
+                HudUtil.drawScaledText(
+                        drawContext,
                         client.textRenderer,
                         Text.literal(text),
-                        rowCursorX + rightAlign(0, holeColW, client.textRenderer.getWidth(text)),
+                        rowCursorX + rightAlign(0, holeColW, textWidth),
                         rowY,
-                        HudUtil.withAlpha(valueColor, hudAlpha)
+                        HudUtil.withAlpha(valueColor, hudAlpha),
+                        scale
                 );
-                rowCursorX += holeColW + 2;
+                rowCursorX += holeColW + Math.round(2 * scale);
             }
 
             rowCursorX += colGap;
             String totalText = Integer.toString(row.runningTotal());
-            drawContext.drawTextWithShadow(client.textRenderer, Text.literal(totalText), rowCursorX, rowY, HudUtil.withAlpha(0xFFB5F7B5, hudAlpha));
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(totalText), rowCursorX, rowY, HudUtil.withAlpha(0xFFB5F7B5, hudAlpha), scale);
         }
     }
 
