@@ -155,30 +155,35 @@ public final class CinematicOverlay {
             return;
         }
 
+        float scale = HudUtil.getScaleFactor(drawContext);
         int width = drawContext.getScaledWindowWidth();
         int height = drawContext.getScaledWindowHeight();
-        int cardW = 238;
-        int cardH = 72;
+        
+        // Baseline sizes for 1920x1080
+        int cardW = Math.round(238 * scale);
+        int cardH = Math.round(72 * scale);
         int x = (width - cardW) / 2;
-        int y = Math.max(18, (height / 2) - 120);
+        int y = Math.max(Math.round(18 * scale), (height / 2) - Math.round(120 * scale));
 
         drawContext.fill(x, y, x + cardW, y + cardH, withAlpha(0xC0141820, alpha));
-        drawContext.fill(x, y, x + cardW, y + 14, withAlpha(0xE3987A19, alpha));
-        drawContext.fill(x, y, x + cardW, y + 1, withAlpha(0xFFE5BD4A, alpha));
-        drawContext.fill(x, y + cardH - 1, x + cardW, y + cardH, withAlpha(0xFFE5BD4A, alpha));
-        drawContext.fill(x, y, x + 1, y + cardH, withAlpha(0xFFE5BD4A, alpha));
-        drawContext.fill(x + cardW - 1, y, x + cardW, y + cardH, withAlpha(0xFFE5BD4A, alpha));
+        int headerH = Math.round(14 * scale);
+        drawContext.fill(x, y, x + cardW, y + headerH, withAlpha(0xE3987A19, alpha));
+        int borderThickness = 1;
+        drawContext.fill(x, y, x + cardW, y + borderThickness, withAlpha(0xFFE5BD4A, alpha));
+        drawContext.fill(x, y + cardH - borderThickness, x + cardW, y + cardH, withAlpha(0xFFE5BD4A, alpha));
+        drawContext.fill(x, y, x + borderThickness, y + cardH, withAlpha(0xFFE5BD4A, alpha));
+        drawContext.fill(x + cardW - borderThickness, y, x + cardW, y + cardH, withAlpha(0xFFE5BD4A, alpha));
 
         String title = "ACE!";
         String sub1 = "Hole-in-One";
         String sub2 = "Hole " + aceState.holeIndex() + "  Dist " + aceState.distanceFeet() + " ft";
-        int titleX = x + ((cardW - client.textRenderer.getWidth(title)) / 2);
-        int sub1X = x + ((cardW - client.textRenderer.getWidth(sub1)) / 2);
-        int sub2X = x + ((cardW - client.textRenderer.getWidth(sub2)) / 2);
+        int titleX = x + ((cardW - Math.round(client.textRenderer.getWidth(title) * scale)) / 2);
+        int sub1X = x + ((cardW - Math.round(client.textRenderer.getWidth(sub1) * scale)) / 2);
+        int sub2X = x + ((cardW - Math.round(client.textRenderer.getWidth(sub2) * scale)) / 2);
 
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(title).formatted(Formatting.GOLD, Formatting.BOLD), titleX, y + 18, withAlpha(0xFFF6D15A, alpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(sub1).formatted(Formatting.YELLOW), sub1X, y + 35, withAlpha(0xFFF3E5B3, alpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(sub2).formatted(Formatting.WHITE), sub2X, y + 49, withAlpha(0xFFF7F8FB, alpha));
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(title).formatted(Formatting.GOLD, Formatting.BOLD), titleX, y + Math.round(18 * scale), withAlpha(0xFFF6D15A, alpha), scale);
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(sub1).formatted(Formatting.YELLOW), sub1X, y + Math.round(35 * scale), withAlpha(0xFFF3E5B3, alpha), scale);
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(sub2).formatted(Formatting.WHITE), sub2X, y + Math.round(49 * scale), withAlpha(0xFFF7F8FB, alpha), scale);
     }
 
     private static void renderRoundComplete(DrawContext drawContext) {
@@ -198,30 +203,36 @@ public final class CinematicOverlay {
             return;
         }
 
+        float scale = HudUtil.getScaleFactor(drawContext);
         int width = drawContext.getScaledWindowWidth();
         int height = drawContext.getScaledWindowHeight();
-        int cardW = 312;
-        int cardH = 162;
+        
+        // Baseline sizes for 1920x1080
+        int cardW = Math.round(312 * scale);
+        int cardH = Math.round(162 * scale);
         int x = (width - cardW) / 2;
-        int y = Math.max(18, (height / 2) - 134);
+        int y = Math.max(Math.round(18 * scale), (height / 2) - Math.round(134 * scale));
 
         drawContext.fill(x, y, x + cardW, y + cardH, withAlpha(0xCC121720, alpha));
-        drawContext.fill(x, y, x + cardW, y + 16, withAlpha(0xE3947A24, alpha));
-        drawContext.fill(x, y, x + cardW, y + 1, withAlpha(0xFFE0C468, alpha));
-        drawContext.fill(x, y + cardH - 1, x + cardW, y + cardH, withAlpha(0xFFE0C468, alpha));
-        drawContext.fill(x, y, x + 1, y + cardH, withAlpha(0xFFE0C468, alpha));
-        drawContext.fill(x + cardW - 1, y, x + cardW, y + cardH, withAlpha(0xFFE0C468, alpha));
+        int headerH = Math.round(16 * scale);
+        drawContext.fill(x, y, x + cardW, y + headerH, withAlpha(0xE3947A24, alpha));
+        int borderThickness = 1;
+        drawContext.fill(x, y, x + cardW, y + borderThickness, withAlpha(0xFFE0C468, alpha));
+        drawContext.fill(x, y + cardH - borderThickness, x + cardW, y + cardH, withAlpha(0xFFE0C468, alpha));
+        drawContext.fill(x, y, x + borderThickness, y + cardH, withAlpha(0xFFE0C468, alpha));
+        drawContext.fill(x + cardW - borderThickness, y, x + cardW, y + cardH, withAlpha(0xFFE0C468, alpha));
 
         String title = "Round Complete";
         String subtitle = roundCompleteState.totalPlayers() + " Players  |  Par " + roundCompleteState.totalPar();
-        int titleX = x + ((cardW - client.textRenderer.getWidth(title)) / 2);
-        int subtitleX = x + ((cardW - client.textRenderer.getWidth(subtitle)) / 2);
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(title).formatted(Formatting.GOLD, Formatting.BOLD), titleX, y + 22, withAlpha(0xFFF5D57A, alpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(subtitle).formatted(Formatting.YELLOW), subtitleX, y + 37, withAlpha(0xFFEFE4BF, alpha));
+        int titleX = x + ((cardW - Math.round(client.textRenderer.getWidth(title) * scale)) / 2);
+        int subtitleX = x + ((cardW - Math.round(client.textRenderer.getWidth(subtitle) * scale)) / 2);
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(title).formatted(Formatting.GOLD, Formatting.BOLD), titleX, y + Math.round(22 * scale), withAlpha(0xFFF5D57A, alpha), scale);
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(subtitle).formatted(Formatting.YELLOW), subtitleX, y + Math.round(37 * scale), withAlpha(0xFFEFE4BF, alpha), scale);
 
-        drawPodiumLine(drawContext, client, x + 20, y + 62, 1, roundCompleteState.firstName(), roundCompleteState.firstScore(), roundCompleteState.totalPar(), alpha);
-        drawPodiumLine(drawContext, client, x + 20, y + 78, 2, roundCompleteState.secondName(), roundCompleteState.secondScore(), roundCompleteState.totalPar(), alpha);
-        drawPodiumLine(drawContext, client, x + 20, y + 94, 3, roundCompleteState.thirdName(), roundCompleteState.thirdScore(), roundCompleteState.totalPar(), alpha);
+        int podiumX = x + Math.round(20 * scale);
+        drawPodiumLine(drawContext, client, podiumX, y + Math.round(62 * scale), 1, roundCompleteState.firstName(), roundCompleteState.firstScore(), roundCompleteState.totalPar(), alpha, scale);
+        drawPodiumLine(drawContext, client, podiumX, y + Math.round(78 * scale), 2, roundCompleteState.secondName(), roundCompleteState.secondScore(), roundCompleteState.totalPar(), alpha, scale);
+        drawPodiumLine(drawContext, client, podiumX, y + Math.round(94 * scale), 3, roundCompleteState.thirdName(), roundCompleteState.thirdScore(), roundCompleteState.totalPar(), alpha, scale);
 
         String local;
         if (roundCompleteState.localRank() > 0) {
@@ -231,8 +242,8 @@ public final class CinematicOverlay {
         } else {
             local = "You: spectator";
         }
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(local).formatted(Formatting.WHITE), x + 20, y + 122, withAlpha(0xFFF5F7FB, alpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Press movement key or jump to skip").formatted(Formatting.GRAY), x + 20, y + 138, withAlpha(0xFFABB5C2, alpha));
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(local).formatted(Formatting.WHITE), podiumX, y + Math.round(122 * scale), withAlpha(0xFFF5F7FB, alpha), scale);
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal("Press movement key or jump to skip").formatted(Formatting.GRAY), podiumX, y + Math.round(138 * scale), withAlpha(0xFFABB5C2, alpha), scale);
     }
 
     private static void drawPodiumLine(
@@ -244,13 +255,14 @@ public final class CinematicOverlay {
             String name,
             int score,
             int par,
-            float alpha
+            float alpha,
+            float scale
     ) {
         String safeName = (name == null || name.isBlank()) ? "-" : name;
         int delta = score - par;
         String deltaText = delta == 0 ? "E" : (delta > 0 ? "+" + delta : Integer.toString(delta));
         String line = "#" + rank + "  " + safeName + "  " + score + " (" + deltaText + ")";
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal(line), x, y, withAlpha(0xFFE5ECF7, alpha));
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(line), x, y, withAlpha(0xFFE5ECF7, alpha), scale);
     }
 
     private static float computeFadeAlpha(long now, long startAtMs, long endAtMs, float fadeInRatio, float fadeOutRatio) {

@@ -40,29 +40,28 @@ public final class RunningScoreboardOverlay {
         int endHole = focusHole;
         int visibleHoleCount = Math.max(1, endHole - startHole + 1);
         
-        int nameColW = Math.round(client.textRenderer.getWidth("Player") * scale);
-        int totalColW = Math.round(client.textRenderer.getWidth("Tot") * scale);
-        for (McdgClientMod.RunningRoundScoreRow row : state.rows()) {
-            String displayName = row.online() ? row.playerName() : (row.playerName() + " (off)");
-            nameColW = Math.max(nameColW, Math.round(client.textRenderer.getWidth(displayName) * scale));
-            totalColW = Math.max(totalColW, Math.round(client.textRenderer.getWidth(Integer.toString(row.runningTotal())) * scale));
-        }
-
-        int holeColW = Math.round(12 * scale);
+        // Use Xaero's minimap width for exact alignment
+        int panelW = HudUtil.getXaeroMinimapWidth();
+        
+        // Calculate available width for content (subtract margins)
+        int contentMargin = Math.round(16 * scale); // 8px margin on each side
+        int availableContentWidth = panelW - contentMargin;
+        
+        // Distribute width: 40% names, 15% totals, remaining to hole columns
+        int nameColW = Math.round(availableContentWidth * 0.4f);
+        int totalColW = Math.round(availableContentWidth * 0.15f);
         int colGap = Math.round(6 * scale);
+        int remainingWidth = availableContentWidth - nameColW - totalColW - (colGap * 2);
+        int holeColW = Math.max(Math.round(12 * scale), remainingWidth / visibleHoleCount);
         int rowHeight = Math.round(10 * scale);
-        int panelMargin = Math.round(8 * scale);
-        
-        // Calculate minimum width needed for content
-        int minContentWidth = panelMargin + nameColW + colGap + (visibleHoleCount * (holeColW + Math.round(2 * scale))) + colGap + totalColW + panelMargin;
-        
-        // Use the larger of Xaero's width or content width
-        int panelW = Math.max(HudUtil.getXaeroMinimapWidth(), minContentWidth);
         
         int panelH = Math.round(22 * scale) + ((state.rows().size() + 1) * rowHeight);
         lastPanelWidth = panelW;
         lastPanelHeight = panelH;
-        int x = panelMargin;
+        
+        // Center horizontally with Xaero's minimap (same left position as Xaero)
+        int xaeroMargin = Math.round(8 * scale);
+        int x = xaeroMargin;
         
         // Position in bottom third, anchored near bottom of screen
         int screenHeight = drawContext.getScaledWindowHeight();

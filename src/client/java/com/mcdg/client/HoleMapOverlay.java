@@ -76,7 +76,10 @@ public final class HoleMapOverlay {
         // Match width to Xaero's minimap for visual alignment
         int panelW = HudUtil.getXaeroMinimapWidth();
 
-        int panelX = Math.round(8 * scale);
+        // Center horizontally with Xaero's minimap (assuming Xaero is at top-left with 8px margin)
+        int xaeroMargin = Math.round(8 * scale);
+        int panelX = xaeroMargin; // Same left position as Xaero for alignment
+        
         int screenHeight = ctx.getScaledWindowHeight();
         
         // Position right after Xaero's space

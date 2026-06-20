@@ -16,9 +16,11 @@ import net.minecraft.util.Formatting;
  * Standalone HUD overlays that don't depend on round or minimap state.
  */
 public final class HudOverlays {
-    private static final int POWER_BAR_HEIGHT = 72;
-    private static final int POWER_BAR_WIDTH = 8;
+    private static final int POWER_BAR_WIDTH = 24; // 3x wider for better visibility
     private static final String[] COMPASS_8 = { "S", "SW", "W", "NW", "N", "NE", "E", "SE" };
+    
+    // Power bar sizing: 2/3 of screen height with 1/6 buffers at top and bottom
+    private static final float POWER_BAR_SCREEN_RATIO = 2.0f / 3.0f;
 
     private HudOverlays() {
     }
@@ -88,10 +90,15 @@ public final class HudOverlays {
 
         boolean rightHandThrow = client.player.getMainArm() == Arm.RIGHT;
         int barX = (width / 2) + (rightHandThrow ? Math.round(66 * scale) : Math.round(-74 * scale));
-        int barBottom = (height / 2) + Math.round(54 * scale);
-        int scaledPowerBarHeight = Math.round(POWER_BAR_HEIGHT * scale);
+        
+        // Calculate power bar height: 2/3 of screen height
+        int scaledPowerBarHeight = Math.round(height * POWER_BAR_SCREEN_RATIO);
         int scaledPowerBarWidth = Math.round(POWER_BAR_WIDTH * scale);
-        int barTop = barBottom - scaledPowerBarHeight;
+        
+        // Center vertically: top buffer = (height - barHeight) / 2
+        int topBuffer = (height - scaledPowerBarHeight) / 2;
+        int barBottom = topBuffer + scaledPowerBarHeight;
+        int barTop = topBuffer;
 
         int barMargin = Math.round(2 * scale);
         drawContext.fill(barX - barMargin, barTop - barMargin, barX + scaledPowerBarWidth + barMargin, barBottom + barMargin, 0x70000000);

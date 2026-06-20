@@ -2,7 +2,6 @@ package com.mcdg.client;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.fabricmc.loader.api.FabricLoader;
 
 /**
  * Shared HUD rendering utilities used by multiple overlay renderers.
