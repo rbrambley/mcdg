@@ -5,6 +5,7 @@ out/
 *.iml
 .idea/
 .vscode/*.code-workspace
+.vscode/extensions.json
 
 # Local IDE/tooling artifacts
 .classpath
