@@ -30,11 +30,9 @@ import com.mcdg.net.AceCinematicSync;
 import com.mcdg.net.HoleMapSync;
 import com.mcdg.net.LeaderboardRequest;
 import com.mcdg.net.LeaderboardResponse;
-import com.mcdg.net.WaypointSync;
 import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.MenuScreenSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
-import com.mcdg.net.WaypointTeleportSync;
 import com.mcdg.net.ThrowPowerLockSync;
 import com.mcdg.net.ThrowStanceSync;
 import com.mcdg.net.ThrowTrailSync;
@@ -179,9 +177,7 @@ public final class McdgMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        PayloadTypeRegistry.playC2S().register(WaypointSync.ID, WaypointSync.CODEC);
         PayloadTypeRegistry.playC2S().register(LeaderboardRequest.ID, LeaderboardRequest.CODEC);
-        PayloadTypeRegistry.playC2S().register(WaypointTeleportSync.ID, WaypointTeleportSync.CODEC);
         PayloadTypeRegistry.playC2S().register(ThrowPowerLockSync.ID, ThrowPowerLockSync.CODEC);
         PayloadTypeRegistry.playC2S().register(ThrowStanceSync.ID, ThrowStanceSync.CODEC);
         PayloadTypeRegistry.playS2C().register(AceCinematicSync.ID, AceCinematicSync.CODEC);
@@ -191,7 +187,6 @@ public final class McdgMod implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(MenuScreenSync.ID, MenuScreenSync.CODEC);
         PayloadTypeRegistry.playS2C().register(LeaderboardResponse.ID, LeaderboardResponse.CODEC);
 
-        PayloadTypeRegistry.playS2C().register(WaypointSync.ID, WaypointSync.CODEC);
         PayloadTypeRegistry.playS2C().register(ThrowPowerLockSync.ID, ThrowPowerLockSync.CODEC);
         PayloadTypeRegistry.playS2C().register(ThrowTrailSync.ID, ThrowTrailSync.CODEC);
 
@@ -205,14 +200,8 @@ public final class McdgMod implements ModInitializer {
                 Text.literal("MCDG Test Resources"),
                 ResourcePackActivationType.DEFAULT_ENABLED
         );
-        ServerPlayNetworking.registerGlobalReceiver(WaypointSync.ID, (payload, context) ->
-            context.server().execute(() -> WaypointSync.update(context.player(), payload.waypoints()))
-        );
         ServerPlayNetworking.registerGlobalReceiver(LeaderboardRequest.ID, (payload, context) ->
             context.server().execute(() -> handleLeaderboardRequest(context.player(), payload.courseName()))
-        );
-        ServerPlayNetworking.registerGlobalReceiver(WaypointTeleportSync.ID, (payload, context) ->
-                context.server().execute(() -> handleWaypointTeleport(context.player(), payload))
         );
         ServerPlayNetworking.registerGlobalReceiver(ThrowPowerLockSync.ID, (payload, context) ->
                 context.server().execute(() -> {
@@ -350,7 +339,6 @@ public final class McdgMod implements ModInitializer {
                 LOGGER.warn("EntityCapper tick took {}ms", elapsedMs);
             }
         });
-        ServerLifecycleEvents.SERVER_STARTED.register(server -> WaypointSync.clearAll());
         ServerLifecycleEvents.SERVER_STARTED.register(server -> ResortWaypointManager.clearResortWaypoint());
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::loadPersistedPracticeCourse);
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::loadPersistedRoundSession);
@@ -365,7 +353,6 @@ public final class McdgMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPING.register(McdgMod::flushRoundSessionOnShutdown);
         ServerLifecycleEvents.SERVER_STOPPING.register(BUILD_COURSE_SESSION_MANAGER::save);
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> LEADERBOARD_MANAGER.save(server));
-        ServerLifecycleEvents.SERVER_STOPPING.register(server -> WaypointSync.clearAll());
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> ResortWaypointManager.clearResortWaypoint());
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> ResortCourseBuilder.reset());
         ResortChestReplenisher.registerInteractionHandler();
@@ -373,7 +360,6 @@ public final class McdgMod implements ModInitializer {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
             server.execute(() -> {
                 restoreRoundParticipantOnJoin(handler.player, server);
-                ResortWaypointManager.broadcastToPlayer(handler.player);
                 ResortCourseBuilder.onPlayerJoin(handler.player);
                 // Warm storage caches on join so the first G key press is instant.
                 PRACTICE_COURSE_STORAGE.listReusable(server);
@@ -382,7 +368,6 @@ public final class McdgMod implements ModInitializer {
         );
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
             server.execute(() -> {
-                WaypointSync.clear(handler.player);
                 HoleMapSyncService.onPlayerDisconnect(handler.player.getUuid());
             })
         );
@@ -953,23 +938,6 @@ public final class McdgMod implements ModInitializer {
 
         var belowShape = belowState.getCollisionShape(world, below);
         return !belowShape.isEmpty();
-    }
-    private static void handleWaypointTeleport(ServerPlayerEntity player, WaypointTeleportSync payload) {
-        String name = payload.name();
-        if (name == null || name.isBlank()) return;
-
-        // Resort waypoint
-        var resort = ResortWaypointManager.getResortWaypoint().orElse(null);
-        if (resort != null && resort.name().equals(name)) {
-            BlockPos target = new BlockPos(resort.x(), resort.y(), resort.z()).south(4);
-            BlockPos safe = resolveSafeFeetNearWithin(player.getServerWorld(), target, 2);
-            player.teleport(player.getServerWorld(), safe.getX() + 0.5, safe.getY(), safe.getZ() + 0.5, Set.of(), player.getYaw(), player.getPitch());
-            player.sendMessage(Text.literal("Teleported to MCDG Resort!"), false);
-            return;
-        }
-
-        // Player-created waypoint (removed in favor of Xaero's Minimap)
-        player.sendMessage(Text.literal("Waypoint not found: " + name), false);
     }
 
 }

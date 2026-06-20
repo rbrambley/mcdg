@@ -92,7 +92,6 @@ public final class ResortBuilder {
         BlockPos fountainCenter = new BlockPos(center.getX(), baseY + 1, center.getZ());
         String dimensionId = world.getRegistryKey().getValue().toString();
         ResortWaypointManager.setResortWaypoint(fountainCenter, dimensionId);
-        ResortWaypointManager.broadcastToAllPlayers(world);
     }
 
     private static void flattenTerrain(ServerWorld world, BlockPos center,

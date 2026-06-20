@@ -298,7 +298,7 @@ public final class HudOverlays {
         if (client.player == null || client.options.hudHidden || client.textRenderer == null) {
             return;
         }
-        if (MiniMapRenderer.getMiniMapState() == null) {
+        if (McdgClientMod.getHoleMapState() == null) {
             return;
         }
 

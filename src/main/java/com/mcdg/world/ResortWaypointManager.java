@@ -1,12 +1,9 @@
 package com.mcdg.world;
 
-import com.mcdg.net.WaypointSync;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 public final class ResortWaypointManager {
@@ -30,21 +27,5 @@ public final class ResortWaypointManager {
 
     public static Optional<WaypointEntry> getResortWaypoint() {
         return resortWaypoint;
-    }
-
-    public static void broadcastToPlayer(ServerPlayerEntity player) {
-        resortWaypoint.ifPresent(wp -> {
-            List<WaypointSync.WaypointEntry> updated = new ArrayList<>(WaypointSync.getWaypoints(player));
-            updated.removeIf(e -> e.name().equals(RESORT_WAYPOINT_NAME));
-            updated.add(new WaypointSync.WaypointEntry(wp.name, wp.x, wp.y, wp.z, wp.color, wp.dimensionId));
-            WaypointSync.update(player, updated);
-            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, new WaypointSync.Payload(updated));
-        });
-    }
-
-    public static void broadcastToAllPlayers(ServerWorld world) {
-        for (ServerPlayerEntity player : world.getPlayers()) {
-            broadcastToPlayer(player);
-        }
     }
 }

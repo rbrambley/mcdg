@@ -18,8 +18,6 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
-import net.minecraft.particle.DustParticleEffect;
-import org.joml.Vector3f;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.item.ModelPredicateProviderRegistry;
 
@@ -34,7 +32,6 @@ public final class McdgClientMod implements ClientModInitializer {
     private static HoleMapState holeMapState;
     private static long holeMapStateReceivedAtMs;
     private static long hudHideSinceMs;
-    private static int basketBeamTick = 0;
 
     @Override
     public void onInitializeClient() {
@@ -121,7 +118,7 @@ public final class McdgClientMod implements ClientModInitializer {
             handleHoleMapToggle(client);
             CinematicOverlay.tick(client);
             DiscTrailRenderer.tick();
-            RoundInfoOverlay.updateTweens(MiniMapRenderer.getMiniMapState());
+            RoundInfoOverlay.updateTweens(holeMapState);
 
             // If HUDs are fading out after round end, keep state fresh so
             // the stale timeout doesn't cut the fade short. Once 30 seconds pass, clear state.
@@ -131,32 +128,9 @@ public final class McdgClientMod implements ClientModInitializer {
                     holeMapState = null;
                     holeMapStateReceivedAtMs = 0L;
                     hudHideSinceMs = 0L;
-                    MiniMapRenderer.setMiniMapState(null);
-                    MiniMapRenderer.setMiniMapReceivedAtMs(0L);
-                    MiniMapRenderer.setHudHideSinceMs(0L);
-                    MiniMapRenderer.setLastMiniMapRenderAtMs(0L);
                     DiscTrailRenderer.clearStats();
                 } else {
                     holeMapStateReceivedAtMs = System.currentTimeMillis();
-                    MiniMapRenderer.setMiniMapReceivedAtMs(System.currentTimeMillis());
-                }
-            }
-
-            // Spawn lime beacon beam above active basket during rounds
-            if (client.world != null && holeMapState != null) {
-                basketBeamTick++;
-                if (basketBeamTick % 10 == 0) {
-                    int bx = holeMapState.basketX;
-                    int bz = holeMapState.basketZ;
-                    int by = client.world.getTopY(net.minecraft.world.Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, bx, bz);
-                    for (int j = 0; j < 6; j++) {
-                        double py = by + 1.0 + j * 3.0;
-                        client.world.addParticle(
-                                new DustParticleEffect(new Vector3f(0.5f, 1.0f, 0.2f), 0.5f),
-                                bx + 0.5, py, bz + 0.5,
-                                0.0, 0.0, 0.0
-                        );
-                    }
                 }
             }
         });
@@ -192,18 +166,14 @@ public final class McdgClientMod implements ClientModInitializer {
             holeMapState = null;
             holeMapStateReceivedAtMs = 0L;
             hudHideSinceMs = 0L;
-            MiniMapRenderer.setMiniMapState(null);
-            MiniMapRenderer.setMiniMapReceivedAtMs(0L);
-            MiniMapRenderer.setHudHideSinceMs(0L);
-            MiniMapRenderer.clearMiniMapRenderCache(client);
             DiscTrailRenderer.clearAllStats();
         });
         ClientNetworking.registerReceivers();
         HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {
-            RoundInfoOverlay.updateTweens(MiniMapRenderer.getMiniMapState());
+            RoundInfoOverlay.updateTweens(holeMapState);
             float hudAlpha = hudFadeAlpha();
-            RoundInfoOverlay.render(drawContext, MiniMapRenderer.getMiniMapState(), hudAlpha);
-            ScorecardOverlay.render(drawContext, MiniMapRenderer.getMiniMapState(), MiniMapRenderer.getMiniMapReceivedAtMs(), hudAlpha);
+            RoundInfoOverlay.render(drawContext, holeMapState, hudAlpha);
+            ScorecardOverlay.render(drawContext, holeMapState, holeMapStateReceivedAtMs, hudAlpha);
             HoleMapOverlay.render(drawContext, MinecraftClient.getInstance(), hudAlpha);
             RunningScoreboardOverlay.render(drawContext, runningRoundScoreState, hudAlpha);
             HudOverlays.renderCompass(drawContext);
@@ -212,10 +182,6 @@ public final class McdgClientMod implements ClientModInitializer {
             HudOverlays.renderStanceSettings(drawContext, MinecraftClient.getInstance(), hudAlpha);
             CinematicOverlay.render(drawContext);
         });
-    }
-
-    public static boolean isRoundWaypointModeActive() {
-        return MiniMapRenderer.isRoundWaypointModeActive();
     }
 
     public static HoleMapState getHoleMapState() {
@@ -244,34 +210,6 @@ public final class McdgClientMod implements ClientModInitializer {
             }
             HoleMapOverlay.toggle();
         });
-    }
-
-    public record MiniMapState(
-            int holeIndex,
-            int teeX,
-            int teeZ,
-            int basketX,
-            int basketZ,
-            int lieX,
-            int lieZ,
-            int par,
-            int throwNumber,
-            int totalStrokes,
-            int cumulativeParDelta,
-            boolean strictMode,
-            int strictSurfacePresetOrdinal,
-            int corridorHalfWidth,
-            boolean hasAlternateAnchor,
-            int alternateAnchorX,
-            int alternateAnchorZ,
-            int mapSpan,
-            int lastThrowDistanceFeet,
-            int corridorEntryFeet,
-            int corridorEntryBearing,
-            int waterGapStartFeet,
-            int waterGapEndFeet,
-            boolean hasWaterGap
-    ) {
     }
 
     public record RunningRoundScoreState(
@@ -320,33 +258,6 @@ public final class McdgClientMod implements ClientModInitializer {
                     payload.lastThrowReturnedToFeet()
             );
         }
-
-        // Keep MiniMapState populated for overlay compatibility
-        MiniMapRenderer.setMiniMapState(new MiniMapState(
-                payload.holeIndex(),
-                payload.teeX(),
-                payload.teeZ(),
-                payload.basketX(),
-                payload.basketZ(),
-                payload.lieX(),
-                payload.lieZ(),
-                payload.par(),
-                payload.throwNumber(),
-                payload.totalStrokes(),
-                payload.cumulativeParDelta(),
-                false, // strictMode — not used by overlays
-                0,     // strictSurfacePresetOrdinal — not used by overlays
-                payload.corridorHalfWidth(),
-                false, 0, 0, // hasAlternateAnchor, alternateAnchorX, alternateAnchorZ — not used
-                0,     // mapSpan — not used by overlays
-                payload.lastThrowDistanceFeet(),
-                payload.corridorEntryFeet(),
-                payload.corridorEntryBearing(),
-                payload.waterGapStartFeet(),
-                payload.waterGapEndFeet(),
-                payload.hasWaterGap()
-        ));
-        MiniMapRenderer.setMiniMapReceivedAtMs(System.currentTimeMillis());
     }
 
     public static void onRoundRunningScoresSync(RoundRunningScoresSync.Payload payload, MinecraftClient client) {

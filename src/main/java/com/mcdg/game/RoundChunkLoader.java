@@ -12,7 +12,7 @@ public final class RoundChunkLoader {
     private static final ChunkTicketType<Long> MCDG_ROUND =
             ChunkTicketType.create("mcdg_round", Comparator.comparingLong(Long::longValue));
     private static final long TICKET_VALUE = 1L;
-    private static final int CHUNK_RADIUS = 3;
+    private static final int CHUNK_RADIUS = 1;
     private static final Set<ChunkPos> loadedChunks = new HashSet<>();
 
     private RoundChunkLoader() {}

@@ -40,20 +40,20 @@ public final class RoundInfoOverlay {
         return "Fairway " + feet + "ft " + COMPASS_8[idx];
     }
 
-    public static void updateTweens(McdgClientMod.MiniMapState state) {
+    public static void updateTweens(HoleMapState state) {
         if (state == null) {
             return;
         }
-        int dx = state.basketX() - state.lieX();
-        int dz = state.basketZ() - state.lieZ();
+        int dx = state.basketX - state.lieX;
+        int dz = state.basketZ - state.lieZ;
         float targetMeters = Math.max(0, Math.round((float) Math.sqrt((dx * dx) + (dz * dz))));
         float targetFeet = Math.max(0, Math.round(targetMeters * 3.28084f));
         displayedDistanceFeet = HudUtil.tween(displayedDistanceFeet, targetFeet, 0.18f);
-        displayedTotalStrokes = HudUtil.tween(displayedTotalStrokes, state.totalStrokes(), 0.22f);
-        displayedCumulativeDelta = HudUtil.tween(displayedCumulativeDelta, state.cumulativeParDelta(), 0.22f);
+        displayedTotalStrokes = HudUtil.tween(displayedTotalStrokes, state.totalStrokes, 0.22f);
+        displayedCumulativeDelta = HudUtil.tween(displayedCumulativeDelta, state.cumulativeParDelta, 0.22f);
     }
 
-    public static void render(DrawContext drawContext, McdgClientMod.MiniMapState state, float hudAlpha) {
+    public static void render(DrawContext drawContext, HoleMapState state, float hudAlpha) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null || client.options.hudHidden || client.textRenderer == null) {
             return;
@@ -63,22 +63,22 @@ public final class RoundInfoOverlay {
         }
 
         String deltaText;
-        if (state.cumulativeParDelta() == 0) {
+        if (state.cumulativeParDelta == 0) {
             deltaText = "E";
-        } else if (state.cumulativeParDelta() > 0) {
-            deltaText = "+" + state.cumulativeParDelta();
+        } else if (state.cumulativeParDelta > 0) {
+            deltaText = "+" + state.cumulativeParDelta;
         } else {
-            deltaText = Integer.toString(state.cumulativeParDelta());
+            deltaText = Integer.toString(state.cumulativeParDelta);
         }
 
         String line1 = "Round";
-        String line2 = "H" + state.holeIndex() + "  P" + state.par() + "  T" + state.throwNumber();
+        String line2 = "H" + state.holeIndex + "  P" + state.par + "  T" + state.throwNumber;
         int animatedDistanceFeet = Math.max(0, Math.round(displayedDistanceFeet));
         String line3 = animatedDistanceFeet + "ft";
-        String line4 = state.lastThrowDistanceFeet() > 0 ? "Last " + state.lastThrowDistanceFeet() + "ft" : "";
-        String line5 = buildCorridorEntryLine(state.corridorEntryFeet(), state.corridorEntryBearing());
-        String line5b = buildWaterGapLine(state.waterGapStartFeet(), state.waterGapEndFeet(), state.hasWaterGap());
-        String line6 = "Total " + state.totalStrokes() + "  " + deltaText;
+        String line4 = state.lastThrowDistanceFeet > 0 ? "Last " + state.lastThrowDistanceFeet + "ft" : "";
+        String line5 = buildCorridorEntryLine(state.corridorEntryFeet, state.corridorEntryBearing);
+        String line5b = buildWaterGapLine(state.waterGapStartFeet, state.waterGapEndFeet, state.hasWaterGap);
+        String line6 = "Total " + state.totalStrokes + "  " + deltaText;
         int maxTextWidth = Math.max(
                 Math.max(client.textRenderer.getWidth(line1), client.textRenderer.getWidth(line2)),
                 Math.max(client.textRenderer.getWidth(line3),

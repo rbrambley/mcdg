@@ -16,9 +16,6 @@ import java.util.regex.Pattern;
 public final class RegressionCheckRunner {
     private static final int HOLE_COUNT = 9;
     private static final int PAR5_CAP_SEED_SAMPLES = 120;
-    private static final Path MINIMAP_RENDERER_FILE = Paths.get(
-        "src", "client", "java", "com", "mcdg", "client", "MiniMapRenderer.java"
-    );
     private static final Path VALIDATOR_FILE = Paths.get(
         "src", "main", "java", "com", "mcdg", "world", "CoursePlacementValidator.java"
     );
@@ -90,7 +87,8 @@ public final class RegressionCheckRunner {
 
     private static void runQuickChecks(SeededCourseGenerator generator) {
         runArchitectureChecks();
-        runMiniMapChecks();
+        // Minimap renderer removed - skipping minimap checks
+        // runMiniMapChecks();
         runPlacementIssueSyncChecks();
         runCarryPolicyChecks();
         runGameplayFlowChecks();
@@ -155,109 +153,8 @@ public final class RegressionCheckRunner {
     }
 
     private static void runMiniMapChecks() {
-        if (!Files.exists(MINIMAP_RENDERER_FILE)) {
-            throw new RuntimeException("Minimap renderer regression file missing: " + MINIMAP_RENDERER_FILE);
-        }
-
-        String source;
-        try {
-            source = Files.readString(MINIMAP_RENDERER_FILE, StandardCharsets.UTF_8);
-        } catch (IOException ex) {
-            throw new RuntimeException("Failed to read minimap renderer source for regression checks", ex);
-        }
-
-        assertContains(
-            source,
-            "public static final int PASSIVE_MINIMAP_SPAN_BLOCKS = 96;",
-            "Minimap world span baseline changed unexpectedly."
-        );
-        assertContains(
-            source,
-            "private static final int MINIMAP_TEXTURE_SIZE = 128;",
-            "Minimap texture resolution baseline changed unexpectedly."
-        );
-        // Hazard overlay constants moved to HazardOverlayRenderer
-        Path hazardOverlayFile = Paths.get("src", "client", "java", "com", "mcdg", "client", "HazardOverlayRenderer.java");
-        if (!Files.exists(hazardOverlayFile)) {
-            throw new RuntimeException("Hazard overlay renderer regression file missing: " + hazardOverlayFile);
-        }
-        String hazardSource;
-        try {
-            hazardSource = Files.readString(hazardOverlayFile, StandardCharsets.UTF_8);
-        } catch (IOException ex) {
-            throw new RuntimeException("Failed to read hazard overlay renderer source for regression checks", ex);
-        }
-        assertContains(
-            hazardSource,
-            "private static final int HAZARD_OVERLAY_ARGB = 0x8CFF9A32;",
-            "Minimap strict hazard overlay alpha baseline changed unexpectedly."
-        );
-        assertContains(
-            hazardSource,
-            "private static final int HAZARD_SAMPLE_STEP_PX = 2;",
-            "Minimap strict hazard sample-density baseline changed unexpectedly."
-        );
-        assertContains(
-            source,
-            "private static final int MINIMAP_TEXTURE_SIZE =",
-            "Minimap texture size constant is missing."
-        );
-        assertContains(
-            source,
-            "public static void refreshMiniMapRenderCache(MinecraftClient client, int mapSpan)",
-            "Minimap refresh cache signature must remain decoupled from gameplay state."
-        );
-        assertContains(
-            source,
-            "matrices.scale(texScale, texScale, 1.0f);",
-            "Minimap render must apply matrix scaling for full-texture display."
-        );
-        assertContains(
-            source,
-            "drawContext.drawTexture(miniMapRenderCache.textureId(), 0, 0, 0, 0, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE, MINIMAP_TEXTURE_SIZE);",
-            "Minimap render must draw the full texture atlas region."
-        );
-        assertContains(
-            source,
-            "drawFilledCircle(drawContext, mapCenterX, mapCenterY, mapRadius",
-            "Minimap baseline must render circular map background."
-        );
-        assertContains(
-            source,
-            "image.setColor(px, py, TerrainSampler.argbToAbgr(0x00000000));",
-            "Minimap baseline must preserve transparent texture outside circular area."
-        );
-
-        assertContains(
-            source,
-            "float mapRotationDegrees = resolveMiniMapHeadingRotationDegrees(client);",
-            "Minimap regression: player-up heading resolver call is missing."
-        );
-        assertContains(
-            source,
-            "matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(mapRotationDegrees));",
-            "Minimap regression: map rotation transform is missing."
-        );
-        assertContains(
-            source,
-            "private static float resolveMiniMapHeadingRotationDegrees(MinecraftClient client)",
-            "Minimap regression: movement-heading resolver is missing."
-        );
-        assertContains(
-            source,
-            "float lookHeading = normalizeDegrees(180.0f - client.player.getYaw());",
-            "Minimap baseline must lock heading to player look yaw for stable compass/cardinals."
-        );
-        assertContains(
-            source,
-            "public static float[] rotateMiniMapVector(float x, float y, float rotationDegrees)",
-            "Minimap baseline must include map-space rotation helper."
-        );
-        assertContains(
-            source,
-            "drawMiniMapCardinalLabels(drawContext, client, mapCenterX, mapCenterY, miniMapSize, mapRotationDegrees, hudAlpha);",
-            "Minimap regression: rotating cardinal labels call is missing."
-        );
+        // Minimap renderer removed - skipping all minimap regression checks
+        // The terrain-sampling minimap has been replaced with the lightweight schematic HoleMapOverlay
     }
 
     private static void runPlacementIssueSyncChecks() {

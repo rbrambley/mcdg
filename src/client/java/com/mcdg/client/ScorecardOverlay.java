@@ -19,12 +19,12 @@ public final class ScorecardOverlay {
     private ScorecardOverlay() {
     }
 
-    public static void render(DrawContext drawContext, McdgClientMod.MiniMapState state, long miniMapReceivedAtMs, float hudAlpha) {
+    public static void render(DrawContext drawContext, HoleMapState state, long holeMapStateReceivedAtMs, float hudAlpha) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null || client.options.hudHidden || client.textRenderer == null) {
             return;
         }
-        if (state == null || (System.currentTimeMillis() - miniMapReceivedAtMs) > STALE_TIMEOUT_MS) {
+        if (state == null || (System.currentTimeMillis() - holeMapStateReceivedAtMs) > STALE_TIMEOUT_MS) {
             return;
         }
 
@@ -82,7 +82,7 @@ public final class ScorecardOverlay {
             String parText = Integer.toString(par);
             String scoreText = score < 0 ? "-" : Integer.toString(score);
             int rowY = y + 24 + (i * 10);
-            int rowColor = hole == state.holeIndex() ? 0xFFF4D37A : 0xE8EEF7;
+            int rowColor = hole == state.holeIndex ? 0xFFF4D37A : 0xE8EEF7;
 
             drawContext.drawTextWithShadow(
                     client.textRenderer,
