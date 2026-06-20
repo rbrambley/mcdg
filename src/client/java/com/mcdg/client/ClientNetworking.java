@@ -10,6 +10,8 @@ import com.mcdg.net.RoundCompleteCinematicSync;
 import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.ThrowPowerLockSync;
 import com.mcdg.net.ThrowTrailSync;
+import com.mcdg.net.ThrowTrailStartSync;
+import com.mcdg.net.ThrowTrailCompleteSync;
 import com.mcdg.net.RoundInviteNotification;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
@@ -77,6 +79,31 @@ public final class ClientNetworking {
                         payload.stance(),
                         payload.angle(),
                         payload.flightTicks(),
+                        payload.penaltyType(),
+                        payload.penaltyStrokes(),
+                        payload.penaltyReason(),
+                        payload.obCrossingFeet(),
+                        payload.returnedToFeet()
+                );
+            })
+        );
+        ClientPlayNetworking.registerGlobalReceiver(ThrowTrailStartSync.ID, (payload, context) ->
+            context.client().execute(() -> {
+                DiscTrailRenderer.startProgressiveTrail(
+                        payload.throwerId(),
+                        payload.pathPoints(),
+                        payload.flightTicks(),
+                        payload.stance(),
+                        payload.angle()
+                );
+            })
+        );
+        ClientPlayNetworking.registerGlobalReceiver(ThrowTrailCompleteSync.ID, (payload, context) ->
+            context.client().execute(() -> {
+                DiscTrailRenderer.completeTrail(
+                        payload.throwerId(),
+                        payload.totalDistanceFt(),
+                        payload.lateralDriftFt(),
                         payload.penaltyType(),
                         payload.penaltyStrokes(),
                         payload.penaltyReason(),

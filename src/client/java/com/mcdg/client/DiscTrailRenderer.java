@@ -18,25 +18,32 @@ import java.util.UUID;
  * Client-side renderer for disc throw particle trails and after-throw stats.
  * Receives trajectory data from server and renders particles along the path.
  * Supports multiple concurrent player trails for multiplayer visibility.
+ *
+ * NEW: Progressive trail rendering - particles appear over time matching actual flight duration.
  */
 public final class DiscTrailRenderer {
-    private static final int TRAIL_DURATION_TICKS = 40; // 2 seconds
+    private static final int TRAIL_DURATION_TICKS = 40; // 2 seconds (legacy)
+    private static final int TRAIL_EXTRA_DISPLAY_TICKS = 60; // 3 seconds extra for stats visibility
 
     private static class TrailData {
         Vec3d[] pathPoints;
-        double totalDistanceFt;
-        double lateralDriftFt;
+        int flightTicks;              // Total flight duration
+        int startTick;                // When trail started
+        int currentPathIndex;         // Current position in path (for progressive rendering)
+        boolean isProgressive;        // Using new progressive rendering
+        boolean isComplete;           // Flight complete flag
+        
         ThrowStance stance;
         ReleaseAngle angle;
-        int flightTicks;
+        
+        // Stats (filled when complete packet arrives or legacy startTrail)
+        Double totalDistanceFt;
+        Double lateralDriftFt;
         StrictPenaltyType penaltyType;
-        int penaltyStrokes;
+        Integer penaltyStrokes;
         String penaltyReason;
-        int obCrossingFeet;
-        int returnedToFeet;
-        int trailStartTick;
-        boolean trailActive;
-        boolean particlesSpawned;
+        Integer obCrossingFeet;
+        Integer returnedToFeet;
         boolean statsActive;
     }
 
@@ -51,7 +58,8 @@ public final class DiscTrailRenderer {
     }
 
     /**
-     * Start a new trail for the given player with the provided trajectory data.
+     * Start a new trail for the given player with the provided trajectory data (legacy method).
+     * Kept for backward compatibility with old packet system.
      */
     public static void startTrail(
             UUID throwerId,
@@ -80,12 +88,70 @@ public final class DiscTrailRenderer {
         trail.obCrossingFeet = obCrossingFeet;
         trail.returnedToFeet = returnedToFeet;
 
-        trail.trailStartTick = (int) MinecraftClient.getInstance().world.getTime();
-        trail.trailActive = true;
-        trail.particlesSpawned = false;
+        trail.startTick = (int) MinecraftClient.getInstance().world.getTime();
+        trail.isProgressive = false;
+        trail.isComplete = true;
+        trail.currentPathIndex = pathPoints.length; // All particles shown immediately
         trail.statsActive = true;
 
         TRAILS.put(throwerId, trail);
+        
+        // Render immediately for legacy behavior
+        renderTrailInstant(MinecraftClient.getInstance(), trail);
+    }
+
+    /**
+     * Start progressive trail rendering (new method).
+     * Particles appear over time matching actual flight duration.
+     */
+    public static void startProgressiveTrail(
+            UUID throwerId,
+            Vec3d[] pathPoints,
+            int flightTicks,
+            ThrowStance stance,
+            ReleaseAngle angle
+    ) {
+        TrailData trail = new TrailData();
+        trail.pathPoints = pathPoints;
+        trail.flightTicks = flightTicks;
+        trail.stance = stance;
+        trail.angle = angle;
+        
+        trail.startTick = (int) MinecraftClient.getInstance().world.getTime();
+        trail.isProgressive = true;
+        trail.isComplete = false;
+        trail.currentPathIndex = 0;
+        trail.statsActive = false; // Stats not available until complete packet
+
+        TRAILS.put(throwerId, trail);
+    }
+
+    /**
+     * Complete trail with final stats (new method).
+     * Called after landing resolution to update trail with final statistics.
+     */
+    public static void completeTrail(
+            UUID throwerId,
+            double totalDistanceFt,
+            double lateralDriftFt,
+            StrictPenaltyType penaltyType,
+            int penaltyStrokes,
+            String penaltyReason,
+            int obCrossingFeet,
+            int returnedToFeet
+    ) {
+        TrailData trail = TRAILS.get(throwerId);
+        if (trail != null) {
+            trail.totalDistanceFt = totalDistanceFt;
+            trail.lateralDriftFt = lateralDriftFt;
+            trail.penaltyType = penaltyType;
+            trail.penaltyStrokes = penaltyStrokes;
+            trail.penaltyReason = penaltyReason;
+            trail.obCrossingFeet = obCrossingFeet;
+            trail.returnedToFeet = returnedToFeet;
+            trail.isComplete = true;
+            trail.statsActive = true;
+        }
     }
 
     /**
@@ -104,24 +170,38 @@ public final class DiscTrailRenderer {
             Map.Entry<UUID, TrailData> entry = iterator.next();
             TrailData trail = entry.getValue();
 
-            if (!trail.trailActive) {
-                continue;
-            }
-
-            int elapsed = currentTick - trail.trailStartTick;
-            if (elapsed >= TRAIL_DURATION_TICKS) {
-                trail.trailActive = false;
-            } else if (!trail.particlesSpawned) {
-                renderTrail(client, trail);
-                trail.particlesSpawned = true;
+            // Handle progressive trail rendering
+            if (trail.isProgressive) {
+                int elapsed = currentTick - trail.startTick;
+                float progress = Math.min(1.0f, elapsed / (float) trail.flightTicks);
+                
+                // Calculate how many path points to show
+                int pointsToShow = (int) Math.floor(progress * trail.pathPoints.length);
+                
+                // Render new particles as we progress
+                while (trail.currentPathIndex < pointsToShow) {
+                    renderNextParticle(client, trail, trail.currentPathIndex);
+                    trail.currentPathIndex++;
+                }
+                
+                // Remove completed trails after extra time for stats display
+                if (progress > 1.5f) { // 50% extra time for stats visibility
+                    iterator.remove();
+                }
+            } else {
+                // Legacy trail handling (instant render)
+                int elapsed = currentTick - trail.startTick;
+                if (elapsed >= TRAIL_DURATION_TICKS + TRAIL_EXTRA_DISPLAY_TICKS) {
+                    iterator.remove();
+                }
             }
         }
     }
 
     /**
-     * Render particles along the trajectory path once per trail.
+     * Render particles along the trajectory path instantly (legacy method).
      */
-    private static void renderTrail(MinecraftClient client, TrailData trail) {
+    private static void renderTrailInstant(MinecraftClient client, TrailData trail) {
         if (trail.pathPoints == null || trail.pathPoints.length < 2) {
             return;
         }
@@ -160,13 +240,49 @@ public final class DiscTrailRenderer {
     }
 
     /**
-     * Get trail color based on throw stance.
+     * Render next particle in progressive trail (new method).
+     */
+    private static void renderNextParticle(MinecraftClient client, TrailData trail, int index) {
+        if (trail.pathPoints == null || index >= trail.pathPoints.length) {
+            return;
+        }
+
+        Vec3d point = trail.pathPoints[index];
+        
+        // Skip points that are too far from player (increased range for better visibility)
+        if (client.player.squaredDistanceTo(point.x, point.y, point.z) > 512 * 512) {
+            return;
+        }
+
+        ParticleManager particleManager = client.particleManager;
+        int color = getTrailColor(trail.stance);
+
+        Particle particle = particleManager.addParticle(
+                ParticleTypes.END_ROD,
+                point.x,
+                point.y,
+                point.z,
+                0.0, 0.0, 0.0
+        );
+        
+        if (particle != null) {
+            particle.setColor(
+                    ((color >> 16) & 0xFF) / 255.0f,
+                    ((color >> 8) & 0xFF) / 255.0f,
+                    (color & 0xFF) / 255.0f
+            );
+            particle.setMaxAge(100); // Particles last 5 seconds
+        }
+    }
+
+    /**
+     * Get trail color based on throw stance (enhanced for visibility).
      */
     private static int getTrailColor(ThrowStance stance) {
         return switch (stance) {
-            case OVERHAND -> 0xAAAAAA; // Gray (no glide)
-            case BACKHAND -> 0x00FFFF; // Aqua
-            case FOREHAND -> 0x00FF00; // Green
+            case OVERHAND -> 0xFFFFFF;  // Pure white (high contrast)
+            case BACKHAND -> 0x00FFFF;  // Bright cyan (very visible)
+            case FOREHAND -> 0x00FF00;  // Bright green (very visible)
         };
     }
 
@@ -271,7 +387,6 @@ public final class DiscTrailRenderer {
         TrailData trail = TRAILS.get(playerId);
         if (trail != null) {
             trail.statsActive = false;
-            trail.trailActive = false;
         }
     }
 

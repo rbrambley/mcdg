@@ -36,6 +36,8 @@ import com.mcdg.net.RoundCompleteCinematicSync;
 import com.mcdg.net.ThrowPowerLockSync;
 import com.mcdg.net.ThrowStanceSync;
 import com.mcdg.net.ThrowTrailSync;
+import com.mcdg.net.ThrowTrailStartSync;
+import com.mcdg.net.ThrowTrailCompleteSync;
 import com.mcdg.net.RoundInviteRequest;
 import com.mcdg.net.RoundInviteNotification;
 import com.mcdg.net.RoundInviteResponse;
@@ -189,6 +191,8 @@ public final class McdgMod implements ModInitializer {
 
         PayloadTypeRegistry.playS2C().register(ThrowPowerLockSync.ID, ThrowPowerLockSync.CODEC);
         PayloadTypeRegistry.playS2C().register(ThrowTrailSync.ID, ThrowTrailSync.CODEC);
+        PayloadTypeRegistry.playS2C().register(ThrowTrailStartSync.ID, ThrowTrailStartSync.CODEC);
+        PayloadTypeRegistry.playS2C().register(ThrowTrailCompleteSync.ID, ThrowTrailCompleteSync.CODEC);
 
         PayloadTypeRegistry.playC2S().register(RoundInviteRequest.ID, RoundInviteRequest.CODEC);
         PayloadTypeRegistry.playS2C().register(RoundInviteNotification.ID, RoundInviteNotification.CODEC);

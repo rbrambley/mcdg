@@ -3,6 +3,7 @@ package com.mcdg.game;
 import com.mcdg.McdgMod;
 import com.mcdg.game.ThrowStance;
 import com.mcdg.game.ReleaseAngle;
+import com.mcdg.net.ThrowTrailStartSync;
 
 import com.mcdg.rules.TournamentRulesetManager;
 import net.minecraft.entity.LivingEntity;
@@ -22,6 +23,7 @@ import net.minecraft.util.UseAction;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -292,6 +294,23 @@ public final class ChargedDiscItem extends Item {
                 stance,
                 angle
         );
+
+        // Send trail start packet immediately for real-time progressive trail rendering
+        ThrowTrailStartSync.Payload startPayload = new ThrowTrailStartSync.Payload(
+                serverPlayer.getUuid(),
+                trajectory.pathPoints(),
+                trajectory.flightTicks(),
+                stance,
+                angle
+        );
+
+        // Send to all active participants immediately
+        for (UUID participantId : courseManager.getActiveParticipantIds()) {
+            ServerPlayerEntity participant = serverPlayer.getServer().getPlayerManager().getPlayer(participantId);
+            if (participant != null) {
+                ServerPlayNetworking.send(participant, startPayload);
+            }
+        }
 
         // Initialize throw tracking with calculated landing position
         ThrowResolver.registerCalculatedThrow(

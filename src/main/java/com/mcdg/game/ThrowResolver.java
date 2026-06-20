@@ -17,7 +17,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Box;
 import net.minecraft.world.Heightmap;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import com.mcdg.net.ThrowTrailSync;
+import com.mcdg.net.ThrowTrailCompleteSync;
 
 /**
  * Resolves throw landings, tracks pearl flight, and enforces strict landing penalties.
@@ -339,16 +339,12 @@ public final class ThrowResolver {
         int obCrossingFeet = firstOutCrossing != null ? DistanceUtils.distanceFeet(throwLie, firstOutCrossing) : 0;
         int returnedToFeet = DistanceUtils.distanceFeet(throwLie, resultingLie);
 
-        // Send trail packet to all active participants for visual trail and stats
-        if (calc != null && pathPoints != null) {
-            ThrowTrailSync.Payload payload = new ThrowTrailSync.Payload(
+        // Send trail complete packet to all active participants for final stats
+        if (calc != null) {
+            ThrowTrailCompleteSync.Payload completePayload = new ThrowTrailCompleteSync.Payload(
                     player.getUuid(),
-                    pathPoints,
                     calc.totalDistanceFt(),
                     calc.lateralDriftFt(),
-                    calc.stance(),
-                    calc.angle(),
-                    calc.flightTicks(),
                     landingPenalty,
                     penaltyStrokes,
                     penaltyReason,
@@ -358,7 +354,7 @@ public final class ThrowResolver {
             for (UUID participantId : courseManager.getActiveParticipantIds()) {
                 ServerPlayerEntity participant = player.getServer().getPlayerManager().getPlayer(participantId);
                 if (participant != null) {
-                    ServerPlayNetworking.send(participant, payload);
+                    ServerPlayNetworking.send(participant, completePayload);
                 }
             }
         }
