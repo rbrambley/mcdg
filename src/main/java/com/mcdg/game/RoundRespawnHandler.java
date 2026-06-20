@@ -41,6 +41,7 @@ public final class RoundRespawnHandler {
                 }
             }
 
+            RoundChunkLoader.preloadChunksAround(targetWorld, lie, 1);
             newPlayer.teleport(targetWorld, lie.getX() + 0.5, lie.getY() + 1.0, lie.getZ() + 0.5, newPlayer.getYaw(), newPlayer.getPitch());
             RoundInventoryCleaner.restoreRoundInventory(newPlayer);
             if (applyPenalty) {

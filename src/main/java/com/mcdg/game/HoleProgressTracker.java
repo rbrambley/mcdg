@@ -245,6 +245,10 @@ public final class HoleProgressTracker {
                     int totalPar = totalCoursePar(course);
                     BlockPos firstTee = placed.holeTees().get(1);
                     if (firstTee != null) {
+                        ServerWorld courseWorld = server.getWorld(placed.worldKey());
+                        if (courseWorld != null) {
+                            RoundChunkLoader.preloadChunksAround(courseWorld, firstTee, 1);
+                        }
                         player.teleport(firstTee.getX() + 0.5, firstTee.getY() + 1.0, firstTee.getZ() + 0.5);
                     }
 
@@ -321,6 +325,7 @@ public final class HoleProgressTracker {
 
                 int completedHolePar = currentHole.par();
                 roundStateManager.advanceToNextHole(player.getUuid(), nextTee);
+                RoundChunkLoader.preloadChunksAround(player.getServerWorld(), nextTee, 1);
                 player.teleport(nextTee.getX() + 0.5, nextTee.getY() + 1.0, nextTee.getZ() + 0.5);
                 LieMarkerService.updateLieMarker(player, nextTee);
 
