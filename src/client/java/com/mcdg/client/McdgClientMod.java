@@ -118,6 +118,11 @@ public final class McdgClientMod implements ClientModInitializer {
             CinematicOverlay.tick(client);
             DiscTrailRenderer.tick();
             RoundInfoOverlay.updateTweens(holeMapState);
+            
+            // Debug: log trail renderer tick every 60 ticks (3 seconds)
+            if (client.world != null && client.world.getTime() % 60 == 0) {
+                System.out.println("McdgClientMod tick: worldTime=" + client.world.getTime());
+            }
 
             // If HUDs are fading out after round end, keep state fresh so
             // the stale timeout doesn't cut the fade short. Once 30 seconds pass, clear state.

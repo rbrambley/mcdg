@@ -111,6 +111,12 @@ public final class DiscTrailRenderer {
             ThrowStance stance,
             ReleaseAngle angle
     ) {
+        System.out.println("START PROGRESSIVE TRAIL: thrower=" + throwerId + 
+            " pathPoints=" + (pathPoints != null ? pathPoints.length : "null") + 
+            " flightTicks=" + flightTicks +
+            " stance=" + stance +
+            " angle=" + angle);
+        
         TrailData trail = new TrailData();
         trail.pathPoints = pathPoints;
         trail.flightTicks = flightTicks;
@@ -124,6 +130,7 @@ public final class DiscTrailRenderer {
         trail.statsActive = false; // Stats not available until complete packet
 
         TRAILS.put(throwerId, trail);
+        System.out.println("TRAIL STORED: total trails=" + TRAILS.size());
     }
 
     /**
@@ -174,6 +181,16 @@ public final class DiscTrailRenderer {
             if (trail.isProgressive) {
                 int elapsed = currentTick - trail.startTick;
                 float progress = Math.min(1.0f, elapsed / (float) trail.flightTicks);
+                
+                // Debug logging every 10 ticks
+                if (elapsed % 10 == 0) {
+                    System.out.println("TRAIL TICK: thrower=" + entry.getKey() + 
+                        " elapsed=" + elapsed + 
+                        " flightTicks=" + trail.flightTicks +
+                        " progress=" + progress +
+                        " currentIndex=" + trail.currentPathIndex +
+                        " totalPoints=" + (trail.pathPoints != null ? trail.pathPoints.length : "null"));
+                }
                 
                 // Calculate how many path points to show
                 int pointsToShow = (int) Math.floor(progress * trail.pathPoints.length);
@@ -244,6 +261,7 @@ public final class DiscTrailRenderer {
      */
     private static void renderNextParticle(MinecraftClient client, TrailData trail, int index) {
         if (trail.pathPoints == null || index >= trail.pathPoints.length) {
+            System.out.println("RENDER PARTICLE SKIPPED: null points or index out of range");
             return;
         }
 
@@ -251,8 +269,11 @@ public final class DiscTrailRenderer {
         
         // Skip points that are too far from player (increased range for better visibility)
         if (client.player.squaredDistanceTo(point.x, point.y, point.z) > 512 * 512) {
+            System.out.println("RENDER PARTICLE SKIPPED: too far from player");
             return;
         }
+
+        System.out.println("RENDER PARTICLE: index=" + index + " point=" + point);
 
         ParticleManager particleManager = client.particleManager;
         int color = getTrailColor(trail.stance);

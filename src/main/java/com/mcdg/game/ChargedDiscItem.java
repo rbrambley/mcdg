@@ -304,13 +304,27 @@ public final class ChargedDiscItem extends Item {
                 angle
         );
 
+        McdgMod.LOGGER.info(
+                "Sending trail start packet | thrower={} pathPoints={} flightTicks={} stance={} angle={}",
+                playerUuid,
+                trajectory.pathPoints().length,
+                trajectory.flightTicks(),
+                stance,
+                angle
+        );
+
         // Send to all active participants immediately
         for (UUID participantId : courseManager.getActiveParticipantIds()) {
             ServerPlayerEntity participant = serverPlayer.getServer().getPlayerManager().getPlayer(participantId);
             if (participant != null) {
                 ServerPlayNetworking.send(participant, startPayload);
+                McdgMod.LOGGER.info("Trail start packet sent to participant={}", participantId);
             }
         }
+        
+        // Always send to the thrower themselves (for single player testing)
+        ServerPlayNetworking.send(serverPlayer, startPayload);
+        McdgMod.LOGGER.info("Trail start packet sent to thrower={}", playerUuid);
 
         // Initialize throw tracking with calculated landing position
         ThrowResolver.registerCalculatedThrow(

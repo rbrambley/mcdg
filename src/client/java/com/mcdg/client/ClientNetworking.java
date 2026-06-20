@@ -89,6 +89,11 @@ public final class ClientNetworking {
         );
         ClientPlayNetworking.registerGlobalReceiver(ThrowTrailStartSync.ID, (payload, context) ->
             context.client().execute(() -> {
+                System.out.println("RECEIVED TRAIL START PACKET: thrower=" + payload.throwerId() + 
+                    " pathPoints=" + payload.pathPoints().length + 
+                    " flightTicks=" + payload.flightTicks() +
+                    " stance=" + payload.stance() +
+                    " angle=" + payload.angle());
                 DiscTrailRenderer.startProgressiveTrail(
                         payload.throwerId(),
                         payload.pathPoints(),
