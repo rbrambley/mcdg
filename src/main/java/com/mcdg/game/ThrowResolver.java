@@ -209,6 +209,9 @@ public final class ThrowResolver {
             player.teleport(safeCalcPos.getX() + 0.5, safeCalcPos.getY(), safeCalcPos.getZ() + 0.5);
             currentFeet = safeCalcPos;
 
+            // Remove temporary landing ticket now that the player is here
+            RoundChunkLoader.removeThrowLandingTicket(world, rawCalcFeet);
+
             McdgMod.LOGGER.info(
                     "Player teleported to calculated landing | player={} pos={},{},{} distFromThrow={}ft source=CALCULATED_THROW",
                     player.getGameProfile().getName(),

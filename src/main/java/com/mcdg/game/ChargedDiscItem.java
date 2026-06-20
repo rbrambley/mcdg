@@ -306,6 +306,14 @@ public final class ChargedDiscItem extends Item {
                 angle
         );
 
+        // Pre-load landing chunk so the eventual teleport doesn't freeze
+        BlockPos landingFeet = new BlockPos(
+                (int) Math.round(trajectory.landingPosition().x),
+                (int) Math.round(trajectory.landingPosition().y),
+                (int) Math.round(trajectory.landingPosition().z)
+        );
+        RoundChunkLoader.addThrowLandingTicket((net.minecraft.server.world.ServerWorld) world, landingFeet);
+
         // Clear server-side power lock state after throw
         SERVER_POWER_LOCKED.remove(playerUuid);
         SERVER_LOCKED_CHARGE.remove(playerUuid);

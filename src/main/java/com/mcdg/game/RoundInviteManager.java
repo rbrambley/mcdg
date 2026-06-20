@@ -244,6 +244,9 @@ public final class RoundInviteManager {
     ) {
         clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
 
+        // Pre-load course chunks so teleports don't trigger synchronous chunk generation
+        RoundChunkLoader.loadCourseChunks(world, placed);
+
         BlockPos firstTee = placed.holeTees().get(1);
         if (firstTee == null) {
             McdgMod.LOGGER.warn("RoundInviteManager: hole 1 tee missing for course '{}'", course.name());
