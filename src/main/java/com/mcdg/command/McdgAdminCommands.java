@@ -26,6 +26,7 @@ import com.mcdg.world.PlacementAutoTestService;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.CourseGenerator;
+import com.mcdg.world.ResortWaypointManager;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -97,6 +98,8 @@ public final class McdgAdminCommands {
                                 .executes(context -> executeHelp(context.getSource())))
                         .then(literal("gotolie").requires(McdgAdminCommands::canUseAdminCommands)
                                 .executes(context -> executeGotoLie(context.getSource(), roundStateManager)))
+                        .then(literal("resort")
+                                .executes(context -> executeResortTeleport(context.getSource())))
                         .then(literal("createcourse").requires(McdgAdminCommands::canUseAdminCommands)
                                 .then(argument("seed", LongArgumentType.longArg())
                                         .executes(context -> CourseAdminCommands.executeCreateCourse(
@@ -493,21 +496,7 @@ public final class McdgAdminCommands {
                                             roundStateManager, courseManager,
                                             IntegerArgumentType.getInteger(context, "index"))))));
 
-            dispatcher.register(literal("mcdg")
-                    .then(literal("waypoint").requires(McdgAdminCommands::canUseAdminCommands)
-                            .then(literal("list")
-                                    .executes(context -> WaypointCommands.executeWaypointList(
-                                            context.getSource(), courseManager)))
-                            .then(literal("clear")
-                                    .executes(context -> WaypointCommands.executeWaypointClear(
-                                            context.getSource())))
-                            .then(literal("tp")
-                                    .executes(context -> WaypointCommands.executeWaypointTeleportPrompt(
-                                            context.getSource(), courseManager))
-                                    .then(argument("target", StringArgumentType.greedyString())
-                                            .executes(context -> WaypointCommands.executeWaypointTeleport(
-                                                    context.getSource(), courseManager,
-                                                    StringArgumentType.getString(context, "target")))))));
+            // Waypoint commands removed (player waypoints replaced by Xaero's Minimap)
 
             dispatcher.register(literal("mcdg")
                     .then(literal("buildresort").requires(McdgAdminCommands::canUseAdminCommands)
@@ -1615,6 +1604,31 @@ public final class McdgAdminCommands {
                                         .formatted(Formatting.GREEN),
                                 true
                         );
+                        return 1;
+                } catch (Exception ex) {
+                        source.sendError(Text.literal("This command must be run by a player."));
+                        return 0;
+                }
+        }
+
+        private static int executeResortTeleport(ServerCommandSource source) {
+                try {
+                        ServerPlayerEntity player = source.getPlayerOrThrow();
+                        var resort = ResortWaypointManager.getResortWaypoint().orElse(null);
+                        if (resort == null) {
+                                source.sendError(Text.literal("No resort has been built yet."));
+                                return 0;
+                        }
+                        String playerDimension = player.getWorld().getRegistryKey().getValue().toString();
+                        if (!playerDimension.equals(resort.dimensionId())) {
+                                source.sendError(Text.literal("Resort is in a different dimension. Use a portal to return."));
+                                return 0;
+                        }
+                        ServerWorld world = player.getServerWorld();
+                        BlockPos target = new BlockPos(resort.x(), resort.y(), resort.z()).south(4);
+                        BlockPos safe = resolveSafeFeetNear(world, target);
+                        player.teleport(world, safe.getX() + 0.5, safe.getY(), safe.getZ() + 0.5, Set.of(), player.getYaw(), player.getPitch());
+                        player.sendMessage(Text.literal("Teleported to MCDG Resort!").formatted(Formatting.GREEN), false);
                         return 1;
                 } catch (Exception ex) {
                         source.sendError(Text.literal("This command must be run by a player."));

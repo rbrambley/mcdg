@@ -458,7 +458,7 @@ public final class RoundLifecycleCommands {
         }
         HoleProgressTracker.resetAllState(source.getServer());
 
-        CommandUtils.broadcastCourseWaypointRemoval(source.getServer(), loaded.get().course().name());
+        // Course waypoint removal removed (player waypoints replaced by Xaero's Minimap)
         practiceCourseStorage.pruneReusableByIndices(source.getServer(), Set.of(oneBasedIndex));
 
         source.sendFeedback(() -> Text.literal("Course #" + oneBasedIndex + " cleaned up and removed from catalog."), true);

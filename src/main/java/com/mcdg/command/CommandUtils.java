@@ -4,7 +4,6 @@ import com.mcdg.game.ActiveCourseManager;
 import com.mcdg.game.PlacedCourseState;
 import com.mcdg.game.RoundInventoryCleaner;
 import com.mcdg.game.RoundStateManager;
-import com.mcdg.net.WaypointRemovedSync;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
@@ -129,16 +128,6 @@ public final class CommandUtils {
             if (RoundInventoryCleaner.isJunkItem(entity.getStack())) {
                 entity.discard();
             }
-        }
-    }
-
-    public static void broadcastCourseWaypointRemoval(MinecraftServer server, String courseName) {
-        if (courseName == null || courseName.isBlank()) {
-            return;
-        }
-        WaypointRemovedSync.Payload packet = new WaypointRemovedSync.Payload(courseName);
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            ServerPlayNetworking.send(player, packet);
         }
     }
 }

@@ -81,11 +81,9 @@
 **Implementation approach:**
 1. Add Xaero's Minimap as a soft dependency in `fabric.mod.json` (`suggests` field)
 2. Detect if Xaero's is loaded via `FabricLoader.getInstance().isModLoaded("xaerominimap")`
-3. Use Xaero's public API to auto-configure:
-   - Map position (top-right to avoid MCDG's left-side HUD)
-   - Size (match screen layout)
-   - Disable redundant features (MCDG has its own hole map)
-4. MCDG works normally without Xaero's installed
+3. Provide user guidance to set minimap position to top-left in Xaero's settings
+4. Adjust MCDG's left-side HUDs (HoleMapOverlay, RunningScoreboardOverlay) to middle and bottom thirds respectively
+5. MCDG works normally without Xaero's installed
 
 **Files to modify:**
 - `src/main/resources/fabric.mod.json` — add soft dependency

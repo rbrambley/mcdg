@@ -472,7 +472,7 @@ public final class MiniMapRenderer {
                 );
             }
 
-            WaypointManager.drawWaypointsOnMiniMap(drawContext, client, mapCenterX, mapCenterY, playerWorldX, playerWorldZ, mapScale, mapRotationDegrees, hudAlpha, WaypointManager.isWaypointLabelsVisible(), mapCenterX, mapCenterY, mapRadius);
+            // Waypoint rendering removed in favor of Xaero's Minimap
 
                 drawMiniMapIconClipped(
                     drawContext,
@@ -526,7 +526,7 @@ public final class MiniMapRenderer {
                     hudAlpha
             );
 
-            WaypointManager.drawWaypointsOnMiniMap(drawContext, client, mapCenterX, mapCenterY, playerWorldX, playerWorldZ, mapScale, mapRotationDegrees, hudAlpha, WaypointManager.isWaypointLabelsVisible(), mapCenterX, mapCenterY, mapRadius);
+            // Waypoint rendering removed in favor of Xaero's Minimap
 
             drawMiniMapIconClipped(
                     drawContext,
@@ -808,7 +808,7 @@ public final class MiniMapRenderer {
     }
 
     public static void handleMiniMapHotkeys(MinecraftClient client) {
-        WaypointManager.handleKeybinds(client);
+        // Waypoint keybinds removed in favor of Xaero's Minimap
     }
 
     public static void tickMiniMapJoinPrime(MinecraftClient client) {

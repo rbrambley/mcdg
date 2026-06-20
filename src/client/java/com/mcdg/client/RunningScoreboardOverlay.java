@@ -10,6 +10,7 @@ import net.minecraft.text.Text;
 public final class RunningScoreboardOverlay {
     private static final int HUD_CARD_TEXT = 0xE8EEF7;
     private static final int HUD_CARD_MUTED_TEXT = 0xAAB8CC;
+    private static final int HUD_SPACING = 8;
     private static int lastPanelWidth = 0;
 
     private RunningScoreboardOverlay() {
@@ -47,7 +48,16 @@ public final class RunningScoreboardOverlay {
         int panelH = 22 + ((state.rows().size() + 1) * rowHeight);
         lastPanelWidth = panelW;
         int x = 8;
-        int y = drawContext.getScaledWindowHeight() - panelH - 8;
+        
+        // Position in bottom third, anchored near bottom of screen
+        int screenHeight = drawContext.getScaledWindowHeight();
+        int bottomThirdStart = (2 * screenHeight) / 3;
+        int y = screenHeight - panelH - HUD_SPACING;
+        
+        // Ensure it stays within bottom third
+        if (y < bottomThirdStart + HUD_SPACING) {
+            y = bottomThirdStart + HUD_SPACING;
+        }
 
         String panelTitle = (state.courseName() != null && !state.courseName().isBlank()) ? state.courseName() : "Round Scores";
         HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, panelTitle, hudAlpha);

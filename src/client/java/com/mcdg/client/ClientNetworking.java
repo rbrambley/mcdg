@@ -9,7 +9,6 @@ import com.mcdg.net.MenuScreenSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
 import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.WaypointSync;
-import com.mcdg.net.WaypointRemovedSync;
 import com.mcdg.net.ThrowPowerLockSync;
 import com.mcdg.net.ThrowTrailSync;
 import com.mcdg.net.RoundInviteNotification;
@@ -64,12 +63,7 @@ public final class ClientNetworking {
         ClientPlayNetworking.registerGlobalReceiver(LeaderboardResponse.ID, (payload, context) ->
             context.client().execute(() -> McdgClientMod.onLeaderboardResponse(payload, context.client()))
         );
-        ClientPlayNetworking.registerGlobalReceiver(WaypointSync.ID, (payload, context) ->
-            context.client().execute(() -> WaypointManager.mergeWaypoints(payload.waypoints()))
-        );
-        ClientPlayNetworking.registerGlobalReceiver(WaypointRemovedSync.ID, (payload, context) ->
-            context.client().execute(() -> WaypointManager.removeWaypoint(payload.name()))
-        );
+        // WaypointSync receiver removed (player waypoints replaced by Xaero's Minimap)
         ClientPlayNetworking.registerGlobalReceiver(ThrowPowerLockSync.ID, (payload, context) ->
             context.client().execute(() -> {
                 ChargedDiscItem.setPowerLocked(payload.locked());

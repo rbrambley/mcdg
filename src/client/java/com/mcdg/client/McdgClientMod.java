@@ -15,6 +15,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.particle.DustParticleEffect;
@@ -116,7 +117,6 @@ public final class McdgClientMod implements ClientModInitializer {
                     showAngleFeedback(client);
                 }
             });
-            WaypointManager.tick(client);
             AutoConnect.tick(client);
             handleHoleMapToggle(client);
             CinematicOverlay.tick(client);
@@ -161,7 +161,6 @@ public final class McdgClientMod implements ClientModInitializer {
             }
         });
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
-            WaypointManager.onClientJoin(client);
             if (client.player != null) {
                 client.player.sendMessage(
                     net.minecraft.text.Text.literal("Welcome to MCDG! Press ")
@@ -177,10 +176,19 @@ public final class McdgClientMod implements ClientModInitializer {
                         .append(net.minecraft.text.Text.literal(" to open the menu.").formatted(net.minecraft.util.Formatting.GRAY)),
                     false
                 );
+                
+                // Xaero's Minimap integration
+                if (FabricLoader.getInstance().isModLoaded("xaerominimap")) {
+                    client.player.sendMessage(
+                        net.minecraft.text.Text.literal("Xaero's Minimap detected! ")
+                            .append(net.minecraft.text.Text.literal("For best experience with MCDG, set minimap position to top-left in Xaero's settings.")
+                                .formatted(net.minecraft.util.Formatting.YELLOW)),
+                        false
+                    );
+                }
             }
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
-            WaypointManager.onClientDisconnect(client);
             holeMapState = null;
             holeMapStateReceivedAtMs = 0L;
             hudHideSinceMs = 0L;
@@ -196,15 +204,14 @@ public final class McdgClientMod implements ClientModInitializer {
             float hudAlpha = hudFadeAlpha();
             RoundInfoOverlay.render(drawContext, MiniMapRenderer.getMiniMapState(), hudAlpha);
             ScorecardOverlay.render(drawContext, MiniMapRenderer.getMiniMapState(), MiniMapRenderer.getMiniMapReceivedAtMs(), hudAlpha);
-            RunningScoreboardOverlay.render(drawContext, runningRoundScoreState, hudAlpha);
             HoleMapOverlay.render(drawContext, MinecraftClient.getInstance(), hudAlpha);
+            RunningScoreboardOverlay.render(drawContext, runningRoundScoreState, hudAlpha);
             HudOverlays.renderCompass(drawContext);
             HudOverlays.renderPower(drawContext);
             HudOverlays.renderThrowStats(drawContext, MinecraftClient.getInstance(), hudAlpha);
             HudOverlays.renderStanceSettings(drawContext, MinecraftClient.getInstance(), hudAlpha);
             CinematicOverlay.render(drawContext);
         });
-        WorldRenderEvents.AFTER_TRANSLUCENT.register(WaypointManager::renderWaypointWorldLabels);
     }
 
     public static boolean isRoundWaypointModeActive() {
@@ -285,9 +292,6 @@ public final class McdgClientMod implements ClientModInitializer {
 
     public static void onHoleMapSync(HoleMapSync.Payload payload, MinecraftClient client) {
         if (!payload.active()) {
-            String courseToRemove = WaypointManager.getActiveRoundCourseWaypointName();
-            WaypointManager.setActiveRoundCourseWaypointName("");
-            WaypointManager.removeWaypoint(courseToRemove);
             hudHideSinceMs = System.currentTimeMillis();
             holeMapState = null;
             HoleMapOverlay.setVisible(false);
@@ -342,21 +346,12 @@ public final class McdgClientMod implements ClientModInitializer {
                 payload.waterGapEndFeet(),
                 payload.hasWaterGap()
         ));
-        WaypointManager.setActiveRoundCourseWaypointName(payload.courseWaypointName());
-        WaypointManager.upsertPermanentCourseWaypoint(
-                client,
-                payload.courseWaypointName(),
-                payload.courseWaypointX(),
-                payload.courseWaypointZ()
-        );
         MiniMapRenderer.setMiniMapReceivedAtMs(System.currentTimeMillis());
     }
 
     public static void onRoundRunningScoresSync(RoundRunningScoresSync.Payload payload, MinecraftClient client) {
         if (!payload.active()) {
-            WaypointManager.removeWaypoint(WaypointManager.getActiveRoundCourseWaypointName());
             runningRoundScoreState = null;
-            WaypointManager.setActiveRoundCourseWaypointName("");
             return;
         }
 

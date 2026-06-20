@@ -42,8 +42,13 @@ public final class WorldSpawnHandler {
         // (existing worlds never re-run placeResort, so chestPos would otherwise be null).
         ResortData existing = loadResortData(server);
         if (existing != null) {
-            ResortBuilder.registerStarterChestFromCenter(
-                    overworld, new BlockPos(existing.centerX, existing.centerY, existing.centerZ));
+            BlockPos center = new BlockPos(existing.centerX, existing.centerY, existing.centerZ);
+            ResortBuilder.registerStarterChestFromCenter(overworld, center);
+
+            // Restore resort waypoint from persisted data so teleport works after server restart
+            BlockPos surfaceCenter = SurfaceResolver.resolveSurfacePos(overworld, center.getX(), center.getZ());
+            BlockPos fountainCenter = new BlockPos(center.getX(), surfaceCenter.getY() + 1, center.getZ());
+            ResortWaypointManager.setResortWaypoint(fountainCenter, existing.dimension);
         }
 
         if (!isFreshWorld(server)) {

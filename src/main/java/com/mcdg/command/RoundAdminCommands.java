@@ -33,7 +33,6 @@ import com.mcdg.world.ResortCoursePlacement;
 import com.mcdg.world.WorldSpawnHandler;
 import com.mcdg.world.ResortData;
 import com.mcdg.world.SafePositionFinder;
-import com.mcdg.net.WaypointRemovedSync;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;

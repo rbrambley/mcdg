@@ -35,7 +35,6 @@ import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.MenuScreenSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
 import com.mcdg.net.WaypointTeleportSync;
-import com.mcdg.net.WaypointRemovedSync;
 import com.mcdg.net.ThrowPowerLockSync;
 import com.mcdg.net.ThrowStanceSync;
 import com.mcdg.net.ThrowTrailSync;
@@ -193,7 +192,6 @@ public final class McdgMod implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(LeaderboardResponse.ID, LeaderboardResponse.CODEC);
 
         PayloadTypeRegistry.playS2C().register(WaypointSync.ID, WaypointSync.CODEC);
-        PayloadTypeRegistry.playS2C().register(WaypointRemovedSync.ID, WaypointRemovedSync.CODEC);
         PayloadTypeRegistry.playS2C().register(ThrowPowerLockSync.ID, ThrowPowerLockSync.CODEC);
         PayloadTypeRegistry.playS2C().register(ThrowTrailSync.ID, ThrowTrailSync.CODEC);
 
@@ -970,20 +968,8 @@ public final class McdgMod implements ModInitializer {
             return;
         }
 
-        // Player-created waypoint
-        for (WaypointSync.WaypointEntry entry : WaypointSync.getWaypoints(player)) {
-            if (entry != null && entry.name().equals(name)) {
-                int targetY = entry.y();
-                if (targetY == WaypointSync.UNKNOWN_Y) {
-                    targetY = SurfaceResolver.resolveSurfacePos(player.getServerWorld(), entry.x(), entry.z()).getY();
-                }
-                BlockPos target = new BlockPos(entry.x(), targetY, entry.z());
-                BlockPos safe = resolveSafeFeetNearWithin(player.getServerWorld(), target, 2);
-                player.teleport(player.getServerWorld(), safe.getX() + 0.5, safe.getY(), safe.getZ() + 0.5, Set.of(), player.getYaw(), player.getPitch());
-                player.sendMessage(Text.literal("Teleported to " + name + "!"), false);
-                return;
-            }
-        }
+        // Player-created waypoint (removed in favor of Xaero's Minimap)
+        player.sendMessage(Text.literal("Waypoint not found: " + name), false);
     }
 
 }

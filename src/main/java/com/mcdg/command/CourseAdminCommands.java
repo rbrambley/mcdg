@@ -271,7 +271,7 @@ public final class CourseAdminCommands {
                     source.sendError(Text.literal("Reusable course #" + oneBasedIndex + " was not found."));
                     return 0;
             }
-            if (removedCourseName != null) { CommandUtils.broadcastCourseWaypointRemoval(source.getServer(), removedCourseName); }
+            // Course waypoint removal removed (player waypoints replaced by Xaero's Minimap)
 
             Integer activeCatalogIndex = courseManager.getActiveCourseCatalogIndex().orElse(null);
             boolean wasActiveMatch = activeCatalogIndex != null && activeCatalogIndex == oneBasedIndex;

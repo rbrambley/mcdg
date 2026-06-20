@@ -12,9 +12,6 @@ import org.lwjgl.glfw.GLFW;
 public final class ClientKeybinds {
     private static KeyBinding openMenuKey;
     private static KeyBinding toggleHoleMapKey;
-    private static KeyBinding addWaypointKey;
-    private static KeyBinding removeNearestWaypointKey;
-    private static KeyBinding toggleWaypointLabelsKey;
     private static KeyBinding lockPowerKey;
     private static KeyBinding cycleThrowStanceKey;
     private static KeyBinding angleLeftKey;
@@ -34,24 +31,6 @@ public final class ClientKeybinds {
                 "key.mcdg.toggle_hole_map",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_H,
-                "category.mcdg"
-        ));
-        addWaypointKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.mcdg.add_waypoint",
-                InputUtil.Type.KEYSYM,
-                GLFW.GLFW_KEY_M,
-                "category.mcdg"
-        ));
-        removeNearestWaypointKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.mcdg.remove_nearest_waypoint",
-                InputUtil.Type.KEYSYM,
-                GLFW.GLFW_KEY_N,
-                "category.mcdg"
-        ));
-        toggleWaypointLabelsKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.mcdg.toggle_waypoint_labels",
-                InputUtil.Type.KEYSYM,
-                GLFW.GLFW_KEY_L,
                 "category.mcdg"
         ));
         lockPowerKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
@@ -109,24 +88,6 @@ public final class ClientKeybinds {
 
     public static void forEachHoleMapTogglePress(Runnable action) {
         while (toggleHoleMapKey.wasPressed()) {
-            action.run();
-        }
-    }
-
-    public static void forEachAddWaypointPress(Runnable action) {
-        while (addWaypointKey.wasPressed()) {
-            action.run();
-        }
-    }
-
-    public static void forEachRemoveNearestWaypointPress(Runnable action) {
-        while (removeNearestWaypointKey.wasPressed()) {
-            action.run();
-        }
-    }
-
-    public static void forEachToggleWaypointLabelsPress(Runnable action) {
-        while (toggleWaypointLabelsKey.wasPressed()) {
             action.run();
         }
     }

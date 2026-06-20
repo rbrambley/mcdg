@@ -12,6 +12,10 @@ import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 
+/**
+ * Simplified waypoint sync for resort waypoint only.
+ * Player waypoint system removed in favor of Xaero's Minimap.
+ */
 public final class WaypointSync {
     public static final int UNKNOWN_Y = Integer.MIN_VALUE;
     public static final Identifier CHANNEL = Identifier.of(McdgMod.MOD_ID, "waypoint_sync");

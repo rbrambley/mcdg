@@ -21,19 +21,38 @@ public final class HoleMapOverlay {
     private static final int TEXT_GREEN = 0xFF57D163;
     private static final int TEXT_GOLD = 0xFFFFCC33;
 
-    private static final int PANEL_H = 260;
-    private static final int HEADER_H = 20;
-    private static final int FOOTER_H = 36;
-    private static final int MAP_MARGIN = 3;
-    private static final int DEFAULT_PANEL_W = 160;
+    private static final int HEADER_H = 14;
+    private static final int FOOTER_H = 22;
+    private static final int MAP_MARGIN = 2;
+    private static final int DEFAULT_PANEL_W = 120;
+    private static final int XAEROS_TOP_RESERVED = 180;
+    private static final int HUD_SPACING = 10;
+    private static final int MAX_PANEL_H = 400;
+    private static final int MIN_PANEL_H = 120;
 
     private static boolean visible = false;
+    private static int lastRenderedY = -1;
+    private static int lastRenderedHeight = -1;
 
     private HoleMapOverlay() {
     }
 
     public static boolean isVisible() {
         return visible;
+    }
+
+    /**
+     * Returns the Y coordinate where the hole map was last rendered, or -1 if not visible.
+     */
+    public static int getLastRenderedY() {
+        return visible ? lastRenderedY : -1;
+    }
+
+    /**
+     * Returns the height of the last rendered hole map panel.
+     */
+    public static int getLastRenderedHeight() {
+        return visible ? lastRenderedHeight : 0;
     }
 
     public static void toggle() {
@@ -61,25 +80,38 @@ public final class HoleMapOverlay {
         }
 
         int panelX = 8;
-        int panelY = (ctx.getScaledWindowHeight() - PANEL_H) / 2;
-        int safeBottom = ctx.getScaledWindowHeight() - 90;
-        if (panelY + PANEL_H > safeBottom) {
-            panelY = safeBottom - PANEL_H;
-        }
-        panelY = Math.max(8, panelY);
+        int screenHeight = ctx.getScaledWindowHeight();
+        
+        // Position right after Xaero's space
+        int panelY = XAEROS_TOP_RESERVED + HUD_SPACING;
+        
+        // Calculate available space to where scoreboard actually sits (near bottom)
+        int scoreboardEstimatedH = 42; // actual 1-player scoreboard height
+        int scoreboardTop = screenHeight - scoreboardEstimatedH - HUD_SPACING;
+        int availableHeight = scoreboardTop - panelY - HUD_SPACING;
+        
+        // Dynamic panel height: fill available space with min/max bounds
+        int panelH = Math.max(MIN_PANEL_H, Math.min(availableHeight, MAX_PANEL_H));
+        
+        // DEBUG: log calculated values
+        System.out.println("[MCDG] HoleMap: screenH=" + screenHeight + " availableH=" + availableHeight + " panelH=" + panelH);
+        
+        // Track rendered position for scoreboard coordination
+        lastRenderedY = panelY;
+        lastRenderedHeight = panelH;
 
         // Panel background
-        ctx.fill(panelX, panelY, panelX + panelW, panelY + PANEL_H, HudUtil.withAlpha(BG_COLOR, hudAlpha));
+        ctx.fill(panelX, panelY, panelX + panelW, panelY + panelH, HudUtil.withAlpha(BG_COLOR, hudAlpha));
         ctx.fill(panelX, panelY, panelX + panelW, panelY + HEADER_H, HudUtil.withAlpha(HEADER_COLOR, hudAlpha));
-        ctx.drawBorder(panelX, panelY, panelW, PANEL_H, HudUtil.withAlpha(BORDER_COLOR, hudAlpha));
+        ctx.drawBorder(panelX, panelY, panelW, panelH, HudUtil.withAlpha(BORDER_COLOR, hudAlpha));
 
-        // Header text
+        // Header text (reduced size)
         String title = "Hole " + state.holeIndex;
-        ctx.drawTextWithShadow(client.textRenderer, title, panelX + 6, panelY + 5, HudUtil.withAlpha(TEXT_TITLE, hudAlpha));
+        ctx.drawTextWithShadow(client.textRenderer, title, panelX + 6, panelY + 4, HudUtil.withAlpha(TEXT_TITLE, hudAlpha));
 
         String parDist = "P" + state.par + "  " + state.distanceFeet + "ft";
         int pdw = client.textRenderer.getWidth(parDist);
-        ctx.drawTextWithShadow(client.textRenderer, parDist, panelX + panelW - pdw - 6, panelY + 5, HudUtil.withAlpha(TEXT_GREEN, hudAlpha));
+        ctx.drawTextWithShadow(client.textRenderer, parDist, panelX + panelW - pdw - 6, panelY + 4, HudUtil.withAlpha(TEXT_GREEN, hudAlpha));
 
         // Signature label (only if there is room)
         SignatureHoleType sig = SignatureHoleType.values()[Math.max(0, Math.min(SignatureHoleType.values().length - 1, state.signatureTypeOrdinal))];
@@ -87,8 +119,8 @@ public final class HoleMapOverlay {
             String sigText = sig.displayName();
             int sigW = client.textRenderer.getWidth(sigText);
             int titleW = client.textRenderer.getWidth(title);
-            if (sigW + 12 + titleW + 12 + pdw < panelW) {
-                ctx.drawTextWithShadow(client.textRenderer, sigText, panelX + (panelW - sigW) / 2, panelY + 5, HudUtil.withAlpha(TEXT_GOLD, hudAlpha));
+            if (sigW + 10 + titleW + 10 + pdw < panelW) {
+                ctx.drawTextWithShadow(client.textRenderer, sigText, panelX + (panelW - sigW) / 2, panelY + 4, HudUtil.withAlpha(TEXT_GOLD, hudAlpha));
             }
         }
 
@@ -96,7 +128,7 @@ public final class HoleMapOverlay {
         float mapX = panelX + MAP_MARGIN;
         float mapY = panelY + HEADER_H + 2;
         float mapW = panelW - MAP_MARGIN * 2;
-        float mapH = PANEL_H - HEADER_H - FOOTER_H - 4;
+        float mapH = panelH - HEADER_H - FOOTER_H - 4;
 
         HoleMapRenderer.MapTransform transform = HoleMapRenderer.computeTransform(state, mapX, mapY, mapW, mapH);
 
@@ -118,9 +150,9 @@ public final class HoleMapOverlay {
         // Map border
         ctx.drawBorder((int) mapX, (int) mapY, (int) mapW, (int) mapH, HudUtil.withAlpha(BORDER_COLOR, hudAlpha));
 
-        // Footer info
-        int footerTop = panelY + PANEL_H - FOOTER_H;
-        int row = footerTop + 4;
+        // Footer info (reduced spacing)
+        int footerTop = panelY + panelH - FOOTER_H;
+        int row = footerTop + 3;
 
         String throwLine = "Throw " + state.throwNumber + "  Strokes " + state.totalStrokes;
         if (state.cumulativeParDelta != 0) {
@@ -129,13 +161,13 @@ public final class HoleMapOverlay {
         }
         int tlw = client.textRenderer.getWidth(throwLine);
         ctx.drawTextWithShadow(client.textRenderer, throwLine, panelX + (panelW - tlw) / 2, row, HudUtil.withAlpha(TEXT_WHITE, hudAlpha));
-        row += 10;
+        row += 9;
 
         if (state.hasWaterGap && state.waterGapStartFeet > 0) {
             String waterLine = "Water " + state.waterGapStartFeet + "-" + state.waterGapEndFeet + "ft";
             int wlw = client.textRenderer.getWidth(waterLine);
             ctx.drawTextWithShadow(client.textRenderer, waterLine, panelX + (panelW - wlw) / 2, row, HudUtil.withAlpha(0xFF66CCFF, hudAlpha));
-            row += 10;
+            row += 9;
         }
 
         String hint = "Press " + ClientKeybinds.getHoleMapKeyText().getString() + " to close";

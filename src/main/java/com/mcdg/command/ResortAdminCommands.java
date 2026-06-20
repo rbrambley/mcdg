@@ -32,7 +32,6 @@ import com.mcdg.world.ResortWaypointManager;
 import com.mcdg.world.ResortCoursePlacement;
 import com.mcdg.world.WorldSpawnHandler;
 import com.mcdg.world.ResortData;
-import com.mcdg.net.WaypointRemovedSync;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -256,9 +255,7 @@ public final class ResortAdminCommands {
             item.discard();
         }
         ResortWaypointManager.clearResortWaypoint();
-        for (var player : world.getPlayers()) {
-            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, new WaypointRemovedSync.Payload("MCDG Resort"));
-        }
+        // WaypointRemovedSync removed (player waypoints replaced by Xaero's Minimap)
     }
 
     public static int executeResetResort(ServerCommandSource source) {
@@ -292,11 +289,9 @@ public final class ResortAdminCommands {
             item.discard();
         }
 
-        // Clear resort waypoint and notify all online players
+        // Clear resort waypoint
         ResortWaypointManager.clearResortWaypoint();
-        for (var player : world.getPlayers()) {
-            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, new WaypointRemovedSync.Payload("MCDG Resort"));
-        }
+        // WaypointRemovedSync removed (player waypoints replaced by Xaero's Minimap)
 
         int itemsRemoved = entities.size();
         String itemMsg = itemsRemoved > 0 ? " (" + itemsRemoved + " dropped items cleared)" : "";
@@ -343,7 +338,7 @@ public final class ResortAdminCommands {
             if (courseWorld != null) {
                 placementService.resetPlacedCourse(courseWorld, courseData.placedCourseState());
             }
-            CommandUtils.broadcastCourseWaypointRemoval(source.getServer(), courseData.course().name());
+            // Course waypoint removal removed (player waypoints replaced by Xaero's Minimap)
             indicesToRemove.add(idx);
             resetCount++;
         }
