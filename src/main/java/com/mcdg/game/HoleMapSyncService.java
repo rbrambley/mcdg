@@ -268,11 +268,19 @@ public final class HoleMapSyncService {
         String courseKey = HoleHazardGridService.courseKey(course.name(), course.seed());
         HoleHazardGridService.CachedHazardGrid hazardGrid = HoleHazardGridService.getCachedGrid(courseKey, state.currentHole());
         if (hazardGrid == null) {
-            McdgMod.LOGGER.warn(
-                "Missing hazard grid for course {} hole {} — hole map will show without hazards. Grid should be pre-computed during course placement.",
+            // On-demand computation for existing courses that were placed before hazard grid computation was added
+            McdgMod.LOGGER.info(
+                "Computing hazard grid on-demand for course {} hole {} — this is a one-time cost for existing courses.",
                 courseKey, state.currentHole()
             );
-            hazardGrid = new HoleHazardGridService.CachedHazardGrid(0, 0, 0, 0, new byte[0]);
+            hazardGrid = HoleHazardGridService.computeGrid(
+                    (ServerWorld) player.getWorld(),
+                    currentHole,
+                    tee,
+                    basket,
+                    rulesetManager
+            );
+            HoleHazardGridService.cacheGrid(courseKey, state.currentHole(), hazardGrid);
         }
 
         return new HoleMapSync.Payload(

@@ -6,6 +6,7 @@ import com.mcdg.data.Course;
 import com.mcdg.data.FairwaySegment;
 import com.mcdg.data.Hole;
 import com.mcdg.data.TeePoint;
+import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.CoursePlacementConfig;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.HoleLayoutValidator;
@@ -190,6 +191,21 @@ public final class TickIncrementalCoursePlacer {
         Course builtCourse = new Course(course.seed(), course.name(), builtHoles);
         PlacedCourseState mergedState = new PlacedCourseState(
                 world.getRegistryKey(), mergedOriginals, tees, baskets, alternates, effectivePars);
+
+        // Compute hazard grids for all holes (for hole map rendering)
+        HoleHazardGridService.reset();
+        TournamentRulesetManager rulesetManager = McdgMod.getRulesetManager();
+        String courseKey = HoleHazardGridService.courseKey(builtCourse.name(), builtCourse.seed());
+        for (Hole hole : builtCourse.holes()) {
+            BlockPos tee = tees.get(hole.index());
+            BlockPos basket = baskets.get(hole.index());
+            if (tee != null && basket != null) {
+                HoleHazardGridService.CachedHazardGrid grid =
+                        HoleHazardGridService.computeGrid(world, hole, tee, basket, rulesetManager);
+                HoleHazardGridService.cacheGrid(courseKey, hole.index(), grid);
+            }
+        }
+
         result = new AutoCourseService.AutoCourseScenarioResult(builtCourse, mergedState);
         done = true;
     }
