@@ -1,0 +1,197 @@
+[
+  {
+    "user": {
+      "type": "player",
+      "name": "VMOne",
+      "uniqueId": "0f9a7f14-f35e-4391-b436-5dd977cc6ef4"
+    },
+    "time": 1782039669579,
+    "type": "Profiler",
+    "data": {
+      "type": "url",
+      "value": "https://spark.lucko.me/43m6p0JuM3"
+    }
+  },
+  {
+    "user": {
+      "type": "player",
+      "name": "VMOne",
+      "uniqueId": "0f9a7f14-f35e-4391-b436-5dd977cc6ef4"
+    },
+    "time": 1781949196492,
+    "type": "Profiler",
+    "data": {
+      "type": "url",
+      "value": "https://spark.lucko.me/rmA1jebtgO"
+    }
+  },
+  {
+    "user": {
+      "type": "player",
+      "name": "VMOne",
+      "uniqueId": "0f9a7f14-f35e-4391-b436-5dd977cc6ef4"
+    },
+    "time": 1781947987911,
+    "type": "Profiler",
+    "data": {
+      "type": "url",
+      "value": "https://spark.lucko.me/C7Aaqpxsq7"
+    }
+  },
+  {
+    "user": {
+      "type": "player",
+      "name": "VMOne",
+      "uniqueId": "0f9a7f14-f35e-4391-b436-5dd977cc6ef4"
+    },
+    "time": 1781946762793,
+    "type": "Profiler",
+    "data": {
+      "type": "url",
+      "value": "https://spark.lucko.me/DE7ROI0jAL"
+    }
+  },
+  {
+    "user": {
+      "type": "player",
+      "name": "VMOne",
+      "uniqueId": "0f9a7f14-f35e-4391-b436-5dd977cc6ef4"
+    },
+    "time": 1781945358654,
+    "type": "Profiler",
+    "data": {
+      "type": "url",
+      "value": "https://spark.lucko.me/kOAOZ5vJLo"
+    }
+  },
+  {
+    "user": {
+      "type": "player",
+      "name": "VMOne",
+      "uniqueId": "0f9a7f14-f35e-4391-b436-5dd977cc6ef4"
+    },
+    "time": 1781944121267,
+    "type": "Profiler",
+    "data": {
+      "type": "url",
+      "value": "https://spark.lucko.me/Q09jCzopc5"
+    }
+  },
+  {
+    "user": {
+      "type": "player",
+      "name": "VMOne",
+      "uniqueId": "0f9a7f14-f35e-4391-b436-5dd977cc6ef4"
+    },
+    "time": 1781942844358,
+    "type": "Profiler",
+    "data": {
+      "type": "url",
+      "value": "https://spark.lucko.me/BA6xsjqgnM"
+    }
+  },
+  {
+    "user": {
+      "type": "player",
+      "name": "VMOne",
+      "uniqueId": "0f9a7f14-f35e-4391-b436-5dd977cc6ef4"
+    },
+    "time": 1781940421051,
+    "type": "Profiler",
+    "data": {
+      "type": "url",
+      "value": "https://spark.lucko.me/qcpVPo0HAI"
+    }
+  },
+  {
+    "user": {
+      "type": "player",
+      "name": "VMOne",
+      "uniqueId": "0f9a7f14-f35e-4391-b436-5dd977cc6ef4"
+    },
+    "time": 1781901248481,
+    "type": "Profiler",
+    "data": {
+      "type": "url",
+      "value": "https://spark.lucko.me/4Ll6bj2CZM"
+    }
+  },
+  {
+    "user": {
+      "type": "player",
+      "name": "VMOne",
+      "uniqueId": "0f9a7f14-f35e-4391-b436-5dd977cc6ef4"
+    },
+    "time": 1781892752518,
+    "type": "Profiler",
+    "data": {
+      "type": "url",
+      "value": "https://spark.lucko.me/jN9uQtVKCV"
+    }
+  },
+  {
+    "user": {
+      "type": "player",
+      "name": "VMOne",
+      "uniqueId": "0f9a7f14-f35e-4391-b436-5dd977cc6ef4"
+    },
+    "time": 1781880491754,
+    "type": "Profiler",
+    "data": {
+      "type": "url",
+      "value": "https://spark.lucko.me/WqttVOl2XK"
+    }
+  },
+  {
+    "user": {
+      "type": "player",
+      "name": "VMOne",
+      "uniqueId": "0f9a7f14-f35e-4391-b436-5dd977cc6ef4"
+    },
+    "time": 1781870152783,
+    "type": "Heap dump summary",
+    "data": {
+      "type": "url",
+      "value": "https://spark.lucko.me/vJbue9emt3"
+    }
+  },
+  {
+    "user": {
+      "type": "player",
+      "name": "VMOne",
+      "uniqueId": "0f9a7f14-f35e-4391-b436-5dd977cc6ef4"
+    },
+    "time": 1781870135933,
+    "type": "Heap dump",
+    "data": {
+      "type": "file",
+      "value": "C:\\Users\\rich\\AppData\\Roaming\\ATLauncher\\instances\\Minecraft1206withFabric\\config\\spark\\heap-2026-06-19_07.55.34.hprof"
+    }
+  },
+  {
+    "user": {
+      "type": "player",
+      "name": "VMOne",
+      "uniqueId": "0f9a7f14-f35e-4391-b436-5dd977cc6ef4"
+    },
+    "time": 1781863950147,
+    "type": "Profiler",
+    "data": {
+      "type": "url",
+      "value": "https://spark.lucko.me/sTfyLq4aCU"
+    }
+  },
+  {
+    "user": {
+      "type": "player",
+      "name": "VMOne",
+      "uniqueId": "0f9a7f14-f35e-4391-b436-5dd977cc6ef4"
+    },
+    "time": 1781863680015,
+    "type": "Profiler (live)",
+    "data": {
+      "type": "url",
+      "value": "https://spark.lucko.me/2FMX34IZEj"
+    }
+  }
+]

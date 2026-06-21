@@ -69,7 +69,7 @@
 ## Future Work
 
 ### Map Mod Integration (Xaero's Minimap)
-**Status:** Not started
+**Status:** Done
 **Priority:** Medium
 **Context:** Now that the old minimap has been replaced with the lightweight hole map HUD, players may want a full-featured map mod for general navigation.
 
@@ -89,8 +89,10 @@
 - `src/main/resources/fabric.mod.json` — add soft dependency
 - `src/client/java/com/mcdg/client/McdgClientMod.java` — add detection and configuration logic
 
+**Pack inclusion:** Xaero's Minimap and Xaero's World Map are included in the current test packs.
+
 ### Recipe Viewer Mod (EMI vs REI)
-**Status:** Not needed
+**Status:** Done
 **Priority:** Low
 **Context:** Players may want a recipe viewer for general Minecraft gameplay, but MCDG doesn't require recipe viewing for disc golf gameplay.
 
@@ -106,26 +108,30 @@
 - Players can manually install EMI or REI as preferred
 - Document recommended mod pack in README
 
+**Pack inclusion:** EMI is included in the current test packs.
+
 ### Inventory Sorter Mod
-**Status:** Not needed
+**Status:** Done
 **Priority:** Low
 **Context:** Players may want inventory sorting for convenience, but MCDG doesn't have complex inventory management needs (mainly discs and tools).
 
 **Investigation findings:**
-- **Inventory Sorter:** Lightweight, simple sorting (recommended)
+- **ClientSort:** Lightweight, simple sorting (recommended, used in current packs)
 - **Inventory Tweaks Renewed:** More features, heavier performance cost
 - **Item Scroller:** Scroll-based sorting, moderate performance cost
 - All are safe to add as soft dependencies (no conflicts with MCDG)
 - No special integration needed (just UI convenience)
 
 **Recommendation:**
-- Add Inventory Sorter as a soft dependency in `fabric.mod.json`
+- Add ClientSort as a soft dependency in `fabric.mod.json`
 - No code changes required — MCDG doesn't need to interact with inventory sorters
 - Players can manually install any inventory sorter as preferred
 - Document recommended mod pack in README
 
+**Pack inclusion:** ClientSort is included in the current test packs.
+
 ### World Generation Mods (Seasons, Biomes, Weather)
-**Status:** Not needed
+**Status:** Done
 **Priority:** Low
 **Context:** Players may want enhanced world generation for variety, but MCDG's procedural course generation works with vanilla terrain. These mods could add visual variety to courses.
 
@@ -143,20 +149,21 @@
 - Weather could add challenge (rain affecting grip, wind affecting trajectory)
 
 **Recommendation:**
-- Add Serene Seasons and BYG as soft dependencies in `fabric.mod.json`
+- Add Serene Seasons and Biomes O' Plenty as soft dependencies in `fabric.mod.json`
 - Optional: Add weather integration for disc physics (wind, friction changes)
 - Document recommended mod pack in README
 - Test course generation with modded biomes
 
+**Pack inclusion:** Serene Seasons, Biomes O' Plenty, TerraBlender, and GlitchCore are included in the current test packs.
+
 ### Vein Miner Mod
-**Status:** Not needed
+**Status:** Done
 **Priority:** Low
 **Context:** Players may want vein mining for resource gathering, but MCDG is focused on disc golf gameplay and doesn't have significant mining requirements.
 
 **Investigation findings:**
-- **Vein Mining (Fabric):** Lightweight, simple (recommended)
+- **Veinminer (Fabric):** Lightweight, simple (recommended, used in current packs)
 - **Ore Excavation:** More features, highly configurable
-- **VeinMiner:** Well-established, more options
 - All are safe to add as soft dependencies (no conflicts with MCDG)
 - No special integration needed (just gameplay convenience)
 
@@ -166,7 +173,9 @@
 - Speeding up material collection
 
 **Recommendation:**
-- Add Vein Mining (Fabric) as a soft dependency in `fabric.mod.json`
+- Add Veinminer as a soft dependency in `fabric.mod.json`
 - No code changes required — MCDG doesn't need to interact with vein miners
 - Players can manually install any vein miner as preferred
 - Document recommended mod pack in README
+
+**Pack inclusion:** Veinminer is included in the current test packs.

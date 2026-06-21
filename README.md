@@ -4,49 +4,59 @@ A Fabric mod for Minecraft 1.20.6 that brings disc golf to your world. Build pro
 
 ## Quick Links
 
-- [Latest Test Pack Release](releases/test-packs/2026-06-18-r3)
+- [Latest Test Pack Release](releases/test-packs/2026-06-21-r1)
 - [Multiplayer Test Sheet](MULTIPLAYER-TEST-SHEET.md)
 - [User Guide](USERGUIDE.md)
 - [Server Setup Guide](SERVER-SETUP-GUIDE.md)
-- [Bug Report Template](releases/test-packs/2026-06-18-r3/client/BUG-REPORT-TEMPLATE.txt)
+- [Bug Report Template](releases/test-packs/2026-06-21-r1/client/BUG-REPORT-TEMPLATE.txt)
 
 ## Requirements
 
 | Component | Version |
 |-----------|---------|
 | Minecraft | 1.20.6 |
-| Fabric Loader | 0.16.10 |
+| Fabric Loader | 0.19.3 |
 | Java | 21 |
 
-## Latest Release (2026-06-18-r3)
+## Latest Release (2026-06-21-r1)
 
-**Download:** See the [releases/test-packs/2026-06-18-r3](releases/test-packs/2026-06-18-r3) directory.
+**Download:** See the [releases/test-packs/2026-06-21-r1](releases/test-packs/2026-06-21-r1) directory.
 
 | Pack | File |
 |------|------|
-| Client | `2026-06-18-r3-client.zip` |
-| Server | `2026-06-18-r3-server.zip` |
-| All-in-One | `2026-06-18-r3-all-in-one.zip` |
+| Client | `2026-06-21-r1-client.zip` |
+| Server | `2026-06-21-r1-server.zip` |
+| All-in-One | `2026-06-21-r1-all-in-one.zip` |
 
 ### Recent Changes
 
-- PERF: Hazard overlay baked into cached minimap texture (eliminates ~10k world lookups/frame)
-- PERF: Minimap join-warmup rebuilds throttled from every tick to every 5 ticks
-- PERF: Surface shading uses fast path with zero world lookups (was 5 getTopY calls per pixel)
-- PERF: Basket beacon particles reduced from 30 every 4 ticks to 6 every 10 ticks
+- feat: bot multiplayer round support and round completion fixes
+- feat: add ruleset visibility and course management UX improvements
+- feat: improve HUD scaling and cinematic fade synchronization
+- feat: implement real-time progressive trail rendering
+- feat: enhance HUD scaling and Xaero's Minimap integration
+- feat: add GUI scaling support for HUD elements
+
+### Included Mods
+
+**Shared (Client & Server):**
+`fabric-api`, `ferritecore`, `lithium`, `mcdg`, `BiomesOPlenty`, `TerraBlender`, `GlitchCore`, `SereneSeasons`, `spark`, `Veinminer`, `cloth-config`, `placeholder-api`
+
+**Client-only:**
+`ClientSort`, `emi`, `modmenu`, `Xaero's World Map`, `Xaero's Minimap`
 
 ## Installation
 
 ### Client
 
-1. Download `2026-06-18-r3-client.zip`.
+1. Download `2026-06-21-r1-client.zip`.
 2. Extract into your Minecraft instance directory.
 3. Launch with the Fabric profile.
 4. The MCDG-Test-Resources pack is built into the mod jar and auto-enabled.
 
 ### Server (Oracle Cloud / Self-Hosted)
 
-1. Download `2026-06-18-r3-server.zip`.
+1. Download `2026-06-21-r1-server.zip`.
 2. Stop your server and back up the server directory.
 3. Extract the server pack into the server directory.
 4. Start the server and verify mod loading in the console log.
