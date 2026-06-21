@@ -33,11 +33,73 @@ public final class HoleMapSyncService {
     private record CachedExtras(
             BlockPos lie,
             int corridorHalfWidth,
+            BlockPos tee,
+            BlockPos basket,
+            BlockPos alternateAnchor,
+            net.minecraft.registry.RegistryKey<net.minecraft.world.World> worldKey,
             int[] corridorEntry,
             int[] waterGap
     ) {}
 
     private HoleMapSyncService() {
+    }
+
+    /**
+     * Compute a stable content-based hash for a HoleMapSync payload.
+     * Required because Payload is a record containing a byte[], and Java's
+     * array hashCode() is identity-based, causing deduplication to fail.
+     */
+    private static int computeStablePayloadHash(HoleMapSync.Payload payload) {
+        int hash = payload.active() ? 1 : 0;
+        hash = 31 * hash + payload.holeIndex();
+        hash = 31 * hash + payload.par();
+        hash = 31 * hash + payload.distanceFeet();
+        hash = 31 * hash + payload.teeX();
+        hash = 31 * hash + payload.teeZ();
+        hash = 31 * hash + payload.basketX();
+        hash = 31 * hash + payload.basketZ();
+        hash = 31 * hash + payload.corridorHalfWidth();
+        hash = 31 * hash + payload.signatureTypeOrdinal();
+        hash = 31 * hash + payload.lieX();
+        hash = 31 * hash + payload.lieZ();
+        hash = 31 * hash + payload.headingYaw();
+        hash = 31 * hash + payload.throwNumber();
+        hash = 31 * hash + payload.totalStrokes();
+        hash = 31 * hash + payload.cumulativeParDelta();
+        hash = 31 * hash + payload.lastThrowDistanceFeet();
+        hash = 31 * hash + payload.corridorEntryFeet();
+        hash = 31 * hash + payload.corridorEntryBearing();
+        hash = 31 * hash + payload.waterGapStartFeet();
+        hash = 31 * hash + payload.waterGapEndFeet();
+        hash = 31 * hash + (payload.hasWaterGap() ? 1 : 0);
+        hash = 31 * hash + payload.courseWaypointName().hashCode();
+        hash = 31 * hash + payload.courseWaypointX();
+        hash = 31 * hash + payload.courseWaypointZ();
+        hash = 31 * hash + (payload.hasLastThrowStats() ? 1 : 0);
+        if (payload.hasLastThrowStats()) {
+            hash = 31 * hash + Double.hashCode(payload.lastThrowTotalDistanceFt());
+            hash = 31 * hash + Double.hashCode(payload.lastThrowLateralDriftFt());
+            hash = 31 * hash + payload.lastThrowStance().hashCode();
+            hash = 31 * hash + payload.lastThrowAngle().hashCode();
+            hash = 31 * hash + payload.lastThrowFlightTicks();
+            hash = 31 * hash + payload.lastThrowPenaltyType().hashCode();
+            hash = 31 * hash + payload.lastThrowPenaltyStrokes();
+            hash = 31 * hash + payload.lastThrowPenaltyReason().hashCode();
+            hash = 31 * hash + payload.lastThrowObCrossingFeet();
+            hash = 31 * hash + payload.lastThrowReturnedToFeet();
+        }
+        for (HoleMapSync.FairwaySegmentEntry seg : payload.fairwaySegments()) {
+            hash = 31 * hash + seg.startX();
+            hash = 31 * hash + seg.startZ();
+            hash = 31 * hash + seg.endX();
+            hash = 31 * hash + seg.endZ();
+            hash = 31 * hash + seg.width();
+        }
+        byte[] grid = payload.hazardGridData();
+        if (grid != null) {
+            hash = 31 * hash + java.util.Arrays.hashCode(grid);
+        }
+        return hash;
     }
 
     public static void reset() {
@@ -103,7 +165,7 @@ public final class HoleMapSyncService {
             );
         }
 
-        int payloadHash = payload.hashCode();
+        int payloadHash = computeStablePayloadHash(payload);
         if (!LAST_PAYLOAD_HASH.containsKey(playerId) || LAST_PAYLOAD_HASH.get(playerId) != payloadHash) {
             ServerPlayNetworking.send(player, payload);
             LAST_PAYLOAD_HASH.put(playerId, payloadHash);
@@ -137,7 +199,7 @@ public final class HoleMapSyncService {
         UUID playerId = player.getUuid();
 
         ServerPlayNetworking.send(player, payload);
-        LAST_PAYLOAD_HASH.put(playerId, payload.hashCode());
+        LAST_PAYLOAD_HASH.put(playerId, computeStablePayloadHash(payload));
         LAST_HOLE.put(playerId, state.currentHole());
         ACTIVE_SENT = true;
     }
@@ -205,14 +267,20 @@ public final class HoleMapSyncService {
             ServerWorld world
     ) {
         CachedExtras cached = EXTRAS_CACHE.get(playerId);
-        if (cached != null && cached.lie().equals(lie) && cached.corridorHalfWidth() == corridorHalfWidth) {
+        if (cached != null
+                && cached.lie().equals(lie)
+                && cached.corridorHalfWidth() == corridorHalfWidth
+                && java.util.Objects.equals(cached.tee(), tee)
+                && java.util.Objects.equals(cached.basket(), basket)
+                && java.util.Objects.equals(cached.alternateAnchor(), alternateAnchor)
+                && java.util.Objects.equals(cached.worldKey(), world.getRegistryKey())) {
             return cached;
         }
         int[] corridorEntry = tee != null
                 ? OutOfBoundsClassifier.nearestForwardCorridorEntry(lie, tee, basket, alternateAnchor, corridorHalfWidth)
                 : null;
         int[] waterGap = OutOfBoundsClassifier.findLongestWaterGap(world, lie, basket);
-        CachedExtras extras = new CachedExtras(lie, corridorHalfWidth, corridorEntry, waterGap);
+        CachedExtras extras = new CachedExtras(lie, corridorHalfWidth, tee, basket, alternateAnchor, world.getRegistryKey(), corridorEntry, waterGap);
         EXTRAS_CACHE.put(playerId, extras);
         return extras;
     }

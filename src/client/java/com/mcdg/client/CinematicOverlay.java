@@ -82,7 +82,7 @@ public final class CinematicOverlay {
      * Returns 0.0f if cinematic is not active.
      */
     public static float getRoundCompleteFadeAlpha() {
-        if (roundCompleteState == null) {
+        if (roundCompleteState == null || roundCompleteStartAtMs <= 0 || roundCompleteEndAtMs <= 0) {
             return 0.0f;
         }
         

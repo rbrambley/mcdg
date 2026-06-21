@@ -493,26 +493,6 @@ public final class ThrowResolver {
         ).isEmpty();
     }
 
-    /**
-     * Get the landing position for a calculated throw (if available).
-     * Returns null if no calculated throw exists or if it's still in flight.
-     */
-    private static Vec3d getCalculatedLandingPosition(ServerWorld world, UUID playerId) {
-        CalculatedThrowData calc = CALCULATED_THROWS.get(playerId);
-        if (calc == null) {
-            return null;
-        }
-
-        long elapsedTicks = world.getTime() - calc.releaseWorldTime();
-        if (elapsedTicks < calc.flightTicks()) {
-            return null; // Still in flight
-        }
-
-        // Flight complete - return landing position and clean up
-        CALCULATED_THROWS.remove(playerId);
-        return calc.landingPos();
-    }
-
     private static boolean isWithinThrowReleaseGrace(ServerWorld world, UUID playerId) {
         Long releaseTick = LAST_THROW_RELEASE_TICK.get(playerId);
         if (releaseTick == null) {

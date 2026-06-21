@@ -26,6 +26,7 @@ public final class DiscTrailRenderer {
     private static final int TRAIL_EXTRA_DISPLAY_TICKS = 60; // 3 seconds extra for stats visibility
 
     private static class TrailData {
+        UUID throwerId;               // Owner of this trail
         Vec3d[] pathPoints;
         int flightTicks;              // Total flight duration
         int startTick;                // When trail started
@@ -76,6 +77,7 @@ public final class DiscTrailRenderer {
             int returnedToFeet
     ) {
         TrailData trail = new TrailData();
+        trail.throwerId = throwerId;
         trail.pathPoints = pathPoints;
         trail.totalDistanceFt = totalDistanceFt;
         trail.lateralDriftFt = lateralDriftFt;
@@ -111,13 +113,8 @@ public final class DiscTrailRenderer {
             ThrowStance stance,
             ReleaseAngle angle
     ) {
-        System.out.println("START PROGRESSIVE TRAIL: thrower=" + throwerId + 
-            " pathPoints=" + (pathPoints != null ? pathPoints.length : "null") + 
-            " flightTicks=" + flightTicks +
-            " stance=" + stance +
-            " angle=" + angle);
-        
         TrailData trail = new TrailData();
+        trail.throwerId = throwerId;
         trail.pathPoints = pathPoints;
         trail.flightTicks = flightTicks;
         trail.stance = stance;
@@ -130,7 +127,6 @@ public final class DiscTrailRenderer {
         trail.statsActive = false; // Stats not available until complete packet
 
         TRAILS.put(throwerId, trail);
-        System.out.println("TRAIL STORED: total trails=" + TRAILS.size());
     }
 
     /**
@@ -182,18 +178,9 @@ public final class DiscTrailRenderer {
                 int elapsed = currentTick - trail.startTick;
                 float progress = Math.min(1.0f, elapsed / (float) trail.flightTicks);
                 
-                // Debug logging every 10 ticks
-                if (elapsed % 10 == 0) {
-                    System.out.println("TRAIL TICK: thrower=" + entry.getKey() + 
-                        " elapsed=" + elapsed + 
-                        " flightTicks=" + trail.flightTicks +
-                        " progress=" + progress +
-                        " currentIndex=" + trail.currentPathIndex +
-                        " totalPoints=" + (trail.pathPoints != null ? trail.pathPoints.length : "null"));
-                }
-                
                 // Calculate how many path points to show
                 int pointsToShow = (int) Math.floor(progress * trail.pathPoints.length);
+                pointsToShow = Math.min(pointsToShow, trail.pathPoints.length);
                 
                 // Ensure at least first particle renders immediately for instant feedback
                 if (elapsed == 0 && trail.currentPathIndex == 0 && trail.pathPoints.length > 0) {
@@ -206,8 +193,8 @@ public final class DiscTrailRenderer {
                     trail.currentPathIndex++;
                 }
                 
-                // Remove completed trails after extra time for stats display
-                if (progress > 1.5f) { // 50% extra time for stats visibility
+                // Remove completed trails after extra time for stats visibility
+                if (elapsed > trail.flightTicks * 1.5f) {
                     iterator.remove();
                 }
             } else {
@@ -267,23 +254,19 @@ public final class DiscTrailRenderer {
      */
     private static void renderNextParticle(MinecraftClient client, TrailData trail, int index) {
         if (trail.pathPoints == null || index >= trail.pathPoints.length) {
-            System.out.println("RENDER PARTICLE SKIPPED: null points or index out of range");
             return;
         }
 
         Vec3d point = trail.pathPoints[index];
         UUID localId = localPlayerId();
-        UUID throwerId = getCurrentThrowerId(trail);
+        UUID throwerId = trail.throwerId;
         
         // Skip points that are too far from player, but always show own throws
         if (throwerId == null || !throwerId.equals(localId)) {
             if (client.player.squaredDistanceTo(point.x, point.y, point.z) > 512 * 512) {
-                System.out.println("RENDER PARTICLE SKIPPED: too far from player");
                 return;
             }
         }
-
-        System.out.println("RENDER PARTICLE: index=" + index + " point=" + point);
 
         ParticleManager particleManager = client.particleManager;
         int color = getTrailColor(trail.stance);
@@ -311,20 +294,6 @@ public final class DiscTrailRenderer {
         }
     }
     
-    /**
-     * Get the current thrower ID from the trail entry.
-     * Helper method for distance culling logic.
-     */
-    private static UUID getCurrentThrowerId(TrailData trail) {
-        // Find the thrower ID by iterating through TRAILS map
-        for (Map.Entry<UUID, TrailData> entry : TRAILS.entrySet()) {
-            if (entry.getValue() == trail) {
-                return entry.getKey();
-            }
-        }
-        return null;
-    }
-
     /**
      * Get trail color based on throw stance (enhanced for visibility).
      */

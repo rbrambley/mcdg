@@ -313,18 +313,20 @@ public final class ChargedDiscItem extends Item {
                 angle
         );
 
-        // Send to all active participants immediately
+        // Send to all active participants immediately (includes thrower if enrolled)
+        boolean throwerSent = false;
         for (UUID participantId : courseManager.getActiveParticipantIds()) {
             ServerPlayerEntity participant = serverPlayer.getServer().getPlayerManager().getPlayer(participantId);
             if (participant != null) {
                 ServerPlayNetworking.send(participant, startPayload);
-                McdgMod.LOGGER.info("Trail start packet sent to participant={}", participantId);
+            }
+            if (playerUuid.equals(participantId)) {
+                throwerSent = true;
             }
         }
-        
-        // Always send to the thrower themselves (for single player testing)
-        ServerPlayNetworking.send(serverPlayer, startPayload);
-        McdgMod.LOGGER.info("Trail start packet sent to thrower={}", playerUuid);
+        if (!throwerSent) {
+            ServerPlayNetworking.send(serverPlayer, startPayload);
+        }
 
         // Initialize throw tracking with calculated landing position
         ThrowResolver.registerCalculatedThrow(
