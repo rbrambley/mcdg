@@ -30,7 +30,6 @@ public final class McdgClientMod implements ClientModInitializer {
     private static long holeMapStateReceivedAtMs;
     private static long hudHideSinceMs;
     private static boolean roundEnded = false;
-    private static boolean cinematicWasActive = false;
 
     @Override
     public void onInitializeClient() {
@@ -121,14 +120,9 @@ public final class McdgClientMod implements ClientModInitializer {
             DiscTrailRenderer.tick();
             RoundInfoOverlay.updateTweens(holeMapState);
 
-            // If movement detected during round complete cinematic, clear both cinematic and HUDs immediately
+            // If movement detected during round complete cinematic, clear cinematic immediately
             if (CinematicOverlay.isRoundCompleteActive() && CinematicOverlay.checkMovementSkip(client)) {
-                cinematicWasActive = false;
-            }
-            
-            // If cinematic ended naturally, reset flag
-            if (!CinematicOverlay.isRoundCompleteActive() && cinematicWasActive) {
-                cinematicWasActive = false;
+                // Cinematic movement skip - let HUDs continue their independent fade
             }
 
             // If HUDs are fading out after round end, keep state fresh so
@@ -140,6 +134,8 @@ public final class McdgClientMod implements ClientModInitializer {
                     holeMapStateReceivedAtMs = 0L;
                     hudHideSinceMs = 0L;
                     DiscTrailRenderer.clearStats();
+                    runningRoundScoreState = null;
+                    roundEnded = false;
                 } else {
                     holeMapStateReceivedAtMs = System.currentTimeMillis();
                 }
@@ -180,13 +176,12 @@ public final class McdgClientMod implements ClientModInitializer {
             DiscTrailRenderer.clearAllStats();
             ScorecardOverlay.setThrowStatsRenderedThisFrame(false);
             roundEnded = false;
-            cinematicWasActive = false;
         });
         ClientNetworking.registerReceivers();
         HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {
             RoundInfoOverlay.updateTweens(holeMapState);
             float hudAlpha = hudFadeAlpha();
-            
+
             // Right-side HUDs (all use same fade logic)
             RoundInfoOverlay.render(drawContext, holeMapState, hudAlpha);
             HudOverlays.renderThrowStats(drawContext, MinecraftClient.getInstance(), hudAlpha);
@@ -215,27 +210,9 @@ public final class McdgClientMod implements ClientModInitializer {
         return holeMapStateReceivedAtMs;
     }
 
-    public static void setCinematicWasActive(boolean active) {
-        cinematicWasActive = active;
-    }
+
 
     private static float hudFadeAlpha() {
-        // If round complete cinematic is active, use its fade alpha
-        if (CinematicOverlay.isRoundCompleteActive()) {
-            return CinematicOverlay.getRoundCompleteFadeAlpha();
-        }
-        
-        // If cinematic was active but ended, hide HUDs immediately
-        if (cinematicWasActive) {
-            return 0.0f;
-        }
-        
-        // If round ended without cinematic, hide HUDs immediately
-        if (roundEnded) {
-            return 0.0f;
-        }
-        
-        // Normal fade logic (shouldn't be reached with new logic)
         if (hudHideSinceMs > 0L) {
             long elapsed = System.currentTimeMillis() - hudHideSinceMs;
             if (elapsed >= 30000L) {
@@ -273,10 +250,9 @@ public final class McdgClientMod implements ClientModInitializer {
 
     public static void onHoleMapSync(HoleMapSync.Payload payload, MinecraftClient client) {
         if (!payload.active()) {
+            // Start 30-second fade timer immediately when round ends
             hudHideSinceMs = System.currentTimeMillis();
-            holeMapState = null;
-            HoleMapOverlay.setVisible(false);
-            ScorecardOverlay.setThrowStatsRenderedThisFrame(false);
+            System.out.println("HUD FADE DEBUG: Round ended, starting fade timer at " + hudHideSinceMs);
             roundEnded = true;
             return;
         }
@@ -284,7 +260,6 @@ public final class McdgClientMod implements ClientModInitializer {
         // New round starting — cancel any pending hide and show immediately
         hudHideSinceMs = 0L;
         roundEnded = false;
-        cinematicWasActive = false;
         holeMapState = new HoleMapState(payload);
         holeMapStateReceivedAtMs = System.currentTimeMillis();
 
@@ -312,7 +287,6 @@ public final class McdgClientMod implements ClientModInitializer {
 
     public static void onRoundRunningScoresSync(RoundRunningScoresSync.Payload payload, MinecraftClient client) {
         if (!payload.active()) {
-            runningRoundScoreState = null;
             return;
         }
 

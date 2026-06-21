@@ -195,6 +195,11 @@ public final class DiscTrailRenderer {
                 // Calculate how many path points to show
                 int pointsToShow = (int) Math.floor(progress * trail.pathPoints.length);
                 
+                // Ensure at least first particle renders immediately for instant feedback
+                if (elapsed == 0 && trail.currentPathIndex == 0 && trail.pathPoints.length > 0) {
+                    pointsToShow = Math.max(pointsToShow, 1);
+                }
+                
                 // Render new particles as we progress
                 while (trail.currentPathIndex < pointsToShow) {
                     renderNextParticle(client, trail, trail.currentPathIndex);
