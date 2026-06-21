@@ -189,8 +189,17 @@ public final class ResortCourseBuilder {
     }
 
     public static void onPlayerJoin(ServerPlayerEntity player) {
-        if (isBuilding && progressBar != null && targetWorld != null
-                && player.getWorld().getRegistryKey().equals(targetWorld.getRegistryKey())) {
+        if (!isBuilding || targetWorld == null
+                || !player.getWorld().getRegistryKey().equals(targetWorld.getRegistryKey())) {
+            return;
+        }
+
+        if (!playerHasJoined) {
+            playerHasJoined = true;
+            McdgMod.LOGGER.info("Player joined (via join event). Waiting {} ticks before starting course builds...", TICKS_BEFORE_FIRST_BUILD);
+        }
+
+        if (progressBar != null) {
             progressBar.addPlayer(player);
             if (buildStarted) {
                 player.sendMessage(Text.literal(
@@ -269,6 +278,11 @@ public final class ResortCourseBuilder {
             }
         }
         McdgMod.LOGGER.info("Finished building resort courses: {} of {} succeeded", builtCourses, SURROUND_COURSE_COUNT);
+
+        if (builtCourses >= SURROUND_COURSE_COUNT && server != null) {
+            WorldSpawnHandler.markCoursesBuilt(server);
+        }
+
         isBuilding = false;
         pendingCandidates = null;
     }

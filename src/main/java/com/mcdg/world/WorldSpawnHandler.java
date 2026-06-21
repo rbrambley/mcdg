@@ -49,6 +49,16 @@ public final class WorldSpawnHandler {
             BlockPos surfaceCenter = SurfaceResolver.resolveSurfacePos(overworld, center.getX(), center.getZ());
             BlockPos fountainCenter = new BlockPos(center.getX(), surfaceCenter.getY() + 1, center.getZ());
             ResortWaypointManager.setResortWaypoint(fountainCenter, existing.dimension);
+
+            // If resort exists but courses were not completed, queue them now
+            if (!existing.coursesBuilt) {
+                McdgMod.LOGGER.info("Resort exists but courses not built. Queuing surround courses now.");
+                ResortCourseBuilder.queueSurroundCourses(overworld, center, autoCourseService, practiceCourseStorage, server);
+                return;
+            }
+
+            McdgMod.LOGGER.info("Resort and courses already built, skipping auto-build.");
+            return;
         }
 
         if (!isFreshWorld(server)) {
@@ -57,11 +67,6 @@ public final class WorldSpawnHandler {
         }
 
         File resortFile = getResortFile(server);
-        if (resortFile.exists()) {
-            McdgMod.LOGGER.info("Resort already built, skipping auto-build.");
-            return;
-        }
-
         BlockPos spawnPos = overworld.getSpawnPos();
         McdgMod.LOGGER.info("Auto-building resort at world spawn ({}, {}, {})",
                 spawnPos.getX(), spawnPos.getY(), spawnPos.getZ());
@@ -109,7 +114,7 @@ public final class WorldSpawnHandler {
     }
 
     private static void saveResortData(File file, BlockPos center, String dimension) {
-        ResortData data = new ResortData(center.getX(), center.getY(), center.getZ(), dimension, System.currentTimeMillis());
+        ResortData data = new ResortData(center.getX(), center.getY(), center.getZ(), dimension, System.currentTimeMillis(), false);
         try (FileWriter writer = new FileWriter(file)) {
             GSON.toJson(data, writer);
         } catch (IOException e) {
@@ -127,6 +132,22 @@ public final class WorldSpawnHandler {
         } catch (IOException e) {
             McdgMod.LOGGER.error("Failed to load resort data", e);
             return null;
+        }
+    }
+
+    public static void markCoursesBuilt(MinecraftServer server) {
+        ResortData data = loadResortData(server);
+        if (data == null) {
+            McdgMod.LOGGER.warn("Cannot mark courses built: resort data not found");
+            return;
+        }
+        data.coursesBuilt = true;
+        File file = getResortFile(server);
+        try (FileWriter writer = new FileWriter(file)) {
+            GSON.toJson(data, writer);
+            McdgMod.LOGGER.info("Marked resort courses as built in resort-data.json");
+        } catch (IOException e) {
+            McdgMod.LOGGER.error("Failed to update resort data", e);
         }
     }
 }

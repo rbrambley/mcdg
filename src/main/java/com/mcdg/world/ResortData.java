@@ -11,15 +11,17 @@ public final class ResortData {
     public int centerZ;
     public String dimension;
     public long timestamp;
+    public boolean coursesBuilt;
 
     public ResortData() {}
 
-    public ResortData(int centerX, int centerY, int centerZ, String dimension, long timestamp) {
+    public ResortData(int centerX, int centerY, int centerZ, String dimension, long timestamp, boolean coursesBuilt) {
         this.centerX = centerX;
         this.centerY = centerY;
         this.centerZ = centerZ;
         this.dimension = dimension;
         this.timestamp = timestamp;
+        this.coursesBuilt = coursesBuilt;
     }
 
     public BlockPos centerPos() {
