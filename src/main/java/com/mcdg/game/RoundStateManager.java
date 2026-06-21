@@ -18,12 +18,19 @@ public final class RoundStateManager {
     }
 
     public PlayerRoundState recordThrow(UUID playerId, BlockPos throwLie) {
-        return stateByPlayer.compute(playerId, (id, existing) -> {
+        PlayerRoundState newState = stateByPlayer.compute(playerId, (id, existing) -> {
             if (existing == null) {
                 return PlayerRoundState.start(throwLie).recordThrow(throwLie);
             }
             return existing.recordThrow(throwLie);
         });
+        
+        // Notify TurnManager of the throw for turn rotation
+        if (newState != null) {
+            TurnManager.recordThrow(playerId, newState.currentHole());
+        }
+        
+        return newState;
     }
 
     public Optional<PlayerRoundState> getState(UUID playerId) {
@@ -35,7 +42,16 @@ public final class RoundStateManager {
     }
 
     public Optional<PlayerRoundState> advanceToNextHole(UUID playerId, BlockPos nextTeeLie) {
+        PlayerRoundState previousState = stateByPlayer.get(playerId);
+        int previousHole = previousState != null ? previousState.currentHole() : -1;
+        
         PlayerRoundState updated = stateByPlayer.computeIfPresent(playerId, (id, existing) -> existing.advanceToNextHole(nextTeeLie));
+        
+        // Clear last thrower for the hole that was just completed
+        if (previousHole >= 1) {
+            TurnManager.clearLastThrower(previousHole);
+        }
+        
         return Optional.ofNullable(updated);
     }
 
@@ -100,6 +116,7 @@ public final class RoundStateManager {
     public void restoreSnapshot(Map<UUID, PlayerRoundState> states, Map<UUID, Integer> completedTotals) {
         stateByPlayer.clear();
         completedTotalByPlayer.clear();
+        TurnManager.reset();
 
         if (states != null && !states.isEmpty()) {
             stateByPlayer.putAll(states);
@@ -110,7 +127,15 @@ public final class RoundStateManager {
     }
 
     public void clearPlayer(UUID playerId) {
+        PlayerRoundState previousState = stateByPlayer.get(playerId);
+        int previousHole = previousState != null ? previousState.currentHole() : -1;
+        
         stateByPlayer.remove(playerId);
+        
+        // Clear last thrower for the hole the player was on
+        if (previousHole >= 1) {
+            TurnManager.clearLastThrowerForPlayer(playerId);
+        }
     }
 
     public void clearPlayers(Collection<UUID> playerIds) {
@@ -127,5 +152,6 @@ public final class RoundStateManager {
     public void clearAll() {
         stateByPlayer.clear();
         completedTotalByPlayer.clear();
+        TurnManager.reset();
     }
 }

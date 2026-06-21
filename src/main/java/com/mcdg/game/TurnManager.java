@@ -1,5 +1,6 @@
 package com.mcdg.game;
 
+import com.mcdg.McdgMod;
 import com.mcdg.data.Course;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -7,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Optional;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -25,6 +27,7 @@ public final class TurnManager {
     private static final Map<Integer, Long> ACTIVE_TURN_STARTED_AT_BY_HOLE = new HashMap<>();
     private static final Map<Integer, Integer> ACTIVE_TURN_TOTAL_STROKES_BY_HOLE = new HashMap<>();
     private static final Map<Integer, UUID> TURN_SKIP_ONCE_BY_HOLE = new HashMap<>();
+    private static final Map<Integer, UUID> LAST_THROWER_BY_HOLE = new HashMap<>();
 
     private TurnManager() {
     }
@@ -34,6 +37,26 @@ public final class TurnManager {
         ACTIVE_TURN_STARTED_AT_BY_HOLE.clear();
         ACTIVE_TURN_TOTAL_STROKES_BY_HOLE.clear();
         TURN_SKIP_ONCE_BY_HOLE.clear();
+        LAST_THROWER_BY_HOLE.clear();
+    }
+
+    public static void recordThrow(UUID playerId, int hole) {
+        if (playerId != null && hole >= 1) {
+            LAST_THROWER_BY_HOLE.put(hole, playerId);
+        }
+    }
+
+    public static void clearLastThrower(int hole) {
+        if (hole >= 1) {
+            LAST_THROWER_BY_HOLE.remove(hole);
+        }
+    }
+
+    public static void clearLastThrowerForPlayer(UUID playerId) {
+        if (playerId == null) {
+            return;
+        }
+        LAST_THROWER_BY_HOLE.entrySet().removeIf(entry -> entry.getValue().equals(playerId));
     }
 
     public static void sendTurnActionBar(MinecraftServer server, ServerPlayerEntity viewer, int hole) {
@@ -47,16 +70,24 @@ public final class TurnManager {
         long remainingTicks = Math.max(0, TURN_TIMEOUT_TICKS - elapsedTicks);
         long remainingSeconds = (remainingTicks + 19) / 20;
 
-        ServerPlayerEntity activeTurnPlayer = server.getPlayerManager().getPlayer(activeTurnPlayerId);
         String timer = formatTurnTimer(remainingSeconds);
+        
+        // Get the name of the active turn player (bot or human)
+        String throwerName;
+        if (BotSimulator.isBot(activeTurnPlayerId)) {
+            throwerName = BotSimulator.getBotProfile(activeTurnPlayerId)
+                    .map(BotSimulator.BotProfile::name)
+                    .orElse("Bot");
+        } else {
+            ServerPlayerEntity activeTurnPlayer = server.getPlayerManager().getPlayer(activeTurnPlayerId);
+            throwerName = activeTurnPlayer == null ? "Player" : activeTurnPlayer.getGameProfile().getName();
+        }
+        
         if (activeTurnPlayerId.equals(viewer.getUuid())) {
             viewer.sendMessage(Text.literal("Your turn | " + timer + " left"), true);
             return;
         }
 
-        String throwerName = activeTurnPlayer == null
-                ? "Player"
-                : activeTurnPlayer.getGameProfile().getName();
         viewer.sendMessage(Text.literal("Turn: " + throwerName + " | " + timer + " left"), true);
     }
 
@@ -81,12 +112,27 @@ public final class TurnManager {
         Map<Integer, Integer> updatedTurnTotalByHole = new HashMap<>();
 
         for (Map.Entry<UUID, PlayerRoundState> entry : snapshot.entrySet()) {
-            ServerPlayerEntity player = server.getPlayerManager().getPlayer(entry.getKey());
-            if (player == null || player.getWorld().getRegistryKey() != placed.worldKey()) {
-                continue;
+            UUID playerId = entry.getKey();
+            
+            // Check if this is a bot or a real player
+            if (BotSimulator.isBot(playerId)) {
+                // Bots are always eligible if they're active participants
+                if (courseManager.getActiveParticipantIds().contains(playerId)) {
+                    int hole = entry.getValue().currentHole();
+                    updatedActiveByHole.putIfAbsent(hole, null);
+                }
+            } else {
+                // Real players must be online and in the correct world
+                ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
+                if (player == null || player.getWorld().getRegistryKey() != placed.worldKey()) {
+                    continue;
+                }
+                if (!courseManager.getActiveParticipantIds().contains(playerId)) {
+                    continue;
+                }
+                int hole = entry.getValue().currentHole();
+                updatedActiveByHole.putIfAbsent(hole, null);
             }
-            int hole = entry.getValue().currentHole();
-            updatedActiveByHole.putIfAbsent(hole, null);
         }
 
         for (Integer hole : new ArrayList<>(updatedActiveByHole.keySet())) {
@@ -117,6 +163,8 @@ public final class TurnManager {
             if ((now - startedAt) >= TURN_TIMEOUT_TICKS) {
                 applyTurnTimeoutPenalty(server, roundStateManager, expected, expectedState, placed);
                 TURN_SKIP_ONCE_BY_HOLE.put(hole, expected);
+                // Clear last thrower so the timed-out player doesn't get skipped again
+                clearLastThrower(hole);
 
                 Map<UUID, PlayerRoundState> refreshedSnapshot = roundStateManager.snapshotStates();
                 UUID nextExpected = determineExpectedTurnPlayer(server, roundStateManager, courseManager, refreshedSnapshot, hole, placed, expected);
@@ -158,6 +206,20 @@ public final class TurnManager {
                 broadcastTurnChange(server, placed.worldKey(), hole, newPlayer, courseManager.getActiveParticipantIds());
             }
         }
+        
+        // Log turn state for debugging
+        for (Map.Entry<Integer, UUID> entry : updatedActiveByHole.entrySet()) {
+            Integer hole = entry.getKey();
+            UUID playerId = entry.getValue();
+            if (playerId != null) {
+                String playerName = BotSimulator.isBot(playerId) 
+                    ? BotSimulator.getBotProfile(playerId).map(BotSimulator.BotProfile::name).orElse("Bot")
+                    : server.getPlayerManager().getPlayer(playerId) != null 
+                        ? server.getPlayerManager().getPlayer(playerId).getGameProfile().getName()
+                        : playerId.toString().substring(0, 8);
+                McdgMod.LOGGER.info("TurnManager: Hole {} active turn: {}", hole, playerName);
+            }
+        }
     }
 
     private static void broadcastTurnChange(
@@ -167,14 +229,26 @@ public final class TurnManager {
             UUID newPlayerId,
             Set<UUID> participantIds
     ) {
-        ServerPlayerEntity newPlayer = server.getPlayerManager().getPlayer(newPlayerId);
-        if (newPlayer == null) {
-            return;
+        String name;
+        
+        // Check if this is a bot
+        if (BotSimulator.isBot(newPlayerId)) {
+            name = BotSimulator.getBotProfile(newPlayerId).map(BotSimulator.BotProfile::name).orElse("Bot");
+        } else {
+            ServerPlayerEntity newPlayer = server.getPlayerManager().getPlayer(newPlayerId);
+            if (newPlayer == null) {
+                return;
+            }
+            name = newPlayer.getGameProfile().getName();
         }
-        String name = newPlayer.getGameProfile().getName();
+        
         Text message = Text.literal("It's now " + name + "'s turn on Hole " + hole)
                 .formatted(Formatting.GREEN);
         for (UUID id : participantIds) {
+            // Only send to real players, not bots
+            if (BotSimulator.isBot(id)) {
+                continue;
+            }
             ServerPlayerEntity viewer = server.getPlayerManager().getPlayer(id);
             if (viewer != null && viewer.getWorld().getRegistryKey() == worldKey) {
                 viewer.sendMessage(message, false);
@@ -196,10 +270,14 @@ public final class TurnManager {
             ServerWorld world = server.getWorld(placed.worldKey());
             if (world != null) {
                 roundStateManager.updateLie(playerId, tee);
-                ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
-                if (player != null && player.getWorld().getRegistryKey() == placed.worldKey()) {
-                    player.teleport(tee.getX() + 0.5, tee.getY() + 1.0, tee.getZ() + 0.5);
-                    player.sendMessage(Text.literal("Turn timeout: +1 stroke. Reset to tee, turn passed."), true);
+                
+                // Only teleport real players, not bots
+                if (!BotSimulator.isBot(playerId)) {
+                    ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
+                    if (player != null && player.getWorld().getRegistryKey() == placed.worldKey()) {
+                        player.teleport(tee.getX() + 0.5, tee.getY() + 1.0, tee.getZ() + 0.5);
+                        player.sendMessage(Text.literal("Turn timeout: +1 stroke. Reset to tee, turn passed."), true);
+                    }
                 }
             }
         }
@@ -224,14 +302,26 @@ public final class TurnManager {
             if (entry.getValue().currentHole() != hole) {
                 continue;
             }
-            ServerPlayerEntity player = server.getPlayerManager().getPlayer(entry.getKey());
-            if (player == null || player.getWorld().getRegistryKey() != placed.worldKey()) {
-                continue;
+            
+            UUID playerId = entry.getKey();
+            
+            // Check if this is a bot or a real player
+            if (BotSimulator.isBot(playerId)) {
+                // Bots are always eligible if they're active participants
+                if (courseManager.getActiveParticipantIds().contains(playerId)) {
+                    eligible.add(playerId);
+                }
+            } else {
+                // Real players must be online and in the correct world
+                ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
+                if (player == null || player.getWorld().getRegistryKey() != placed.worldKey()) {
+                    continue;
+                }
+                if (!courseManager.getActiveParticipantIds().contains(playerId)) {
+                    continue;
+                }
+                eligible.add(playerId);
             }
-            if (!courseManager.getActiveParticipantIds().contains(entry.getKey())) {
-                continue;
-            }
-            eligible.add(entry.getKey());
         }
 
         if (eligible.isEmpty()) {
@@ -265,9 +355,18 @@ public final class TurnManager {
             });
         }
 
+        UUID lastThrower = LAST_THROWER_BY_HOLE.get(hole);
+        
+        // Handle skip candidate (for timeout scenarios)
         if (skipCandidate != null && ordered.size() > 1 && skipCandidate.equals(ordered.get(0))) {
             return ordered.get(1);
         }
+        
+        // Skip last thrower to ensure proper rotation (unless only one player)
+        if (lastThrower != null && ordered.size() > 1 && lastThrower.equals(ordered.get(0))) {
+            return ordered.get(1);
+        }
+        
         return ordered.get(0);
     }
 

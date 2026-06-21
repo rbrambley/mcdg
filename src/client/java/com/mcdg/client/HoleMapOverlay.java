@@ -62,7 +62,7 @@ public final class HoleMapOverlay {
         visible = v;
     }
 
-    public static void render(DrawContext ctx, MinecraftClient client, float hudAlpha) {
+    public static void render(DrawContext ctx, MinecraftClient client, float hudAlpha, LeftSideHudLayout layout) {
         if (!visible || client.options.hudHidden || client.textRenderer == null) {
             return;
         }
@@ -80,18 +80,17 @@ public final class HoleMapOverlay {
         int xaeroMargin = Math.round(8 * scale);
         int panelX = xaeroMargin; // Same left position as Xaero for alignment
         
-        int screenHeight = ctx.getScaledWindowHeight();
+        // Reserve space for Xaero's minimap in the layout manager
+        layout.reserveTopSpace(Math.round(XAEROS_TOP_RESERVED * scale) + Math.round(HUD_SPACING * scale));
         
-        // Position right after Xaero's space
-        int panelY = Math.round(XAEROS_TOP_RESERVED * scale) + Math.round(HUD_SPACING * scale);
-        
-        // Calculate available space to where scoreboard actually sits (near bottom)
-        int scoreboardH = Math.max(RunningScoreboardOverlay.getLastPanelHeight(), Math.round(42 * scale));
-        int scoreboardTop = screenHeight - scoreboardH - Math.round(HUD_SPACING * scale);
-        int availableHeight = scoreboardTop - panelY - Math.round(HUD_SPACING * scale);
+        // Calculate available space considering remaining layout space
+        int availableHeight = layout.getRemainingSpace();
         
         // Dynamic panel height: fill available space with min/max bounds
         int panelH = Math.max(Math.round(MIN_PANEL_H * scale), Math.min(availableHeight, Math.round(MAX_PANEL_H * scale)));
+        
+        // Allocate space in the layout manager
+        int panelY = layout.allocateSpace(panelH);
         
         // Track rendered position for scoreboard coordination
         lastRenderedY = panelY;

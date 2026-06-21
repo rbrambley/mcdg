@@ -189,9 +189,13 @@ public final class McdgClientMod implements ClientModInitializer {
             HudOverlays.renderStanceSettings(drawContext, MinecraftClient.getInstance(), hudAlpha);
             ScorecardOverlay.render(drawContext, holeMapState, holeMapStateReceivedAtMs, hudAlpha);
             
-            // Left-side HUDs
-            HoleMapOverlay.render(drawContext, MinecraftClient.getInstance(), hudAlpha);
-            RunningScoreboardOverlay.render(drawContext, runningRoundScoreState, hudAlpha);
+            // Left-side HUDs - use shared layout manager for vertical coordination
+            float scale = HudUtil.getScaleFactor(drawContext);
+            int screenHeight = drawContext.getScaledWindowHeight();
+            LeftSideHudLayout layout = new LeftSideHudLayout(screenHeight, scale);
+            
+            HoleMapOverlay.render(drawContext, MinecraftClient.getInstance(), hudAlpha, layout);
+            RunningScoreboardOverlay.render(drawContext, runningRoundScoreState, hudAlpha, layout);
             
             // Center HUDs
             HudOverlays.renderCompass(drawContext);

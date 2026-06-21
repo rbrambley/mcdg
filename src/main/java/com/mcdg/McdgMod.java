@@ -373,6 +373,7 @@ public final class McdgMod implements ModInitializer {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
             server.execute(() -> {
                 HoleMapSyncService.onPlayerDisconnect(handler.player.getUuid());
+                handlePlayerDisconnectDuringWarmup(handler.player.getUuid(), server);
             })
         );
         HoleProgressTracker.register(
@@ -823,23 +824,35 @@ public final class McdgMod implements ModInitializer {
                 ROUND_STATE_MANAGER.startRoundForPlayer(player.getUuid(), targetLie);
             }
         }
+    }
 
-        RoundInventoryCleaner.restoreRoundInventory(player);
-        ScorecardManager.ensureScorecardInInventory(player);
-
-        PlayerRoundState currentState = ROUND_STATE_MANAGER.getState(player.getUuid()).orElse(null);
-
-        if (targetLie != null && player.getWorld().getRegistryKey().equals(world.getRegistryKey())) {
-            BlockPos safeLie = resolveSafeFeetNearWithin(world, targetLie, 2);
-            ROUND_STATE_MANAGER.setState(player.getUuid(), currentState == null
-                    ? new PlayerRoundState(1, safeLie, 0, 0, false, 0)
-                    : currentState.withLie(safeLie));
-            player.teleport(safeLie.getX() + 0.5, safeLie.getY() + 1.0, safeLie.getZ() + 0.5);
-            currentState = ROUND_STATE_MANAGER.getState(player.getUuid()).orElse(null);
+    private static void handlePlayerDisconnectDuringWarmup(UUID playerId, net.minecraft.server.MinecraftServer server) {
+        if (!ACTIVE_COURSE_MANAGER.isWarmupActive()) {
+            return;
         }
-        int hole = currentState == null ? 1 : currentState.currentHole();
-        player.sendMessage(Text.literal("Rejoined active round at hole " + hole + "."), true);
-        HoleProgressTracker.sendRunningScoreboardToPlayer(player, ACTIVE_COURSE_MANAGER, ROUND_STATE_MANAGER);
+
+        if (!ACTIVE_COURSE_MANAGER.getActiveParticipantIds().contains(playerId)) {
+            return;
+        }
+
+        ACTIVE_COURSE_MANAGER.removeActiveParticipantId(playerId);
+        ROUND_STATE_MANAGER.clearPlayer(playerId);
+
+        // Notify remaining participants
+        for (UUID participantId : ACTIVE_COURSE_MANAGER.getActiveParticipantIds()) {
+            ServerPlayerEntity player = server.getPlayerManager().getPlayer(participantId);
+            if (player != null) {
+                player.sendMessage(Text.literal("A player left during warmup."), true);
+            }
+        }
+
+        // If no participants remain, cancel warmup
+        if (ACTIVE_COURSE_MANAGER.getActiveParticipantIds().isEmpty()) {
+            ACTIVE_COURSE_MANAGER.setWarmupActive(false);
+            ACTIVE_COURSE_MANAGER.clear();
+            ROUND_STATE_MANAGER.clearAll();
+            LOGGER.info("Warmup cancelled: all players left during warmup.");
+        }
     }
 
     public static void handleLeaderboardRequest(ServerPlayerEntity player, String courseName) {

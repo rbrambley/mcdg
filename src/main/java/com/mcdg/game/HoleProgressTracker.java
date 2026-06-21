@@ -4,6 +4,7 @@ import com.mcdg.McdgMod;
 import com.mcdg.data.Course;
 import com.mcdg.game.RoundChunkLoader;
 import com.mcdg.data.Hole;
+import com.mcdg.game.BotSimulator;
 import com.mcdg.net.AceCinematicSync;
 import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
@@ -85,6 +86,7 @@ public final class HoleProgressTracker {
                     CACHED_CORRIDOR_HALF_WIDTH.clear();
                     AceCompanionService.reset();
                     RoundRewardService.reset();
+                    BotSimulator.reset();
                     if (LAST_RUNNING_SCOREBOARD_HASH != Integer.MIN_VALUE) {
                         sendRunningScoreboardInactive(server);
                     }
@@ -105,6 +107,10 @@ public final class HoleProgressTracker {
 
             Map<UUID, PlayerRoundState> snapshot = roundStateManager.snapshotStates();
             ensureHoleOneRandomOrder(snapshot);
+            
+            // Process bot throws for multiplayer testing
+            BotSimulator.tick(server, courseManager, roundStateManager);
+            
             TurnManager.enforceTurnTimeouts(server, courseManager, roundStateManager, course, placed, snapshot);
             maybeSendRunningScoreboard(server, courseManager, course, placed, roundStateManager, snapshot);
             for (Map.Entry<UUID, PlayerRoundState> entry : snapshot.entrySet()) {
@@ -369,6 +375,10 @@ public final class HoleProgressTracker {
             return ThrowTurnGate.allowed();
         }
 
+        if (courseManager.isWarmupActive()) {
+            return ThrowTurnGate.blocked("Warmup in progress - wait for the round to start.");
+        }
+
         PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
         if (placed == null) {
             return ThrowTurnGate.allowed();
@@ -399,6 +409,14 @@ public final class HoleProgressTracker {
         PlayerRoundState expectedState = snapshot.get(expectedPlayer);
         if (expectedState != null && ThrowResolver.isThrowResolutionPending(expectedPlayer, expectedState.totalStrokes())) {
             return ThrowTurnGate.allowed();
+        }
+
+        // Check if expected player is a bot
+        if (BotSimulator.isBot(expectedPlayer)) {
+            String botName = BotSimulator.getBotProfile(expectedPlayer)
+                    .map(BotSimulator.BotProfile::name)
+                    .orElse("Bot");
+            return ThrowTurnGate.blocked("Wait your turn. " + botName + " throws first.");
         }
 
         ServerPlayerEntity expected = player.getServer().getPlayerManager().getPlayer(expectedPlayer);
@@ -437,7 +455,7 @@ public final class HoleProgressTracker {
             ActiveCourseManager courseManager,
             RoundStateManager roundStateManager
     ) {
-        if (player == null || !courseManager.isRoundActive()) {
+        if (player == null || (!courseManager.isRoundActive() && !courseManager.isWarmupActive())) {
             return;
         }
 
@@ -612,10 +630,22 @@ public final class HoleProgressTracker {
             }
 
             ServerPlayerEntity onlinePlayer = server.getPlayerManager().getPlayer(playerId);
-            String playerName = onlinePlayer != null
-                    ? onlinePlayer.getGameProfile().getName()
-                    : playerId.toString().substring(0, 8);
-            boolean online = onlinePlayer != null;
+            String playerName;
+            boolean online;
+            
+            // Check if this is a bot
+            if (BotSimulator.isBot(playerId)) {
+                playerName = BotSimulator.getBotProfile(playerId)
+                        .map(BotSimulator.BotProfile::name)
+                        .orElse(playerId.toString().substring(0, 8));
+                online = false; // Bots are never "online" in the traditional sense
+            } else {
+                playerName = onlinePlayer != null
+                        ? onlinePlayer.getGameProfile().getName()
+                        : playerId.toString().substring(0, 8);
+                online = onlinePlayer != null;
+            }
+            
             int runningTotal = runningTotalThroughHole(playerId, focusHole);
             rows.add(new RoundRunningScoresSync.PlayerRow(playerName, online, holeScores, runningTotal));
         }
@@ -636,6 +666,15 @@ public final class HoleProgressTracker {
             }
         }
         return total;
+    }
+
+    /**
+     * Record hole score for a bot (called from BotSimulator).
+     * Bots don't have client-side scorecards, so we record directly in the history map.
+     */
+    public static void recordHoleScoreForBot(UUID botUuid, int holeIndex, int score) {
+        Map<Integer, Integer> scores = HOLE_SCORE_HISTORY.computeIfAbsent(botUuid, k -> new HashMap<>());
+        scores.put(holeIndex, score);
     }
 
     private static void sendRunningScoreboardInactive(MinecraftServer server) {

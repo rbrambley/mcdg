@@ -8,9 +8,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.Optional;
 
 public final class ActiveCourseManager {
+    private static final long WARMUP_DURATION_MS = 30_000L;
+    
     private volatile Course activeCourse;
     private volatile PlacedCourseState placedCourseState;
     private volatile boolean roundActive;
+    private volatile boolean warmupActive;
+    private volatile long warmupStartTimeMs;
     private volatile boolean persistentPlacedCourse;
     private volatile boolean legacyPracticeSnapshot;
     private volatile Integer activeCourseCatalogIndex;
@@ -68,6 +72,31 @@ public final class ActiveCourseManager {
 
     public void setRoundActive(boolean roundActive) {
         this.roundActive = roundActive;
+    }
+
+    public boolean isWarmupActive() {
+        return warmupActive;
+    }
+
+    public void setWarmupActive(boolean warmupActive) {
+        this.warmupActive = warmupActive;
+        if (warmupActive) {
+            this.warmupStartTimeMs = System.currentTimeMillis();
+        } else {
+            this.warmupStartTimeMs = 0L;
+        }
+    }
+
+    public long getWarmupStartTimeMs() {
+        return warmupStartTimeMs;
+    }
+
+    public long getWarmupRemainingMs() {
+        if (!warmupActive || warmupStartTimeMs == 0L) {
+            return 0L;
+        }
+        long elapsed = System.currentTimeMillis() - warmupStartTimeMs;
+        return Math.max(0L, WARMUP_DURATION_MS - elapsed);
     }
 
     public void setActiveParticipantIds(Iterable<UUID> participantIds) {
@@ -128,6 +157,8 @@ public final class ActiveCourseManager {
         this.activeCourse = null;
         this.placedCourseState = null;
         this.roundActive = false;
+        this.warmupActive = false;
+        this.warmupStartTimeMs = 0L;
         this.persistentPlacedCourse = false;
         this.legacyPracticeSnapshot = false;
         this.activeCourseCatalogIndex = null;

@@ -25,7 +25,7 @@ public final class RunningScoreboardOverlay {
         return lastPanelHeight;
     }
 
-    public static void render(DrawContext drawContext, McdgClientMod.RunningRoundScoreState state, float hudAlpha) {
+    public static void render(DrawContext drawContext, McdgClientMod.RunningRoundScoreState state, float hudAlpha, LeftSideHudLayout layout) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null || client.options.hudHidden || client.textRenderer == null) {
             return;
@@ -53,7 +53,12 @@ public final class RunningScoreboardOverlay {
         int colGap = Math.round(6 * scale);
         int remainingWidth = availableContentWidth - nameColW - totalColW - (colGap * 2);
         int holeColW = Math.max(Math.round(12 * scale), remainingWidth / visibleHoleCount);
-        int rowHeight = Math.round(10 * scale);
+        
+        // Compact mode for large player counts (6+ players)
+        int playerCount = state.rows().size();
+        boolean compactMode = playerCount >= 6;
+        int rowHeight = compactMode ? Math.round(8 * scale) : Math.round(10 * scale);
+        float fontSize = compactMode ? 0.85f : 1.0f;
         
         int panelH = Math.round(22 * scale) + ((state.rows().size() + 1) * rowHeight);
         lastPanelWidth = panelW;
@@ -63,29 +68,22 @@ public final class RunningScoreboardOverlay {
         int xaeroMargin = Math.round(8 * scale);
         int x = xaeroMargin;
         
-        // Position in bottom third, anchored near bottom of screen
-        int screenHeight = drawContext.getScaledWindowHeight();
-        int bottomThirdStart = (2 * screenHeight) / 3;
-        int scaledSpacing = Math.round(HUD_SPACING * scale);
-        int y = screenHeight - panelH - scaledSpacing;
-        
-        // Ensure it stays within bottom third
-        if (y < bottomThirdStart + scaledSpacing) {
-            y = bottomThirdStart + scaledSpacing;
-        }
+        // Use layout manager to allocate space
+        int y = layout.allocateSpace(panelH);
 
         String panelTitle = (state.courseName() != null && !state.courseName().isBlank()) ? state.courseName() : "Round Scores";
         HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, panelTitle, hudAlpha);
 
         int cursorX = x + Math.round(6 * scale);
         int headerY = y + Math.round(14 * scale);
-        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal("Player"), cursorX, headerY, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha), scale);
+        float textScale = scale * fontSize;
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal("Player"), cursorX, headerY, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha), textScale);
         cursorX += nameColW + colGap;
 
         for (int hole = startHole; hole <= endHole; hole++) {
             String label = Integer.toString(hole);
             int color = hole == focusHole ? 0xFFEAC26F : HUD_CARD_MUTED_TEXT;
-            int labelWidth = Math.round(client.textRenderer.getWidth(label) * scale);
+            int labelWidth = Math.round(client.textRenderer.getWidth(label) * textScale);
             HudUtil.drawScaledText(
                     drawContext,
                     client.textRenderer,
@@ -93,13 +91,13 @@ public final class RunningScoreboardOverlay {
                     cursorX + rightAlign(0, holeColW, labelWidth),
                     headerY,
                     HudUtil.withAlpha(color, hudAlpha),
-                    scale
+                    textScale
             );
             cursorX += holeColW + Math.round(2 * scale);
         }
 
         cursorX += colGap;
-        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal("Tot"), cursorX, headerY, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha), scale);
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal("Tot"), cursorX, headerY, HudUtil.withAlpha(HUD_CARD_MUTED_TEXT, hudAlpha), textScale);
 
         for (int rowIndex = 0; rowIndex < state.rows().size(); rowIndex++) {
             McdgClientMod.RunningRoundScoreRow row = state.rows().get(rowIndex);
@@ -107,14 +105,14 @@ public final class RunningScoreboardOverlay {
             int rowColor = row.online() ? HUD_CARD_TEXT : HUD_CARD_MUTED_TEXT;
 
             String displayName = row.online() ? row.playerName() : (row.playerName() + " (off)");
-            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(displayName), x + Math.round(6 * scale), rowY, HudUtil.withAlpha(rowColor, hudAlpha), scale);
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(displayName), x + Math.round(6 * scale), rowY, HudUtil.withAlpha(rowColor, hudAlpha), textScale);
 
             int rowCursorX = x + Math.round(6 * scale) + nameColW + colGap;
             for (int hole = startHole; hole <= endHole; hole++) {
                 int value = (hole - 1) < row.holeScores().size() ? row.holeScores().get(hole - 1) : -1;
                 String text = value < 0 ? "-" : Integer.toString(value);
                 int valueColor = hole == focusHole ? 0xFFF5D684 : rowColor;
-                int textWidth = Math.round(client.textRenderer.getWidth(text) * scale);
+                int textWidth = Math.round(client.textRenderer.getWidth(text) * textScale);
                 HudUtil.drawScaledText(
                         drawContext,
                         client.textRenderer,
@@ -122,14 +120,14 @@ public final class RunningScoreboardOverlay {
                         rowCursorX + rightAlign(0, holeColW, textWidth),
                         rowY,
                         HudUtil.withAlpha(valueColor, hudAlpha),
-                        scale
+                        textScale
                 );
                 rowCursorX += holeColW + Math.round(2 * scale);
             }
 
             rowCursorX += colGap;
             String totalText = Integer.toString(row.runningTotal());
-            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(totalText), rowCursorX, rowY, HudUtil.withAlpha(0xFFB5F7B5, hudAlpha), scale);
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(totalText), rowCursorX, rowY, HudUtil.withAlpha(0xFFB5F7B5, hudAlpha), textScale);
         }
     }
 

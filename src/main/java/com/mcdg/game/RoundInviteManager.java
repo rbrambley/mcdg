@@ -25,6 +25,8 @@ import net.minecraft.util.math.BlockPos;
  */
 public final class RoundInviteManager {
     private static final long INVITE_TIMEOUT_MS = 30_000L;
+    private static final long WARMUP_COUNTDOWN_INTERVAL_MS = 5_000L;
+    private static long lastWarmupCountdownMs = 0L;
 
     private final ActiveCourseManager courseManager;
     private final RoundStateManager roundStateManager;
@@ -154,6 +156,8 @@ public final class RoundInviteManager {
 
     public void tick(MinecraftServer server) {
         long now = System.currentTimeMillis();
+        
+        // Handle invite timeouts
         List<UUID> toFinalize = new ArrayList<>();
         for (Map.Entry<UUID, PendingInvite> entry : pendingByInitiator.entrySet()) {
             if (now - entry.getValue().createdAtMs >= INVITE_TIMEOUT_MS) {
@@ -172,6 +176,46 @@ public final class RoundInviteManager {
                     }
                 }
                 finalizeInvite(server, invite);
+            }
+        }
+
+        // Handle warmup expiration and countdown
+        if (courseManager.isWarmupActive()) {
+            long remainingMs = courseManager.getWarmupRemainingMs();
+            
+            // Send countdown messages at intervals
+            if (now - lastWarmupCountdownMs >= WARMUP_COUNTDOWN_INTERVAL_MS) {
+                lastWarmupCountdownMs = now;
+                int remainingSeconds = (int) Math.ceil(remainingMs / 1000.0);
+                
+                // Only send countdown if more than 3 seconds remaining
+                if (remainingSeconds > 3) {
+                    for (UUID participantId : courseManager.getActiveParticipantIds()) {
+                        ServerPlayerEntity player = server.getPlayerManager().getPlayer(participantId);
+                        if (player != null) {
+                            player.sendMessage(Text.literal("Round starting in " + remainingSeconds + " seconds..."), true);
+                        }
+                    }
+                }
+            }
+            
+            if (remainingMs <= 0) {
+                transitionFromWarmupToActiveRound(server);
+            }
+        } else {
+            lastWarmupCountdownMs = 0L;
+        }
+    }
+
+    private void transitionFromWarmupToActiveRound(MinecraftServer server) {
+        courseManager.setWarmupActive(false);
+        courseManager.setRoundActive(true);
+
+        // Notify all participants that the round has started
+        for (UUID participantId : courseManager.getActiveParticipantIds()) {
+            ServerPlayerEntity player = server.getPlayerManager().getPlayer(participantId);
+            if (player != null) {
+                player.sendMessage(Text.literal("Round started! Good luck!"), true);
             }
         }
     }
@@ -261,14 +305,14 @@ public final class RoundInviteManager {
             ensureSingleRoundThrowItem(player);
             ScorecardManager.initializeScorecard(player, course, placed);
             participantIds.add(player.getUuid());
-            player.sendMessage(Text.literal("Round starting! Teleported to Hole 1 tee."), true);
+            player.sendMessage(Text.literal("Warmup period started. Round will begin in 30 seconds."), true);
         }
 
         courseManager.setActiveParticipantIds(participantIds);
         courseManager.setActiveCourse(course);
         courseManager.setPlacedCourseState(placed);
         courseManager.setPersistentPlacedCourse(true);
-        courseManager.setRoundActive(true);
+        courseManager.setWarmupActive(true);
 
         // Send running scoreboard to all participants
         for (ServerPlayerEntity player : participants) {

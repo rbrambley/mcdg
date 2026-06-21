@@ -48,8 +48,7 @@ public final class RoundLeaderboardHelper {
 
         int rank = 1;
         for (Map.Entry<UUID, Integer> entry : ranked) {
-            ServerPlayerEntity rankedPlayer = server.getPlayerManager().getPlayer(entry.getKey());
-            String name = rankedPlayer != null ? rankedPlayer.getGameProfile().getName() : entry.getKey().toString().substring(0, 8);
+            String name = resolveName(server, entry.getKey());
             Text line = HUD_STATE_FORMATTER.formatRoundSummaryEntry(rank, name, entry.getValue(), totalPar);
             for (ServerPlayerEntity viewer : viewers) {
                 viewer.sendMessage(line, false);
@@ -118,14 +117,17 @@ public final class RoundLeaderboardHelper {
         if (index < 0 || index >= ranked.size()) {
             return "-";
         }
+        return resolveName(server, ranked.get(index).getKey());
+    }
 
-        UUID playerId = ranked.get(index).getKey();
+    private static String resolveName(MinecraftServer server, UUID playerId) {
         ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerId);
         if (player != null) {
             return player.getGameProfile().getName();
         }
-
-        return playerId.toString().substring(0, 8);
+        return BotSimulator.getBotProfile(playerId)
+                .map(BotSimulator.BotProfile::name)
+                .orElseGet(() -> playerId.toString().substring(0, 8));
     }
 
     static int rankedScore(List<Map.Entry<UUID, Integer>> ranked, int index) {
