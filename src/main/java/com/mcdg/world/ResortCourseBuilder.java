@@ -277,6 +277,8 @@ public final class ResortCourseBuilder {
                 progressBar.setColor(BossBar.Color.YELLOW);
                 broadcastToPlayers(Text.literal("Resort building finished: " + builtCourses + "/" + SURROUND_COURSE_COUNT + " built.").formatted(Formatting.YELLOW));
             }
+            progressBar.clearPlayers();
+            progressBar = null;
         }
         McdgMod.LOGGER.info("Finished building resort courses: {} of {} succeeded", builtCourses, SURROUND_COURSE_COUNT);
 
