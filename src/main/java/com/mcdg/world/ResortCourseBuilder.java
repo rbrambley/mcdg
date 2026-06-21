@@ -179,7 +179,8 @@ public final class ResortCourseBuilder {
 
             activePlacer = autoCourseService.createTickIncrementalPlacer(
                     targetWorld, hubOrigin, course, true,
-                    msg -> McdgMod.LOGGER.info("Resort course progress: {}", msg));
+                    msg -> McdgMod.LOGGER.info("Resort course progress: {}", msg),
+                    true);
 
         } catch (Exception ex) {
             McdgMod.LOGGER.warn("FAILED: Course at ({}, {}) failed: {}",

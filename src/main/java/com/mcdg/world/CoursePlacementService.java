@@ -118,28 +118,32 @@ public final class CoursePlacementService {
      * Use this for buildcourse hole placement so the result matches the preview position.
      */
     public PlacedCourseState placeCourseAtFixedOrigin(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback) {
-        return placeCourseAtFixedOrigin(world, origin, course, progressCallback, null, false);
+        return placeCourseAtFixedOrigin(world, origin, course, progressCallback, null, false, false);
     }
 
     public PlacedCourseState placeCourseAtFixedOrigin(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback, Set<BlockPos> externalProtectedPositions) {
-        return placeCourseAtFixedOrigin(world, origin, course, progressCallback, externalProtectedPositions, false);
+        return placeCourseAtFixedOrigin(world, origin, course, progressCallback, externalProtectedPositions, false, false);
     }
 
     public PlacedCourseState placeCourseAtFixedOrigin(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback, Set<BlockPos> externalProtectedPositions, boolean skipHub) {
+        return placeCourseAtFixedOrigin(world, origin, course, progressCallback, externalProtectedPositions, skipHub, false);
+    }
+
+    public PlacedCourseState placeCourseAtFixedOrigin(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback, Set<BlockPos> externalProtectedPositions, boolean skipHub, boolean skipWaterEstimation) {
         boolean previous = useFixedAnchor;
         useFixedAnchor = true;
         try {
-            return placeCourse(world, origin, course, progressCallback, externalProtectedPositions, skipHub);
+            return placeCourse(world, origin, course, progressCallback, externalProtectedPositions, skipHub, skipWaterEstimation);
         } finally {
             useFixedAnchor = previous;
         }
     }
 
     public PlacedCourseState placeCourse(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback) {
-        return placeCourse(world, origin, course, progressCallback, null, false);
+        return placeCourse(world, origin, course, progressCallback, null, false, false);
     }
 
-    private PlacedCourseState placeCourse(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback, Set<BlockPos> externalProtectedPositions, boolean skipHub) {
+    private PlacedCourseState placeCourse(ServerWorld world, BlockPos origin, Course course, IntConsumer progressCallback, Set<BlockPos> externalProtectedPositions, boolean skipHub, boolean skipWaterEstimation) {
         // Current MVP behavior: place relative to the player's surface location.
         CourseAnchorFinder.CourseBounds courseBounds = CourseAnchorFinder.findCourseBounds(course);
         Set<Long> rejectedAnchorKeys = new HashSet<>();
@@ -149,7 +153,9 @@ public final class CoursePlacementService {
         if (useFixedAnchor) {
             // buildcourse: use origin directly so placement matches preview position exactly.
             anchor = SurfaceResolver.resolveSurfacePos(world, origin.getX(), origin.getZ());
-            projectedWaterRatio = CourseAnchorFinder.estimateProjectedWaterRatio(world, course, anchor, courseBounds);
+            if (!skipWaterEstimation) {
+                projectedWaterRatio = CourseAnchorFinder.estimateProjectedWaterRatio(world, course, anchor, courseBounds);
+            }
             anchorBiome = PlacementUtils.biomeId(world.getBiome(anchor));
             McdgMod.LOGGER.info(
                     "Course anchor fixed (buildcourse) anchor=({}, {}, {}) biome={} projectedWaterRatio={}",

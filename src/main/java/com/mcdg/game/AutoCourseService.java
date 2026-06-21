@@ -285,7 +285,12 @@ public final class AutoCourseService {
      */
     public TickIncrementalCoursePlacer createTickIncrementalPlacer(
             ServerWorld world, BlockPos hubOrigin, Course course, boolean skipHub, java.util.function.Consumer<String> progressMessage) {
-        return new TickIncrementalCoursePlacer(placementService, world, hubOrigin, course, skipHub, progressMessage);
+        return new TickIncrementalCoursePlacer(placementService, world, hubOrigin, course, skipHub, progressMessage, false);
+    }
+
+    public TickIncrementalCoursePlacer createTickIncrementalPlacer(
+            ServerWorld world, BlockPos hubOrigin, Course course, boolean skipHub, java.util.function.Consumer<String> progressMessage, boolean skipWaterEstimation) {
+        return new TickIncrementalCoursePlacer(placementService, world, hubOrigin, course, skipHub, progressMessage, skipWaterEstimation);
     }
 
     public AutoCourseScenarioResult placeCourseIncrementally(ServerWorld world, BlockPos hubOrigin, Course course, boolean skipHub, java.util.function.Consumer<String> progressMessage) {

@@ -33,6 +33,7 @@ public final class TickIncrementalCoursePlacer {
     private final BlockPos hubOrigin;
     private final Course course;
     private final Consumer<String> progressMessage;
+    private final boolean skipWaterEstimation;
 
     private final List<Hole> builtHoles = new ArrayList<>();
     private final Map<BlockPos, BlockState> mergedOriginals = new HashMap<>();
@@ -62,6 +63,18 @@ public final class TickIncrementalCoursePlacer {
             boolean skipHub,
             Consumer<String> progressMessage
     ) {
+        this(placementService, world, hubOrigin, course, skipHub, progressMessage, false);
+    }
+
+    public TickIncrementalCoursePlacer(
+            CoursePlacementService placementService,
+            ServerWorld world,
+            BlockPos hubOrigin,
+            Course course,
+            boolean skipHub,
+            Consumer<String> progressMessage,
+            boolean skipWaterEstimation
+    ) {
         if (course == null || course.holes().isEmpty()) {
             throw new IllegalArgumentException("TickIncrementalCoursePlacer requires a course with at least one hole");
         }
@@ -71,6 +84,7 @@ public final class TickIncrementalCoursePlacer {
         this.hubOrigin = hubOrigin;
         this.course = course;
         this.progressMessage = progressMessage;
+        this.skipWaterEstimation = skipWaterEstimation;
     }
 
     /**
@@ -148,7 +162,7 @@ public final class TickIncrementalCoursePlacer {
         );
         Course tempCourse = new Course(course.seed(), course.name() + "-hole-" + hole.index(), List.of(candidate));
         PlacedCourseState placed = placementService.placeCourseAtFixedOrigin(
-                world, center, tempCourse, ignored -> {}, globalProtectedPositions, true);
+                world, center, tempCourse, ignored -> {}, globalProtectedPositions, true, skipWaterEstimation);
 
         BlockPos actualTee = placed.holeTees().get(hole.index());
         BlockPos actualBasket = placed.holeBaskets().get(hole.index());
