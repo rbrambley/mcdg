@@ -13,11 +13,11 @@ out/
 .settings/
 bin/
 *.launch
-.devin/
 .windsurf/
 
 # Temporary helper scripts and patches
 scripts/*.ps1
+!scripts/deploy-to-github-releases.ps1
 water-gap-changes.patch
 net/
 
