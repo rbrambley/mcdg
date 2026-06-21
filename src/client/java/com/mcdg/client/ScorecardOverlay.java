@@ -15,8 +15,13 @@ import net.minecraft.text.Text;
  */
 public final class ScorecardOverlay {
     private static final long STALE_TIMEOUT_MS = 15000L;
+    private static boolean throwStatsRenderedThisFrame = false;
 
     private ScorecardOverlay() {
+    }
+
+    public static void setThrowStatsRenderedThisFrame(boolean rendered) {
+        throwStatsRenderedThisFrame = rendered;
     }
 
     public static void render(DrawContext drawContext, HoleMapState state, long holeMapStateReceivedAtMs, float hudAlpha) {
@@ -24,10 +29,15 @@ public final class ScorecardOverlay {
         if (client.player == null || client.options.hudHidden || client.textRenderer == null) {
             return;
         }
-        if (state == null || (System.currentTimeMillis() - holeMapStateReceivedAtMs) > STALE_TIMEOUT_MS) {
+        // Only render if a round is active
+        if (state == null || !state.isActive()) {
+            return;
+        }
+        if ((System.currentTimeMillis() - holeMapStateReceivedAtMs) > STALE_TIMEOUT_MS) {
             return;
         }
 
+        float scale = HudUtil.getScaleFactor(drawContext);
         NbtCompound scorecardRoot = findScorecardRoot(client);
         if (scorecardRoot == null) {
             return;
@@ -39,37 +49,49 @@ public final class ScorecardOverlay {
         }
 
         int visibleRows = holes.size();
-        int holeColW = Math.max(client.textRenderer.getWidth("H"), client.textRenderer.getWidth(Integer.toString(holes.size())));
-        int distColW = client.textRenderer.getWidth("Dist");
-        int parColW = client.textRenderer.getWidth("Par");
-        int scoreColW = client.textRenderer.getWidth("Score");
+        int holeColW = Math.max(Math.round(client.textRenderer.getWidth("H") * scale), Math.round(client.textRenderer.getWidth(Integer.toString(holes.size())) * scale));
+        int distColW = Math.round(client.textRenderer.getWidth("Dist") * scale);
+        int parColW = Math.round(client.textRenderer.getWidth("Par") * scale);
+        int scoreColW = Math.round(client.textRenderer.getWidth("Score") * scale);
         for (int i = 0; i < visibleRows; i++) {
             NbtCompound row = holes.getCompound(i);
             int dist = row.getInt(ScorecardManager.KEY_DISTANCE_FEET);
             int score = row.getInt(ScorecardManager.KEY_SCORE);
-            distColW = Math.max(distColW, client.textRenderer.getWidth(dist + "ft"));
-            scoreColW = Math.max(scoreColW, client.textRenderer.getWidth(score < 0 ? "-" : Integer.toString(score)));
+            distColW = Math.max(distColW, Math.round(client.textRenderer.getWidth(dist + "ft") * scale));
+            scoreColW = Math.max(scoreColW, Math.round(client.textRenderer.getWidth(score < 0 ? "-" : Integer.toString(score)) * scale));
         }
 
-        int colGap = 10;
-        int colHoleX = 6;
+        int colGap = Math.round(10 * scale);
+        int colHoleX = Math.round(6 * scale);
         int colDistX = colHoleX + holeColW + colGap;
         int colParX = colDistX + distColW + colGap;
         int colScoreX = colParX + parColW + colGap;
-        int panelW = colScoreX + scoreColW + 6;
-        int panelH = 22 + (visibleRows * 10);
-        int x = drawContext.getScaledWindowWidth() - panelW - 8;
-        int preferredY = Math.max((drawContext.getScaledWindowHeight() / 2) + 14, drawContext.getScaledWindowHeight() - panelH - 8);
-        int y = Math.max(8, Math.min(preferredY, drawContext.getScaledWindowHeight() - panelH - 8));
+        
+        // Calculate content width
+        int contentWidth = colScoreX + scoreColW + Math.round(6 * scale);
+        
+        // Use shared panel width from other right-side HUDs for alignment
+        int panelW = Math.max(RoundInfoOverlay.getSharedPanelWidth(), contentWidth);
+        RoundInfoOverlay.setSharedPanelWidth(panelW);
+        
+        int panelH = Math.round(22 * scale) + (visibleRows * Math.round(10 * scale));
+        int x = drawContext.getScaledWindowWidth() - panelW - Math.round(8 * scale);
+        
+        // Position below other right-side HUDs (ThrowStats and StanceSettings)
+        int throwStatsHeight = throwStatsRenderedThisFrame ? HudOverlays.getLastThrowStatsPanelHeight() : 0;
+        int stanceSettingsHeight = HudOverlays.getLastStanceSettingsPanelHeight();
+        int cardSpacing = Math.round(10 * scale);
+        int roundHudBottom = Math.round(8 * scale) + RoundInfoOverlay.getLastPanelHeight();
+        int y = roundHudBottom + cardSpacing + throwStatsHeight + cardSpacing + stanceSettingsHeight + cardSpacing;
 
         String courseName = scorecardRoot.getString(ScorecardManager.KEY_COURSE_NAME);
         String panelTitle = (courseName != null && !courseName.isBlank()) ? courseName : "Scorecard";
         HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, panelTitle, hudAlpha);
 
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("H"), x + colHoleX, y + 14, HudUtil.withAlpha(0xAAB8CC, hudAlpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Dist"), x + colDistX, y + 14, HudUtil.withAlpha(0xAAB8CC, hudAlpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Par"), x + colParX, y + 14, HudUtil.withAlpha(0xAAB8CC, hudAlpha));
-        drawContext.drawTextWithShadow(client.textRenderer, Text.literal("Score"), x + colScoreX, y + 14, HudUtil.withAlpha(0xAAB8CC, hudAlpha));
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal("H"), x + colHoleX, y + Math.round(14 * scale), HudUtil.withAlpha(0xAAB8CC, hudAlpha), scale);
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal("Dist"), x + colDistX, y + Math.round(14 * scale), HudUtil.withAlpha(0xAAB8CC, hudAlpha), scale);
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal("Par"), x + colParX, y + Math.round(14 * scale), HudUtil.withAlpha(0xAAB8CC, hudAlpha), scale);
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal("Score"), x + colScoreX, y + Math.round(14 * scale), HudUtil.withAlpha(0xAAB8CC, hudAlpha), scale);
 
         for (int i = 0; i < visibleRows; i++) {
             NbtCompound row = holes.getCompound(i);
@@ -81,36 +103,44 @@ public final class ScorecardOverlay {
             String distText = dist + "ft";
             String parText = Integer.toString(par);
             String scoreText = score < 0 ? "-" : Integer.toString(score);
-            int rowY = y + 24 + (i * 10);
+            int rowY = y + Math.round(24 * scale) + (i * Math.round(10 * scale));
             int rowColor = hole == state.holeIndex ? 0xFFF4D37A : 0xE8EEF7;
 
-            drawContext.drawTextWithShadow(
+            HudUtil.drawScaledText(
+                    drawContext,
                     client.textRenderer,
                     Text.literal(holeText),
-                    x + rightAlign(colHoleX, holeColW, client.textRenderer.getWidth(holeText)),
+                    x + rightAlign(colHoleX, holeColW, Math.round(client.textRenderer.getWidth(holeText) * scale)),
                     rowY,
-                    HudUtil.withAlpha(rowColor, hudAlpha)
+                    HudUtil.withAlpha(rowColor, hudAlpha),
+                    scale
             );
-            drawContext.drawTextWithShadow(
+            HudUtil.drawScaledText(
+                    drawContext,
                     client.textRenderer,
                     Text.literal(distText),
-                    x + rightAlign(colDistX, distColW, client.textRenderer.getWidth(distText)),
+                    x + rightAlign(colDistX, distColW, Math.round(client.textRenderer.getWidth(distText) * scale)),
                     rowY,
-                    HudUtil.withAlpha(rowColor, hudAlpha)
+                    HudUtil.withAlpha(rowColor, hudAlpha),
+                    scale
             );
-            drawContext.drawTextWithShadow(
+            HudUtil.drawScaledText(
+                    drawContext,
                     client.textRenderer,
                     Text.literal(parText),
-                    x + rightAlign(colParX, parColW, client.textRenderer.getWidth(parText)),
+                    x + rightAlign(colParX, parColW, Math.round(client.textRenderer.getWidth(parText) * scale)),
                     rowY,
-                    HudUtil.withAlpha(rowColor, hudAlpha)
+                    HudUtil.withAlpha(rowColor, hudAlpha),
+                    scale
             );
-            drawContext.drawTextWithShadow(
+            HudUtil.drawScaledText(
+                    drawContext,
                     client.textRenderer,
                     Text.literal(scoreText),
-                    x + rightAlign(colScoreX, scoreColW, client.textRenderer.getWidth(scoreText)),
+                    x + rightAlign(colScoreX, scoreColW, Math.round(client.textRenderer.getWidth(scoreText) * scale)),
                     rowY,
-                    HudUtil.withAlpha(rowColor, hudAlpha)
+                    HudUtil.withAlpha(rowColor, hudAlpha),
+                    scale
             );
         }
     }

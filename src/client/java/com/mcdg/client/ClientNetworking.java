@@ -41,6 +41,7 @@ public final class ClientNetworking {
                     CinematicOverlay.clearRoundComplete();
                     return;
                 }
+                McdgClientMod.setCinematicWasActive(true);
                 CinematicOverlay.activateRoundComplete(
                         payload.totalPar(),
                         payload.totalPlayers(),

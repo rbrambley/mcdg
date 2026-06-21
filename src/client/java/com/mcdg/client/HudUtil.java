@@ -70,7 +70,7 @@ public final class HudUtil {
     
     /**
      * Calculate the global scale factor based on current screen resolution.
-     * Uses the smaller dimension to ensure HUDs fit on both landscape and portrait screens.
+     * Uses the larger dimension to provide better scaling for tall/wide screens.
      * Clamped between MIN_SCALE and MAX_SCALE to ensure readability.
      */
     public static float getScaleFactor(DrawContext drawContext) {
@@ -80,8 +80,8 @@ public final class HudUtil {
         float widthScale = width / BASELINE_WIDTH;
         float heightScale = height / BASELINE_HEIGHT;
         
-        // Use the smaller scale to ensure fitting
-        float scale = Math.min(widthScale, heightScale);
+        // Use the larger scale to provide better scaling for tall/wide screens
+        float scale = Math.max(widthScale, heightScale);
         
         // Clamp to bounds
         return Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale));

@@ -20,6 +20,8 @@ public final class CinematicOverlay {
     private static AceCinematicState aceState;
     private static long nextAceParticleAtMs;
     private static RoundCompleteCinematicState roundCompleteState;
+    private static long roundCompleteStartAtMs = 0;
+    private static long roundCompleteEndAtMs = 0;
 
     private CinematicOverlay() {
     }
@@ -47,6 +49,8 @@ public final class CinematicOverlay {
             int localScore
     ) {
         long now = System.currentTimeMillis();
+        roundCompleteStartAtMs = now;
+        roundCompleteEndAtMs = now + ROUND_COMPLETE_CINEMATIC_DURATION_MS;
         roundCompleteState = new RoundCompleteCinematicState(
                 totalPar,
                 totalPlayers,
@@ -59,12 +63,61 @@ public final class CinematicOverlay {
                 localRank,
                 localScore,
                 now,
-                now + ROUND_COMPLETE_CINEMATIC_DURATION_MS
+                roundCompleteEndAtMs
         );
     }
 
     public static void clearRoundComplete() {
         roundCompleteState = null;
+        roundCompleteStartAtMs = 0;
+        roundCompleteEndAtMs = 0;
+    }
+
+    public static boolean isRoundCompleteActive() {
+        return roundCompleteState != null;
+    }
+
+    /**
+     * Get the current fade alpha for the round complete cinematic.
+     * Returns 0.0f if cinematic is not active.
+     */
+    public static float getRoundCompleteFadeAlpha() {
+        if (roundCompleteState == null) {
+            return 0.0f;
+        }
+        
+        long now = System.currentTimeMillis();
+        if (now >= roundCompleteEndAtMs) {
+            return 0.0f;
+        }
+        
+        return computeFadeAlpha(now, roundCompleteStartAtMs, roundCompleteEndAtMs, 0.14f, 0.18f);
+    }
+
+    /**
+     * Check if movement keys are pressed and clear cinematic if so.
+     * Returns true if movement was detected and cinematic was cleared.
+     */
+    public static boolean checkMovementSkip(MinecraftClient client) {
+        if (roundCompleteState == null) {
+            return false;
+        }
+
+        if (client == null || client.player == null || client.currentScreen != null) {
+            roundCompleteState = null;
+            return true;
+        }
+
+        long handle = client.getWindow().getHandle();
+        if (InputUtil.isKeyPressed(handle, GLFW.GLFW_KEY_W)
+                || InputUtil.isKeyPressed(handle, GLFW.GLFW_KEY_A)
+                || InputUtil.isKeyPressed(handle, GLFW.GLFW_KEY_S)
+                || InputUtil.isKeyPressed(handle, GLFW.GLFW_KEY_D)
+                || InputUtil.isKeyPressed(handle, GLFW.GLFW_KEY_SPACE)) {
+            roundCompleteState = null;
+            return true;
+        }
+        return false;
     }
 
     public static void tick(MinecraftClient client) {
@@ -118,19 +171,7 @@ public final class CinematicOverlay {
             return;
         }
 
-        if (client == null || client.player == null || client.currentScreen != null) {
-            roundCompleteState = null;
-            return;
-        }
-
-        long handle = client.getWindow().getHandle();
-        if (InputUtil.isKeyPressed(handle, GLFW.GLFW_KEY_W)
-                || InputUtil.isKeyPressed(handle, GLFW.GLFW_KEY_A)
-                || InputUtil.isKeyPressed(handle, GLFW.GLFW_KEY_S)
-                || InputUtil.isKeyPressed(handle, GLFW.GLFW_KEY_D)
-                || InputUtil.isKeyPressed(handle, GLFW.GLFW_KEY_SPACE)) {
-            roundCompleteState = null;
-        }
+        checkMovementSkip(client);
     }
 
     public static void render(DrawContext drawContext) {

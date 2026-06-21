@@ -258,6 +258,7 @@ public final class DiscTrailRenderer {
 
     /**
      * Render next particle in progressive trail (new method).
+     * Enhanced with FLAME particles, dual-particle thickness, and extended lifetime.
      */
     private static void renderNextParticle(MinecraftClient client, TrailData trail, int index) {
         if (trail.pathPoints == null || index >= trail.pathPoints.length) {
@@ -266,11 +267,15 @@ public final class DiscTrailRenderer {
         }
 
         Vec3d point = trail.pathPoints[index];
+        UUID localId = localPlayerId();
+        UUID throwerId = getCurrentThrowerId(trail);
         
-        // Skip points that are too far from player (increased range for better visibility)
-        if (client.player.squaredDistanceTo(point.x, point.y, point.z) > 512 * 512) {
-            System.out.println("RENDER PARTICLE SKIPPED: too far from player");
-            return;
+        // Skip points that are too far from player, but always show own throws
+        if (throwerId == null || !throwerId.equals(localId)) {
+            if (client.player.squaredDistanceTo(point.x, point.y, point.z) > 512 * 512) {
+                System.out.println("RENDER PARTICLE SKIPPED: too far from player");
+                return;
+            }
         }
 
         System.out.println("RENDER PARTICLE: index=" + index + " point=" + point);
@@ -278,22 +283,41 @@ public final class DiscTrailRenderer {
         ParticleManager particleManager = client.particleManager;
         int color = getTrailColor(trail.stance);
 
-        Particle particle = particleManager.addParticle(
-                ParticleTypes.END_ROD,
-                point.x,
-                point.y,
-                point.z,
-                0.0, 0.0, 0.0
-        );
-        
-        if (particle != null) {
-            particle.setColor(
-                    ((color >> 16) & 0xFF) / 255.0f,
-                    ((color >> 8) & 0xFF) / 255.0f,
-                    (color & 0xFF) / 255.0f
+        // Render 2 particles per point for thickness with vertical offset
+        for (int i = 0; i < 2; i++) {
+            double yOffset = (i == 0) ? 0.0 : 0.15; // Slight vertical offset for thickness
+            
+            Particle particle = particleManager.addParticle(
+                    ParticleTypes.FLAME,  // Changed from END_ROD to FLAME for better visibility
+                    point.x,
+                    point.y + yOffset,
+                    point.z,
+                    0.0, 0.0, 0.0
             );
-            particle.setMaxAge(100); // Particles last 5 seconds
+            
+            if (particle != null) {
+                particle.setColor(
+                        ((color >> 16) & 0xFF) / 255.0f,
+                        ((color >> 8) & 0xFF) / 255.0f,
+                        (color & 0xFF) / 255.0f
+                );
+                particle.setMaxAge(200); // Increased from 100 to 200 (10 seconds)
+            }
         }
+    }
+    
+    /**
+     * Get the current thrower ID from the trail entry.
+     * Helper method for distance culling logic.
+     */
+    private static UUID getCurrentThrowerId(TrailData trail) {
+        // Find the thrower ID by iterating through TRAILS map
+        for (Map.Entry<UUID, TrailData> entry : TRAILS.entrySet()) {
+            if (entry.getValue() == trail) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 
     /**
