@@ -125,29 +125,32 @@ public final class TickIncrementalCoursePlacer {
         int localBasketZ = absBasketZ - absTeeZ;
 
         // Water-crossing shrink logic (same as original placeCourseIncrementally)
-        int waterDx = absBasketX - absTeeX;
-        int waterDz = absBasketZ - absTeeZ;
-        int waterSteps = Math.max(Math.abs(waterDx), Math.abs(waterDz));
-        if (waterSteps > 0) {
-            int maxWaterRun = 0;
-            int currentWaterRun = 0;
-            for (int s = 0; s <= waterSteps; s++) {
-                double t = s / (double) waterSteps;
-                int sx = (int) Math.round(absTeeX + waterDx * t);
-                int sz = (int) Math.round(absTeeZ + waterDz * t);
-                if (CoursePlacementService.isWaterCrossingColumn(world, sx, sz)) {
-                    currentWaterRun++;
-                    maxWaterRun = Math.max(maxWaterRun, currentWaterRun);
-                } else {
-                    currentWaterRun = 0;
+        // Skip for resort courses to avoid chunk generation in ungenerated terrain
+        if (!skipWaterEstimation) {
+            int waterDx = absBasketX - absTeeX;
+            int waterDz = absBasketZ - absTeeZ;
+            int waterSteps = Math.max(Math.abs(waterDx), Math.abs(waterDz));
+            if (waterSteps > 0) {
+                int maxWaterRun = 0;
+                int currentWaterRun = 0;
+                for (int s = 0; s <= waterSteps; s++) {
+                    double t = s / (double) waterSteps;
+                    int sx = (int) Math.round(absTeeX + waterDx * t);
+                    int sz = (int) Math.round(absTeeZ + waterDz * t);
+                    if (CoursePlacementService.isWaterCrossingColumn(world, sx, sz)) {
+                        currentWaterRun++;
+                        maxWaterRun = Math.max(maxWaterRun, currentWaterRun);
+                    } else {
+                        currentWaterRun = 0;
+                    }
                 }
-            }
-            if (maxWaterRun > CoursePlacementConfig.WaterLanding.MAX_CARRY_BLOCKS) {
-                double shrink = (double) CoursePlacementConfig.WaterLanding.MAX_CARRY_BLOCKS / maxWaterRun;
-                localBasketX = (int) Math.round(localBasketX * shrink);
-                localBasketZ = (int) Math.round(localBasketZ * shrink);
-                absBasketX = absTeeX + localBasketX;
-                absBasketZ = absTeeZ + localBasketZ;
+                if (maxWaterRun > CoursePlacementConfig.WaterLanding.MAX_CARRY_BLOCKS) {
+                    double shrink = (double) CoursePlacementConfig.WaterLanding.MAX_CARRY_BLOCKS / maxWaterRun;
+                    localBasketX = (int) Math.round(localBasketX * shrink);
+                    localBasketZ = (int) Math.round(localBasketZ * shrink);
+                    absBasketX = absTeeX + localBasketX;
+                    absBasketZ = absTeeZ + localBasketZ;
+                }
             }
         }
 
