@@ -212,6 +212,167 @@ private Hole generateHole(int holeNumber, long seed, BlockPos anchor, BiomeCours
 
 ---
 
+### 1.2.1 Mod Integration for Enhanced Biome Support
+
+**Goal:** Leverage installed mods (Biomes O' Plenty, Serene Seasons) for enhanced course variety while maintaining vanilla compatibility.
+
+**Soft Dependency Architecture:**
+- Use `FabricLoader.getInstance().isModLoaded()` for mod detection
+- Vanilla-first approach: core functionality works without mods
+- Progressive enhancement: mods add depth when available
+- Graceful degradation: no hard dependencies
+
+**Biomes O' Plenty Integration:**
+- Detect via `isModLoaded("biomesoplenty")`
+- Map 80+ BoP biomes to appropriate course profiles
+- Enhanced variety: exotic biomes (mystical groves, volcanic regions, cherry blossom groves)
+- BoP-specific block palettes for course aesthetics
+- Maintain vanilla biome category fallback
+
+**Example BoP Biome Mappings:**
+```java
+// Extended profile system with mod awareness
+public static BiomeCourseProfile getProfileForBiome(Biome biome) {
+    String biomeId = Registry.BIOME.getId(biome).toString();
+
+    // BoP-specific biomes
+    if (isModLoaded("biomesoplenty")) {
+        if (biomeId.contains("origin_valley"))
+            return new BiomeCourseProfile("Origin Valley Links", 0.9, 0.6, 0.4, 0.5,
+                List.of("grass_block", "dirt", "biomesoplenty:origin_grass"));
+        if (biomeId.contains("coniferous_forest"))
+            return new BiomeCourseProfile("Coniferous Woods", 1.3, 0.9, 0.2, 1.3,
+                List.of("grass_block", "spruce_log", "biomesoplenty:pine_cones"));
+        if (biomeId.contains("lavender_fields"))
+            return new BiomeCourseProfile("Lavender Meadows", 0.7, 0.4, 0.3, 0.6,
+                List.of("grass_block", "biomesoplenty:lavender", "pink_petals"));
+        if (biomeId.contains("volcanic"))
+            return new BiomeCourseProfile("Volcanic Wasteland", 1.4, 1.2, 0.1, 0.2,
+                List.of("basalt", "blackstone", "magma_block"));
+        // Add 80+ more BoP biome mappings
+    }
+
+    // Fallback to vanilla categories
+    return switch (biome.getCategory()) { /* existing logic */ };
+}
+```
+
+**Serene Seasons Integration:**
+- Detect via `isModLoaded("sereneseasons")`
+- Seasonal modifiers to base biome profiles
+- Season-aware course naming and dynamic gameplay
+
+**Seasonal Modifiers:**
+```java
+public static BiomeCourseProfile getProfileForBiome(Biome biome, ServerWorld world) {
+    BiomeCourseProfile baseProfile = getBaseProfile(biome);
+
+    if (isModLoaded("sereneseasons")) {
+        Season currentSeason = SeasonHelper.getCurrentSeason(world);
+
+        return switch (currentSeason) {
+            case SPRING -> baseProfile.withSeasonalModifier(
+                1.2,  // More vegetation growth
+                0.9,  // Slightly softer ground
+                1.1   // More water (spring thaw)
+            );
+            case SUMMER -> baseProfile.withSeasonalModifier(
+                0.8,  // Drier, less vegetation
+                1.1,  // Harder ground
+                0.7   // Less water (summer evaporation)
+            );
+            case AUTUMN -> baseProfile.withSeasonalModifier(
+                1.0,  // Normal vegetation
+                1.0,  // Normal ground
+                0.9   // Moderate water
+            );
+            case WINTER -> baseProfile.withSeasonalModifier(
+                0.3,  // Dormant vegetation
+                1.3,  // Frozen ground (slippery)
+                0.5   // Frozen water (ice hazards)
+            );
+        };
+    }
+
+    return baseProfile;
+}
+```
+
+**Seasonal Gameplay Effects:**
+- **Winter:** Ice hazards become more frequent, reduced friction on frozen surfaces
+- **Spring:** Mud hazards (slower recovery from rough), increased vegetation density
+- **Summer:** Faster green speeds (drier grass), reduced vegetation
+- **Autumn:** Falling leaves could affect visibility, moderate conditions
+
+**Course Naming Enhancement:**
+- Generate season-aware course names: "Winter Alpine Ridge", "Spring Forest Links"
+- Dynamic course descriptions reflecting current seasonal conditions
+
+**Implementation Pattern:**
+```java
+// In BiomeCourseProfiles.java
+private static boolean isModLoaded(String modId) {
+    return FabricLoader.getInstance().isModLoaded(modId);
+}
+
+public static BiomeCourseProfile getProfileForBiome(Biome biome, ServerWorld world) {
+    // Base vanilla logic always works
+    BiomeCourseProfile profile = getVanillaProfile(biome);
+
+    // Enhance with mods if available
+    if (isModLoaded("biomesoplenty")) {
+        profile = enhanceWithBoP(biome, profile);
+    }
+
+    if (isModLoaded("sereneseasons")) {
+        profile = enhanceWithSeasons(biome, profile, world);
+    }
+
+    return profile;
+}
+```
+
+**Key Principles:**
+1. **Vanilla First:** Core functionality works without any mods
+2. **Progressive Enhancement:** Mods add depth but aren't required
+3. **Graceful Degradation:** If mods are removed, courses still generate normally
+4. **No Hard Dependencies:** Game never fails to load due to missing mods
+
+**Integration Benefits:**
+
+**For Biomes O' Plenty:**
+- Massive increase in course variety (80+ biomes vs ~10 vanilla)
+- Exotic terrain features (mystical groves, volcanic wastelands, cherry blossom groves)
+- Unique aesthetic possibilities using mod-specific blocks
+
+**For Serene Seasons:**
+- Dynamic course conditions that change over time
+- Seasonal strategic depth (winter ice vs summer dry conditions)
+- Enhanced immersion with weather/season integration
+- Replay value as same course plays differently each season
+
+**Combined Effect:**
+- A "Cherry Blossom Grove" course in spring would have lush vegetation and soft ground
+- The same course in winter would have dormant trees, frozen surfaces, and ice hazards
+- Players experience the same course layout with dramatically different playing conditions
+
+**Additional Files to Create:**
+- `src/main/java/com/mcdg/world/ModAwareBiomeProfiles.java` (mod detection and enhancement logic)
+
+**Additional Files to Modify:**
+- `src/main/java/com/mcdg/world/BiomeCourseProfiles.java` (add mod-aware methods)
+- `src/main/java/com/mcdg/world/SeededCourseGenerator.java` (pass world context for seasons)
+
+**Additional Testing:**
+- Test with vanilla only (no mods installed)
+- Test with Biomes O' Plenty only
+- Test with Serene Seasons only
+- Test with both mods installed
+- Verify graceful degradation when mods are removed mid-game
+- Test seasonal transitions on existing courses
+
+---
+
 ### 1.3 XP Rewards for Scoring (1-2 hours)
 
 **Goal:** Hook into existing scorecard system to provide XP rewards based on performance

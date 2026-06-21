@@ -82,7 +82,10 @@ public final class HoleMapSync {
             int lastThrowPenaltyStrokes,
             String lastThrowPenaltyReason,
             int lastThrowObCrossingFeet,
-            int lastThrowReturnedToFeet
+            int lastThrowReturnedToFeet,
+            // --- ruleset info ---
+            String rulesetName,
+            String presetName
     ) implements CustomPayload {
 
         public static Payload read(RegistryByteBuf buf) {
@@ -172,6 +175,9 @@ public final class HoleMapSync {
                 lastThrowReturnedToFeet = buf.readVarInt();
             }
 
+            String rulesetName = buf.readString(32);
+            String presetName = buf.readString(32);
+
             return new Payload(
                     true,
                     holeIndex, par, distanceFeet,
@@ -188,7 +194,8 @@ public final class HoleMapSync {
                     lastThrowTotalDistanceFt, lastThrowLateralDriftFt,
                     lastThrowStance, lastThrowAngle, lastThrowFlightTicks,
                     lastThrowPenaltyType, lastThrowPenaltyStrokes, lastThrowPenaltyReason,
-                    lastThrowObCrossingFeet, lastThrowReturnedToFeet
+                    lastThrowObCrossingFeet, lastThrowReturnedToFeet,
+                    rulesetName, presetName
             );
         }
 
@@ -261,6 +268,9 @@ public final class HoleMapSync {
                 buf.writeVarInt(lastThrowObCrossingFeet);
                 buf.writeVarInt(lastThrowReturnedToFeet);
             }
+
+            buf.writeString(rulesetName != null ? rulesetName : "", 32);
+            buf.writeString(presetName != null ? presetName : "", 32);
         }
 
         @Override
@@ -285,7 +295,8 @@ public final class HoleMapSync {
                     0.0, 0.0,
                     ThrowStance.OVERHAND, ReleaseAngle.FLAT, 0,
                     StrictPenaltyType.NONE, 0, "",
-                    0, 0
+                    0, 0,
+                    "", ""
             );
         }
     }

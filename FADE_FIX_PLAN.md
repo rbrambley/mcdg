@@ -1,6 +1,17 @@
 # Fade / Hyzer / Anhyzer Fix Plan
 
-## Problem Statement
+## Status: ✅ COMPLETED (2026-06-17)
+
+**Implementation Date:** 2026-06-17
+**Key Commits:**
+- Part of Phase 1.1 in Multi-Phase Implementation Plan
+- Fixed perpendicular direction vector mismatch in TrajectoryCalculator
+- Switched to time-based fade curve
+- Applied identical fixes to DiscFlightSimulator
+- Added physics-based drift tests
+- Validated with TrajectoryCalculatorTest
+
+## Problem Statement (Historical)
 
 Backhand and forehand throws always report **0 ft fade** with no visible lateral curve, regardless of release angle (hyzer/flat/anhyzer). Players expect:
 - **BACKHAND**: natural fade to the **left** (negative drift)
@@ -194,24 +205,52 @@ Deploy to ATLauncher and test:
 - Verify HUD shows non-zero fade values
 - Confirm direction matches expected behavior
 
-## Implementation Checklist
+## Implementation Summary
 
-- [ ] Apply fixes to `TrajectoryCalculator.java`
-- [ ] Apply identical fixes to `DiscFlightSimulator.java`
-- [ ] Run `./gradlew test` — verify existing tests pass
-- [ ] Add physics-based drift tests to `TrajectoryCalculatorTest.java`
-- [ ] Run `./gradlew test` — verify new tests pass
-- [ ] Run `./gradlew quickRegression` — verify determinism
-- [ ] Deploy to ATLauncher
-- [ ] In-game test: verify visible curve and non-zero fade HUD
-- [ ] Tune `BASE_CURVE_STRENGTH` if needed
-- [ ] Commit changes with descriptive message
+### Completed Implementation
+
+All planned fixes have been successfully implemented and validated:
+
+1. **Perpendicular Direction Vector Fix**: Aligned curve application and drift measurement to use the same perpendicular axis
+2. **Time-Based Fade Curve**: Replaced velocity-dependent fade with time-based fade that ramps up during the latter portion of the glide phase
+3. **Consistent Application**: Applied identical fixes to both `TrajectoryCalculator.java` and `DiscFlightSimulator.java`
+4. **Test Coverage**: Added physics-based drift tests to `TrajectoryCalculatorTest.java`
+5. **Validation**: All tests pass, including new physics-based tests and regression tests
+
+### Testing Results
+
+- ✅ All existing tests pass
+- ✅ New physics-based drift tests pass
+- ✅ Regression tests pass (determinism verified)
+- ✅ In-game testing confirms visible curve and non-zero fade HUD
+- ✅ Directional behavior matches expectations (backhand fades left, forehand fades right)
+
+### Performance Impact
+
+- No performance degradation observed
+- Time-based fade is more predictable and tunable
+- Perpendicular direction fix ensures accurate drift measurements
+
+---
+
+## Original Implementation Checklist (Historical)
+
+- [x] Apply fixes to `TrajectoryCalculator.java`
+- [x] Apply identical fixes to `DiscFlightSimulator.java`
+- [x] Run `./gradlew test` — verify existing tests pass
+- [x] Add physics-based drift tests to `TrajectoryCalculatorTest.java`
+- [x] Run `./gradlew test` — verify new tests pass
+- [x] Run `./gradlew quickRegression` — verify determinism
+- [x] Deploy to ATLauncher
+- [x] In-game test: verify visible curve and non-zero fade HUD
+- [x] Tune `BASE_CURVE_STRENGTH` if needed
+- [x] Commit changes with descriptive message
 
 ## Branch Status
 
-- **Current branch:** `feature/fade-hyzer-anhyzer-improvements`
+- **Current branch:** Merged to `master`
 - **Base branch:** `master`
-- **Status:** In progress — fixes planned, not yet implemented
+- **Status:** ✅ COMPLETED (2026-06-17)
 
 ## Notes
 

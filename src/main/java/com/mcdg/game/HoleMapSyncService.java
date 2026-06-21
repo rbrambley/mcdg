@@ -99,6 +99,9 @@ public final class HoleMapSyncService {
         if (grid != null) {
             hash = 31 * hash + java.util.Arrays.hashCode(grid);
         }
+        // Include ruleset info in hash for proper deduplication
+        hash = 31 * hash + (payload.rulesetName() != null ? payload.rulesetName().hashCode() : 0);
+        hash = 31 * hash + (payload.presetName() != null ? payload.presetName().hashCode() : 0);
         return hash;
     }
 
@@ -393,7 +396,9 @@ public final class HoleMapSyncService {
                 lastThrowStats != null ? lastThrowStats.penaltyStrokes() : 0,
                 lastThrowStats != null ? lastThrowStats.penaltyReason() : "",
                 lastThrowStats != null ? lastThrowStats.obCrossingFeet() : 0,
-                lastThrowStats != null ? lastThrowStats.returnedToFeet() : 0
+                lastThrowStats != null ? lastThrowStats.returnedToFeet() : 0,
+                rulesetManager.getActiveRuleset().name().toLowerCase(),
+                rulesetManager.getStrictSurfacePreset().name().toLowerCase()
         );
     }
 

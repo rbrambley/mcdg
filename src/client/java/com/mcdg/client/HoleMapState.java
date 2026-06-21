@@ -55,6 +55,10 @@ public final class HoleMapState {
     public final int lastThrowObCrossingFeet;
     public final int lastThrowReturnedToFeet;
 
+    // --- ruleset info ---
+    public final String rulesetName;
+    public final String presetName;
+
     public HoleMapState(com.mcdg.net.HoleMapSync.Payload payload) {
         this.holeIndex = payload.holeIndex();
         this.par = payload.par();
@@ -98,6 +102,8 @@ public final class HoleMapState {
         this.lastThrowPenaltyReason = payload.lastThrowPenaltyReason();
         this.lastThrowObCrossingFeet = payload.lastThrowObCrossingFeet();
         this.lastThrowReturnedToFeet = payload.lastThrowReturnedToFeet();
+        this.rulesetName = payload.rulesetName();
+        this.presetName = payload.presetName();
     }
 
     public boolean isActive() {

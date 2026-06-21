@@ -62,7 +62,6 @@ public final class MenuCommands {
             source.sendFeedback(() -> menuButton("End Round", "/mcdg endround", Formatting.GOLD, true), false);
             source.sendFeedback(() -> menuButton("Go to Lie", "/mcdg gotolie", Formatting.AQUA, true), false);
             source.sendFeedback(() -> menuButton("Save & Leave Round", "/mcdg savesession", Formatting.GRAY, true), false);
-            if (isAdmin) source.sendFeedback(() -> menuButton("Waypoints", "/mcdg waypoint tp", Formatting.LIGHT_PURPLE, true), false);
         } else {
             source.sendFeedback(() -> Text.literal("─ Play ─").formatted(Formatting.GREEN), false);
             source.sendFeedback(() -> menuButton("List Courses", "/mcdg listcourses", Formatting.AQUA, true), false);
@@ -95,7 +94,6 @@ public final class MenuCommands {
     public static int executeMenuPlayer(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
         source.sendFeedback(() -> Text.literal("Player Menu").formatted(Formatting.GREEN, Formatting.BOLD), false);
         source.sendFeedback(() -> menuButton("Round", "/mcdg menu round", Formatting.GREEN, true), false);
-        source.sendFeedback(() -> menuButton("Waypoints", "/mcdg waypoint tp", Formatting.LIGHT_PURPLE, true), false);
         source.sendFeedback(() -> menuButton("Rules", "/mcdg menu rules", Formatting.BLUE, true), false);
         sendBackToMenu(source);
         return 1;
@@ -103,8 +101,7 @@ public final class MenuCommands {
 
     public static int executeMenuAdmin(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
         source.sendFeedback(() -> Text.literal("Admin").formatted(Formatting.RED, Formatting.BOLD), false);
-        source.sendFeedback(() -> menuButton("Clear Waypoints", "/mcdg waypoint clear", Formatting.DARK_GRAY, true), false);
-        source.sendFeedback(() -> menuButton("Cleanup Course", "/mcdg menu confirm-request cleanupcourse", Formatting.DARK_RED, true), false);
+        source.sendFeedback(() -> menuButton("Remove Resort Courses", "/mcdg removesurroundcourses", Formatting.DARK_RED, true), false);
         source.sendFeedback(() -> Text.literal("─ Stuck Round ─").formatted(Formatting.DARK_GRAY), false);
         source.sendFeedback(() -> menuButton("Stuck Round Status", "/mcdg roundsession status", Formatting.DARK_GRAY, true), false);
         source.sendFeedback(() -> menuButton("Force Clear Stuck Round", "/mcdg roundsession clear", Formatting.DARK_RED, true), false);
@@ -127,14 +124,6 @@ public final class MenuCommands {
         source.sendFeedback(() -> menuButton("Auto Build Course", "/mcdg autocourse ", Formatting.YELLOW, false), false);
         source.sendFeedback(() -> menuButton("Manual Build Course", "/mcdg buildcourse", Formatting.GREEN, true), false);
         source.sendFeedback(() -> menuButton("List Courses", "/mcdg listcourses", Formatting.AQUA, true), false);
-        sendBackToMenu(source);
-        return 1;
-    }
-
-    public static int executeMenuWaypoints(ServerCommandSource source, TournamentRulesetManager rulesetManager) {
-        source.sendFeedback(() -> Text.literal("Waypoints").formatted(Formatting.LIGHT_PURPLE, Formatting.BOLD), false);
-        source.sendFeedback(() -> menuButton("List & Teleport", "/mcdg waypoint tp", Formatting.LIGHT_PURPLE, true), false);
-        source.sendFeedback(() -> menuButton("Clear Stale Waypoints", "/mcdg waypoint clear", Formatting.DARK_GRAY, true), false);
         sendBackToMenu(source);
         return 1;
     }
@@ -171,10 +160,7 @@ public final class MenuCommands {
 
         String command;
         String label;
-        if ("cleanupcourse".equalsIgnoreCase(action)) {
-            command = "/mcdg cleanupcourse";
-            label = "Cleanup active course";
-        } else if ("prunecourses".equalsIgnoreCase(action)) {
+        if ("prunecourses".equalsIgnoreCase(action)) {
             command = "/mcdg prunecourses";
             label = "Prune reusable catalog to keep 6";
         } else {

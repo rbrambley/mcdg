@@ -209,6 +209,32 @@ public final class HudOverlays {
         HudUtil.drawScaledText(drawContext, client.textRenderer, stanceText, textX, textY, 0xFFFFFF, scale);
         int angleTextX = textX + Math.round(client.textRenderer.getWidth(stanceText) * scale);
         HudUtil.drawScaledText(drawContext, client.textRenderer, angleText, angleTextX, textY, 0xFFFFFF, scale);
+
+        // Phase 4: Ruleset display (only show non-default rulesets)
+        HoleMapState holeMapState = McdgClientMod.getHoleMapState();
+        if (holeMapState != null && holeMapState.rulesetName != null && holeMapState.presetName != null) {
+            String rulesetText = "";
+            boolean showRuleset = false;
+
+            if ("casual".equalsIgnoreCase(holeMapState.rulesetName)) {
+                // Casual is default for casual, don't show
+            } else if ("strict".equalsIgnoreCase(holeMapState.rulesetName)) {
+                if ("balanced".equalsIgnoreCase(holeMapState.presetName)) {
+                    // Strict (Balanced) is default, don't show
+                } else {
+                    // Show non-default surface presets
+                    rulesetText = holeMapState.rulesetName + " (" + holeMapState.presetName + ")";
+                    showRuleset = true;
+                }
+            }
+
+            if (showRuleset) {
+                int rulesetY = textY + Math.round(12 * scale);
+                int rulesetWidth = Math.round(client.textRenderer.getWidth(rulesetText) * scale);
+                int rulesetX = rightHandThrow ? barX + scaledPowerBarWidth + textOffset : barX - rulesetWidth - textOffset;
+                HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(rulesetText).formatted(Formatting.GRAY), rulesetX, rulesetY, 0xAAAAAA, scale);
+            }
+        }
     }
 
     private static final int THROW_ROW_SPACING = 10;

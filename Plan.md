@@ -1,5 +1,89 @@
 # MCDG Coordinated Plan
 
+## Overall Status Summary (2026-06-21)
+
+**Active Development Phase:** Phase 1 - Critical Fixes & Foundation (33% complete)
+
+**Recently Completed (June 2026):**
+- ✅ Real-Time Progressive Trail Rendering - Players can now "watch the disc fly"
+- ✅ HUD Scaling & Minimap Integration - Performance improvements and third-party mod support
+- ✅ Fade/Hyzer/Anhyzer Physics Fix - Core physics corrections for accurate disc flight
+- ✅ Performance Optimization - Server and client performance improvements
+
+**Current Focus:**
+- 🔄 Phase 1.5: Basic Survival Integration (next priority)
+
+**Upcoming Phases:**
+- Phase 2: Enhanced Gameplay Systems (Wind System, Biome Courses, Custom Throw Animations)
+- Phase 3: Progression Systems (Disc Crafting, Custom Disc Stats, Challenge Courses)
+- Phase 4: Advanced Features (Quest System, Survival Mode)
+- Phase 5: Polish & Integration
+- Phase 6: Launch Preparation
+
+**See Multi-Phase Implementation Plan for detailed roadmap.**
+
+---
+
+## Real-Time Progressive Trail Rendering (2026-06-19) ✅ COMPLETED
+
+Implemented / validated:
+
+- **Progressive trail rendering**: Trail now renders progressively during flight instead of appearing instantly after landing
+- **Immediate trail feedback**: Trail starts immediately when throw begins, providing instant visual feedback
+- **Memory leak fixes**: Fixed trail memory leaks and duplicate hash issues
+- **HUD fade decoupling**: Separated HUD fade from cinematic fade to ensure instant trail feedback
+- **Debug logging**: Added extensive logging for trail visibility troubleshooting
+- **Performance optimization**: Fixed double packet send and cache key issues
+
+Key commits:
+- `961fd88` feat: implement real-time progressive trail rendering
+- `a35a5c1` debug: add extensive logging for trail visibility troubleshooting
+- `2887c1e` fix: decouple HUD fade from cinematic and ensure instant trail feedback
+- `1e521e6` review fixes: trail memory leak, dedup hash, cache key, ghost cinematic, double packet send, debug cleanup
+
+Branch: `feature/real-time-trail` -> `master`
+
+Deployment status:
+- Build passing (`./gradlew build`)
+- quickRegression passing
+- Manual ATLauncher testing: progressive trail rendering validated
+- Test instance jar updated successfully
+
+Open / next:
+- Phase 5: Balance, Autotest & Validation (aim-off compensation, flight mode override)
+- Phase 6: Custom Arm Animations (post-physics polish)
+
+---
+
+## HUD Scaling & Minimap Integration (2026-06-19) ✅ COMPLETED
+
+Implemented / validated:
+
+- **Lightweight hole map HUD**: Replaced heavy minimap with lightweight hole map HUD for better performance
+- **GUI scaling support**: Added GUI scaling support for HUD elements
+- **Xaero's Minimap integration**: Enhanced HUD scaling and Xaero's Minimap integration
+- **Performance optimization**: Optimized minimap rendering and cache rebuilds
+- **Server performance fixes**: Fixed server performance issues (basket beacon, waypoint sync, chunk loading)
+
+Key commits:
+- `126e17c` feat: replace minimap with lightweight hole map HUD
+- `191a11b` feat: add GUI scaling support for HUD elements
+- `e7602f7` feat: enhance HUD scaling and Xaero's Minimap integration
+- `4ce0963` perf: optimize minimap rendering and cache rebuilds
+- `6245cde` perf: remove basket beacon, waypoint sync, and reduce chunk loading
+- `6462ffa` feat: Xaero's Minimap integration with left-side HUD layout
+
+Branch: `feature/minimap-rethink` -> `master`
+
+Deployment status:
+- Build passing (`./gradlew build`)
+- quickRegression passing
+- Manual ATLauncher testing: lightweight HUD and Xaero's integration validated
+- Test instance jar updated successfully
+
+Open / next:
+- None - this feature is complete and production-ready
+
 ---
 
 ## Throw Charge & HUD Enhancements (2026-06-14) ✅ COMPLETED

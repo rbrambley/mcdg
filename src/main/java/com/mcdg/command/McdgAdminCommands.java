@@ -544,6 +544,15 @@ public final class McdgAdminCommands {
                                             practiceCourseStorage, playerRoundSessionStorage,
                                             IntegerArgumentType.getInteger(context, "index"))))));
 
+            // removecourseboth
+            dispatcher.register(literal("mcdg")
+                    .then(literal("removecourseboth").requires(McdgAdminCommands::canUseAdminCommands)
+                            .then(argument("index", IntegerArgumentType.integer(1))
+                                    .executes(context -> executeRemoveCourseBoth(
+                                            context.getSource(), courseManager, roundStateManager,
+                                            practiceCourseStorage, playerRoundSessionStorage, placementService,
+                                            IntegerArgumentType.getInteger(context, "index"))))));
+
             // usecourse
             dispatcher.register(literal("mcdg")
                     .then(literal("usecourse").requires(McdgAdminCommands::canUseAdminCommands)
@@ -2272,6 +2281,53 @@ public final class McdgAdminCommands {
         clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
 
         source.sendFeedback(() -> Text.literal("Cleaned up course #" + oneBasedIndex + "."), true);
+        return 1;
+    }
+
+    private static int executeRemoveCourseBoth(
+            ServerCommandSource source,
+            ActiveCourseManager courseManager,
+            RoundStateManager roundStateManager,
+            PracticeCourseStorage practiceCourseStorage,
+            PlayerRoundSessionStorage playerRoundSessionStorage,
+            CoursePlacementService placementService,
+            int oneBasedIndex
+    ) {
+        // First, remove from world (cleanup)
+        Optional<PracticeCourseStorage.LoadedPracticeCourse> loaded = practiceCourseStorage.loadReusableByIndexFull(source.getServer(), oneBasedIndex);
+        if (loaded.isEmpty()) {
+            source.sendError(Text.literal("Course #" + oneBasedIndex + " not found."));
+            return 0;
+        }
+
+        PlacedCourseState placed = loaded.get().placedCourseState();
+        ServerWorld world = source.getServer().getWorld(placed.worldKey());
+        if (world != null) {
+            evacuatePlayersBeforeCleanup(source, world, placed);
+            RoundChunkLoader.unloadAll(world);
+            placementService.resetPlacedCourse(world, placed);
+            removeJunkDropsNearCourse(world, placed);
+        }
+
+        // Then, remove from catalog
+        int removed = practiceCourseStorage.pruneReusableByIndices(source.getServer(), Set.of(oneBasedIndex));
+        if (removed <= 0) {
+            source.sendError(Text.literal("Failed to remove course #" + oneBasedIndex + " from catalog."));
+            return 0;
+        }
+
+        // Clear round state if this was the active course
+        Integer activeCatalogIndex = courseManager.getActiveCourseCatalogIndex().orElse(null);
+        boolean wasActiveMatch = activeCatalogIndex != null && activeCatalogIndex == oneBasedIndex;
+        if (wasActiveMatch || courseManager.isRoundActive()) {
+            removeRoundThrowItemsFromCourseWorldPlayers(source, courseManager);
+            courseManager.setActiveCourse(null);
+            courseManager.clearPlacedCourseState();
+            courseManager.setActiveCourseCatalogIndex(null);
+            courseManager.setRoundActive(false);
+            clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
+        }
+        source.sendFeedback(() -> Text.literal("Removed course #" + oneBasedIndex + " from both catalog and world."), true);
         return 1;
     }
 

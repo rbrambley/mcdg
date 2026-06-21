@@ -15,7 +15,7 @@ import net.minecraft.util.Formatting;
 
 public final class McdgMenuScreen extends Screen {
 
-    private static final int BG_COLOR          = 0xF0111820;
+    private static final int BG_COLOR          = 0xFF111820;
     private static final int HEADER_COLOR      = 0xFF1B2D42;
     private static final int ACCENT_COLOR      = 0xFF2A4A6A;
     private static final int NAV_ACTIVE_COLOR  = 0xFF1E3D5C;
@@ -40,10 +40,11 @@ public final class McdgMenuScreen extends Screen {
     private static final int CONTENT_X_OFFSET  = NAV_W + 8;
     private static final int BTN_H             = 20;
     private static final int BTN_GAP           = 4;
+    private static final int DESC_SPACING      = 12;
     private static final int CONTENT_MAX_H     = PANEL_H - 28 - 20 - 16;
     private static final int ROWS_VISIBLE      = CONTENT_MAX_H / (BTN_H + BTN_GAP);
 
-    private enum Page { DASHBOARD, COURSES, BUILD, RULES, ADMIN }
+    private enum Page { DASHBOARD, COURSES, BUILD, RULES, ADMIN, COURSE_MAINTENANCE }
 
     private final MenuScreenSync.Payload state;
     private Page currentPage = Page.DASHBOARD;
@@ -56,6 +57,7 @@ public final class McdgMenuScreen extends Screen {
     private final List<ButtonWidget> navButtons = new ArrayList<>();
     private final List<ButtonWidget> contentButtons = new ArrayList<>();
     private final List<int[]> buttonTints = new ArrayList<>();
+    private final List<ButtonDescription> buttonDescriptions = new ArrayList<>();
 
     public McdgMenuScreen(MenuScreenSync.Payload state) {
         super(Text.literal("MCDG"));
@@ -72,6 +74,7 @@ public final class McdgMenuScreen extends Screen {
         navButtons.clear();
         contentButtons.clear();
         buttonTints.clear();
+        buttonDescriptions.clear();
 
         int panelX = (width - PANEL_W) / 2;
         int panelY = (height - PANEL_H) / 2;
@@ -124,6 +127,7 @@ public final class McdgMenuScreen extends Screen {
             case BUILD     -> buildBuildPage(cx, cy, bw);
             case RULES     -> buildRulesPage(cx, cy, bw);
             case ADMIN     -> buildAdminPage(cx, cy, bw);
+            case COURSE_MAINTENANCE -> buildCourseMaintenancePage(cx, cy, bw, panelX, panelY);
         }
     }
 
@@ -199,10 +203,9 @@ public final class McdgMenuScreen extends Screen {
         int tpW = 28;
         int playW = 34;
         int inviteW = 34;
-        int removeW = 16;
         int gap = 3;
         int scoresW = 18;
-        int totalBtnsW = tpW + scoresW + playW + inviteW + removeW + (gap * 4);
+        int totalBtnsW = tpW + scoresW + playW + inviteW + (gap * 3);
         int visibleRows = Math.min(ROWS_VISIBLE, courses.size());
         int maxOffset = Math.max(0, courses.size() - visibleRows);
         playScrollOffset = Math.max(0, Math.min(playScrollOffset, maxOffset));
@@ -253,8 +256,6 @@ public final class McdgMenuScreen extends Screen {
                 buttonTints.add(new int[]{x, y, inviteW, BTN_H, BTN_TINT_GOLD});
                 addDrawableChild(inviteBtn);
             }
-            x += inviteW + gap;
-            addConfirmBtn("[X]", "/mcdg cleanupcoursebyindex " + idx, x, y, removeW);
             y += BTN_H + BTN_GAP;
         }
 
@@ -281,21 +282,120 @@ public final class McdgMenuScreen extends Screen {
 
     private void buildRulesPage(int cx, int cy, int bw) {
         int y = cy;
-        addBtn("Set Casual",              "/mcdg ruleset casual",             cx, y, bw, TEXT_GREEN, BTN_TINT_GREEN); y += BTN_H + BTN_GAP;
-        addBtn("Set Strict",              "/mcdg ruleset strict",             cx, y, bw, TEXT_GOLD,  BTN_TINT_GOLD);  y += BTN_H + BTN_GAP;
-        if (state.isAdmin()) {
-            addBtn("Surface: Fast",       "/mcdg ruleset surface fast",       cx, y, bw, TEXT_MUTED, BTN_TINT_MUTED); y += BTN_H + BTN_GAP;
-            addBtn("Surface: Balanced",   "/mcdg ruleset surface balanced",   cx, y, bw, TEXT_MUTED, BTN_TINT_MUTED); y += BTN_H + BTN_GAP;
-            addBtn("Surface: Tournament", "/mcdg ruleset surface tournament", cx, y, bw, TEXT_MUTED, BTN_TINT_MUTED);
+        boolean isStrict = isRulesetStrict(state.rulesetName());
+
+        addBtnWithDesc("Set Casual", "5-block lie tolerance, forgiving", "/mcdg ruleset casual", cx, y, bw, TEXT_GREEN, BTN_TINT_GREEN); y += BTN_H + DESC_SPACING + BTN_GAP;
+        addBtnWithDesc("Set Strict", "2-block lie tolerance, tournament-style", "/mcdg ruleset strict", cx, y, bw, TEXT_GOLD, BTN_TINT_GOLD); y += BTN_H + DESC_SPACING + BTN_GAP;
+
+        if (state.isAdmin() && isStrict) {
+            int indent = 12;
+            addBtnWithDesc("└ Surface: Fast", "Widest corridors, no slope/rough hazards", "/mcdg ruleset surface fast", cx + indent, y, bw - indent, TEXT_MUTED, BTN_TINT_MUTED); y += BTN_H + DESC_SPACING + BTN_GAP;
+            addBtnWithDesc("└ Surface: Balanced", "Moderate corridors, slope hazards enabled", "/mcdg ruleset surface balanced", cx + indent, y, bw - indent, TEXT_MUTED, BTN_TINT_MUTED); y += BTN_H + DESC_SPACING + BTN_GAP;
+            addBtnWithDesc("└ Surface: Tournament", "Narrowest corridors, all hazards enabled", "/mcdg ruleset surface tournament", cx + indent, y, bw - indent, TEXT_MUTED, BTN_TINT_MUTED);
         }
+    }
+
+    private void addBtnWithDesc(String label, String description, String command, int x, int y, int w, int textColor, int tint) {
+        ButtonWidget btn = ButtonWidget.builder(Text.literal(label), b -> {
+            if (command == null) {
+                confirmPending = false;
+                rebuild();
+            } else {
+                runCommand(command);
+            }
+        }).dimensions(x, y, w, BTN_H).build();
+        contentButtons.add(btn);
+        buttonTints.add(new int[]{x, y, w, BTN_H, tint});
+        addDrawableChild(btn);
+
+        // Store description for rendering (shown below button)
+        buttonDescriptions.add(new ButtonDescription(x, y + BTN_H + 2, description));
+    }
+
+    private void addPageSwitchBtnWithDesc(String label, String description, Page targetPage, int x, int y, int w, int textColor, int tint) {
+        ButtonWidget btn = ButtonWidget.builder(Text.literal(label), b -> {
+            currentPage = targetPage;
+            playScrollOffset = 0;
+            confirmPending = false;
+            rebuild();
+        }).dimensions(x, y, w, BTN_H).build();
+        contentButtons.add(btn);
+        buttonTints.add(new int[]{x, y, w, BTN_H, tint});
+        addDrawableChild(btn);
+
+        // Store description for rendering (shown below button)
+        buttonDescriptions.add(new ButtonDescription(x, y + BTN_H + 2, description));
+    }
+
+    private static boolean isRulesetStrict(String rulesetName) {
+        return rulesetName != null && "strict".equalsIgnoreCase(rulesetName);
     }
 
     private void buildAdminPage(int cx, int cy, int bw) {
         int y = cy;
-        addBtn("Clear Waypoints",       "/mcdg waypoint clear",   cx, y, bw, TEXT_MUTED, BTN_TINT_MUTED); y += BTN_H + BTN_GAP;
-        addConfirmBtn("Cleanup Course", "/mcdg cleanupcourse",    cx, y, bw);                              y += BTN_H + BTN_GAP;
-        addBtn("Crash Recovery Status", "/mcdg roundsession status", cx, y, bw, TEXT_MUTED, BTN_TINT_MUTED); y += BTN_H + BTN_GAP;
-        addConfirmBtn("Clear Crash Recovery", "/mcdg roundsession clear", cx, y, bw);
+        addPageSwitchBtnWithDesc("Course Maintenance", "Manage course catalog and world cleanup", Page.COURSE_MAINTENANCE, cx, y, bw, TEXT_MUTED, BTN_TINT_MUTED); y += BTN_H + DESC_SPACING + BTN_GAP;
+        addBtnWithDesc("Remove Resort Courses", "Remove all 3 auto-built resort surround courses from world", "/mcdg removesurroundcourses", cx, y, bw, TEXT_MUTED, BTN_TINT_MUTED); y += BTN_H + DESC_SPACING + BTN_GAP;
+
+        addSectionHeader("Crash Recovery", cx, y, bw); y += 14 + BTN_GAP;
+        addBtnWithDesc("Crash Recovery Status", "Show crash recovery data status", "/mcdg roundsession status", cx, y, bw, TEXT_MUTED, BTN_TINT_MUTED); y += BTN_H + DESC_SPACING + BTN_GAP;
+        addConfirmBtnWithDesc("Clear Crash Recovery", "Clear all crash recovery data (destructive)", "/mcdg roundsession clear", cx, y, bw, TEXT_RED, BTN_TINT_RED); y += BTN_H + DESC_SPACING + BTN_GAP;
+    }
+
+    private void buildCourseMaintenancePage(int cx, int cy, int bw, int panelX, int panelY) {
+        List<MenuScreenSync.CourseEntry> courses = state.courses();
+
+        addPageSwitchBtn("← Back to Admin", Page.ADMIN, cx, cy, bw, TEXT_MUTED, BTN_TINT_NONE);
+        cy += BTN_H + BTN_GAP;
+
+        if (courses.isEmpty()) {
+            addBtn("No courses in catalog", null, cx, cy, bw, TEXT_MUTED, BTN_TINT_MUTED);
+            return;
+        }
+
+        int delW = 30;
+        int clrW = 30;
+        int bothW = 30;
+        int gap = 3;
+        int totalBtnsW = delW + clrW + bothW + (gap * 2);
+        int maintRowHeight = (BTN_H + BTN_GAP) + (BTN_H + DESC_SPACING + BTN_GAP);
+        int backBtnHeight = BTN_H + BTN_GAP;
+        int maintVisibleRows = Math.max(1, (CONTENT_MAX_H - backBtnHeight) / maintRowHeight);
+        int visibleRows = Math.min(maintVisibleRows, courses.size());
+        int maxOffset = Math.max(0, courses.size() - visibleRows);
+        playScrollOffset = Math.max(0, Math.min(playScrollOffset, maxOffset));
+
+        int y = cy;
+        for (int i = playScrollOffset; i < playScrollOffset + visibleRows && i < courses.size(); i++) {
+            MenuScreenSync.CourseEntry entry = courses.get(i);
+            int idx = entry.index();
+            String resortTag = "resort-surround".equals(entry.sourceTag()) ? "[RESORT] " : "";
+            String label = "#" + idx + " " + resortTag + entry.name() + "  (" + entry.holeCount() + "H)";
+
+            addBtn(label, null, cx, y, bw, TEXT_WHITE, BTN_TINT_NONE);
+            y += BTN_H + BTN_GAP;
+
+            int x = cx;
+            addConfirmBtnWithDesc("[DEL]", "Delete from catalog only", "/mcdg removecourse " + idx, x, y, delW, TEXT_RED, BTN_TINT_RED);
+            x += delW + gap;
+            addBtnWithDesc("[CLR]", "Remove from world only", "/mcdg cleanupcoursebyindex " + idx, x, y, clrW, TEXT_GOLD, BTN_TINT_GOLD);
+            x += clrW + gap;
+            addConfirmBtnWithDesc("[X]", "Remove from both catalog and world", "/mcdg removecourseboth " + idx, x, y, bothW, TEXT_RED, BTN_TINT_RED);
+            y += BTN_H + DESC_SPACING + BTN_GAP;
+        }
+
+        if (courses.size() > visibleRows) {
+            int scrollBarX = panelX + PANEL_W - 12;
+            int scrollAreaY = cy;
+            int scrollAreaH = visibleRows * maintRowHeight;
+            addDrawableChild(ButtonWidget.builder(Text.literal("▲"), b -> {
+                playScrollOffset = Math.max(0, playScrollOffset - 1);
+                rebuild();
+            }).dimensions(scrollBarX, scrollAreaY, 10, 12).build());
+            addDrawableChild(ButtonWidget.builder(Text.literal("▼"), b -> {
+                playScrollOffset = Math.min(maxOffset, playScrollOffset + 1);
+                rebuild();
+            }).dimensions(scrollBarX, scrollAreaY + scrollAreaH - 12, 10, 12).build());
+        }
     }
 
     private void buildConfirmDialog(int panelX, int panelY) {
@@ -332,6 +432,25 @@ public final class McdgMenuScreen extends Screen {
         addDrawableChild(btn);
     }
 
+    private void addConfirmBtnWithDesc(String label, String description, String command, int x, int y, int w, int textColor, int tint) {
+        ButtonWidget btn = ButtonWidget.builder(Text.literal(label), b -> {
+            confirmLabel = label;
+            confirmCommand = command;
+            confirmPending = true;
+            rebuild();
+        }).dimensions(x, y, w, BTN_H).build();
+        contentButtons.add(btn);
+        buttonTints.add(new int[]{x, y, w, BTN_H, tint});
+        addDrawableChild(btn);
+
+        // Store description for rendering (shown below button)
+        buttonDescriptions.add(new ButtonDescription(x, y + BTN_H + 2, description));
+    }
+
+    private void addSectionHeader(String text, int x, int y, int w) {
+        buttonDescriptions.add(new ButtonDescription(x, y, text, true));
+    }
+
     private void runCommand(String command) {
         close();
         ClientPlayerEntity player = MinecraftClient.getInstance().player;
@@ -350,6 +469,11 @@ public final class McdgMenuScreen extends Screen {
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+    }
+
+    @Override
+    protected void applyBlur(float delta) {
+        // Intentionally suppressed — blur bleeds into custom-drawn text and boxes
     }
 
     @Override
@@ -393,6 +517,30 @@ public final class McdgMenuScreen extends Screen {
             }
         }
 
+        int contentWidth = PANEL_W - CONTENT_X_OFFSET - 8;
+        for (ButtonDescription desc : buttonDescriptions) {
+            if (desc.isHeader) {
+                context.fill(desc.x, desc.y - 3, desc.x + contentWidth, desc.y - 2, BORDER_COLOR);
+                context.drawTextWithShadow(textRenderer,
+                        Text.literal(desc.description).formatted(Formatting.BOLD),
+                        desc.x, desc.y, TEXT_TITLE);
+            } else {
+                float descScale = 0.75f;
+                int scaledWidth = (int) (contentWidth / descScale);
+                List<net.minecraft.text.OrderedText> lines = textRenderer.wrapLines(
+                        Text.literal(desc.description), scaledWidth);
+                var matrices = context.getMatrices();
+                matrices.push();
+                matrices.translate(desc.x, desc.y, 0);
+                matrices.scale(descScale, descScale, 1.0f);
+                for (int li = 0; li < lines.size(); li++) {
+                    context.drawTextWithShadow(textRenderer, lines.get(li),
+                            0, (int) (li * textRenderer.fontHeight), TEXT_WHITE);
+                }
+                matrices.pop();
+            }
+        }
+
         if (confirmPending) {
             int cx = panelX + CONTENT_X_OFFSET;
             int cy = panelY + 44;
@@ -417,18 +565,27 @@ public final class McdgMenuScreen extends Screen {
                         panelX + CONTENT_X_OFFSET, panelY + 60, TEXT_MUTED);
             }
 
-            if (currentPage == Page.RULES) {
-                String ruleInfo = "Current: " + state.rulesetName() + " / " + state.presetName();
-                context.drawTextWithShadow(textRenderer, Text.literal(ruleInfo),
-                        panelX + CONTENT_X_OFFSET, panelY + 33, TEXT_MUTED);
-            }
 
             if (state.roundActive() && !state.courseName().isBlank()) {
-                String label = state.courseName() + "  ·  " + state.rulesetName();
+                String label;
+                String rulesetName = state.rulesetName() != null ? state.rulesetName() : "";
+                String presetName = state.presetName() != null ? state.presetName() : "";
+                if (isRulesetStrict(rulesetName)) {
+                    label = state.courseName() + "  ·  " + rulesetName + " (" + presetName + ")";
+                } else {
+                    label = state.courseName() + "  ·  " + rulesetName;
+                }
                 context.drawTextWithShadow(textRenderer, Text.literal(label),
                         panelX + CONTENT_X_OFFSET, panelY + PANEL_H - 14, TEXT_MUTED);
-            } else if (!state.rulesetName().isBlank()) {
-                String label = "Ruleset: " + state.rulesetName() + " / " + state.presetName();
+            } else if (state.rulesetName() != null && !state.rulesetName().isBlank()) {
+                String label;
+                String rulesetName = state.rulesetName() != null ? state.rulesetName() : "";
+                String presetName = state.presetName() != null ? state.presetName() : "";
+                if (isRulesetStrict(rulesetName)) {
+                    label = "Ruleset: " + rulesetName + " (" + presetName + ")";
+                } else {
+                    label = "Ruleset: " + rulesetName;
+                }
                 context.drawTextWithShadow(textRenderer, Text.literal(label),
                         panelX + CONTENT_X_OFFSET, panelY + PANEL_H - 14, TEXT_MUTED);
             }
@@ -450,5 +607,11 @@ public final class McdgMenuScreen extends Screen {
     @Override
     public boolean shouldPause() {
         return false;
+    }
+
+    private static record ButtonDescription(int x, int y, String description, boolean isHeader) {
+        ButtonDescription(int x, int y, String description) {
+            this(x, y, description, false);
+        }
     }
 }

@@ -1,5 +1,13 @@
 # OB Feedback Enhancement Plan
 
+## Status: 📋 PENDING
+
+**Priority:** HIGH - Player experience improvement
+**Dependencies:** Phase 1.3 (Real-Time Progressive Trail Rendering) - COMPLETED
+**Estimated Effort:** 8-12 hours
+
+**Note:** With the completion of real-time progressive trail rendering, players can now see their actual flight paths. This plan builds on that foundation to provide enhanced OB feedback using the trajectory data.
+
 ## Problem Statement
 
 With the implementation of fade, hyzer, and anhyzer mechanics, players are now ending up Out of Bounds (OB) more frequently because shots drift off the fairway. However, players receive minimal feedback about:

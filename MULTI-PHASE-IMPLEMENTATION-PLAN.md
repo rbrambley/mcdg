@@ -2,9 +2,9 @@
 
 **Status:** Master Implementation Plan
 **Created:** 2026-06-17
-**Last Updated:** 2026-06-17
+**Last Updated:** 2026-06-21
 **Current Phase:** Phase 1 (Critical Fixes & Foundation)
-**Overall Progress:** 1/6 phases (16% complete)
+**Overall Progress:** 2/6 phases (33% complete)
 **Goal:** Combine all feature plans into cohesive development phases with logical dependencies and priorities
 
 ---
@@ -30,12 +30,24 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
   - Reduced particle trail duration from 3 seconds to 2 seconds
   - Added timing metrics for all server tick handlers
   - Added early-exit conditions for inactive services
+- ✅ Phase 1.3: Real-Time Progressive Trail Rendering (COMPLETED - 2026-06-19)
+  - Implemented progressive trail rendering during flight
+  - Fixed trail memory leaks and duplicate hash issues
+  - Decoupled HUD fade from cinematic fade
+  - Added extensive debug logging for trail visibility
+  - Fixed double packet send and cache key issues
+- ✅ Phase 1.4: HUD Scaling & Minimap Integration (COMPLETED - 2026-06-19)
+  - Replaced heavy minimap with lightweight hole map HUD
+  - Added GUI scaling support for HUD elements
+  - Enhanced HUD scaling and Xaero's Minimap integration
+  - Optimized minimap rendering and cache rebuilds
+  - Fixed server performance issues (basket beacon, waypoint sync)
 
 **In Progress:**
-- 🔄 Phase 1.3: Basic Survival Integration
+- 🔄 Phase 1.5: Basic Survival Integration
 
 **Next Priority:**
-- 📋 Phase 1.3: Basic Survival Integration (6-10 hours estimated)
+- 📋 Phase 1.5: Basic Survival Integration (6-10 hours estimated)
 
 **Combined Plans:**
 - Fade/Hyzer/Anhyzer Physics Fix (FADE_FIX_PLAN.md)
@@ -96,7 +108,51 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
 
 **Impact:** HIGH - Natural survival integration, immediate player value
 
-**Phase 1 Total Effort:** 12-20 hours
+### **Phase 1.3: Real-Time Progressive Trail Rendering**
+**Source:** REAL-TIME-TRAIL-IMPLEMENTATION-PLAN.md
+**Effort:** 8-12 hours
+**Dependencies:** None
+**Status:** ✅ COMPLETED (2026-06-19)
+
+**Tasks:**
+- ✅ Implement progressive trail rendering during flight
+- ✅ Split trail packet into start and complete phases
+- ✅ Fix trail memory leaks and duplicate hash issues
+- ✅ Decouple HUD fade from cinematic fade
+- ✅ Add extensive debug logging for trail visibility
+- ✅ Fix double packet send and cache key issues
+
+**Impact:** HIGH - Critical gameplay feedback, players can now "watch the disc fly"
+
+### **Phase 1.4: HUD Scaling & Minimap Integration**
+**Source:** Plan.md (minimap improvements)
+**Effort:** 6-10 hours
+**Dependencies:** None
+**Status:** ✅ COMPLETED (2026-06-19)
+
+**Tasks:**
+- ✅ Replace heavy minimap with lightweight hole map HUD
+- ✅ Add GUI scaling support for HUD elements
+- ✅ Enhance HUD scaling and Xaero's Minimap integration
+- ✅ Optimize minimap rendering and cache rebuilds
+- ✅ Fix server performance issues (basket beacon, waypoint sync)
+
+**Impact:** HIGH - Performance improvement, better UX, third-party mod integration
+
+### **Phase 1.5: Basic Survival Integration**
+**Source:** SURVIVAL-ENHANCEMENTS-PLAN.md (Phase 1)
+**Effort:** 6-10 hours
+**Dependencies:** None
+
+**Tasks:**
+- Implement disc enchantments system (GLIDE, STABILITY, PIERCE, DURABILITY, RANGE)
+- Add biome-themed course generation
+- Implement XP rewards for scoring
+- Add stamina-based throw mechanics
+
+**Impact:** HIGH - Natural survival integration, immediate player value
+
+**Phase 1 Total Effort:** 32-52 hours
 
 ---
 
