@@ -883,6 +883,10 @@ public final class McdgAdminCommands {
                                                 (persistentCourse ? "Practice course started" : "Round started")
                                                         + ". Players=" + trackedPlayers + ". Use /mcdg gotocourse if needed."
                                 ), true);
+                                // Send running scoreboard to all participants after round is active
+                                for (ServerPlayerEntity player : participants) {
+                                        HoleProgressTracker.sendRunningScoreboardToPlayer(player, courseManager, roundStateManager);
+                                }
                                 return 1;
                         }
 
@@ -900,6 +904,10 @@ public final class McdgAdminCommands {
                                                 (persistentCourse ? "Practice course live" : "Round live")
                                                         + ". Players=" + trackedPlayers + "."
                                         ), true);
+                                        // Send running scoreboard to all participants after round is active
+                                        for (ServerPlayerEntity player : participants) {
+                                                HoleProgressTracker.sendRunningScoreboardToPlayer(player, courseManager, roundStateManager);
+                                        }
                                 }
                         );
 
@@ -1005,6 +1013,10 @@ public final class McdgAdminCommands {
                         source.sendFeedback(() -> Text.literal(
                                 "Round resumed. Players=" + trackedPlayers + ". Use /mcdg gotocourse if needed."
                         ), true);
+                        // Send running scoreboard to all participants after round is active
+                        for (ServerPlayerEntity player : participants) {
+                                HoleProgressTracker.sendRunningScoreboardToPlayer(player, courseManager, roundStateManager);
+                        }
                         return 1;
                 }
 
@@ -1021,6 +1033,10 @@ public final class McdgAdminCommands {
                                 source.sendFeedback(() -> Text.literal(
                                         "Round live on existing course. Players=" + trackedPlayers + "."
                                 ), true);
+                                // Send running scoreboard to all participants after round is active
+                                for (ServerPlayerEntity player : participants) {
+                                        HoleProgressTracker.sendRunningScoreboardToPlayer(player, courseManager, roundStateManager);
+                                }
                         }
                 );
 
