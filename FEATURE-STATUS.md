@@ -17,14 +17,19 @@
 | Performance quick wins | ✅ Complete | Cache throttle 750ms, autosave 100 ticks, particle duration 2s, tick metrics | Accurate | Low |
 | Real-time progressive trail | ✅ Complete | `ThrowTrailSync`, progressive client rendering, memory leak fixes | Accurate | Low |
 | HUD scaling & minimap | ✅ Complete | Lightweight hole HUD, GUI scaling, Xaero's soft-dependency | Accurate | Low |
-| Outward teardrop generator | ⚠️ Partial (plans) | `generateOutwardConeCourse` fully implemented; used for all auto-builds | **Done, plans understated** | Low |
+| Outward teardrop generator | ✅ Complete | `generateOutwardConeCourse` fully implemented; used for all auto-builds | Accurate | Low |
+| Disc Workbench | ✅ Complete | `DiscWorkbenchBlock` with GUI for applying disc enchantments via `DiscWorkbenchScreenHandler` | Accurate | Low |
+| Training Discs | ✅ Complete | Crafting recipe (8 arrows + copper ingot), permanent reusable disc | Accurate | Low |
+| DiscEnchantedBook | ✅ Complete | Enchanted book item integrated with round rewards and merch barrels | Accurate | Low |
+| Grappling Disc | ✅ Complete | `GrapplingDiscItem` / `GrapplingDiscEntity` projectile pulls player to landing | Accurate | Low |
+| Boomerang Disc | ✅ Complete | `BoomerangDiscItem` / `BoomerangDiscEntity` returning throwable disc | Accurate | Low |
 | Resort builder | ✅ Complete | `ResortBuilder`, `ResortCourseBuilder`, `WorldSpawnHandler` | Accurate | Low |
 | Disc glide physics (phases 1-6) | ✅ Complete | `DiscFlightSimulator`, `ThrowStance`, `ReleaseAngle`, trails, HUD | Accurate | Low |
 | Charge enhancements | ✅ Complete | Slower charge, 125% overcharge, power lock, audio cues, distance markers | Accurate | Low |
-| Round rewards | 🔄 In progress (plans) | `RoundRewardService.java` exists and is fully functional | **Done, plans missed it** | Low |
-| Disc enchantments | 🔄 In progress | No `DiscEnchantment` enum or enchantment physics integration | Accurate | Low |
-| Biome-themed courses | 🔄 In progress | No `BiomeCourseProfiles` class or biome-aware generation | Accurate | Low |
-| Stamina / XP integration | 🔄 In progress | No stamina system; XP rewards not wired to disc golf | Accurate | Low |
+| Round rewards | ✅ Complete | `RoundRewardService.java` grants enchanted tools, armor, and books based on round score vs par | Accurate | Low |
+| Disc enchantments | ✅ Complete | `DiscEnchantment` enum, `DiscEnchantmentHelper`, physics hooks in `TrajectoryCalculator` and `DiscFlightSimulator` | Accurate | Low |
+| Biome-themed courses | ✅ Complete | `SeededCourseGenerator` biome profiles with per-biome hazard/elevation/water/vegetation multipliers | Accurate | Low |
+| Stamina / XP integration | ✅ Complete | `StaminaXpService` handles exhaustion on overcharge, XP rewards for throws and round completion | Accurate | Low |
 
 ---
 
@@ -34,7 +39,7 @@
 |---------|-------------|-------------|---------|------|
 | Wind system | 📋 Planning | No `WindManager`, `WindState`, or wind physics hooks | Accurate | Low |
 | Custom throw animations | ⏸️ Placeholder | UseAction mappings only (Overhand=SPEAR, Backhand=CROSSBOW, Forehand=BOW) | Accurate | Low |
-| Expanded hazards (sand, rough, ice) | 📋 Planning | Basic `OutOfBoundsClassifier` exists; no new hazard types | Accurate | Low |
+| Expanded hazards (sand, rough, ice) | 📋 Planning | Basic `OutOfBoundsClassifier` exists; `HoleHazardGridService` exists but limited hazard types | Accurate | Low |
 
 ---
 
@@ -42,7 +47,7 @@
 
 | Feature | Plan Status | Code Status | Verdict | Risk |
 |---------|-------------|-------------|---------|------|
-| Disc crafting progression | 📋 Planning | No crafting recipes for wooden/stone/iron/gold/diamond/netherite discs | Accurate | Low |
+| Disc crafting progression | � Partial | Training Disc recipe complete; tiered wooden→netherite discs not yet implemented | Accurate | Low |
 | Custom disc stats | 📋 Planning | No `DiscFlightRatings`, `DiscCharacteristics`, or disc builder | Accurate | Low |
 | Challenge courses | 📋 Planning | No challenge course generation or special rewards | Accurate | Low |
 
@@ -62,7 +67,7 @@
 | Feature | Plan Status | Code Status | Verdict | Risk |
 |---------|-------------|-------------|---------|------|
 | OB feedback enhancement | 📋 Pending | Straight-line crossing detection still used; no trajectory-based analysis | Accurate | Low |
-| Monolithic class split | 📋 Planning | `CoursePlacementService` (~2,648 lines), `HoleProgressTracker` (~1,536 lines), `McdgAdminCommands` (~2,563 lines), `MiniMapRenderer` (~1,108 lines) all still intact | Accurate | Low |
+| Monolithic class split | � Partial | `HoleProgressTracker` split into `ThrowResolver`, `TurnManager`, `HoleMapSyncService`; `McdgAdminCommands` split into domain command classes; `CoursePlacementService` slimmed to ~39 KB with `BuildCourseSessionManager` and `TickIncrementalCoursePlacer` extracted; `MiniMapRenderer` still intact | Accurate | Low |
 | Async file I/O | 📋 Pending | Round session saves still synchronous | Accurate | Low |
 | Configurable minimap quality | 📋 Pending | No quality settings (Low/Medium/High) | Accurate | Low |
 

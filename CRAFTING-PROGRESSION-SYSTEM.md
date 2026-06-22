@@ -1,7 +1,8 @@
 # Crafting Progression System Plan
 
-**Status:** Planning Phase  
+**Status:** Partially Implemented — Training Disc complete; tiered progression pending  
 **Created:** 2026-06-17  
+**Last Updated:** 2026-06-22  
 **Goal:** Create comprehensive crafting progression system for disc golf in survival mode
 
 ---
@@ -19,7 +20,28 @@ This progression system transforms disc golf equipment from a single item into a
 
 ---
 
+## Implementation Status
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Training Disc | ✅ Complete | Permanent reusable disc; recipe: 8 arrows + copper ingot; no durability loss |
+| Wooden Disc | 📋 Planned | Tier 1 beginner disc (see below) |
+| Tiered discs (Stone → Netherite) | 📋 Planned | Full progression tree not yet started |
+| Disc Bag | 📋 Planned | Planned but not implemented |
+
+---
+
 ## Progression Tiers
+
+### **Tier 0: Training Equipment** ✅ IMPLEMENTED
+
+**Training Disc** ✅ COMPLETE (2026-06-22)
+- **Materials:** 8x Arrows + 1x Copper Ingot
+- **Stats:** Standard disc stats; no durability loss; permanent (survives round cleanup)
+- **Unlock:** Available from start
+- **Purpose:** Entry-level disc for learning mechanics
+
+---
 
 ### **Tier 1: Beginner Equipment**
 

@@ -2,7 +2,7 @@
 
 ## Overall Status Summary (2026-06-22)
 
-**Active Development Phase:** Phase 1 - Critical Fixes & Foundation (~85% complete)
+**Active Development Phase:** Phase 1 - Critical Fixes & Foundation (✅ COMPLETE)
 
 **Recently Completed (June 2026):**
 - ✅ Real-Time Progressive Trail Rendering - Players can now "watch the disc fly"
@@ -11,11 +11,19 @@
 - ✅ Performance Optimization - Server and client performance improvements
 - ✅ Outward Teardrop Course Generator - Unified cone generator for all auto-builds
 - ✅ Round Reward Service - Survival-mode players receive tools/armor/enchanted books based on score
+- ✅ Disc Enchantments System (Phase 1.5b) - GLIDE/STABILITY/PIERCE/DURABILITY/RANGE enchantments with physics hooks
+- ✅ Biome-Themed Course Generation (Phase 1.5c) - Per-biome hazard/elevation/water/vegetation profiles
+- ✅ Stamina / XP Integration (Phase 1.5d) - Exhaustion on overcharge, XP rewards for throws and rounds
+- ✅ Training Discs - Permanent reusable disc with crafting recipe (8 arrows + copper ingot)
+- ✅ DiscEnchantedBook - Enchanted book item integrated with round rewards and resort merch barrels
+- ✅ Disc Workbench - Custom block with GUI for applying disc enchantments
+- ✅ Resort Merch Barrels - Starter discs and enchanted books auto-populated in resort
+- ✅ Grappling Disc - Projectile entity that pulls player to landing point
+- ✅ Boomerang Disc - Returning throwable disc projectile
+- ✅ CommandPermission refactor - Extracted utility from McdgAdminCommands
 
 **Current Focus:**
-- 🔄 Phase 1.5b: Disc Enchantments System
-- 🔄 Phase 1.5c: Biome-Themed Course Generation
-- 🔄 Phase 1.5d: Stamina / XP Integration
+- 📋 Phase 2: Enhanced Gameplay Systems (Wind System, Custom Throw Animations)
 
 **Upcoming Phases:**
 - Phase 2: Enhanced Gameplay Systems (Wind System, Custom Throw Animations)
@@ -209,6 +217,72 @@ Deployment status:
 - Manual ATLauncher testing: new world join is smooth, no lag spikes during
   resort surround course builds. Progress bar updates per-hole.
 - Test instance jar updated successfully
+
+---
+
+## Phase 1.5 Completions: Disc Enchantments, Biome Courses, Stamina/XP, New Items (2026-06-22) ✅ COMPLETED
+
+Implemented / validated:
+
+### Phase 1.5b: Disc Enchantments System
+- **`DiscEnchantment` enum**: GLIDE, STABILITY, PIERCE, DURABILITY, RANGE enchantment types
+- **`DiscEnchantmentHelper`**: Reads enchantments from disc NBT and applies physics modifiers
+- **Physics integration**: Enchantment effects wired into `TrajectoryCalculator` and `DiscFlightSimulator`
+- **`DiscWorkbenchBlock` + `DiscWorkbenchScreenHandler`**: Custom block and GUI for applying disc enchantments
+- **`DiscWorkbenchScreen`** (client): Client-side GUI rendering
+
+Key commits:
+- `e470ece` feat: disc enchantment system (Phase 1.5b)
+- `69e5770` feat: Disc Workbench block with GUI for applying disc enchantments (gap 2)
+
+### Phase 1.5c: Biome-Themed Course Generation
+- **`SeededCourseGenerator` biome profiles**: Per-biome multipliers for hazards, elevation, water, and vegetation
+- All auto-built courses (player `autocourse`, resort surround) use biome-aware parameters
+- Modded biomes (Biomes O' Plenty) detected via soft-dependency and mapped to profiles
+
+Key commits:
+- `4337b34` feat: biome-themed course generation (Phase 1.5c)
+
+### Phase 1.5d: Stamina / XP Integration
+- **`StaminaXpService`**: Stamina exhaustion on overcharge throws, XP rewards for per-hole scores and round completion
+- Integrated with `ThrowResolver` (throw-time exhaustion) and `RoundLifecycleCommands` (round-completion XP)
+
+Key commits:
+- `afa05ae` feat: stamina and XP integration for throws and round completion (Phase 1.5d)
+
+### Training Discs
+- Permanent reusable disc crafted from 8 arrows + copper ingot
+- Survives round cleanup; no durability loss
+
+Key commits:
+- `5f159ce` feat: permanent Training Discs with crafting recipe (Option B)
+- `ebd4606` fix: change Training Disc recipe to 8 arrows + copper ingot
+
+### DiscEnchantedBook + Resort Merch Barrels
+- **`DiscEnchantedBook`**: Item that grants disc-specific enchantments; integrates with round reward drops
+- **Resort merch barrels**: Auto-populated with starter discs and enchanted books on resort generation
+
+Key commits:
+- `3f8cafe` feat: DiscEnchantedBook item and round reward integration (gap 1)
+- `bd90f4a` feat: populate resort merch barrels with starter discs and enchanted books (gap 3)
+
+### Grappling Disc and Boomerang Disc
+- **`GrapplingDiscItem` / `GrapplingDiscEntity`**: Throwable projectile that pulls the player to the landing point on impact
+- **`BoomerangDiscItem` / `BoomerangDiscEntity`**: Throwable projectile that returns to the thrower in an arc
+
+Key commits:
+- `a638f84` feat: Grappling Disc and Boomerang Disc items with projectile entities
+
+### CommandPermission Refactor
+- **`CommandPermission`** utility extracted from `McdgAdminCommands` (gap 4 of admin commands split)
+
+Key commits:
+- `e224e9c` refactor: extract CommandPermission utility from McdgAdminCommands (gap 4)
+
+Deployment status:
+- Build passing (`./gradlew build`)
+- quickRegression passing
+- All Phase 1.5 items validated in code
 
 ---
 

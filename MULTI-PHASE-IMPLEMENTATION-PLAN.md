@@ -3,8 +3,8 @@
 **Status:** Master Implementation Plan
 **Created:** 2026-06-17
 **Last Updated:** 2026-06-22
-**Current Phase:** Phase 1 (Critical Fixes & Foundation)
-**Overall Progress:** Phase 1 of 6 (~85% complete)
+**Current Phase:** Phase 2 (Enhanced Gameplay Systems)
+**Overall Progress:** Phase 1 of 6 (✅ COMPLETE) — Phase 2 starting
 **Goal:** Combine all feature plans into cohesive development phases with logical dependencies and priorities
 
 ---
@@ -15,7 +15,7 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
 
 ## Current Progress
 
-**Overall Progress:** Phase 1 of 6 (~85% complete)
+**Overall Progress:** Phase 1 of 6 (✅ COMPLETE) — Phase 2 starting
 
 **Completed:**
 - ✅ Phase 1.1: Fade/Hyzer/Anhyzer Physics Fix (COMPLETED - 2026-06-17)
@@ -46,16 +46,31 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
   - Survival-mode players receive enchanted tools, armor, and books based on round score vs par
   - Ace and strict-ruleset bonuses already wired into round completion
   - Located in `src/main/java/com/mcdg/game/RoundRewardService.java`
+- ✅ Phase 1.5b: Disc Enchantments System (COMPLETED - 2026-06-22)
+  - `DiscEnchantment` enum: GLIDE, STABILITY, PIERCE, DURABILITY, RANGE
+  - `DiscEnchantmentHelper` reads enchantments from disc NBT, applies physics modifiers
+  - Integrated into `TrajectoryCalculator` and `DiscFlightSimulator`
+  - `DiscWorkbenchBlock` + `DiscWorkbenchScreenHandler` + `DiscWorkbenchScreen` (GUI)
+- ✅ Phase 1.5c: Biome-Themed Course Generation (COMPLETED - 2026-06-22)
+  - `SeededCourseGenerator` biome profiles with per-biome hazard/elevation/water/vegetation multipliers
+  - Modded biomes (Biomes O' Plenty) detected and mapped via soft-dependency
+- ✅ Phase 1.5d: Stamina / XP Integration (COMPLETED - 2026-06-22)
+  - `StaminaXpService`: stamina exhaustion on overcharge, XP rewards for throws and round completion
+- ✅ Phase 1.5e: Training Discs (COMPLETED - 2026-06-22)
+  - Permanent reusable disc; crafting recipe: 8 arrows + copper ingot
+- ✅ Phase 1.5f: DiscEnchantedBook + Resort Merch Barrels (COMPLETED - 2026-06-22)
+  - `DiscEnchantedBook` item integrated with round rewards and resort merch barrels
+- ✅ Phase 1.5g: Grappling Disc + Boomerang Disc (COMPLETED - 2026-06-22)
+  - `GrapplingDiscItem`/`GrapplingDiscEntity`: pulls player to landing point
+  - `BoomerangDiscItem`/`BoomerangDiscEntity`: returns to thrower in an arc
 
 **In Progress:**
-- 🔄 Phase 1.5b: Disc Enchantments System
-- 🔄 Phase 1.5c: Biome-Themed Course Generation
-- 🔄 Phase 1.5d: Stamina / XP Integration
+- None — Phase 1 complete; Phase 2 work starting
 
 **Next Priority:**
-- 📋 Phase 1.5b: Disc Enchantments System (4-6 hours estimated)
-- 📋 Phase 1.5c: Biome-Themed Course Generation (3-4 hours estimated)
-- 📋 Phase 1.5d: Stamina / XP Integration (2-3 hours estimated)
+- 📋 Phase 2.1: Wind System
+- 📋 Phase 2.2: Expanded Hazards
+- 📋 Phase 2.3: Custom Throw Animations
 
 **Combined Plans:**
 - Fade/Hyzer/Anhyzer Physics Fix (FADE_FIX_PLAN.md)
@@ -148,42 +163,72 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
 
 **Impact:** MEDIUM-HIGH - Bridges disc golf and survival progression
 
-### **Phase 1.5b: Disc Enchantments System** 📋 PENDING
+### **Phase 1.5b: Disc Enchantments System** ✅ COMPLETED (2026-06-22)
 **Source:** SURVIVAL-ENHANCEMENTS-PLAN.md (Phase 1.1)
 **Effort:** 4-6 hours
 **Dependencies:** None
 
 **Tasks:**
-- Implement disc enchantments system (GLIDE, STABILITY, PIERCE, DURABILITY, RANGE)
-- Integrate enchantment levels into `TrajectoryCalculator` and `DiscFlightSimulator`
-- Add disc-specific enchanting table / anvil behavior
+- ✅ Implement disc enchantments system (GLIDE, STABILITY, PIERCE, DURABILITY, RANGE)
+- ✅ Integrate enchantment levels into `TrajectoryCalculator` and `DiscFlightSimulator`
+- ✅ Add `DiscWorkbenchBlock` + `DiscWorkbenchScreenHandler` GUI for applying enchantments
 
 **Impact:** HIGH - Natural survival integration, immediate player value
 
-### **Phase 1.5c: Biome-Themed Course Generation** 📋 PENDING
+### **Phase 1.5c: Biome-Themed Course Generation** ✅ COMPLETED (2026-06-22)
 **Source:** SURVIVAL-ENHANCEMENTS-PLAN.md (Phase 1.2)
 **Effort:** 3-4 hours
 **Dependencies:** None
 
 **Tasks:**
-- Add `BiomeCourseProfiles` with per-biome hazard/elevation/water/vegetation multipliers
-- Integrate biome profiles into `generateOutwardConeCourse`
-- Support modded biomes via soft-dependency detection (Biomes O' Plenty, BYG)
+- ✅ Add biome profiles with per-biome hazard/elevation/water/vegetation multipliers
+- ✅ Integrate biome profiles into `SeededCourseGenerator`
+- ✅ Support modded biomes via soft-dependency detection (Biomes O' Plenty)
 
 **Impact:** MEDIUM-HIGH - Course variety and visual interest
 
-### **Phase 1.5d: Stamina / XP Integration** 📋 PENDING
+### **Phase 1.5d: Stamina / XP Integration** ✅ COMPLETED (2026-06-22)
 **Source:** SURVIVAL-ENHANCEMENTS-PLAN.md (Phase 1)
 **Effort:** 2-3 hours
 **Dependencies:** None
 
 **Tasks:**
-- Implement XP rewards for scoring (per-hole and round completion)
-- Add stamina-based throw mechanics (exhaustion on overcharge, recovery over time)
+- ✅ Implement XP rewards for scoring (per-hole and round completion)
+- ✅ Add stamina-based throw mechanics (exhaustion on overcharge via `StaminaXpService`)
 
 **Impact:** MEDIUM - Survival depth and progression feedback
 
-**Phase 1 Total Effort:** 32-52 hours (14-18 hours remaining)
+### **Phase 1.5e: Training Discs** ✅ COMPLETED (2026-06-22)
+**Effort:** 1-2 hours
+**Dependencies:** None
+
+**Tasks:**
+- ✅ Permanent reusable Training Disc with crafting recipe (8 arrows + copper ingot)
+- ✅ Survives round cleanup; no durability loss
+
+**Impact:** MEDIUM - Beginner-friendly disc golf entry point
+
+### **Phase 1.5f: DiscEnchantedBook + Resort Merch Barrels** ✅ COMPLETED (2026-06-22)
+**Effort:** 1-2 hours
+**Dependencies:** None
+
+**Tasks:**
+- ✅ `DiscEnchantedBook` item: grants disc enchantments, integrated with round rewards
+- ✅ Resort merch barrels auto-populated with starter discs and enchanted books
+
+**Impact:** MEDIUM - Survival loot loop, resort discovery
+
+### **Phase 1.5g: Grappling Disc + Boomerang Disc** ✅ COMPLETED (2026-06-22)
+**Effort:** 2-3 hours
+**Dependencies:** None
+
+**Tasks:**
+- ✅ `GrapplingDiscItem`/`GrapplingDiscEntity`: throwable projectile that pulls player to landing
+- ✅ `BoomerangDiscItem`/`BoomerangDiscEntity`: returning throwable disc projectile
+
+**Impact:** MEDIUM - Fun utility discs, expands item variety
+
+**Phase 1 Total Effort:** ~40-60 hours — ✅ COMPLETE
 
 ---
 
@@ -204,18 +249,17 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
 
 **Impact:** HIGH - Adds environmental depth to gameplay
 
-### **Phase 2.2: Biome Courses & Expanded Hazards**
-**Source:** SURVIVAL-ENHANCEMENTS-PLAN.md (Phase 1.2, 2.2)
-**Effort:** 5-7 hours
-**Dependencies:** Phase 1.3 (survival integration)
+### **Phase 2.2: Expanded Hazards**
+**Source:** SURVIVAL-ENHANCEMENTS-PLAN.md (Phase 2.2)
+**Effort:** 3-5 hours
+**Dependencies:** None (biome course generation completed in Phase 1.5c)
 
 **Tasks:**
-- Complete biome-themed course generation
 - Add new hazard types (sand traps, rough, ice, cactus, swamps)
 - Implement hazard behavior system
 - Add visual feedback for different hazards
 
-**Impact:** MEDIUM-HIGH - Course variety and visual interest
+**Impact:** MEDIUM-HIGH - Course variety and challenge depth
 
 ### **Phase 2.3: Custom Throw Animations**
 **Source:** CUSTOM-THROW-ANIMATION-PLAN.md
