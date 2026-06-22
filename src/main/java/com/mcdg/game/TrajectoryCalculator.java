@@ -1,5 +1,6 @@
 package com.mcdg.game;
 
+import java.util.Map;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
@@ -66,6 +67,19 @@ public final class TrajectoryCalculator {
             ThrowStance stance,
             ReleaseAngle angle
     ) {
+        return calculateTrajectory(world, startPos, initialVelocity, launchYawDegrees, charge, stance, angle, Map.of());
+    }
+
+    public static TrajectoryResult calculateTrajectory(
+            ServerWorld world,
+            Vec3d startPos,
+            Vec3d initialVelocity,
+            float launchYawDegrees,
+            float charge,
+            ThrowStance stance,
+            ReleaseAngle angle,
+            Map<DiscEnchantment, Integer> enchantments
+    ) {
         // Current position and velocity (simulation state) — use primitives to avoid GC churn
         double px = startPos.x;
         double py = startPos.y + RELEASE_HEIGHT_OFFSET;
@@ -81,6 +95,10 @@ public final class TrajectoryCalculator {
         float normalizedCharge = Math.min(1.0f, charge);
         boolean hasGlide = stance.hasGlide();
         int glideTicks = hasGlide ? 10 + Math.round(normalizedCharge * 40) : 0;
+        int glideLevel = enchantments.getOrDefault(DiscEnchantment.GLIDE, 0);
+        if (glideLevel > 0 && hasGlide) {
+            glideTicks = Math.round(glideTicks * (1.0f + glideLevel * DiscEnchantment.GLIDE.perLevelMultiplier()));
+        }
 
         // Stance/angle curve calculation
         // HYZER exaggerates natural fade (2x), FLAT keeps natural (1x), ANHYZER neutralizes (0x)
@@ -88,6 +106,10 @@ public final class TrajectoryCalculator {
         int angleBias = angle.angleBias();
         int totalBias = naturalFade * (1 - angleBias); // HYZER(-1) = 2x, FLAT(0) = 1x, ANHYZER(+1) = 0x
         double curveMultiplier = 1.0 + (1.0 - normalizedCharge) * 1.5; // Smart scaling
+        int fadeLevel = enchantments.getOrDefault(DiscEnchantment.FADE_CONTROL, 0);
+        if (fadeLevel > 0) {
+            curveMultiplier *= (1.0 - fadeLevel * DiscEnchantment.FADE_CONTROL.perLevelMultiplier());
+        }
 
         // Path points for visual trail (sample every 5 ticks to save memory)
         java.util.List<Vec3d> pathList = new java.util.ArrayList<>();

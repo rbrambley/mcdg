@@ -620,10 +620,13 @@ public final class McdgAdminCommands {
                             .requires(McdgAdminCommands::canUseAdvancedCommands)
                             .executes(context -> RoundAdminCommands.executeRoundStatus(
                                     context.getSource(), courseManager, roundStateManager))));
+
+            dispatcher.register(literal("mcdg")
+                    .then(DiscEnchantmentCommands.build()));
         });
     }
 
-        private static boolean canUseAdminCommands(ServerCommandSource source) {
+        static boolean canUseAdminCommands(ServerCommandSource source) {
                 if (source.hasPermissionLevel(2)) {
                         return true;
                 }

@@ -26,6 +26,7 @@ import net.minecraft.world.World;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -255,6 +256,13 @@ public final class ChargedDiscItem extends Item {
 
         float velocity = MIN_VELOCITY + charge * VELOCITY_SPAN;
 
+        // Read disc enchantments from the held stack
+        Map<DiscEnchantment, Integer> enchantments = DiscEnchantmentHelper.getAll(stack);
+        int distanceLevel = enchantments.getOrDefault(DiscEnchantment.DISTANCE, 0);
+        if (distanceLevel > 0) {
+            velocity *= (1.0f + distanceLevel * DiscEnchantment.DISTANCE.perLevelMultiplier());
+        }
+
         // Calculate throw trajectory (predicted flight path, no pearl entity)
         // Get server-side stance (defaults to OVERHAND/FLAT if not set)
         ThrowStance stance = SERVER_PLAYER_STANCE.getOrDefault(playerUuid, ThrowStance.OVERHAND);
@@ -281,7 +289,8 @@ public final class ChargedDiscItem extends Item {
                 yaw,
                 charge,
                 stance,
-                angle
+                angle,
+                enchantments
         );
 
         McdgMod.LOGGER.info(
@@ -460,6 +469,26 @@ public final class ChargedDiscItem extends Item {
         SERVER_PLAYER_STANCE.put(playerUuid, stance);
         SERVER_PLAYER_ANGLE.put(playerUuid, angle);
         McdgMod.LOGGER.debug("Stance set for player {}: stance={} angle={}", playerUuid, stance, angle);
+    }
+
+    @Override
+    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, net.minecraft.client.item.TooltipType type) {
+        Map<DiscEnchantment, Integer> enchantments = DiscEnchantmentHelper.getAll(stack);
+        for (Map.Entry<DiscEnchantment, Integer> entry : enchantments.entrySet()) {
+            DiscEnchantment enchant = entry.getKey();
+            int level = entry.getValue();
+            String roman = romanLevel(level);
+            tooltip.add(Text.literal(enchant.displayName() + " " + roman).formatted(enchant.color()));
+        }
+    }
+
+    private static String romanLevel(int level) {
+        return switch (level) {
+            case 1 -> "I";
+            case 2 -> "II";
+            case 3 -> "III";
+            default -> String.valueOf(level);
+        };
     }
 
     private static Text buildReleaseText(float charge) {
