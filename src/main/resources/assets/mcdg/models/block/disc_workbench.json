@@ -1,9 +1,9 @@
 {
   "parent": "minecraft:block/cube_bottom_top",
   "textures": {
-    "top": "minecraft:block/smithing_table_top",
-    "bottom": "minecraft:block/smithing_table_bottom",
-    "side": "minecraft:block/smithing_table_side",
-    "particle": "minecraft:block/smithing_table_top"
+    "top": "mcdg:block/disc_workbench",
+    "bottom": "mcdg:block/disc_workbench",
+    "side": "mcdg:block/disc_workbench",
+    "particle": "mcdg:block/disc_workbench"
   }
 }
