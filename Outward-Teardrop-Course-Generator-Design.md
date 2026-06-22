@@ -1,6 +1,6 @@
 # Outward Teardrop Course Generator Design
 
-**Status:** Partially Implemented  
+**Status:** ✅ Implemented  
 **Last Updated:** 2026-06-22
 
 ## Overview
@@ -12,10 +12,11 @@ Replace the spiral/compact course generator with a universal **outward cone + te
 - [x] Compact cone geometry adopted for resort surround courses (`baseLineDistance=25`, hub origin)
 - [x] `buildresort` generates 3 surrounding courses with terrain-aware placement
 - [x] Resort course async builder defers placement until player joins
-- [ ] Full outward teardrop turnaround (holes 4-6 return leg) — verify against `AutoCourseService`
-- [ ] Player `autocourse` menu build uses cone generator instead of `SeededCourseGenerator`
-- [ ] Dead code cleanup: `generateCompactCourse`, `generateHoleSpecsFromOrigin` removal
-- [ ] Unified `generateOutwardConeCourse` signature and implementation
+- [x] Full outward teardrop turnaround (holes 4-6 return leg, holes 7-9 pull back toward base line)
+- [x] Player `autocourse` menu build uses cone generator instead of `SeededCourseGenerator`
+- [x] Dead code cleanup: `generateCompactCourse`, `generateHoleSpecsFromOrigin` removed
+- [x] Unified `generateOutwardConeCourse` signature and implementation
+- [x] `SeededCourseGenerator` retained for manual `/mcdg createcourse` and course name generation
 
 ---
 
