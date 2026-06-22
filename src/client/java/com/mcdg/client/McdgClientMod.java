@@ -16,9 +16,11 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.ingame.HandledScreens;
 import net.minecraft.client.item.ModelPredicateProviderRegistry;
 
 import net.minecraft.util.Identifier;
+import com.mcdg.game.McdgScreenHandlers;
 
 
 public final class McdgClientMod implements ClientModInitializer {
@@ -51,6 +53,7 @@ public final class McdgClientMod implements ClientModInitializer {
         );
 
         ClientKeybinds.register();
+        HandledScreens.register(McdgScreenHandlers.DISC_WORKBENCH, DiscWorkbenchScreen::new);
 
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
             client.options.getChatScale().setValue(0.65);

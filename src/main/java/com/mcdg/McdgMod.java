@@ -6,7 +6,10 @@ import com.mcdg.game.ActiveCourseManager;
 import com.mcdg.game.HoleMapSyncService;
 import com.mcdg.game.HoleProgressTracker;
 import com.mcdg.game.LeaderboardManager;
+import com.mcdg.game.McdgBlocks;
+import com.mcdg.game.McdgBlockEntities;
 import com.mcdg.game.McdgItems;
+import com.mcdg.game.McdgScreenHandlers;
 import com.mcdg.game.PlayerRoundState;
 import com.mcdg.game.PlayerRoundSessionStorage;
 import com.mcdg.game.PlacedCourseState;
@@ -238,6 +241,9 @@ public final class McdgMod implements ModInitializer {
         );
         McdgConfig config = McdgConfig.loadDefault();
         McdgItems.register(ACTIVE_COURSE_MANAGER, ROUND_STATE_MANAGER, TOURNAMENT_RULESET_MANAGER, config.enableStrictFlowDebug());
+        McdgBlocks.register();
+        McdgBlockEntities.register();
+        McdgScreenHandlers.register();
         McdgAdminCommands.register(
             COURSE_GENERATOR,
             ACTIVE_COURSE_MANAGER,
