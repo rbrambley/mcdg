@@ -40,7 +40,7 @@ public final class McdgMenuScreen extends Screen {
     private static final int CONTENT_X_OFFSET  = NAV_W + 8;
     private static final int BTN_H             = 20;
     private static final int BTN_GAP           = 4;
-    private static final int DESC_SPACING      = 12;
+    private static final int DESC_SPACING      = 10;
     private static final int CONTENT_MAX_H     = PANEL_H - 28 - 20 - 16;
     private static final int ROWS_VISIBLE      = CONTENT_MAX_H / (BTN_H + BTN_GAP);
 
@@ -58,6 +58,7 @@ public final class McdgMenuScreen extends Screen {
     private final List<ButtonWidget> contentButtons = new ArrayList<>();
     private final List<int[]> buttonTints = new ArrayList<>();
     private final List<ButtonDescription> buttonDescriptions = new ArrayList<>();
+    private ButtonDescription hoveredDescription = null;
 
     public McdgMenuScreen(MenuScreenSync.Payload state) {
         super(Text.literal("MCDG"));
@@ -308,8 +309,10 @@ public final class McdgMenuScreen extends Screen {
         buttonTints.add(new int[]{x, y, w, BTN_H, tint});
         addDrawableChild(btn);
 
+        // Calculate truncated description for compact display
+        String truncatedDesc = truncateDescription(description, w);
         // Store description for rendering (shown below button)
-        buttonDescriptions.add(new ButtonDescription(x, y + BTN_H + 2, description));
+        buttonDescriptions.add(new ButtonDescription(x, y + BTN_H + 2, truncatedDesc, description, false));
     }
 
     private void addPageSwitchBtnWithDesc(String label, String description, Page targetPage, int x, int y, int w, int textColor, int tint) {
@@ -323,8 +326,10 @@ public final class McdgMenuScreen extends Screen {
         buttonTints.add(new int[]{x, y, w, BTN_H, tint});
         addDrawableChild(btn);
 
+        // Calculate truncated description for compact display
+        String truncatedDesc = truncateDescription(description, w);
         // Store description for rendering (shown below button)
-        buttonDescriptions.add(new ButtonDescription(x, y + BTN_H + 2, description));
+        buttonDescriptions.add(new ButtonDescription(x, y + BTN_H + 2, truncatedDesc, description, false));
     }
 
     private static boolean isRulesetStrict(String rulesetName) {
@@ -443,12 +448,54 @@ public final class McdgMenuScreen extends Screen {
         buttonTints.add(new int[]{x, y, w, BTN_H, tint});
         addDrawableChild(btn);
 
+        // Calculate truncated description for compact display
+        String truncatedDesc = truncateDescription(description, w);
         // Store description for rendering (shown below button)
-        buttonDescriptions.add(new ButtonDescription(x, y + BTN_H + 2, description));
+        buttonDescriptions.add(new ButtonDescription(x, y + BTN_H + 2, truncatedDesc, description, false));
     }
 
     private void addSectionHeader(String text, int x, int y, int w) {
-        buttonDescriptions.add(new ButtonDescription(x, y, text, true));
+        buttonDescriptions.add(new ButtonDescription(x, y, text, text, true));
+    }
+
+    /**
+     * Truncates a description to fit within a single line at 0.75f scale.
+     * Adds "..." if truncation occurs.
+     */
+    private String truncateDescription(String description, int maxWidth) {
+        if (textRenderer == null) {
+            return description;
+        }
+
+        float descScale = 0.75f;
+        int scaledWidth = (int) (maxWidth / descScale);
+        String ellipsis = "...";
+        int ellipsisWidth = textRenderer.getWidth(ellipsis);
+
+        // If the full text fits, return it as-is
+        if (textRenderer.getWidth(description) <= scaledWidth) {
+            return description;
+        }
+
+        // Binary search for the truncation point
+        int low = 0;
+        int high = description.length();
+        String bestTruncated = description;
+
+        while (low <= high) {
+            int mid = (low + high) / 2;
+            String truncated = description.substring(0, mid) + ellipsis;
+            int width = textRenderer.getWidth(truncated);
+
+            if (width <= scaledWidth) {
+                bestTruncated = truncated;
+                low = mid + 1;
+            } else {
+                high = mid - 1;
+            }
+        }
+
+        return bestTruncated;
     }
 
     private void runCommand(String command) {
@@ -478,6 +525,9 @@ public final class McdgMenuScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        // Reset hover state at start of each render
+        hoveredDescription = null;
+
         int panelX = (width - PANEL_W) / 2;
         int panelY = (height - PANEL_H) / 2;
 
@@ -522,13 +572,23 @@ public final class McdgMenuScreen extends Screen {
             if (desc.isHeader) {
                 context.fill(desc.x, desc.y - 3, desc.x + contentWidth, desc.y - 2, BORDER_COLOR);
                 context.drawTextWithShadow(textRenderer,
-                        Text.literal(desc.description).formatted(Formatting.BOLD),
+                        Text.literal(desc.fullText).formatted(Formatting.BOLD),
                         desc.x, desc.y, TEXT_TITLE);
             } else {
+                // Check if mouse is hovering over the description area
+                boolean isHovering = mouseX >= desc.x && mouseX <= desc.x + contentWidth &&
+                                    mouseY >= desc.y && mouseY <= desc.y + Math.round(textRenderer.fontHeight * 0.75f);
+
+                // Track hovered description for tooltip rendering
+                if (isHovering) {
+                    hoveredDescription = desc;
+                }
+
+                // Always render truncated text
                 float descScale = 0.75f;
                 int scaledWidth = (int) (contentWidth / descScale);
                 List<net.minecraft.text.OrderedText> lines = textRenderer.wrapLines(
-                        Text.literal(desc.description), scaledWidth);
+                        Text.literal(desc.truncatedText), scaledWidth);
                 var matrices = context.getMatrices();
                 matrices.push();
                 matrices.translate(desc.x, desc.y, 0);
@@ -539,6 +599,11 @@ public final class McdgMenuScreen extends Screen {
                 }
                 matrices.pop();
             }
+        }
+
+        // Render tooltip for hovered description (rendered last to appear on top)
+        if (hoveredDescription != null && !hoveredDescription.isHeader) {
+            renderDescriptionTooltip(context, textRenderer, hoveredDescription, contentWidth, panelX, panelY);
         }
 
         if (confirmPending) {
@@ -604,14 +669,61 @@ public final class McdgMenuScreen extends Screen {
         };
     }
 
+    /**
+     * Render a tooltip popup box for a hovered description.
+     * The tooltip is rendered as an opaque box that floats above all content.
+     */
+    private void renderDescriptionTooltip(DrawContext context, net.minecraft.client.font.TextRenderer textRenderer,
+                                          ButtonDescription desc, int contentWidth, int panelX, int panelY) {
+        float descScale = 0.75f;
+        int scaledWidth = (int) (contentWidth / descScale);
+        List<net.minecraft.text.OrderedText> lines = textRenderer.wrapLines(
+                Text.literal(desc.fullText), scaledWidth);
+
+        // Calculate tooltip dimensions
+        int tooltipWidth = contentWidth;
+        int tooltipHeight = Math.round((lines.size() * textRenderer.fontHeight + 8) * descScale);
+        int padding = Math.round(4 * descScale);
+
+        // Calculate tooltip position (above the description if possible, below if not)
+        int tooltipX = desc.x;
+        int tooltipY = desc.y - tooltipHeight - padding;
+
+        // Check if tooltip would go above the panel, if so position below
+        if (tooltipY < panelY) {
+            tooltipY = desc.y + Math.round(textRenderer.fontHeight * descScale) + padding;
+        }
+
+        // Render opaque background
+        int tooltipBgColor = 0xF0000000; // Black with full opacity
+        int tooltipBorderColor = 0xFF3A5A7A; // Match panel border color
+        context.fill(tooltipX, tooltipY, tooltipX + tooltipWidth, tooltipY + tooltipHeight, tooltipBgColor);
+        // Draw border manually (top, bottom, left, right)
+        context.fill(tooltipX, tooltipY, tooltipX + tooltipWidth, tooltipY + 1, tooltipBorderColor);
+        context.fill(tooltipX, tooltipY + tooltipHeight - 1, tooltipX + tooltipWidth, tooltipY + tooltipHeight, tooltipBorderColor);
+        context.fill(tooltipX, tooltipY, tooltipX + 1, tooltipY + tooltipHeight, tooltipBorderColor);
+        context.fill(tooltipX + tooltipWidth - 1, tooltipY, tooltipX + tooltipWidth, tooltipY + tooltipHeight, tooltipBorderColor);
+
+        // Render wrapped text inside tooltip
+        var matrices = context.getMatrices();
+        matrices.push();
+        matrices.translate(tooltipX + padding, tooltipY + padding, 0);
+        matrices.scale(descScale, descScale, 1.0f);
+        for (int li = 0; li < lines.size(); li++) {
+            context.drawTextWithShadow(textRenderer, lines.get(li),
+                    0, (int) (li * textRenderer.fontHeight), TEXT_WHITE);
+        }
+        matrices.pop();
+    }
+
     @Override
     public boolean shouldPause() {
         return false;
     }
 
-    private static record ButtonDescription(int x, int y, String description, boolean isHeader) {
+    private static record ButtonDescription(int x, int y, String truncatedText, String fullText, boolean isHeader) {
         ButtonDescription(int x, int y, String description) {
-            this(x, y, description, false);
+            this(x, y, description, description, false);
         }
     }
 }

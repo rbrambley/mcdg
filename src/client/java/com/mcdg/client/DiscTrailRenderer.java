@@ -49,6 +49,10 @@ public final class DiscTrailRenderer {
     }
 
     private static final Map<UUID, TrailData> TRAILS = new HashMap<>();
+    
+    // Separate storage for throw stats, independent of trail lifecycle
+    // This ensures stats persist between throws for HUD display
+    private static final Map<UUID, ThrowStats> THROW_STATS = new HashMap<>();
 
     private DiscTrailRenderer() {
     }
@@ -316,8 +320,8 @@ public final class DiscTrailRenderer {
     }
 
     public static boolean isStatsActive(UUID playerId) {
-        TrailData trail = TRAILS.get(playerId);
-        return trail != null && trail.statsActive;
+        // Check separate stats storage (independent of trail lifecycle)
+        return THROW_STATS.containsKey(playerId);
     }
 
     public static ThrowStats getStats() {
@@ -329,22 +333,8 @@ public final class DiscTrailRenderer {
     }
 
     public static ThrowStats getStats(UUID playerId) {
-        TrailData trail = TRAILS.get(playerId);
-        if (trail == null || !trail.statsActive) {
-            return null;
-        }
-        return new ThrowStats(
-                trail.totalDistanceFt,
-                trail.lateralDriftFt,
-                trail.stance,
-                trail.angle,
-                trail.flightTicks,
-                trail.penaltyType != null ? trail.penaltyType : StrictPenaltyType.NONE,
-                trail.penaltyStrokes,
-                trail.penaltyReason != null ? trail.penaltyReason : "In Bounds",
-                trail.obCrossingFeet,
-                trail.returnedToFeet
-        );
+        // Read from separate stats storage (independent of trail lifecycle)
+        return THROW_STATS.get(playerId);
     }
 
     public static void setStats(
@@ -380,6 +370,22 @@ public final class DiscTrailRenderer {
             int obCrossingFeet,
             int returnedToFeet
     ) {
+        // Store in separate stats storage (independent of trail lifecycle)
+        ThrowStats stats = new ThrowStats(
+                totalDistanceFt,
+                lateralDriftFt,
+                stance,
+                angle,
+                flightTicks,
+                penaltyType,
+                penaltyStrokes,
+                penaltyReason,
+                obCrossingFeet,
+                returnedToFeet
+        );
+        THROW_STATS.put(playerId, stats);
+        
+        // Also update trail data for backward compatibility
         TrailData trail = TRAILS.computeIfAbsent(playerId, k -> new TrailData());
         trail.totalDistanceFt = totalDistanceFt;
         trail.lateralDriftFt = lateralDriftFt;
@@ -403,6 +409,10 @@ public final class DiscTrailRenderer {
     }
 
     public static void clearStats(UUID playerId) {
+        // Clear from separate stats storage
+        THROW_STATS.remove(playerId);
+        
+        // Also clear trail data for backward compatibility
         TrailData trail = TRAILS.get(playerId);
         if (trail != null) {
             trail.statsActive = false;
@@ -410,6 +420,8 @@ public final class DiscTrailRenderer {
     }
 
     public static void clearAllStats() {
+        // Clear both storages
+        THROW_STATS.clear();
         TRAILS.clear();
     }
 

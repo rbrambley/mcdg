@@ -3,91 +3,98 @@ package com.mcdg.client;
 /**
  * Manages vertical positioning for left-side HUD elements to prevent overlaps.
  * Coordinates spacing between HoleMapOverlay and RunningScoreboardOverlay.
+ *
+ * All inputs (margins, spacing, heights) are in UNSCALED pixels.
+ * The layout applies the scale factor internally so callers never need to
+ * pre-multiply by scale before passing values in.
  */
 public final class LeftSideHudLayout {
-    private static final int TOP_MARGIN = 8;
-    private static final int BOTTOM_MARGIN = 8;
-    private static final int HUD_SPACING = 8;
-    
+    private static final int TOP_MARGIN = 8;      // unscaled px
+    private static final int BOTTOM_MARGIN = 20;  // unscaled px
+    private static final int HUD_SPACING = 8;     // unscaled px between panels
+
     private final int screenHeight;
     private final float scale;
-    private int allocatedHeight;
     private int nextY;
-    private int reservedTopSpace;
-    
+
     public LeftSideHudLayout(int screenHeight, float scale) {
         this.screenHeight = screenHeight;
         this.scale = scale;
-        this.allocatedHeight = 0;
         this.nextY = Math.round(TOP_MARGIN * scale);
-        this.reservedTopSpace = 0;
     }
-    
+
     /**
-     * Reserves space at the top of the screen (e.g., for Xaero's minimap).
-     * This space will be skipped when allocating HUD positions.
-     * 
-     * @param reservedPixels The number of pixels to reserve at the top
+     * Creates a layout whose top cursor is already pushed past Xaero's minimap
+     * when it occupies the top-left corner.
+     *
+     * @param screenHeight Scaled screen height in pixels
+     * @param scale        Current HUD scale factor
+     * @return A layout whose nextY starts below Xaero (or at the normal top margin
+     *         when Xaero is absent or not in the top-left corner)
      */
-    public void reserveTopSpace(int reservedPixels) {
-        this.reservedTopSpace = reservedPixels;
-        this.nextY = Math.max(this.nextY, Math.round(TOP_MARGIN * scale) + reservedPixels);
+    public static LeftSideHudLayout withXaeroOffset(int screenHeight, float scale) {
+        LeftSideHudLayout layout = new LeftSideHudLayout(screenHeight, scale);
+        int xaeroReserved = XaeroMinimapCompat.getTopLeftReservedPixels(scale);
+        if (xaeroReserved > 0) {
+            // Push the cursor below Xaero's minimap footprint
+            layout.nextY = Math.max(layout.nextY, xaeroReserved);
+        }
+        return layout;
     }
-    
+
     /**
-     * Allocates vertical space for a HUD element and returns its Y position.
-     * 
-     * @param requestedHeight The height needed for the HUD element
-     * @return The Y position where the HUD should be rendered
+     * Returns the fixed left-edge X for all left-side HUD panels.
+     * Uses the same 8px margin as the right-side HUDs.
      */
-    public int allocateSpace(int requestedHeight) {
-        int y = nextY;
-        nextY += requestedHeight + Math.round(HUD_SPACING * scale);
-        allocatedHeight += requestedHeight + Math.round(HUD_SPACING * scale);
-        return y;
+    public int getLeftX() {
+        return Math.round(8 * scale);
     }
-    
+
     /**
-     * Gets the remaining available vertical space.
-     * 
-     * @return Remaining pixels available for HUD elements
-     */
-    public int getRemainingSpace() {
-        return screenHeight - nextY - Math.round(BOTTOM_MARGIN * scale);
-    }
-    
-    /**
-     * Gets the total allocated height so far.
-     * 
-     * @return Total height allocated to HUD elements
-     */
-    public int getAllocatedHeight() {
-        return allocatedHeight;
-    }
-    
-    /**
-     * Gets the current scale factor.
-     * 
-     * @return The scale factor being used
+     * Returns the current scale factor.
      */
     public float getScale() {
         return scale;
     }
-    
+
     /**
-     * Gets the screen height.
-     * 
-     * @return The total screen height in pixels
+     * Returns the screen height in scaled pixels.
      */
     public int getScreenHeight() {
         return screenHeight;
     }
-    
+
     /**
-     * Resets the layout to initial state.
+     * Allocates vertical space for a HUD element and returns its Y position
+     * in scaled pixels.
+     *
+     * @param unscaledHeight The unscaled height of the HUD element
+     * @return The scaled Y position where the HUD should be rendered
      */
-    public void reset() {
-        allocatedHeight = 0;
-        nextY = Math.round(TOP_MARGIN * scale);
+    public int allocate(int unscaledHeight) {
+        int y = nextY;
+        nextY += Math.round(unscaledHeight * scale) + Math.round(HUD_SPACING * scale);
+        return y;
+    }
+
+    /**
+     * Allocates vertical space using an already-scaled height value.
+     * Use this when the caller has already computed the panel height in scaled pixels.
+     *
+     * @param scaledHeight The scaled height of the HUD element (pixels)
+     * @return The scaled Y position where the HUD should be rendered
+     */
+    public int allocateScaled(int scaledHeight) {
+        int y = nextY;
+        nextY += scaledHeight + Math.round(HUD_SPACING * scale);
+        return y;
+    }
+
+    /**
+     * Returns the remaining vertical space available below the current cursor,
+     * accounting for the bottom margin. May be negative if panels have overflowed.
+     */
+    public int getRemainingHeight() {
+        return screenHeight - nextY - Math.round(BOTTOM_MARGIN * scale);
     }
 }

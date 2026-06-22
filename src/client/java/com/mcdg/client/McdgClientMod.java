@@ -192,7 +192,7 @@ public final class McdgClientMod implements ClientModInitializer {
             // Left-side HUDs - use shared layout manager for vertical coordination
             float scale = HudUtil.getScaleFactor(drawContext);
             int screenHeight = drawContext.getScaledWindowHeight();
-            LeftSideHudLayout layout = new LeftSideHudLayout(screenHeight, scale);
+            LeftSideHudLayout layout = LeftSideHudLayout.withXaeroOffset(screenHeight, scale);
             
             HoleMapOverlay.render(drawContext, MinecraftClient.getInstance(), hudAlpha, layout);
             RunningScoreboardOverlay.render(drawContext, runningRoundScoreState, hudAlpha, layout);
@@ -258,6 +258,8 @@ public final class McdgClientMod implements ClientModInitializer {
             hudHideSinceMs = System.currentTimeMillis();
             System.out.println("HUD FADE DEBUG: Round ended, starting fade timer at " + hudHideSinceMs);
             roundEnded = true;
+            // Clear throw stats when round ends
+            DiscTrailRenderer.clearStats();
             return;
         }
 
@@ -267,8 +269,8 @@ public final class McdgClientMod implements ClientModInitializer {
         holeMapState = new HoleMapState(payload);
         holeMapStateReceivedAtMs = System.currentTimeMillis();
 
-        // Recalculate Xaero's minimap width when round starts/resumes
-        HudUtil.recalculateXaeroWidth();
+        // Recalculate all cached values when round starts/resumes
+        HudUtil.recalculateAll();
 
         // Show hole map by default when round starts
         HoleMapOverlay.setVisible(true);

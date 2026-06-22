@@ -10,7 +10,9 @@ import net.minecraft.text.Text;
 public final class RunningScoreboardOverlay {
     private static final int HUD_CARD_TEXT = 0xE8EEF7;
     private static final int HUD_CARD_MUTED_TEXT = 0xAAB8CC;
-    private static final int HUD_SPACING = 8;
+    // Unscaled panel width — matches HoleMapOverlay.PANEL_W for visual alignment
+    private static final int PANEL_W = 160;
+
     private static int lastPanelWidth = 0;
     private static int lastPanelHeight = 0;
 
@@ -34,42 +36,43 @@ public final class RunningScoreboardOverlay {
             return;
         }
 
-        float scale = HudUtil.getScaleFactor(drawContext);
+        float scale = layout.getScale();
         int focusHole = Math.max(1, Math.min(state.totalHoles(), state.focusHole()));
         int startHole = Math.max(1, focusHole - 2);
         int endHole = focusHole;
         int visibleHoleCount = Math.max(1, endHole - startHole + 1);
-        
-        // Use Xaero's minimap width for exact alignment
-        int panelW = HudUtil.getXaeroMinimapWidth();
-        
+
+        int panelW = Math.round(PANEL_W * scale);
+
         // Calculate available width for content (subtract margins)
         int contentMargin = Math.round(16 * scale); // 8px margin on each side
         int availableContentWidth = panelW - contentMargin;
-        
+
         // Distribute width: 40% names, 15% totals, remaining to hole columns
         int nameColW = Math.round(availableContentWidth * 0.4f);
         int totalColW = Math.round(availableContentWidth * 0.15f);
         int colGap = Math.round(6 * scale);
         int remainingWidth = availableContentWidth - nameColW - totalColW - (colGap * 2);
         int holeColW = Math.max(Math.round(12 * scale), remainingWidth / visibleHoleCount);
-        
+
         // Compact mode for large player counts (6+ players)
         int playerCount = state.rows().size();
         boolean compactMode = playerCount >= 6;
         int rowHeight = compactMode ? Math.round(8 * scale) : Math.round(10 * scale);
         float fontSize = compactMode ? 0.85f : 1.0f;
-        
-        int panelH = Math.round(22 * scale) + ((state.rows().size() + 1) * rowHeight);
+
+        // Clamp panel height to remaining layout space so it never overflows the screen
+        int remaining = layout.getRemainingHeight();
+        if (remaining <= 0) {
+            // No space left — skip rendering
+            return;
+        }
+        int panelH = Math.min(Math.round(22 * scale) + ((state.rows().size() + 1) * rowHeight), remaining);
         lastPanelWidth = panelW;
         lastPanelHeight = panelH;
-        
-        // Center horizontally with Xaero's minimap (same left position as Xaero)
-        int xaeroMargin = Math.round(8 * scale);
-        int x = xaeroMargin;
-        
-        // Use layout manager to allocate space
-        int y = layout.allocateSpace(panelH);
+
+        int x = layout.getLeftX();
+        int y = layout.allocateScaled(panelH);
 
         String panelTitle = (state.courseName() != null && !state.courseName().isBlank()) ? state.courseName() : "Round Scores";
         HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, panelTitle, hudAlpha);
@@ -102,6 +105,10 @@ public final class RunningScoreboardOverlay {
         for (int rowIndex = 0; rowIndex < state.rows().size(); rowIndex++) {
             McdgClientMod.RunningRoundScoreRow row = state.rows().get(rowIndex);
             int rowY = y + Math.round(24 * scale) + (rowIndex * rowHeight);
+            // Skip rows that would render outside the panel
+            if (rowY + rowHeight > y + panelH) {
+                break;
+            }
             int rowColor = row.online() ? HUD_CARD_TEXT : HUD_CARD_MUTED_TEXT;
 
             String displayName = row.online() ? row.playerName() : (row.playerName() + " (off)");

@@ -20,12 +20,12 @@ public final class HoleMapOverlay {
     private static final int TEXT_GREEN = 0xFF57D163;
     private static final int TEXT_GOLD = 0xFFFFCC33;
 
+    // Unscaled constants
     private static final int HEADER_H = 14;
     private static final int FOOTER_H = 22;
     private static final int MAP_MARGIN = 2;
-    private static final int DEFAULT_PANEL_W = 120;
-    private static final int XAEROS_TOP_RESERVED = 180;
-    private static final int HUD_SPACING = 10;
+    // Fixed panel width in unscaled pixels — no longer estimated from Xaero
+    private static final int PANEL_W = 160;
     private static final int MAX_PANEL_H = 400;
     private static final int MIN_PANEL_H = 120;
 
@@ -67,32 +67,32 @@ public final class HoleMapOverlay {
             return;
         }
 
-        float scale = HudUtil.getScaleFactor(ctx);
+        float scale = layout.getScale();
         HoleMapState state = McdgClientMod.getHoleMapState();
         if (state == null || !state.isActive()) {
             return;
         }
 
-        // Match width to Xaero's minimap for visual alignment
-        int panelW = HudUtil.getXaeroMinimapWidth();
+        int panelW = Math.round(PANEL_W * scale);
+        int panelX = layout.getLeftX();
 
-        // Center horizontally with Xaero's minimap (assuming Xaero is at top-left with 8px margin)
-        int xaeroMargin = Math.round(8 * scale);
-        int panelX = xaeroMargin; // Same left position as Xaero for alignment
-        
-        // Reserve space for Xaero's minimap in the layout manager
-        layout.reserveTopSpace(Math.round(XAEROS_TOP_RESERVED * scale) + Math.round(HUD_SPACING * scale));
-        
-        // Calculate available space considering remaining layout space
-        int availableHeight = layout.getRemainingSpace();
-        
-        // Dynamic panel height: fill available space with min/max bounds
-        int panelH = Math.max(Math.round(MIN_PANEL_H * scale), Math.min(availableHeight, Math.round(MAX_PANEL_H * scale)));
-        
-        // Allocate space in the layout manager
-        int panelY = layout.allocateSpace(panelH);
-        
-        // Track rendered position for scoreboard coordination
+        // Available vertical space in the layout (layout already starts at top margin)
+        int availableHeight = layout.getRemainingHeight();
+        if (availableHeight <= 0) {
+            // No room on screen — skip rendering entirely
+            lastRenderedY = -1;
+            lastRenderedHeight = -1;
+            return;
+        }
+
+        // Dynamic panel height: fill available space within min/max bounds, never exceed screen
+        int maxH = Math.round(MAX_PANEL_H * scale);
+        int panelH = Math.min(availableHeight, maxH);
+
+        // Allocate position — pass the already-scaled height
+        int panelY = layout.allocateScaled(panelH);
+
+        // Track rendered position for external queries
         lastRenderedY = panelY;
         lastRenderedHeight = panelH;
 
@@ -102,7 +102,7 @@ public final class HoleMapOverlay {
         ctx.fill(panelX, panelY, panelX + panelW, panelY + scaledHeaderH, HudUtil.withAlpha(HEADER_COLOR, hudAlpha));
         ctx.drawBorder(panelX, panelY, panelW, panelH, HudUtil.withAlpha(BORDER_COLOR, hudAlpha));
 
-        // Header text (reduced size)
+        // Header text
         String title = "Hole " + state.holeIndex;
         int headerTextMargin = Math.round(6 * scale);
         int headerTextYOffset = Math.round(4 * scale);
@@ -152,7 +152,7 @@ public final class HoleMapOverlay {
         // Map border
         ctx.drawBorder((int) mapX, (int) mapY, (int) mapW, (int) mapH, HudUtil.withAlpha(BORDER_COLOR, hudAlpha));
 
-        // Footer info (reduced spacing)
+        // Footer info
         int footerTop = panelY + panelH - scaledFooterH;
         int row = footerTop + Math.round(3 * scale);
         int rowSpacing = Math.round(9 * scale);
