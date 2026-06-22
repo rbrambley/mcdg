@@ -69,13 +69,13 @@ public final class CommandUtils {
         courseManager.clearActiveParticipantIds();
     }
 
-    public static void removeRoundThrowItemsFromCourseWorldPlayers(ServerCommandSource source, ActiveCourseManager courseManager) {
+    public static void removeTemporaryRoundItemsFromCourseWorldPlayers(ServerCommandSource source, ActiveCourseManager courseManager) {
         Set<UUID> participantIds = courseManager.getActiveParticipantIds();
         if (!participantIds.isEmpty()) {
             for (UUID playerId : participantIds) {
                 ServerPlayerEntity participant = source.getServer().getPlayerManager().getPlayer(playerId);
                 if (participant != null) {
-                    RoundInventoryCleaner.purgeRoundItemsAndJunk(participant);
+                    RoundInventoryCleaner.purgeTemporaryRoundItemsAndJunk(participant);
                 }
             }
             return;
@@ -87,19 +87,19 @@ public final class CommandUtils {
         }
         for (ServerPlayerEntity player : source.getServer().getPlayerManager().getPlayerList()) {
             if (player.getWorld().getRegistryKey() == placed.worldKey()) {
-                RoundInventoryCleaner.purgeRoundItemsAndJunk(player);
+                RoundInventoryCleaner.purgeTemporaryRoundItemsAndJunk(player);
             }
         }
     }
 
-    public static void removeRoundThrowItemsFromPlayers(Collection<ServerPlayerEntity> players) {
+    public static void removeTemporaryRoundItemsFromPlayers(Collection<ServerPlayerEntity> players) {
         for (ServerPlayerEntity player : players) {
-            RoundInventoryCleaner.purgeRoundItemsAndJunk(player);
+            RoundInventoryCleaner.purgeTemporaryRoundItemsAndJunk(player);
         }
     }
 
-    public static void ensureSingleRoundThrowItem(ServerPlayerEntity player) {
-        RoundInventoryCleaner.restoreRoundInventory(player);
+    public static void prepareRoundInventory(ServerPlayerEntity player) {
+        RoundInventoryCleaner.prepareRoundInventory(player);
     }
 
     public static void removeJunkDropsNearCourse(ServerWorld world, PlacedCourseState placed) {

@@ -259,7 +259,7 @@ public final class HoleProgressTracker {
                         AceCompanionService.scheduleForPlayer(player.getUuid(), server.getOverworld().getTime());
                     }
 
-                    removeRoundThrowItems(player);
+                    removeTemporaryRoundItems(player);
 
                     roundStateManager.recordCompletedRound(player.getUuid(), state.totalStrokes());
                     if (leaderboardManager != null) {
@@ -777,8 +777,8 @@ public final class HoleProgressTracker {
         LAST_RUNNING_SCOREBOARD_HASH = Integer.MIN_VALUE;
         LieMarkerService.clearAllLieMarkers(server);
     }
-    private static void removeRoundThrowItems(ServerPlayerEntity player) {
-        RoundInventoryCleaner.purgeRoundItemsAndJunk(player);
+    private static void removeTemporaryRoundItems(ServerPlayerEntity player) {
+        RoundInventoryCleaner.purgeTemporaryRoundItemsAndJunk(player);
     }
 
 

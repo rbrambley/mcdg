@@ -98,7 +98,7 @@ public final class SessionCommands {
 
             roundStateManager.clearPlayer(playerId);
             removedIds.add(playerId);
-            removeRoundThrowItems(player);
+            removeTemporaryRoundItems(player);
             player.sendMessage(Text.literal(
                     "Session saved at hole " + state.currentHole() + " (strokes " + state.totalStrokes() + ")."
             ), true);
@@ -220,7 +220,7 @@ public final class SessionCommands {
             courseManager.addActiveParticipantId(playerId);
             courseManager.setRoundActive(true);
 
-            RoundInventoryCleaner.restoreRoundInventory(player);
+            RoundInventoryCleaner.prepareRoundInventory(player);
             ScorecardManager.ensureScorecardInInventory(player);
             player.teleport(restoredFeet.getX() + 0.5, restoredFeet.getY() + 1.0, restoredFeet.getZ() + 0.5);
 
@@ -393,8 +393,8 @@ public final class SessionCommands {
         return sameWorldParticipants;
     }
 
-    private static void removeRoundThrowItems(ServerPlayerEntity player) {
-        RoundInventoryCleaner.purgeRoundItemsAndJunk(player);
+    private static void removeTemporaryRoundItems(ServerPlayerEntity player) {
+        RoundInventoryCleaner.purgeTemporaryRoundItemsAndJunk(player);
     }
 
     private static BlockPos resolveSafeFeetNearWithin(ServerWorld world, BlockPos preferredFeet, int maxRadius) {

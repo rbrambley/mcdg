@@ -16,14 +16,24 @@ public final class RoundInventoryCleaner {
         return purge(player, false);
     }
 
-    public static boolean purgeRoundItemsAndJunk(ServerPlayerEntity player) {
+    public static boolean purgeTemporaryRoundItemsAndJunk(ServerPlayerEntity player) {
         return purge(player, true);
     }
 
-    public static void restoreRoundInventory(ServerPlayerEntity player) {
-        // Keep cleanup deterministic first so restoration always starts from a known state.
+    public static void prepareRoundInventory(ServerPlayerEntity player) {
+        // Remove temporary round items (ender pearls, hole maps) and junk, but keep the
+        // player's permanent Training Disc. Only give a fallback disc if they have none.
         purge(player, true);
-        player.giveItemStack(new ItemStack(McdgItems.TRAINING_DISC, 1));
+        boolean hasDisc = false;
+        for (int i = 0; i < player.getInventory().size(); i++) {
+            if (player.getInventory().getStack(i).isOf(McdgItems.TRAINING_DISC)) {
+                hasDisc = true;
+                break;
+            }
+        }
+        if (!hasDisc) {
+            player.giveItemStack(new ItemStack(McdgItems.TRAINING_DISC, 1));
+        }
         ScorecardManager.ensureScorecardInInventory(player);
         player.getInventory().markDirty();
     }
@@ -53,9 +63,9 @@ public final class RoundInventoryCleaner {
                 continue;
             }
 
+            // Training Disc is now permanent — only remove temporary round items and junk.
             boolean removeRoundItems = includeRoundThrowItems
-                    && (stack.isOf(McdgItems.TRAINING_DISC)
-                        || stack.isOf(Items.ENDER_PEARL)
+                    && (stack.isOf(Items.ENDER_PEARL)
                         || HoleTeeMapManager.isManagedHoleMap(stack));
 
             if (removeRoundItems || isJunkItem(stack)) {

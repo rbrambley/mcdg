@@ -182,7 +182,7 @@ public final class RoundLifecycleCommands {
             }
 
             CommandUtils.clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
-            CommandUtils.removeRoundThrowItemsFromPlayers(participants);
+            CommandUtils.removeTemporaryRoundItemsFromPlayers(participants);
 
             List<UUID> participantIds = new ArrayList<>();
             BlockPos firstTee = placed.holeTees().get(1);
@@ -201,7 +201,7 @@ public final class RoundLifecycleCommands {
                 BlockPos safeTee = SafePositionFinder.resolveSafeFeetNear(world, firstTee);
                 roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
                 player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
-                CommandUtils.ensureSingleRoundThrowItem(player);
+                CommandUtils.prepareRoundInventory(player);
                 ScorecardManager.initializeScorecard(player, course, placed);
                 participantIds.add(player.getUuid());
                 player.sendMessage(Text.literal("Round started. Moved to Hole 1 tee."), true);
@@ -321,7 +321,7 @@ public final class RoundLifecycleCommands {
         }
 
         CommandUtils.clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
-        CommandUtils.removeRoundThrowItemsFromPlayers(participants);
+        CommandUtils.removeTemporaryRoundItemsFromPlayers(participants);
         RoundChunkLoader.loadCourseChunks(world, placed);
 
         List<UUID> participantIds = new ArrayList<>();
@@ -334,7 +334,7 @@ public final class RoundLifecycleCommands {
             BlockPos safeTee = SafePositionFinder.resolveSafeFeetNear(world, firstTee);
             roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
             player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
-            CommandUtils.ensureSingleRoundThrowItem(player);
+            CommandUtils.prepareRoundInventory(player);
             ScorecardManager.initializeScorecard(player, course, placed);
             participantIds.add(player.getUuid());
             player.sendMessage(Text.literal("Round resumed on existing course. Moved to Hole 1 tee."), true);
@@ -403,7 +403,7 @@ public final class RoundLifecycleCommands {
         evacuatePlayersBeforeCleanup(source, world, placed);
         placementService.resetPlacedCourse(world, placed);
         CommandUtils.removeJunkDropsNearCourse(world, placed);
-        CommandUtils.removeRoundThrowItemsFromCourseWorldPlayers(source, courseManager);
+        CommandUtils.removeTemporaryRoundItemsFromCourseWorldPlayers(source, courseManager);
 
         Integer activeCatalogIndex = courseManager.getActiveCourseCatalogIndex().orElse(null);
         if (activeCatalogIndex != null) {

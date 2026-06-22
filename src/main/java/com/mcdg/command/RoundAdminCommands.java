@@ -107,7 +107,7 @@ public final class RoundAdminCommands {
             return 0;
         }
 
-        CommandUtils.removeRoundThrowItemsFromCourseWorldPlayers(source, courseManager);
+        CommandUtils.removeTemporaryRoundItemsFromCourseWorldPlayers(source, courseManager);
         courseManager.setRoundActive(false);
         CommandUtils.clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
         source.sendFeedback(() -> Text.literal("Round ended. Use /mcdg cleanupcourse to restore terrain edits."), true);
@@ -157,7 +157,7 @@ public final class RoundAdminCommands {
             boolean alreadyTracked = courseManager.getActiveParticipantIds().contains(playerId);
             boolean hasRoundState = roundStateManager.getState(playerId).isPresent();
             if (alreadyTracked && hasRoundState) {
-                RoundInventoryCleaner.restoreRoundInventory(player);
+                RoundInventoryCleaner.prepareRoundInventory(player);
                 alreadyJoinedCount++;
                 continue;
             }
@@ -165,7 +165,7 @@ public final class RoundAdminCommands {
             BlockPos safeTee = SafePositionFinder.resolveSafeFeetNear(world, firstTee);
             roundStateManager.startRoundForPlayer(playerId, safeTee);
             player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
-            RoundInventoryCleaner.restoreRoundInventory(player);
+            RoundInventoryCleaner.prepareRoundInventory(player);
             ScorecardManager.initializeScorecard(player, course, placed);
             player.sendMessage(Text.literal("Joined current round. Teleported to Hole 1 tee."), true);
             joinedIds.add(playerId);

@@ -42,7 +42,7 @@ public final class RoundRespawnHandler {
             }
 
             newPlayer.teleport(targetWorld, lie.getX() + 0.5, lie.getY() + 1.0, lie.getZ() + 0.5, newPlayer.getYaw(), newPlayer.getPitch());
-            RoundInventoryCleaner.restoreRoundInventory(newPlayer);
+            RoundInventoryCleaner.prepareRoundInventory(newPlayer);
             if (applyPenalty) {
                 newPlayer.sendMessage(
                         Text.literal("Respawned at last lie. +" + strictRespawnPenaltyStrokes + " penalty stroke(s). Inventory restored."),

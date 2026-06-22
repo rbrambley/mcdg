@@ -864,7 +864,7 @@ public final class McdgAdminCommands {
                         }
 
                         clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
-                        removeRoundThrowItemsFromPlayers(participants);
+                        removeTemporaryRoundItemsFromPlayers(participants);
 
                         List<UUID> participantIds = new ArrayList<>();
                         BlockPos firstTee = placed.holeTees().get(1);
@@ -879,7 +879,7 @@ public final class McdgAdminCommands {
                                 BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
                                 roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
                                 player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
-                                ensureSingleRoundThrowItem(player);
+                                prepareRoundInventory(player);
                                 ScorecardManager.initializeScorecard(player, course, placed);
                                 participantIds.add(player.getUuid());
                                 player.sendMessage(Text.literal("Round staging. Moved to Hole 1 tee."), true);
@@ -1014,7 +1014,7 @@ public final class McdgAdminCommands {
                 }
 
                 clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
-                removeRoundThrowItemsFromPlayers(participants);
+                removeTemporaryRoundItemsFromPlayers(participants);
 
                 List<UUID> participantIds = new ArrayList<>();
                 BlockPos firstTee = placed.holeTees().get(1);
@@ -1029,7 +1029,7 @@ public final class McdgAdminCommands {
                         BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
                         roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
                         player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
-                        ensureSingleRoundThrowItem(player);
+                        prepareRoundInventory(player);
                         ScorecardManager.initializeScorecard(player, course, placed);
                         participantIds.add(player.getUuid());
                         player.sendMessage(Text.literal("Round resumed on existing course. Moved to Hole 1 tee."), true);
@@ -1474,7 +1474,7 @@ public final class McdgAdminCommands {
                 RoundChunkLoader.unloadAll(world);
                 placementService.resetPlacedCourse(world, placed);
                 removeJunkDropsNearCourse(world, placed);
-                removeRoundThrowItemsFromCourseWorldPlayers(source, courseManager);
+                removeTemporaryRoundItemsFromCourseWorldPlayers(source, courseManager);
                 courseManager.clearPlacedCourseState();
                 courseManager.setRoundActive(false);
                 clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
@@ -1702,7 +1702,7 @@ public final class McdgAdminCommands {
                         return 0;
                 }
 
-                removeRoundThrowItemsFromCourseWorldPlayers(source, courseManager);
+                removeTemporaryRoundItemsFromCourseWorldPlayers(source, courseManager);
                 courseManager.setRoundActive(false);
                 clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
                 source.sendFeedback(() -> Text.literal("Round ended. Use /mcdg resetcourse to restore terrain edits."), true);
@@ -1752,7 +1752,7 @@ public final class McdgAdminCommands {
                         boolean alreadyTracked = courseManager.getActiveParticipantIds().contains(playerId);
                         boolean hasRoundState = roundStateManager.getState(playerId).isPresent();
                         if (alreadyTracked && hasRoundState) {
-                                RoundInventoryCleaner.restoreRoundInventory(player);
+                                RoundInventoryCleaner.prepareRoundInventory(player);
                                 alreadyJoinedCount++;
                                 continue;
                         }
@@ -1760,7 +1760,7 @@ public final class McdgAdminCommands {
                         BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
                         roundStateManager.startRoundForPlayer(playerId, safeTee);
                         player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
-                        RoundInventoryCleaner.restoreRoundInventory(player);
+                        RoundInventoryCleaner.prepareRoundInventory(player);
                         ScorecardManager.initializeScorecard(player, course, placed);
                         player.sendMessage(Text.literal("Joined current round. Teleported to Hole 1 tee."), true);
                         joinedIds.add(playerId);
@@ -1900,13 +1900,13 @@ public final class McdgAdminCommands {
                 return 1;
         }
 
-        private static void removeRoundThrowItemsFromCourseWorldPlayers(ServerCommandSource source, ActiveCourseManager courseManager) {
+        private static void removeTemporaryRoundItemsFromCourseWorldPlayers(ServerCommandSource source, ActiveCourseManager courseManager) {
                 Set<UUID> participantIds = courseManager.getActiveParticipantIds();
                 if (!participantIds.isEmpty()) {
                         for (UUID playerId : participantIds) {
                                 ServerPlayerEntity participant = source.getServer().getPlayerManager().getPlayer(playerId);
                                 if (participant != null) {
-                                        removeRoundThrowItems(participant);
+                                        removeTemporaryRoundItems(participant);
                                 }
                         }
                         return;
@@ -1918,14 +1918,14 @@ public final class McdgAdminCommands {
                 }
                 for (ServerPlayerEntity player : source.getServer().getPlayerManager().getPlayerList()) {
                         if (player.getWorld().getRegistryKey() == placed.worldKey()) {
-                                removeRoundThrowItems(player);
+                                removeTemporaryRoundItems(player);
                         }
                 }
         }
 
-        private static void removeRoundThrowItemsFromPlayers(Collection<ServerPlayerEntity> players) {
+        private static void removeTemporaryRoundItemsFromPlayers(Collection<ServerPlayerEntity> players) {
                 for (ServerPlayerEntity player : players) {
-                        removeRoundThrowItems(player);
+                        removeTemporaryRoundItems(player);
                 }
         }
 
@@ -1974,13 +1974,12 @@ public final class McdgAdminCommands {
                 return sameWorldParticipants;
         }
 
-        private static void ensureSingleRoundThrowItem(ServerPlayerEntity player) {
-                removeRoundThrowItems(player);
-                player.giveItemStack(new ItemStack(McdgItems.TRAINING_DISC, 1));
+        private static void prepareRoundInventory(ServerPlayerEntity player) {
+                RoundInventoryCleaner.prepareRoundInventory(player);
         }
 
-        private static void removeRoundThrowItems(ServerPlayerEntity player) {
-                RoundInventoryCleaner.purgeRoundItemsAndJunk(player);
+        private static void removeTemporaryRoundItems(ServerPlayerEntity player) {
+                RoundInventoryCleaner.purgeTemporaryRoundItemsAndJunk(player);
         }
 
         private static void removeJunkDropsNearCourse(ServerWorld world, PlacedCourseState placed) {
@@ -2317,7 +2316,7 @@ public final class McdgAdminCommands {
         RoundChunkLoader.unloadAll(world);
         placementService.resetPlacedCourse(world, placed);
         removeJunkDropsNearCourse(world, placed);
-        removeRoundThrowItemsFromCourseWorldPlayers(source, courseManager);
+        removeTemporaryRoundItemsFromCourseWorldPlayers(source, courseManager);
         courseManager.setRoundActive(false);
         clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
 
@@ -2361,7 +2360,7 @@ public final class McdgAdminCommands {
         Integer activeCatalogIndex = courseManager.getActiveCourseCatalogIndex().orElse(null);
         boolean wasActiveMatch = activeCatalogIndex != null && activeCatalogIndex == oneBasedIndex;
         if (wasActiveMatch || courseManager.isRoundActive()) {
-            removeRoundThrowItemsFromCourseWorldPlayers(source, courseManager);
+            removeTemporaryRoundItemsFromCourseWorldPlayers(source, courseManager);
             courseManager.setActiveCourse(null);
             courseManager.clearPlacedCourseState();
             courseManager.setActiveCourseCatalogIndex(null);

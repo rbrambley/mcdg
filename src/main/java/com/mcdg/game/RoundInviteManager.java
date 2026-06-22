@@ -302,7 +302,7 @@ public final class RoundInviteManager {
             BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
             roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
             player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
-            ensureSingleRoundThrowItem(player);
+            prepareRoundInventory(player);
             ScorecardManager.initializeScorecard(player, course, placed);
             participantIds.add(player.getUuid());
             player.sendMessage(Text.literal("Warmup period started. Round will begin in 30 seconds."), true);
@@ -332,9 +332,8 @@ public final class RoundInviteManager {
         courseManager.clearActiveParticipantIds();
     }
 
-    private static void ensureSingleRoundThrowItem(ServerPlayerEntity player) {
-        RoundInventoryCleaner.purgeRoundItemsAndJunk(player);
-        player.giveItemStack(new net.minecraft.item.ItemStack(McdgItems.TRAINING_DISC, 1));
+    private static void prepareRoundInventory(ServerPlayerEntity player) {
+        RoundInventoryCleaner.prepareRoundInventory(player);
     }
 
     private static BlockPos resolveSafeFeetNear(ServerWorld world, BlockPos preferredFeet) {
