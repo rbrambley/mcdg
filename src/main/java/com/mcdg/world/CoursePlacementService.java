@@ -377,7 +377,8 @@ public final class CoursePlacementService {
                     teeSurface,
                     basketSurface,
                     originalBlocks,
-                    protectedPositions
+                    protectedPositions,
+                    skipWaterEstimation
             );
 
             teeSurface = routeResult.teeSurface();

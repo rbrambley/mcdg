@@ -33,10 +33,16 @@ public final class RoutePolicyHelper {
             BlockPos initialTee,
             BlockPos initialBasket,
             Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
+            Set<BlockPos> protectedPositions,
+            boolean skipWaterEstimation
     ) {
         BlockPos teeSurface = initialTee;
         BlockPos basketSurface = initialBasket;
+
+        // Skip route policy enforcement for resort courses to avoid expensive chunk loading
+        if (skipWaterEstimation) {
+            return new HoleRoutePolicyResult(teeSurface, basketSurface, null, hole.par(), "skip_water_estimation");
+        }
 
         if (hole.par() >= 5) {
             for (int attempt = 1; attempt <= ROUTE_POLICY_MAX_RETRIES; attempt++) {
