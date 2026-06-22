@@ -11,6 +11,7 @@ import net.minecraft.util.Identifier;
 public final class McdgItems {
     public static Item TRAINING_DISC = Items.AIR;
     public static Item SCORECARD = Items.AIR;
+    public static Item DISC_ENCHANTED_BOOK = Items.AIR;
     private static boolean strictFlowDebug;
 
     private McdgItems() {
@@ -33,6 +34,12 @@ public final class McdgItems {
             Registries.ITEM,
             new Identifier(McdgMod.MOD_ID, "scorecard"),
             new ScorecardItem(new Item.Settings().maxCount(1))
+        );
+
+        DISC_ENCHANTED_BOOK = Registry.register(
+            Registries.ITEM,
+            new Identifier(McdgMod.MOD_ID, "disc_enchanted_book"),
+            new DiscEnchantedBook(new Item.Settings().maxCount(1))
         );
     }
 }

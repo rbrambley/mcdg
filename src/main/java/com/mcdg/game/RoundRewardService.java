@@ -49,14 +49,19 @@ public final class RoundRewardService {
             rewards.addAll(overParRewards());
         }
 
-        // Strict ruleset bonus
+        // Disc enchantment book bonuses
         if (strictRuleset) {
-            rewards.add(randomEnchantedBook(true));
+            rewards.add(randomDiscEnchantedBook(true));
         }
 
-        // Ace bonuses (one per ace, always an enchanted book)
+        // Ace bonuses (one per ace, always a disc enchanted book)
         for (int i = 0; i < aceCount; i++) {
-            rewards.add(randomEnchantedBook(false));
+            rewards.add(randomDiscEnchantedBook(false));
+        }
+
+        // Extra disc enchantment book for good performance
+        if (delta < 0) {
+            rewards.add(randomDiscEnchantedBook(false));
         }
 
         if (rewards.isEmpty()) {
@@ -180,6 +185,14 @@ public final class RoundRewardService {
         Consumer<net.minecraft.component.type.ItemEnchantmentsComponent.Builder> choice = pool.get(RANDOM.nextInt(pool.size()));
         EnchantmentHelper.apply(book, choice);
         return book;
+    }
+
+    private static ItemStack randomDiscEnchantedBook(boolean highTier) {
+        DiscEnchantment[] pool = DiscEnchantment.values();
+        DiscEnchantment choice = pool[RANDOM.nextInt(pool.length)];
+        int level = highTier ? 2 + RANDOM.nextInt(2) : 1 + RANDOM.nextInt(2); // highTier: II-III, standard: I-II
+        level = Math.min(level, choice.maxLevel());
+        return DiscEnchantedBook.create(choice, level);
     }
 
     private static List<Consumer<net.minecraft.component.type.ItemEnchantmentsComponent.Builder>> standardBooks() {
