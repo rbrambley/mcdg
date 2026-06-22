@@ -12,6 +12,11 @@ public final class McdgItems {
     public static Item TRAINING_DISC = Items.AIR;
     public static Item SCORECARD = Items.AIR;
     public static Item DISC_ENCHANTED_BOOK = Items.AIR;
+    public static Item GRAPPLING_DISC = Items.AIR;
+    public static Item BOOMERANG_COPPER = Items.AIR;
+    public static Item BOOMERANG_IRON = Items.AIR;
+    public static Item BOOMERANG_DIAMOND = Items.AIR;
+    public static Item BOOMERANG_NETHERITE = Items.AIR;
     private static boolean strictFlowDebug;
 
     private McdgItems() {
@@ -40,6 +45,33 @@ public final class McdgItems {
             Registries.ITEM,
             new Identifier(McdgMod.MOD_ID, "disc_enchanted_book"),
             new DiscEnchantedBook(new Item.Settings().maxCount(1))
+        );
+
+        GRAPPLING_DISC = Registry.register(
+            Registries.ITEM,
+            new Identifier(McdgMod.MOD_ID, "grappling_disc"),
+            new GrapplingDiscItem(new Item.Settings())
+        );
+
+        BOOMERANG_COPPER = Registry.register(
+            Registries.ITEM,
+            new Identifier(McdgMod.MOD_ID, "boomerang_copper"),
+            new BoomerangDiscItem(BoomerangDiscItem.Tier.COPPER)
+        );
+        BOOMERANG_IRON = Registry.register(
+            Registries.ITEM,
+            new Identifier(McdgMod.MOD_ID, "boomerang_iron"),
+            new BoomerangDiscItem(BoomerangDiscItem.Tier.IRON)
+        );
+        BOOMERANG_DIAMOND = Registry.register(
+            Registries.ITEM,
+            new Identifier(McdgMod.MOD_ID, "boomerang_diamond"),
+            new BoomerangDiscItem(BoomerangDiscItem.Tier.DIAMOND)
+        );
+        BOOMERANG_NETHERITE = Registry.register(
+            Registries.ITEM,
+            new Identifier(McdgMod.MOD_ID, "boomerang_netherite"),
+            new BoomerangDiscItem(BoomerangDiscItem.Tier.NETHERITE)
         );
     }
 }

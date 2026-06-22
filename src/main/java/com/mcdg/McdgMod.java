@@ -7,6 +7,7 @@ import com.mcdg.game.HoleMapSyncService;
 import com.mcdg.game.HoleProgressTracker;
 import com.mcdg.game.LeaderboardManager;
 import com.mcdg.game.McdgBlocks;
+import com.mcdg.game.McdgEntityTypes;
 import com.mcdg.game.McdgBlockEntities;
 import com.mcdg.game.McdgItems;
 import com.mcdg.game.McdgScreenHandlers;
@@ -244,6 +245,7 @@ public final class McdgMod implements ModInitializer {
         McdgBlocks.register();
         McdgBlockEntities.register();
         McdgScreenHandlers.register();
+        McdgEntityTypes.register();
         McdgAdminCommands.register(
             COURSE_GENERATOR,
             ACTIVE_COURSE_MANAGER,
