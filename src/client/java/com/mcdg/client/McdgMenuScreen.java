@@ -601,11 +601,6 @@ public final class McdgMenuScreen extends Screen {
             }
         }
 
-        // Render tooltip for hovered description (rendered last to appear on top)
-        if (hoveredDescription != null && !hoveredDescription.isHeader) {
-            renderDescriptionTooltip(context, textRenderer, hoveredDescription, contentWidth, panelX, panelY);
-        }
-
         if (confirmPending) {
             int cx = panelX + CONTENT_X_OFFSET;
             int cy = panelY + 44;
@@ -657,6 +652,11 @@ public final class McdgMenuScreen extends Screen {
         }
 
         super.render(context, mouseX, mouseY, delta);
+
+        // Render tooltip for hovered description (rendered after super.render to appear on top of all child elements)
+        if (hoveredDescription != null && !hoveredDescription.isHeader) {
+            renderDescriptionTooltip(context, textRenderer, hoveredDescription, contentWidth, panelX, panelY);
+        }
     }
 
     private Page navPageFor(String label) {
