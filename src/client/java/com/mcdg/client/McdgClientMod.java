@@ -31,6 +31,12 @@ public final class McdgClientMod implements ClientModInitializer {
     private static long hudHideSinceMs;
     private static boolean roundEnded = false;
 
+    // Cached left-side layout inputs — recomputed only when inputs change
+    private static RunningRoundScoreState lastLayoutScoreState = null;
+    private static int lastLayoutScreenHeight = -1;
+    private static float lastLayoutScale = -1f;
+    private static int cachedScoreboardRequired = 0;
+
     @Override
     public void onInitializeClient() {
         ModelPredicateProviderRegistry.register(
@@ -167,6 +173,20 @@ public final class McdgClientMod implements ClientModInitializer {
                         false
                     );
                 }
+
+                // GUI scale advisory — scales 1 and 2 produce small text and layout issues
+                int guiScale = client.options.getGuiScale().getValue();
+                if (guiScale == 1 || guiScale == 2) {
+                    client.player.sendMessage(
+                        net.minecraft.text.Text.literal("MCDG tip: ")
+                            .formatted(net.minecraft.util.Formatting.GOLD)
+                            .append(net.minecraft.text.Text.literal("GUI Scale " + guiScale + " may cause small text and HUD layout issues. ")
+                                .formatted(net.minecraft.util.Formatting.YELLOW))
+                            .append(net.minecraft.text.Text.literal("GUI Scale 3 or Auto is recommended for the best experience.")
+                                .formatted(net.minecraft.util.Formatting.GRAY)),
+                        false
+                    );
+                }
             }
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
@@ -192,8 +212,23 @@ public final class McdgClientMod implements ClientModInitializer {
             // Left-side HUDs - use shared layout manager for vertical coordination
             float scale = HudUtil.getScaleFactor(drawContext);
             int screenHeight = drawContext.getScaledWindowHeight();
+
+            // Recompute scoreboard height only when state or screen dimensions change.
+            // State changes on server packet; screen changes on resize or GUI scale change.
+            if (runningRoundScoreState != lastLayoutScoreState
+                    || screenHeight != lastLayoutScreenHeight
+                    || scale != lastLayoutScale) {
+                lastLayoutScoreState = runningRoundScoreState;
+                lastLayoutScreenHeight = screenHeight;
+                lastLayoutScale = scale;
+                cachedScoreboardRequired = RunningScoreboardOverlay.computeRequiredHeight(runningRoundScoreState, scale);
+            }
+
             LeftSideHudLayout layout = LeftSideHudLayout.withXaeroOffset(screenHeight, scale);
-            
+            if (cachedScoreboardRequired > 0) {
+                layout.reserveBottom(cachedScoreboardRequired + Math.round(8 * scale)); // 8 = HUD_SPACING
+            }
+
             HoleMapOverlay.render(drawContext, MinecraftClient.getInstance(), hudAlpha, layout);
             RunningScoreboardOverlay.render(drawContext, runningRoundScoreState, hudAlpha, layout);
             

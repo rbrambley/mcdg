@@ -695,7 +695,7 @@ public final class McdgMenuScreen extends Screen {
         }
 
         // Render opaque background
-        int tooltipBgColor = 0xF0000000; // Black with full opacity
+        int tooltipBgColor = 0xFF000000; // Black with full opacity
         int tooltipBorderColor = 0xFF3A5A7A; // Match panel border color
         context.fill(tooltipX, tooltipY, tooltipX + tooltipWidth, tooltipY + tooltipHeight, tooltipBgColor);
         // Draw border manually (top, bottom, left, right)

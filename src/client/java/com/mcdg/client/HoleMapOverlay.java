@@ -85,7 +85,8 @@ public final class HoleMapOverlay {
             return;
         }
 
-        // Dynamic panel height: fill available space within min/max bounds, never exceed screen
+        // Dynamic panel height: fill available space within max bound.
+        // Available space already excludes the scoreboard's reservation (set in McdgClientMod).
         int maxH = Math.round(MAX_PANEL_H * scale);
         int panelH = Math.min(availableHeight, maxH);
 

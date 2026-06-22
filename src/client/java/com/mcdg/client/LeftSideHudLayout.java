@@ -16,11 +16,26 @@ public final class LeftSideHudLayout {
     private final int screenHeight;
     private final float scale;
     private int nextY;
+    private int bottomReserve; // scaled px reserved for later panels
 
     public LeftSideHudLayout(int screenHeight, float scale) {
         this.screenHeight = screenHeight;
         this.scale = scale;
         this.nextY = Math.round(TOP_MARGIN * scale);
+        this.bottomReserve = 0;
+    }
+
+    /**
+     * Reserves scaled pixels at the bottom of the remaining space.
+     * Panels allocated after this call see reduced remaining height,
+     * while panels allocated before it are unaffected.
+     * Intended to be called before the first allocation so that early
+     * panels (e.g. hole map) leave room for later panels (e.g. scoreboard).
+     *
+     * @param scaledPx Scaled pixels to reserve
+     */
+    public void reserveBottom(int scaledPx) {
+        bottomReserve += Math.max(0, scaledPx);
     }
 
     /**
@@ -92,9 +107,19 @@ public final class LeftSideHudLayout {
 
     /**
      * Returns the remaining vertical space available below the current cursor,
-     * accounting for the bottom margin. May be negative if panels have overflowed.
+     * accounting for the bottom margin and any reserved bottom space.
+     * May be negative if panels have overflowed.
      */
     public int getRemainingHeight() {
+        return screenHeight - nextY - Math.round(BOTTOM_MARGIN * scale) - bottomReserve;
+    }
+
+    /**
+     * Returns the remaining vertical space ignoring the bottom reserve.
+     * Used by panels that are themselves the target of a reservation (e.g. the
+     * scoreboard, which reserved its own space so it should see the full slot).
+     */
+    public int getRemainingHeightUnreserved() {
         return screenHeight - nextY - Math.round(BOTTOM_MARGIN * scale);
     }
 }

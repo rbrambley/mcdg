@@ -27,6 +27,19 @@ public final class RunningScoreboardOverlay {
         return lastPanelHeight;
     }
 
+    /**
+     * Returns the ideal scaled height for the scoreboard given the current state,
+     * without clamping to available screen space. Returns 0 if there is nothing to show.
+     */
+    public static int computeRequiredHeight(McdgClientMod.RunningRoundScoreState state, float scale) {
+        if (state == null || state.rows().isEmpty()) {
+            return 0;
+        }
+        boolean compactMode = state.rows().size() >= 6;
+        int rowHeight = compactMode ? Math.round(8 * scale) : Math.round(10 * scale);
+        return Math.round(22 * scale) + ((state.rows().size() + 1) * rowHeight);
+    }
+
     public static void render(DrawContext drawContext, McdgClientMod.RunningRoundScoreState state, float hudAlpha, LeftSideHudLayout layout) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null || client.options.hudHidden || client.textRenderer == null) {
@@ -61,13 +74,16 @@ public final class RunningScoreboardOverlay {
         int rowHeight = compactMode ? Math.round(8 * scale) : Math.round(10 * scale);
         float fontSize = compactMode ? 0.85f : 1.0f;
 
-        // Clamp panel height to remaining layout space so it never overflows the screen
-        int remaining = layout.getRemainingHeight();
+        // Clamp panel height to remaining layout space so it never overflows the screen.
+        // Use getRemainingHeightUnreserved — the scoreboard reserved its own space upfront,
+        // so it should see the full slot rather than a doubly-subtracted value.
+        int remaining = layout.getRemainingHeightUnreserved();
         if (remaining <= 0) {
             // No space left — skip rendering
             return;
         }
-        int panelH = Math.min(Math.round(22 * scale) + ((state.rows().size() + 1) * rowHeight), remaining);
+        // Use computeRequiredHeight to stay in sync with the reservation made in McdgClientMod.
+        int panelH = Math.min(computeRequiredHeight(state, scale), remaining);
         lastPanelWidth = panelW;
         lastPanelHeight = panelH;
 

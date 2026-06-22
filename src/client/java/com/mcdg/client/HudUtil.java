@@ -15,8 +15,10 @@ public final class HudUtil {
     private static final float BASELINE_WIDTH = 1920f;
     private static final float BASELINE_HEIGHT = 1080f;
     
-    // Scale factor bounds to ensure readability
-    private static final float MIN_SCALE = 0.6f;
+    // Scale factor bounds to ensure readability.
+    // 0.75 corresponds to GUI scale 1 (Small) at 1920x1080 — below this text
+    // becomes unreadably small and panels overflow. GUI scale 3+ is recommended.
+    private static final float MIN_SCALE = 0.75f;
     private static final float MAX_SCALE = 2.0f;
     
     // Xaero's Minimap integration
