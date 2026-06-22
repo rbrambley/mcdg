@@ -291,6 +291,7 @@ public final class HoleProgressTracker {
                     if (enableSurvivalRewards) {
                         RoundRewardService.grantRoundRewards(player, state.totalStrokes(), totalPar, state.aceCount(), rulesetManager.isStrict());
                     }
+                    StaminaXpService.awardRoundXp(player, state.totalStrokes(), totalPar, state.aceCount(), rulesetManager.isStrict());
 
                     roundStateManager.clearPlayer(player.getUuid());
 

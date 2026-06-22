@@ -367,6 +367,7 @@ public final class ChargedDiscItem extends Item {
 
         BlockPos recordedThrowLie = state == null ? serverPlayer.getBlockPos() : state.lie();
         roundStateManager.recordThrow(serverPlayer.getUuid(), recordedThrowLie);
+        StaminaXpService.consumeThrowStamina(serverPlayer, charge);
         if (strictFlowDebug) {
             McdgMod.LOGGER.info(
                 "Strict throw release | player={} charge={} velocity={} pos={} strict={}",
