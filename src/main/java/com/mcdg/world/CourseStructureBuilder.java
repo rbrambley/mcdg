@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.Set;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
@@ -193,6 +194,39 @@ public final class CourseStructureBuilder {
             }
             if (!PlacementUtils.isProtected(protectedPositions, merchTableB)) {
                 PlacementUtils.setTrackedBlock(world, merchTableB, theme.merchCanopyTables(), originalBlocks);
+            }
+        }
+
+        // Populate merch barrels with starter disc supplies
+        populateMerchBarrels(world, canopyCenter, side, back, protectedPositions);
+    }
+
+    private static void populateMerchBarrels(
+            ServerWorld world,
+            BlockPos canopyCenter,
+            int[] side,
+            int[] back,
+            Set<BlockPos> protectedPositions
+    ) {
+        java.util.Random random = new java.util.Random();
+        for (int u = -1; u <= 1; u++) {
+            for (int v : new int[]{-1, 1}) {
+                BlockPos barrelPos = PlacementUtils.orientedOffset(canopyCenter, side, back, u, v, 1);
+                if (protectedPositions.contains(barrelPos)) {
+                    continue;
+                }
+                BlockEntity blockEntity = world.getBlockEntity(barrelPos);
+                if (!(blockEntity instanceof net.minecraft.block.entity.BarrelBlockEntity barrel)) {
+                    continue;
+                }
+                // Add starter discs
+                barrel.setStack(0, new net.minecraft.item.ItemStack(com.mcdg.game.McdgItems.TRAINING_DISC, 1));
+                // Add random disc enchantment books
+                com.mcdg.game.DiscEnchantment[] pool = com.mcdg.game.DiscEnchantment.values();
+                com.mcdg.game.DiscEnchantment enchant = pool[random.nextInt(pool.length)];
+                int level = 1 + random.nextInt(2);
+                barrel.setStack(1, com.mcdg.game.DiscEnchantedBook.create(enchant, level));
+                barrel.markDirty();
             }
         }
     }
