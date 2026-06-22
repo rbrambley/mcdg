@@ -2,7 +2,7 @@
 
 **Status:** Master Implementation Plan
 **Created:** 2026-06-17
-**Last Updated:** 2026-06-21
+**Last Updated:** 2026-06-22
 **Current Phase:** Phase 1 (Critical Fixes & Foundation)
 **Overall Progress:** 2/6 phases (33% complete)
 **Goal:** Combine all feature plans into cohesive development phases with logical dependencies and priorities
@@ -94,19 +94,6 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
 - ✅ Optimize server tick handlers
 
 **Impact:** HIGH - Eliminates frame drops and server freezes
-
-### **Phase 1.3: Basic Survival Integration**
-**Source:** SURVIVAL-ENHANCEMENTS-PLAN.md (Phase 1)
-**Effort:** 6-10 hours
-**Dependencies:** None
-
-**Tasks:**
-- Implement disc enchantments system (GLIDE, STABILITY, PIERCE, DURABILITY, RANGE)
-- Add biome-themed course generation
-- Implement XP rewards for scoring
-- Add stamina-based throw mechanics
-
-**Impact:** HIGH - Natural survival integration, immediate player value
 
 ### **Phase 1.3: Real-Time Progressive Trail Rendering**
 **Source:** REAL-TIME-TRAIL-IMPLEMENTATION-PLAN.md
