@@ -15,20 +15,20 @@ public final class CourseStructureBuilder {
 
     private CourseStructureBuilder() {}
 
-    static void placeTeePad(ServerWorld world, BlockPos center, Map<BlockPos, BlockState> originalBlocks) {
+    static void placeTeePad(ServerWorld world, BlockPos center, Map<BlockPos, BlockState> originalBlocks, BiomeTheme theme) {
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
                 BlockPos pos = center.add(dx, 0, dz);
-                PlacementUtils.setTrackedBlock(world, pos, Blocks.SMOOTH_STONE.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, pos, theme.teePadBase(), originalBlocks);
             }
         }
-        PlacementUtils.setTrackedBlock(world, center, Blocks.LIME_CONCRETE.getDefaultState(), originalBlocks);
+        PlacementUtils.setTrackedBlock(world, center, theme.teePadCenter(), originalBlocks);
     }
 
-    static void placeBasketMarker(ServerWorld world, BlockPos center, Map<BlockPos, BlockState> originalBlocks, int basketHeight) {
+    static void placeBasketMarker(ServerWorld world, BlockPos center, Map<BlockPos, BlockState> originalBlocks, int basketHeight, BiomeTheme theme) {
         BlockState ground = world.getBlockState(center);
         if (!SurfaceResolver.isBasketGroundSafe(ground)) {
-            PlacementUtils.setTrackedBlock(world, center, Blocks.GRASS_BLOCK.getDefaultState(), originalBlocks);
+            PlacementUtils.setTrackedBlock(world, center, theme.basketGround(), originalBlocks);
         }
 
         BlockPos base = center.up();
@@ -38,22 +38,22 @@ public final class CourseStructureBuilder {
                 PlacementUtils.setTrackedBlock(world, markerPos, Blocks.AIR.getDefaultState(), originalBlocks);
             }
         }
-        PlacementUtils.setTrackedBlock(world, base, Blocks.HOPPER.getDefaultState(), originalBlocks);
+        PlacementUtils.setTrackedBlock(world, base, theme.basketBase(), originalBlocks);
 
         for (int i = 1; i <= basketHeight + 1; i++) {
-            PlacementUtils.setTrackedBlock(world, base.up(i), Blocks.IRON_BARS.getDefaultState(), originalBlocks);
+            PlacementUtils.setTrackedBlock(world, base.up(i), theme.basketPole(), originalBlocks);
         }
 
-        PlacementUtils.setTrackedBlock(world, base.up(basketHeight + 2), Blocks.LANTERN.getDefaultState(), originalBlocks);
+        PlacementUtils.setTrackedBlock(world, base.up(basketHeight + 2), theme.basketLantern(), originalBlocks);
     }
 
-    static void placeLanternPost(ServerWorld world, BlockPos ground, int postHeight, Map<BlockPos, BlockState> originalBlocks) {
+    static void placeLanternPost(ServerWorld world, BlockPos ground, int postHeight, Map<BlockPos, BlockState> originalBlocks, BiomeTheme theme) {
         int height = Math.max(1, postHeight);
         PlacementUtils.clearHeadroom(world, ground, 1, height + 2, originalBlocks, null);
         for (int i = 1; i <= height; i++) {
-            PlacementUtils.setTrackedBlock(world, ground.up(i), Blocks.OAK_FENCE.getDefaultState(), originalBlocks);
+            PlacementUtils.setTrackedBlock(world, ground.up(i), theme.lanternPost(), originalBlocks);
         }
-        PlacementUtils.setTrackedBlock(world, ground.up(height + 1), Blocks.LANTERN.getDefaultState(), originalBlocks);
+        PlacementUtils.setTrackedBlock(world, ground.up(height + 1), theme.lanternLight(), originalBlocks);
     }
 
     public static void placeCourseCentralHub(
@@ -62,7 +62,8 @@ public final class CourseStructureBuilder {
             BlockPos basketSurface,
             String courseName,
             Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
+            Set<BlockPos> protectedPositions,
+            BiomeTheme theme
     ) {
         int[] forward = PlacementUtils.teeForwardUnit(teeCenter, basketSurface);
         int[] back = new int[] { -forward[0], -forward[1] };
@@ -75,10 +76,10 @@ public final class CourseStructureBuilder {
         );
         PlacementUtils.clearHeadroom(world, hubSurface, 9, 6, originalBlocks, protectedPositions);
 
-        buildCourseCentralDeck(world, hubSurface, side, back, originalBlocks, protectedPositions);
-        placeRegistrationDesk(world, hubSurface, side, back, originalBlocks, protectedPositions);
-        placeMerchCanopy(world, hubSurface, side, back, originalBlocks, protectedPositions);
-        placePracticeBaskets(world, hubSurface, side, back, originalBlocks, protectedPositions);
+        buildCourseCentralDeck(world, hubSurface, side, back, originalBlocks, protectedPositions, theme);
+        placeRegistrationDesk(world, hubSurface, side, back, originalBlocks, protectedPositions, theme);
+        placeMerchCanopy(world, hubSurface, side, back, originalBlocks, protectedPositions, theme);
+        placePracticeBaskets(world, hubSurface, side, back, originalBlocks, protectedPositions, theme);
 
         PlacementUtils.addProtectedColumnArea(protectedPositions, hubSurface, 9, 7);
     }
@@ -89,7 +90,8 @@ public final class CourseStructureBuilder {
             int[] side,
             int[] back,
             Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
+            Set<BlockPos> protectedPositions,
+            BiomeTheme theme
     ) {
         for (int v = -3; v <= 8; v++) {
             for (int u = -8; u <= 8; u++) {
@@ -98,14 +100,14 @@ public final class CourseStructureBuilder {
                     continue;
                 }
                 boolean rim = Math.abs(u) >= 8 || v <= -3 || v >= 8;
-                PlacementUtils.setTrackedBlock(world, pos, rim ? Blocks.POLISHED_ANDESITE.getDefaultState() : Blocks.SPRUCE_PLANKS.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, pos, rim ? theme.hubDeckRim() : theme.hubDeckCenter(), originalBlocks);
             }
         }
 
         for (int step = 3; step <= 8; step++) {
             BlockPos walkway = hubSurface.add(-back[0] * step, 0, -back[1] * step);
             if (!PlacementUtils.isProtected(protectedPositions, walkway)) {
-                PlacementUtils.setTrackedBlock(world, walkway, Blocks.SMOOTH_STONE.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, walkway, theme.hubWalkway(), originalBlocks);
             }
         }
     }
@@ -116,7 +118,8 @@ public final class CourseStructureBuilder {
             int[] side,
             int[] back,
             Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
+            Set<BlockPos> protectedPositions,
+            BiomeTheme theme
     ) {
         BlockPos deskOrigin = PlacementUtils.orientedOffset(hubSurface, side, back, -4, 0, 0);
 
@@ -124,7 +127,7 @@ public final class CourseStructureBuilder {
             for (int v = 0; v <= 1; v++) {
                 BlockPos top = PlacementUtils.orientedOffset(deskOrigin, side, back, u, v, 1);
                 if (!PlacementUtils.isProtected(protectedPositions, top)) {
-                    PlacementUtils.setTrackedBlock(world, top, Blocks.SMOOTH_STONE_SLAB.getDefaultState(), originalBlocks);
+                    PlacementUtils.setTrackedBlock(world, top, theme.registrationDeskTop(), originalBlocks);
                 }
             }
         }
@@ -135,7 +138,7 @@ public final class CourseStructureBuilder {
         for (int[] leg : legs) {
             BlockPos legPos = PlacementUtils.orientedOffset(deskOrigin, side, back, leg[0], leg[1], 0);
             if (!PlacementUtils.isProtected(protectedPositions, legPos)) {
-                PlacementUtils.setTrackedBlock(world, legPos, Blocks.OAK_FENCE.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, legPos, theme.registrationDeskLegs(), originalBlocks);
             }
         }
 
@@ -145,7 +148,7 @@ public final class CourseStructureBuilder {
         for (int[] terminal : terminals) {
             BlockPos terminalPos = PlacementUtils.orientedOffset(deskOrigin, side, back, terminal[0], terminal[1], 2);
             if (!PlacementUtils.isProtected(protectedPositions, terminalPos)) {
-                PlacementUtils.setTrackedBlock(world, terminalPos, Blocks.DAYLIGHT_DETECTOR.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, terminalPos, theme.registrationDeskTerminals(), originalBlocks);
             }
         }
     }
@@ -156,7 +159,8 @@ public final class CourseStructureBuilder {
             int[] side,
             int[] back,
             Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
+            Set<BlockPos> protectedPositions,
+            BiomeTheme theme
     ) {
         BlockPos canopyCenter = PlacementUtils.orientedOffset(hubSurface, side, back, 4, 2, 0);
 
@@ -164,7 +168,7 @@ public final class CourseStructureBuilder {
             for (int v = -2; v <= 2; v++) {
                 BlockPos roof = PlacementUtils.orientedOffset(canopyCenter, side, back, u, v, 4);
                 if (!PlacementUtils.isProtected(protectedPositions, roof)) {
-                    PlacementUtils.setTrackedBlock(world, roof, Blocks.WHITE_WOOL.getDefaultState(), originalBlocks);
+                    PlacementUtils.setTrackedBlock(world, roof, theme.merchCanopyRoof(), originalBlocks);
                 }
             }
         }
@@ -176,7 +180,7 @@ public final class CourseStructureBuilder {
             for (int y = 1; y <= 3; y++) {
                 BlockPos postPos = PlacementUtils.orientedOffset(canopyCenter, side, back, post[0], post[1], y);
                 if (!PlacementUtils.isProtected(protectedPositions, postPos)) {
-                    PlacementUtils.setTrackedBlock(world, postPos, Blocks.OAK_FENCE.getDefaultState(), originalBlocks);
+                    PlacementUtils.setTrackedBlock(world, postPos, theme.merchCanopyPosts(), originalBlocks);
                 }
             }
         }
@@ -185,10 +189,10 @@ public final class CourseStructureBuilder {
             BlockPos merchTableA = PlacementUtils.orientedOffset(canopyCenter, side, back, u, -1, 1);
             BlockPos merchTableB = PlacementUtils.orientedOffset(canopyCenter, side, back, u, 1, 1);
             if (!PlacementUtils.isProtected(protectedPositions, merchTableA)) {
-                PlacementUtils.setTrackedBlock(world, merchTableA, Blocks.BARREL.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, merchTableA, theme.merchCanopyTables(), originalBlocks);
             }
             if (!PlacementUtils.isProtected(protectedPositions, merchTableB)) {
-                PlacementUtils.setTrackedBlock(world, merchTableB, Blocks.BARREL.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, merchTableB, theme.merchCanopyTables(), originalBlocks);
             }
         }
     }
@@ -199,7 +203,8 @@ public final class CourseStructureBuilder {
             int[] side,
             int[] back,
             Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
+            Set<BlockPos> protectedPositions,
+            BiomeTheme theme
     ) {
         BlockPos leftPracticeTarget = PlacementUtils.orientedOffset(hubSurface, side, back, -7, 6, 0);
         BlockPos rightPracticeTarget = PlacementUtils.orientedOffset(hubSurface, side, back, 7, 6, 0);
@@ -216,8 +221,8 @@ public final class CourseStructureBuilder {
 
         PlacementUtils.clearHeadroom(world, leftSurface, 1, 6, originalBlocks, protectedPositions);
         PlacementUtils.clearHeadroom(world, rightSurface, 1, 6, originalBlocks, protectedPositions);
-        placeBasketMarker(world, leftSurface, originalBlocks, 2);
-        placeBasketMarker(world, rightSurface, originalBlocks, 2);
+        placeBasketMarker(world, leftSurface, originalBlocks, 2, theme);
+        placeBasketMarker(world, rightSurface, originalBlocks, 2, theme);
         PlacementUtils.addProtectedColumnArea(protectedPositions, leftSurface, 1, 6);
         PlacementUtils.addProtectedColumnArea(protectedPositions, rightSurface, 1, 6);
     }
@@ -232,7 +237,8 @@ public final class CourseStructureBuilder {
             boolean signatureHole,
             String signatureName,
             String routeNote,
-            Map<BlockPos, BlockState> originalBlocks
+            Map<BlockPos, BlockState> originalBlocks,
+            BiomeTheme theme
     ) {
         int[] forward = PlacementUtils.teeForwardUnit(teeCenter, basketSurface);
         int[] left = new int[] { -forward[1], forward[0] };
@@ -242,9 +248,9 @@ public final class CourseStructureBuilder {
         BlockPos bannerGround = teeCenter.add(forward[0] + right[0], 0, forward[1] + right[1]);
 
         PlacementUtils.clearHeadroom(world, bannerGround, 1, 4, originalBlocks, null);
-        PlacementUtils.setTrackedBlock(world, bannerGround.up(1), Blocks.OAK_FENCE.getDefaultState(), originalBlocks);
+        PlacementUtils.setTrackedBlock(world, bannerGround.up(1), theme.bannerPole(), originalBlocks);
         BlockPos bannerPos = bannerGround.up(2);
-        PlacementUtils.setTrackedBlock(world, bannerPos, Blocks.WHITE_BANNER.getDefaultState(), originalBlocks);
+        PlacementUtils.setTrackedBlock(world, bannerPos, theme.banner(), originalBlocks);
         String hazardNote = PlacementCleanupHelper.teeHazardNote(world, teeCenter, basketSurface);
         String noteToShow = signatureName.isEmpty()
                 ? (routeNote.isEmpty() ? hazardNote : routeNote)
@@ -267,7 +273,8 @@ public final class CourseStructureBuilder {
             ServerWorld world,
             BlockPos basketSurface,
             Map<BlockPos, BlockState> originalBlocks,
-            Set<BlockPos> protectedPositions
+            Set<BlockPos> protectedPositions,
+            BiomeTheme theme
     ) {
         int radius = SIGNATURE_RING_RADIUS;
         for (int dx = -radius; dx <= radius; dx++) {
@@ -281,7 +288,7 @@ public final class CourseStructureBuilder {
                 if (PlacementUtils.isProtected(protectedPositions, ringPos)) {
                     continue;
                 }
-                PlacementUtils.setTrackedBlock(world, ringPos, Blocks.YELLOW_CONCRETE.getDefaultState(), originalBlocks);
+                PlacementUtils.setTrackedBlock(world, ringPos, theme.signatureRing(), originalBlocks);
                 PlacementUtils.addProtectedColumnArea(protectedPositions, ringPos, 0, 3);
             }
         }

@@ -36,6 +36,21 @@ final class FairwayCarver {
             Set<BlockPos> protectedPositions,
             boolean placeLanterns
     ) {
+        carveFairway(world, startX, startZ, endX, endZ, width, originalBlocks, protectedPositions, placeLanterns, null);
+    }
+
+    static void carveFairway(
+            ServerWorld world,
+            int startX,
+            int startZ,
+            int endX,
+            int endZ,
+            int width,
+            Map<BlockPos, BlockState> originalBlocks,
+            Set<BlockPos> protectedPositions,
+            boolean placeLanterns,
+            BiomeTheme theme
+    ) {
         int steps = Math.max(Math.abs(endX - startX), Math.abs(endZ - startZ));
         if (steps < 1) {
             steps = 1;
@@ -124,7 +139,7 @@ final class FairwayCarver {
                     && CoursePlacementService.isWaterAdjacentArea(world, center, CoursePlacementConfig.WaterLanding.ENFORCE_SCAN_RADIUS, CoursePlacementConfig.WaterLanding.ADJACENT_MIN_COLUMNS)) {
                 tunedRadius = Math.max(tunedRadius, Math.min(3, radius + 1));
             }
-            BlockState pathState = PlacementCleanupHelper.selectPathMaterial(world, center);
+            BlockState pathState = PlacementCleanupHelper.selectPathMaterial(world, center, theme);
 
             if (true) {
 
@@ -183,7 +198,7 @@ final class FairwayCarver {
                 if (PlacementUtils.isProtected(protectedPositions, lanternBase.up())) {
                     continue;
                 }
-                CourseStructureBuilder.placeLanternPost(world, lanternBase, 2, originalBlocks);
+                CourseStructureBuilder.placeLanternPost(world, lanternBase, 2, originalBlocks, theme);
                 lastLanternStep = i;
             }
         }
@@ -263,6 +278,18 @@ final class FairwayCarver {
             Map<BlockPos, BlockState> originalBlocks,
             Set<BlockPos> protectedPositions
     ) {
+        enforceBasketApproachLandingZone(world, approachStart, basketSurface, fairwayWidth, originalBlocks, protectedPositions, null);
+    }
+
+    static void enforceBasketApproachLandingZone(
+            ServerWorld world,
+            BlockPos approachStart,
+            BlockPos basketSurface,
+            int fairwayWidth,
+            Map<BlockPos, BlockState> originalBlocks,
+            Set<BlockPos> protectedPositions,
+            BiomeTheme theme
+    ) {
         int approachGap = CoursePlacementService.computeLongestWaterCarryGap(world, approachStart, basketSurface);
         if (approachGap <= CoursePlacementConfig.Tee.MAX_DIRECT_CARRY_GAP) {
             return;
@@ -290,7 +317,8 @@ final class FairwayCarver {
                 Math.max(fairwayWidth, CoursePlacementConfig.Basket.APPROACH_MIN_WIDTH),
                 originalBlocks,
                 protectedPositions,
-                false
+                false,
+                theme
         );
     }
 

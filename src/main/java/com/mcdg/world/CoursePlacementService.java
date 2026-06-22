@@ -201,6 +201,8 @@ public final class CoursePlacementService {
                 anchorBiome,
                 String.format(java.util.Locale.ROOT, "%.3f", projectedWaterRatio)
         );
+        BiomeTheme theme = BiomeThemeResolver.resolve(world.getBiome(anchor));
+        McdgMod.LOGGER.info("Course theme resolved: {}", theme.name());
         int teeMinY = origin.getY() - PLAYER_RELATIVE_TEE_MIN_Y_OFFSET;
         int basketTargetMinY = origin.getY() - PLAYER_RELATIVE_BASKET_TARGET_MIN_Y_OFFSET;
         int basketAbsoluteMinY = origin.getY() - PLAYER_RELATIVE_BASKET_ABSOLUTE_MIN_Y_OFFSET;
@@ -427,7 +429,8 @@ public final class CoursePlacementService {
                     fairwayWidth,
                     originalBlocks,
                     protectedPositions,
-                    false
+                    false,
+                    theme
                 );
                 FairwayCarver.carveFairway(
                     world,
@@ -438,7 +441,8 @@ public final class CoursePlacementService {
                     fairwayWidth,
                     originalBlocks,
                     protectedPositions,
-                    false
+                    false,
+                    theme
                 );
                 // Create safe landing zone at alternate anchor for long water carries
                 FairwayCarver.createSafeFairwayLandingZone(
@@ -458,7 +462,8 @@ public final class CoursePlacementService {
                     fairwayWidth,
                     originalBlocks,
                     protectedPositions,
-                    false
+                    false,
+                    theme
                 );
                 }
 
@@ -469,7 +474,8 @@ public final class CoursePlacementService {
                     basketSurface,
                     fairwayWidth,
                     originalBlocks,
-                    protectedPositions
+                    protectedPositions,
+                    theme
                 );
 
                     progressCallback.accept(Math.max(1, hole.index() / 2));
@@ -494,34 +500,35 @@ public final class CoursePlacementService {
             PlacementUtils.clearHeadroom(world, basketSurface, 2, 6, originalBlocks, null);
             PlacementCleanupHelper.clearTeeLaunchLane(world, teeSurface, basketSurface, originalBlocks, protectedPositions);
 
-            CourseStructureBuilder.placeTeePad(world, teeSurface, originalBlocks);
+            CourseStructureBuilder.placeTeePad(world, teeSurface, originalBlocks, theme);
             int[] teeForward = PlacementUtils.teeForwardUnit(teeSurface, basketSurface);
             BlockPos teeLampGround = teeSurface.add(-teeForward[0], 0, -teeForward[1]);
-            CourseStructureBuilder.placeLanternPost(world, teeLampGround, 2, originalBlocks);
+            CourseStructureBuilder.placeLanternPost(world, teeLampGround, 2, originalBlocks, theme);
             CourseStructureBuilder.placeTeeHoleBanner(
                 world, teeSurface, basketSurface,
                 hole.index(), hole.par(), PlacementUtils.placedDistanceFeet(teeSurface, holeBaskets.get(hole.index())),
                 hole.isSignature(),
                 hole.signatureType().displayName(),
                 holeRoutingNotes.getOrDefault(hole.index(), ""),
-                originalBlocks
+                originalBlocks,
+                theme
             );
             if (hole.index() == startingHoleIndex && startingHoleIndex == 1) {
                 hole1Tee = teeSurface;
                 hole1Basket = basketSurface;
             }
-            CourseStructureBuilder.placeBasketMarker(world, basketSurface, originalBlocks, hole.basket().basketHeight());
+            CourseStructureBuilder.placeBasketMarker(world, basketSurface, originalBlocks, hole.basket().basketHeight(), theme);
             if (hole.isSignature()) {
-                CourseStructureBuilder.placeSignatureBasketAccents(world, basketSurface, originalBlocks, protectedPositions);
+                CourseStructureBuilder.placeSignatureBasketAccents(world, basketSurface, originalBlocks, protectedPositions, theme);
             }
 
             progressCallback.accept(hole.index());
         }
 
         if (!skipHub && hole1Tee != null && hole1Basket != null) {
-            CourseStructureBuilder.placeCourseCentralHub(world, hole1Tee, hole1Basket, course.name(), originalBlocks, protectedPositions);
+            CourseStructureBuilder.placeCourseCentralHub(world, hole1Tee, hole1Basket, course.name(), originalBlocks, protectedPositions, theme);
             // Hub construction can overlap the starting hole footprint; enforce the tee pad shape afterwards.
-            CourseStructureBuilder.placeTeePad(world, hole1Tee, originalBlocks);
+            CourseStructureBuilder.placeTeePad(world, hole1Tee, originalBlocks, theme);
         }
 
         // Compute hazard grids for all holes (for hole map rendering)

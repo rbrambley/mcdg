@@ -223,6 +223,14 @@ public final class PlacementCleanupHelper {
     }
 
     static BlockState selectPathMaterial(ServerWorld world, BlockPos pos) {
+        return selectPathMaterial(world, pos, null);
+    }
+
+    static BlockState selectPathMaterial(ServerWorld world, BlockPos pos, BiomeTheme theme) {
+        if (theme != null) {
+            return theme.fairwayPath();
+        }
+
         RegistryEntry<Biome> biome = world.getBiome(pos);
         String biomeId = PlacementUtils.biomeId(biome);
 
