@@ -96,7 +96,7 @@ public final class DiscEnchantedBook extends Item {
         ItemStack mainHand = user.getMainHandStack();
         if (!mainHand.isOf(McdgItems.TRAINING_DISC)) {
             if (user instanceof ServerPlayerEntity sp) {
-                sp.sendMessage(Text.literal("Hold a Training Disc in your main hand to apply this enchantment.").formatted(net.minecraft.util.Formatting.RED), true);
+                sp.sendMessage(Text.literal("Hold Training Disc in main hand, enchanted book in off hand, then right-click.").formatted(net.minecraft.util.Formatting.RED), true);
             }
             return TypedActionResult.fail(bookStack);
         }
@@ -125,7 +125,7 @@ public final class DiscEnchantedBook extends Item {
         int level = getLevel(stack);
         if (enchant != null && level > 0) {
             tooltip.add(Text.literal(enchant.displayName() + " " + roman(level)).formatted(enchant.color()));
-            tooltip.add(Text.literal("Use while holding a Training Disc").formatted(net.minecraft.util.Formatting.GRAY));
+            tooltip.add(Text.literal("Hold Training Disc in main hand, right-click").formatted(net.minecraft.util.Formatting.GRAY));
         } else {
             tooltip.add(Text.literal("Empty book").formatted(net.minecraft.util.Formatting.DARK_GRAY));
         }

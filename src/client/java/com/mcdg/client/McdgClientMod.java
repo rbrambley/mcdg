@@ -2,6 +2,7 @@ package com.mcdg.client;
 
 import com.mcdg.game.ChargedDiscItem;
 import com.mcdg.game.McdgItems;
+import com.mcdg.game.McdgEntityTypes;
 import com.mcdg.net.HoleMapSync;
 import com.mcdg.net.ThrowStanceSync;
 import com.mcdg.net.LeaderboardResponse;
@@ -14,6 +15,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.ingame.HandledScreens;
@@ -41,6 +43,10 @@ public final class McdgClientMod implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        // Register entity renderers for custom disc entities
+        EntityRendererRegistry.register(McdgEntityTypes.BOOMERANG_DISC, BoomerangDiscEntityRenderer::new);
+        EntityRendererRegistry.register(McdgEntityTypes.GRAPPLING_DISC, GrapplingDiscEntityRenderer::new);
+
         ModelPredicateProviderRegistry.register(
                 McdgItems.TRAINING_DISC,
                 TRAINING_DISC_CHARGED_PREDICATE,

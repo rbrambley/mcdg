@@ -59,7 +59,10 @@ import net.minecraft.util.math.Box;
 import com.mcdg.game.OutOfBoundsClassifier;
 import com.mcdg.game.BotSimulator;
 import com.mcdg.game.BotSimulator.BotSkill;
+import com.mcdg.game.WindManager;
+import com.mcdg.game.WindMode;
 import com.mojang.brigadier.arguments.BoolArgumentType;
+import com.mojang.brigadier.arguments.DoubleArgumentType;
 
 public final class McdgAdminCommands {
 
@@ -456,6 +459,28 @@ public final class McdgAdminCommands {
                                                 courseManager,
                                                 roundStateManager
                                         ))))
+                        .then(literal("wind").requires(CommandPermission::canUseAdminCommands)
+                                .then(literal("set")
+                                        .then(argument("speed", DoubleArgumentType.doubleArg(0.0, 1.0))
+                                                .then(argument("direction", IntegerArgumentType.integer(0, 359))
+                                                        .executes(context -> executeWindSet(
+                                                                context.getSource(),
+                                                                DoubleArgumentType.getDouble(context, "speed"),
+                                                                IntegerArgumentType.getInteger(context, "direction")
+                                                        )))))
+                                .then(literal("clear")
+                                        .executes(context -> executeWindClear(context.getSource())))
+                                .then(literal("mode")
+                                        .then(literal("calm")
+                                                .executes(context -> executeWindMode(context.getSource(), WindMode.CALM)))
+                                        .then(literal("natural")
+                                                .executes(context -> executeWindMode(context.getSource(), WindMode.NATURAL)))
+                                        .then(literal("fixed")
+                                                .executes(context -> executeWindMode(context.getSource(), WindMode.FIXED))))
+                                .then(literal("show")
+                                        .executes(context -> executeWindShow(context.getSource())))
+                                .then(literal("random")
+                                        .executes(context -> executeWindRandom(context.getSource()))))
                         ));
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
@@ -2477,4 +2502,47 @@ public final class McdgAdminCommands {
             return 0;
         }
     }
+
+    private static int executeWindSet(ServerCommandSource source, double speed, int direction) {
+        ServerWorld world = source.getWorld();
+        WindManager.setManualWind(world, speed, direction);
+        source.sendFeedback(() -> Text.literal("Wind set to " + speed + " speed, " + direction + " degrees").formatted(Formatting.GREEN), true);
+        return 1;
+    }
+
+    private static int executeWindClear(ServerCommandSource source) {
+        ServerWorld world = source.getWorld();
+        WindManager.setWindMode(world, WindMode.CALM);
+        source.sendFeedback(() -> Text.literal("Wind cleared (calm conditions)").formatted(Formatting.GREEN), true);
+        return 1;
+    }
+
+    private static int executeWindMode(ServerCommandSource source, WindMode mode) {
+        ServerWorld world = source.getWorld();
+        WindManager.setWindMode(world, mode);
+        source.sendFeedback(() -> Text.literal("Wind mode set to " + mode).formatted(Formatting.GREEN), true);
+        return 1;
+    }
+
+    private static int executeWindShow(ServerCommandSource source) {
+        ServerWorld world = source.getWorld();
+        com.mcdg.game.WindState wind = WindManager.getWindState(world);
+        String compassDirection = getCompassDirection(wind.directionDegrees());
+        source.sendFeedback(() -> Text.literal("Current wind: " + wind.speed() + " speed, " + wind.directionDegrees() + " degrees (" + compassDirection + "), mode: " + wind.mode()).formatted(Formatting.AQUA), false);
+        return 1;
+    }
+
+    private static int executeWindRandom(ServerCommandSource source) {
+        ServerWorld world = source.getWorld();
+        WindManager.setWindMode(world, WindMode.NATURAL);
+        source.sendFeedback(() -> Text.literal("Wind set to random natural mode").formatted(Formatting.GREEN), true);
+        return 1;
+    }
+
+    private static String getCompassDirection(float degrees) {
+        String[] directions = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
+        int index = Math.round(degrees / 45.0f) % 8;
+        return directions[index];
+    }
 }
+

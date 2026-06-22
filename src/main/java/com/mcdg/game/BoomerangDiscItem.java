@@ -17,10 +17,10 @@ import net.minecraft.world.World;
  */
 public final class BoomerangDiscItem extends Item {
     public enum Tier {
-        COPPER(20, 4.0f),
-        IRON(30, 5.0f),
-        DIAMOND(40, 6.0f),
-        NETHERITE(50, 7.0f);
+        COPPER(20, 7.0f),
+        IRON(30, 8.0f),
+        DIAMOND(40, 9.0f),
+        NETHERITE(50, 10.0f);
 
         private final int maxRangeBlocks;
         private final float baseDamage;

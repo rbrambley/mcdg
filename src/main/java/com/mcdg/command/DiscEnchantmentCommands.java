@@ -4,6 +4,7 @@ import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 
 import com.mcdg.game.DiscEnchantment;
+import com.mcdg.game.DiscEnchantedBook;
 import com.mcdg.game.DiscEnchantmentHelper;
 import com.mcdg.game.McdgItems;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -22,6 +23,8 @@ import net.minecraft.util.Formatting;
  * Admin commands for applying and removing disc enchantments.
  * Usage: /mcdg enchant <enchantment> <level>
  *        /mcdg enchant clear
+ *        /mcdg enchant givebook <enchantment> <level>
+ *        /mcdg enchant givedisc
  */
 public final class DiscEnchantmentCommands {
     private DiscEnchantmentCommands() {}
@@ -31,6 +34,17 @@ public final class DiscEnchantmentCommands {
                 .requires(CommandPermission::canUseAdminCommands)
                 .then(literal("clear")
                         .executes(context -> executeClear(context)))
+                .then(literal("givebook")
+                        .then(argument("enchantment", StringArgumentType.word())
+                                .suggests(ENCHANTMENT_SUGGESTIONS)
+                                .then(argument("level", IntegerArgumentType.integer(1, 3))
+                                        .executes(context -> executeGiveBook(
+                                                context,
+                                                StringArgumentType.getString(context, "enchantment"),
+                                                IntegerArgumentType.getInteger(context, "level")
+                                        )))))
+                .then(literal("givedisc")
+                        .executes(context -> executeGiveDisc(context)))
                 .then(argument("enchantment", StringArgumentType.word())
                         .suggests(ENCHANTMENT_SUGGESTIONS)
                         .then(argument("level", IntegerArgumentType.integer(1, 3))
@@ -97,6 +111,48 @@ public final class DiscEnchantmentCommands {
 
         DiscEnchantmentHelper.clear(stack);
         source.sendFeedback(() -> Text.literal("Cleared all disc enchantments.").formatted(Formatting.GREEN), false);
+        return 1;
+    }
+
+    private static int executeGiveBook(CommandContext<ServerCommandSource> context, String enchantmentKey, int level) {
+        ServerCommandSource source = context.getSource();
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendError(Text.literal("This command must be run by a player."));
+            return 0;
+        }
+
+        DiscEnchantment enchant = Arrays.stream(DiscEnchantment.values())
+                .filter(e -> e.key().equalsIgnoreCase(enchantmentKey))
+                .findFirst()
+                .orElse(null);
+
+        if (enchant == null) {
+            source.sendError(Text.literal("Unknown enchantment: " + enchantmentKey
+                    + ". Valid: glide, fade_control, distance"));
+            return 0;
+        }
+
+        ItemStack book = DiscEnchantedBook.create(enchant, level);
+        player.getInventory().insertStack(book);
+
+        source.sendFeedback(() -> Text.literal("Gave " + enchant.displayName() + " " + roman(level)
+                + " enchanted book.").formatted(Formatting.GREEN), false);
+        return 1;
+    }
+
+    private static int executeGiveDisc(CommandContext<ServerCommandSource> context) {
+        ServerCommandSource source = context.getSource();
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendError(Text.literal("This command must be run by a player."));
+            return 0;
+        }
+
+        ItemStack disc = new ItemStack(McdgItems.TRAINING_DISC);
+        player.getInventory().insertStack(disc);
+
+        source.sendFeedback(() -> Text.literal("Gave Training Disc.").formatted(Formatting.GREEN), false);
         return 1;
     }
 

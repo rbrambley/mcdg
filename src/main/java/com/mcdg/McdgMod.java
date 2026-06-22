@@ -7,6 +7,7 @@ import com.mcdg.game.HoleMapSyncService;
 import com.mcdg.game.HoleProgressTracker;
 import com.mcdg.game.LeaderboardManager;
 import com.mcdg.game.McdgBlocks;
+import com.mcdg.game.WindManager;
 import com.mcdg.game.McdgEntityTypes;
 import com.mcdg.game.McdgBlockEntities;
 import com.mcdg.game.McdgItems;
@@ -241,6 +242,10 @@ public final class McdgMod implements ModInitializer {
                 ))
         );
         McdgConfig config = McdgConfig.loadDefault();
+        
+        // Initialize wind manager with configuration
+        WindManager.initialize(config.enableWindSystem(), config.defaultWindSpeed(), config.windUpdateIntervalTicks());
+        
         McdgItems.register(ACTIVE_COURSE_MANAGER, ROUND_STATE_MANAGER, TOURNAMENT_RULESET_MANAGER, config.enableStrictFlowDebug());
         McdgBlocks.register();
         McdgBlockEntities.register();
@@ -349,6 +354,14 @@ public final class McdgMod implements ModInitializer {
             long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
             if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
                 LOGGER.warn("EntityCapper tick took {}ms", elapsedMs);
+            }
+        });
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long start = System.nanoTime();
+            WindManager.tick(server);
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
+                LOGGER.warn("WindManager tick took {}ms", elapsedMs);
             }
         });
         ServerLifecycleEvents.SERVER_STARTED.register(server -> ResortWaypointManager.clearResortWaypoint());

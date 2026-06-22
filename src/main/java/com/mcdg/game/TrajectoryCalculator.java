@@ -80,6 +80,20 @@ public final class TrajectoryCalculator {
             ReleaseAngle angle,
             Map<DiscEnchantment, Integer> enchantments
     ) {
+        return calculateTrajectory(world, startPos, initialVelocity, launchYawDegrees, charge, stance, angle, enchantments, Vec3d.ZERO);
+    }
+
+    public static TrajectoryResult calculateTrajectory(
+            ServerWorld world,
+            Vec3d startPos,
+            Vec3d initialVelocity,
+            float launchYawDegrees,
+            float charge,
+            ThrowStance stance,
+            ReleaseAngle angle,
+            Map<DiscEnchantment, Integer> enchantments,
+            Vec3d windVelocity
+    ) {
         // Current position and velocity (simulation state) — use primitives to avoid GC churn
         double px = startPos.x;
         double py = startPos.y + RELEASE_HEIGHT_OFFSET;
@@ -174,6 +188,12 @@ public final class TrajectoryCalculator {
 
             double velX = vx + perpX * curveStrength;
             double velZ = vz + perpZ * curveStrength;
+
+            // Apply wind effect (stronger during glide, weaker during fade)
+            double windEffect = hasGlide ? 0.02 : 0.005;
+            velX += windVelocity.x * windEffect;
+            velY += windVelocity.y * windEffect;
+            velZ += windVelocity.z * windEffect;
 
             // Update velocity
             vx = velX;

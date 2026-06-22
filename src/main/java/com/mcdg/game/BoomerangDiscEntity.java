@@ -90,6 +90,11 @@ public class BoomerangDiscEntity extends ProjectileEntity {
         this.setPos(pos.x + this.getVelocity().x, pos.y + this.getVelocity().y, pos.z + this.getVelocity().z);
     }
 
+    @Override
+    protected boolean canHit(Entity entity) {
+        return entity.isAlive() && entity != this.getOwner();
+    }
+
     protected void onEntityHit(EntityHitResult result) {
         Entity target = result.getEntity();
         if (target == this.getOwner()) {

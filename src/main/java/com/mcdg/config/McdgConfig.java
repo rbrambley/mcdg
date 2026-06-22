@@ -8,7 +8,10 @@ public record McdgConfig(
         int defaultHoleCount,
         boolean enforceCourseProtection,
         boolean enableSurvivalRewards,
-        boolean productionMode
+        boolean productionMode,
+        boolean enableWindSystem,
+        double defaultWindSpeed,
+        int windUpdateIntervalTicks
 ) {
     public static McdgConfig loadDefault() {
         boolean productionMode = readBoolEnvWithDefault("MCDG_PRODUCTION_MODE", true);
@@ -18,7 +21,11 @@ public record McdgConfig(
         int respawnPenaltyStrokes = readIntEnv("MCDG_RESPAWN_PENALTY_STROKES", 1, 0, 5);
         // Survival rewards enabled by default; disable via MCDG_SURVIVAL_REWARDS=false.
         boolean survivalRewards = readBoolEnvWithDefault("MCDG_SURVIVAL_REWARDS", true);
-    return new McdgConfig(hudScoringDebug, strictFlowDebug, skipPresentation, respawnPenaltyStrokes, 9, true, survivalRewards, productionMode);
+        // Wind system configuration
+        boolean enableWind = readBoolEnvWithDefault("MCDG_ENABLE_WIND", true);
+        double defaultWindSpeed = readDoubleEnv("MCDG_DEFAULT_WIND_SPEED", 0.2, 0.0, 1.0);
+        int windUpdateInterval = readIntEnv("MCDG_WIND_UPDATE_INTERVAL", 200, 20, 600);
+    return new McdgConfig(hudScoringDebug, strictFlowDebug, skipPresentation, respawnPenaltyStrokes, 9, true, survivalRewards, productionMode, enableWind, defaultWindSpeed, windUpdateInterval);
     }
 
     private static boolean readBoolEnv(String name) {
@@ -55,6 +62,20 @@ public record McdgConfig(
 
         try {
             int parsed = Integer.parseInt(raw.trim());
+            return Math.max(min, Math.min(max, parsed));
+        } catch (NumberFormatException ex) {
+            return fallback;
+        }
+    }
+
+    private static double readDoubleEnv(String name, double fallback, double min, double max) {
+        String raw = System.getenv(name);
+        if (raw == null || raw.isBlank()) {
+            return fallback;
+        }
+
+        try {
+            double parsed = Double.parseDouble(raw.trim());
             return Math.max(min, Math.min(max, parsed));
         } catch (NumberFormatException ex) {
             return fallback;

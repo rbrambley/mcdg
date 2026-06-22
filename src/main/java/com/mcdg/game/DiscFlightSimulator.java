@@ -35,7 +35,8 @@ public final class DiscFlightSimulator {
             ThrowStance stance,     // OVERHAND, BACKHAND, FOREHAND
             ReleaseAngle angle,     // HYZER, FLAT, ANHYZER
             Vec3d launchPos,        // Starting position for distance tracking
-            double initialSpeed     // Initial velocity magnitude for curve calculation
+            double initialSpeed,    // Initial velocity magnitude for curve calculation
+            Vec3d windVelocity      // Wind velocity at throw time
     ) {
         /**
          * Calculate glide duration in ticks based on charge.
@@ -144,7 +145,8 @@ public final class DiscFlightSimulator {
                 stance,
                 angle,
                 launchPos,
-                0.0  // initialSpeed - captured on first physics tick
+                0.0,  // initialSpeed - captured on first physics tick
+                Vec3d.ZERO  // windVelocity - no wind by default for auto-test
         );
 
         ACTIVE_FLIGHTS.put(pearlUuid, state);
@@ -289,6 +291,13 @@ public final class DiscFlightSimulator {
             // Apply lateral nudge
             newVelX += perpX * curveStrength;
             newVelZ += perpZ * curveStrength;
+
+            // Apply wind effect (stronger during glide, weaker during fade)
+            double windEffect = state.stance().hasGlide() ? 0.02 : 0.005;
+            Vec3d wind = state.windVelocity();
+            newVelX += wind.x * windEffect;
+            newVelY += wind.y * windEffect;
+            newVelZ += wind.z * windEffect;
 
             // Log curve for debugging (occasional, time-driven)
             if (currentTick % 20 == 0) {

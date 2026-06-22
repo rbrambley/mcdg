@@ -74,6 +74,15 @@ public final class ChargedDiscItem extends Item {
     @Override
     public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
         ItemStack stack = user.getStackInHand(hand);
+        
+        // Check if player has an enchanted book in off-hand and defer to it
+        ItemStack offHand = user.getStackInHand(Hand.OFF_HAND);
+        if (offHand.isOf(McdgItems.DISC_ENCHANTED_BOOK)) {
+            // Let the book handle the interaction, but return pass to avoid consuming the disc
+            offHand.getItem().use(world, user, Hand.OFF_HAND);
+            return TypedActionResult.pass(stack);
+        }
+        
         if (!world.isClient() && !courseManager.isRoundActive()) {
             if (user instanceof ServerPlayerEntity serverPlayer) {
                 serverPlayer.sendMessage(Text.literal("No active round. Use /mcdg startround."), true);
@@ -281,6 +290,9 @@ public final class ChargedDiscItem extends Item {
 
         Vec3d startPos = new Vec3d(serverPlayer.getX(), serverPlayer.getY(), serverPlayer.getZ());
 
+        // Get current wind for trajectory calculation
+        Vec3d windVelocity = WindManager.getWindState(serverPlayer.getServerWorld()).velocity();
+
         // Calculate complete trajectory (terrain-aware collision)
         TrajectoryCalculator.TrajectoryResult trajectory = TrajectoryCalculator.calculateTrajectory(
                 serverPlayer.getServerWorld(),
@@ -290,7 +302,8 @@ public final class ChargedDiscItem extends Item {
                 charge,
                 stance,
                 angle,
-                enchantments
+                enchantments,
+                windVelocity
         );
 
         McdgMod.LOGGER.info(

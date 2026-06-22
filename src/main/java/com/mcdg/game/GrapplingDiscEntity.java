@@ -68,7 +68,7 @@ public class GrapplingDiscEntity extends ProjectileEntity {
                 double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
                 if (dist > 0.1) {
                     double speed = Math.min(2.0, dist * 0.15);
-                    player.setVelocity(dx / dist * speed, dy / dist * speed + 0.3, dz / dist * speed);
+                    player.setVelocity(dx / dist * speed, dy / dist * speed + 0.7, dz / dist * speed);
                     player.velocityModified = true;
                 }
             }
