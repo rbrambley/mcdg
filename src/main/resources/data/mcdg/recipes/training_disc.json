@@ -1,13 +1,18 @@
 {
-  "type": "minecraft:crafting_shapeless",
-  "ingredients": [
-    {
-      "item": "minecraft:iron_ingot"
-    },
-    {
-      "item": "minecraft:flint"
-    }
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "AAA",
+    "ABA",
+    "AAA"
   ],
+  "key": {
+    "A": {
+      "item": "minecraft:arrow"
+    },
+    "B": {
+      "item": "minecraft:copper_ingot"
+    }
+  },
   "result": {
     "id": "mcdg:training_disc"
   }
