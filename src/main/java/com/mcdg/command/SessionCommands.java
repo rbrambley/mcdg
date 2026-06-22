@@ -135,16 +135,36 @@ public final class SessionCommands {
     ) {
         Course course = courseManager.getActiveCourse().orElse(null);
         PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
-        if (course == null || placed == null) {
-            var loaded = practiceCourseStorage.load(source.getServer()).orElse(null);
-            if (loaded != null) {
-                course = loaded.course();
-                placed = loaded.placedCourseState();
-                courseManager.setActiveCourse(course);
-                courseManager.setActiveCourseCatalogIndex(null);
-                courseManager.setPlacedCourseState(placed);
-                courseManager.setPersistentPlacedCourse(true);
-                courseManager.setLegacyPracticeSnapshot(loaded.legacyFormat());
+
+        // If no course is active in memory, search the reusable catalog for one that
+        // matches the invoking player's saved session (by seed, hole count, and world).
+        // This covers all normal round starts and practice courses — both are written to
+        // the catalog via saveReusable at round start.
+        if ((course == null || placed == null) && selectedPlayers == null) {
+            ServerPlayerEntity sourcePlayer = source.getPlayer();
+            if (sourcePlayer != null) {
+                var savedSession = playerRoundSessionStorage
+                        .loadPlayer(source.getServer(), sourcePlayer.getUuid(), null).orElse(null);
+                if (savedSession != null) {
+                    for (PracticeCourseStorage.ReusableCourseEntry entry
+                            : practiceCourseStorage.listReusable(source.getServer())) {
+                        var candidate = practiceCourseStorage
+                                .loadReusableByIndex(source.getServer(), entry.index()).orElse(null);
+                        if (candidate == null) {
+                            continue;
+                        }
+                        if (isManualSessionCompatible(savedSession, candidate.course(), candidate.placedCourseState())) {
+                            course = candidate.course();
+                            placed = candidate.placedCourseState();
+                            courseManager.setActiveCourse(course);
+                            courseManager.setActiveCourseCatalogIndex(entry.index());
+                            courseManager.setPlacedCourseState(placed);
+                            courseManager.setPersistentPlacedCourse(true);
+                            courseManager.setLegacyPracticeSnapshot(candidate.legacyFormat());
+                            break;
+                        }
+                    }
+                }
             }
         }
 
