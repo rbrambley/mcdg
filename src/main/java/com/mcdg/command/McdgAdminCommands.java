@@ -62,20 +62,9 @@ import com.mcdg.game.BotSimulator.BotSkill;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 
 public final class McdgAdminCommands {
-        private static final String ADVANCED_COMMANDS_ENV = "MCDG_SHOW_ADVANCED_COMMANDS";
-        private static final String ADVANCED_COMMANDS_PROPERTY = "mcdg.showAdvancedCommands";
-        private static final boolean SHOW_ADVANCED_COMMANDS = readAdvancedCommandVisibility();
 
     private McdgAdminCommands() {
     }
-
-        private static boolean readAdvancedCommandVisibility() {
-                String value = System.getProperty(ADVANCED_COMMANDS_PROPERTY);
-                if (value == null || value.isBlank()) {
-                        value = System.getenv(ADVANCED_COMMANDS_ENV);
-                }
-                return value != null && value.equalsIgnoreCase("true");
-        }
 
     public static void register(
             CourseGenerator generator,
@@ -97,13 +86,13 @@ public final class McdgAdminCommands {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
                 dispatcher.register(literal("mcdg")
                         .executes(context -> MenuCommands.sendMenuScreen(context.getSource(), courseManager, playerRoundSessionStorage, rulesetManager, practiceCourseStorage))
-                        .then(literal("help").requires(McdgAdminCommands::canUseAdminCommands)
+                        .then(literal("help").requires(CommandPermission::canUseAdminCommands)
                                 .executes(context -> executeHelp(context.getSource())))
-                        .then(literal("gotolie").requires(McdgAdminCommands::canUseAdminCommands)
+                        .then(literal("gotolie").requires(CommandPermission::canUseAdminCommands)
                                 .executes(context -> executeGotoLie(context.getSource(), roundStateManager)))
                         .then(literal("resort")
                                 .executes(context -> executeResortTeleport(context.getSource())))
-                        .then(literal("createcourse").requires(McdgAdminCommands::canUseAdminCommands)
+                        .then(literal("createcourse").requires(CommandPermission::canUseAdminCommands)
                                 .then(argument("seed", LongArgumentType.longArg())
                                         .executes(context -> CourseAdminCommands.executeCreateCourse(
                                                 context.getSource(),
@@ -111,7 +100,7 @@ public final class McdgAdminCommands {
                                                 courseManager,
                                                 LongArgumentType.getLong(context, "seed")
                                         ))))
-                        .then(literal("startround").requires(McdgAdminCommands::canUseAdminCommands)
+                        .then(literal("startround").requires(CommandPermission::canUseAdminCommands)
                                 .executes(context -> executeStartRound(
                                         context.getSource(),
                                         courseManager,
@@ -167,8 +156,8 @@ public final class McdgAdminCommands {
                                                         true,
                                                         EntityArgumentType.getPlayers(context, "players")
                                                 )))))
-                        .then(literal("practicecourse").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                        .then(literal("practicecourse").requires(CommandPermission::canUseAdminCommands)
+                                .requires(CommandPermission::canUseAdvancedCommands)
                                 .executes(context -> executePracticeCourseDeprecated(
                                         context.getSource(),
                                         courseManager,
@@ -220,8 +209,8 @@ public final class McdgAdminCommands {
                                                         true,
                                                         EntityArgumentType.getPlayers(context, "players")
                                                 )))))
-                        .then(literal("resumecourse").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                        .then(literal("resumecourse").requires(CommandPermission::canUseAdminCommands)
+                                .requires(CommandPermission::canUseAdvancedCommands)
                                 .executes(context -> executeResumeCourse(
                                         context.getSource(),
                                         courseManager,
@@ -239,13 +228,13 @@ public final class McdgAdminCommands {
                                                 skipRoundPresentation,
                                                 EntityArgumentType.getPlayers(context, "players")
                                         ))))
-                        .then(literal("listcourses").requires(McdgAdminCommands::canUseAdminCommands)
+                        .then(literal("listcourses").requires(CommandPermission::canUseAdminCommands)
                                 .executes(context -> executeListCourses(
                                         context.getSource(),
                                         practiceCourseStorage
                                 )))
-                        .then(literal("usecourse").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                        .then(literal("usecourse").requires(CommandPermission::canUseAdminCommands)
+                                .requires(CommandPermission::canUseAdvancedCommands)
                                 .then(argument("index", IntegerArgumentType.integer(1))
                                         .executes(context -> executeUseCourse(
                                                 context.getSource(),
@@ -254,7 +243,7 @@ public final class McdgAdminCommands {
                                                 practiceCourseStorage,
                                                 IntegerArgumentType.getInteger(context, "index")
                                         ))))
-                        .then(literal("playcourse").requires(McdgAdminCommands::canUseAdminCommands)
+                        .then(literal("playcourse").requires(CommandPermission::canUseAdminCommands)
                                 .then(argument("index", IntegerArgumentType.integer(1))
                                         .executes(context -> executePlayCourse(
                                                 context.getSource(),
@@ -277,8 +266,8 @@ public final class McdgAdminCommands {
                                                         IntegerArgumentType.getInteger(context, "index"),
                                                         EntityArgumentType.getPlayers(context, "players")
                                                 )))))
-                        .then(literal("prunecourses").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                        .then(literal("prunecourses").requires(CommandPermission::canUseAdminCommands)
+                                .requires(CommandPermission::canUseAdvancedCommands)
                                 .executes(context -> executePruneCourses(
                                         context.getSource(),
                                         practiceCourseStorage,
@@ -290,17 +279,17 @@ public final class McdgAdminCommands {
                                                 practiceCourseStorage,
                                                 IntegerArgumentType.getInteger(context, "keep")
                                         ))))
-                        .then(literal("resetcourse").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                        .then(literal("resetcourse").requires(CommandPermission::canUseAdminCommands)
+                                .requires(CommandPermission::canUseAdvancedCommands)
                                 .executes(context -> executeCleanupCourse(context.getSource(), courseManager, placementService, roundStateManager, practiceCourseStorage)))
-                        .then(literal("cleanupcourse").requires(McdgAdminCommands::canUseAdminCommands)
+                        .then(literal("cleanupcourse").requires(CommandPermission::canUseAdminCommands)
                                 .executes(context -> executeCleanupCourse(context.getSource(), courseManager, placementService, roundStateManager, practiceCourseStorage)))
-                        .then(literal("gotocourse").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                        .then(literal("gotocourse").requires(CommandPermission::canUseAdminCommands)
+                                .requires(CommandPermission::canUseAdvancedCommands)
                                 .executes(context -> executeGotoCourse(context.getSource(), courseManager)))
-                        .then(literal("endround").requires(McdgAdminCommands::canUseAdminCommands)
+                        .then(literal("endround").requires(CommandPermission::canUseAdminCommands)
                                 .executes(context -> executeEndRound(context.getSource(), courseManager, roundStateManager)))
-                        .then(literal("joinround").requires(McdgAdminCommands::canUseAdminCommands)
+                        .then(literal("joinround").requires(CommandPermission::canUseAdminCommands)
                                 .executes(context -> executeJoinRound(
                                         context.getSource(),
                                         courseManager,
@@ -314,21 +303,21 @@ public final class McdgAdminCommands {
                                                 roundStateManager,
                                                 EntityArgumentType.getPlayers(context, "players")
                                         ))))
-                        .then(literal("roundstatus").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                        .then(literal("roundstatus").requires(CommandPermission::canUseAdminCommands)
+                                .requires(CommandPermission::canUseAdvancedCommands)
                                 .executes(context -> executeRoundStatus(
                                         context.getSource(),
                                         courseManager,
                                         roundStateManager
                                 )))
-                        .then(literal("ruleset").requires(McdgAdminCommands::canUseAdminCommands)
+                        .then(literal("ruleset").requires(CommandPermission::canUseAdminCommands)
                                 .executes(context -> executeShowRuleset(context, rulesetManager))
                                 .then(literal("casual")
                                         .executes(context -> executeSetRuleset(context, rulesetManager, TournamentRulesetManager.Ruleset.CASUAL)))
                                 .then(literal("strict")
                                         .executes(context -> executeSetRuleset(context, rulesetManager, TournamentRulesetManager.Ruleset.STRICT)))
                                 .then(literal("surface")
-                                        .requires(McdgAdminCommands::canUseAdvancedCommands)
+                                        .requires(CommandPermission::canUseAdvancedCommands)
                                         .executes(context -> executeShowStrictSurfacePreset(context, rulesetManager))
                                         .then(argument("preset", StringArgumentType.word())
                                                 .suggests((context, builder) -> {
@@ -338,31 +327,31 @@ public final class McdgAdminCommands {
                                                         return builder.buildFuture();
                                                 })
                                                 .executes(context -> executeSetStrictSurfacePreset(context, rulesetManager, StringArgumentType.getString(context, "preset"))))))
-                        .then(literal("debugperms").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
-                                .executes(context -> executeDebugPermissions(context.getSource())))
-                        .then(literal("debug").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                        .then(literal("debugperms").requires(CommandPermission::canUseAdminCommands)
+                                .requires(CommandPermission::canUseAdvancedCommands)
+                                .executes(context -> CommandPermission.sendDebugPermissions(context.getSource())))
+                        .then(literal("debug").requires(CommandPermission::canUseAdminCommands)
+                                .requires(CommandPermission::canUseAdvancedCommands)
                                 .then(literal("obclassifier")
                                         .executes(context -> executeDebugObClassifier(context.getSource()))
                                         .then(argument("enabled", BoolArgumentType.bool())
                                                 .executes(context -> executeDebugObClassifierSet(context.getSource(), BoolArgumentType.getBool(context, "enabled"))))))
-                        .then(literal("validateplacement").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                        .then(literal("validateplacement").requires(CommandPermission::canUseAdminCommands)
+                                .requires(CommandPermission::canUseAdvancedCommands)
                                 .executes(context -> executeValidatePlacement(
                                         context.getSource(),
                                         courseManager,
                                         placementValidator
                                 )))
                         // Commented out due to missing CoursePlacementService.LodgingBuildResult and tryBuildPermanentLodgingSite
-                        //                         .then(literal("buildcamp").requires(McdgAdminCommands::canUseAdminCommands)
-                        //                                 .requires(McdgAdminCommands::canUseAdvancedCommands)
+                        //                         .then(literal("buildcamp").requires(CommandPermission::canUseAdminCommands)
+                        //                                 .requires(CommandPermission::canUseAdvancedCommands)
                         //                                 .executes(context -> executeBuildCamp(
                         //                                         context.getSource(),
                         //                                         placementService
                         //                                 )))
-                        .then(literal("autotestplacement").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                        .then(literal("autotestplacement").requires(CommandPermission::canUseAdminCommands)
+                                .requires(CommandPermission::canUseAdvancedCommands)
                                 .then(argument("runs", IntegerArgumentType.integer(1, 200))
                                         .then(argument("holes", IntegerArgumentType.integer(1, 18))
                                                 .executes(context -> executeAutoTestPlacement(
@@ -371,8 +360,8 @@ public final class McdgAdminCommands {
                                                         IntegerArgumentType.getInteger(context, "runs"),
                                                         IntegerArgumentType.getInteger(context, "holes")
                                                 )))))
-                        .then(literal("autotestplacementseed").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                        .then(literal("autotestplacementseed").requires(CommandPermission::canUseAdminCommands)
+                                .requires(CommandPermission::canUseAdvancedCommands)
                                 .then(argument("runs", IntegerArgumentType.integer(1, 200))
                                         .then(argument("holes", IntegerArgumentType.integer(1, 18))
                                                 .then(argument("seed", LongArgumentType.longArg())
@@ -383,8 +372,8 @@ public final class McdgAdminCommands {
                                                                 IntegerArgumentType.getInteger(context, "holes"),
                                                                 LongArgumentType.getLong(context, "seed")
                                                         ))))))
-                        .then(literal("autotestshadow").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                        .then(literal("autotestshadow").requires(CommandPermission::canUseAdminCommands)
+                                .requires(CommandPermission::canUseAdvancedCommands)
                                 .executes(context -> executeAutoTestShadowStatus(context.getSource(), autoTestService))
                                 .then(literal("status")
                                         .executes(context -> executeAutoTestShadowStatus(context.getSource(), autoTestService)))
@@ -392,11 +381,11 @@ public final class McdgAdminCommands {
                                         .executes(context -> executeAutoTestShadowSet(context.getSource(), autoTestService, true)))
                                 .then(literal("off")
                                         .executes(context -> executeAutoTestShadowSet(context.getSource(), autoTestService, false))))
-                        .then(literal("cancelautotest").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                        .then(literal("cancelautotest").requires(CommandPermission::canUseAdminCommands)
+                                .requires(CommandPermission::canUseAdvancedCommands)
                                 .executes(context -> executeCancelAutoTest(context.getSource(), autoTestService)))
-                        .then(literal("autotestthrows").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                        .then(literal("autotestthrows").requires(CommandPermission::canUseAdminCommands)
+                                .requires(CommandPermission::canUseAdvancedCommands)
                                 .then(argument("count", IntegerArgumentType.integer(1, 200))
                                         .executes(context -> executeAutoTestThrows(
                                                 context.getSource(),
@@ -407,8 +396,8 @@ public final class McdgAdminCommands {
                                                 autoCourseService,
                                                 IntegerArgumentType.getInteger(context, "count")
                                         ))))
-                        .then(literal("quickthrowtest").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                        .then(literal("quickthrowtest").requires(CommandPermission::canUseAdminCommands)
+                                .requires(CommandPermission::canUseAdvancedCommands)
                                 .then(argument("seed", LongArgumentType.longArg())
                                         .then(argument("count", IntegerArgumentType.integer(1, 200))
                                                 .executes(context -> executeQuickThrowTest(
@@ -428,11 +417,11 @@ public final class McdgAdminCommands {
                                                         LongArgumentType.getLong(context, "seed"),
                                                         IntegerArgumentType.getInteger(context, "count")
                                                 )))))
-                        .then(literal("cancelthrowtest").requires(McdgAdminCommands::canUseAdminCommands)
-                                .requires(McdgAdminCommands::canUseAdvancedCommands)
+                        .then(literal("cancelthrowtest").requires(CommandPermission::canUseAdminCommands)
+                                .requires(CommandPermission::canUseAdvancedCommands)
                                 .executes(context -> executeCancelThrowTest(context.getSource(), throwAutoTestService, roundSessionStorage, playerRoundSessionStorage, buildCourseSessionManager, autoCourseService)))
-                        .then(buildCourseSessionManager.registerNode().requires(McdgAdminCommands::canUseAdminCommands))
-                        .then(literal("bot").requires(McdgAdminCommands::canUseAdminCommands)
+                        .then(buildCourseSessionManager.registerNode().requires(CommandPermission::canUseAdminCommands))
+                        .then(literal("bot").requires(CommandPermission::canUseAdminCommands)
                                 .then(literal("add")
                                         .then(argument("name", StringArgumentType.string())
                                                 .then(argument("skill", StringArgumentType.string())
@@ -471,7 +460,7 @@ public final class McdgAdminCommands {
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             dispatcher.register(literal("mcdg")
-                    .then(literal("savesession").requires(McdgAdminCommands::canUseAdminCommands)
+                    .then(literal("savesession").requires(CommandPermission::canUseAdminCommands)
                             .executes(context -> SessionCommands.executeSaveSession(
                                     context.getSource(), courseManager, roundStateManager, playerRoundSessionStorage, null))
                             .then(argument("players", EntityArgumentType.players())
@@ -480,7 +469,7 @@ public final class McdgAdminCommands {
                                             EntityArgumentType.getPlayers(context, "players"))))));
 
             dispatcher.register(literal("mcdg")
-                    .then(literal("resumesession").requires(McdgAdminCommands::canUseAdminCommands)
+                    .then(literal("resumesession").requires(CommandPermission::canUseAdminCommands)
                             .executes(context -> SessionCommands.executeResumeSession(
                                     context.getSource(), courseManager, roundStateManager, practiceCourseStorage,
                                     playerRoundSessionStorage, SessionCommands.ResumeSourceSelection.PREFER_MANUAL, null))
@@ -509,7 +498,7 @@ public final class McdgAdminCommands {
                                                     EntityArgumentType.getPlayers(context, "players")))))));
 
             dispatcher.register(literal("mcdg")
-                    .then(literal("roundsession").requires(McdgAdminCommands::canUseAdminCommands)
+                    .then(literal("roundsession").requires(CommandPermission::canUseAdminCommands)
                             .executes(context -> SessionCommands.executeRoundSessionStatus(
                                     context.getSource(), roundSessionStorage))
                             .then(literal("status")
@@ -520,14 +509,14 @@ public final class McdgAdminCommands {
                                             context.getSource(), roundSessionStorage, courseManager, roundStateManager, practiceCourseStorage)))));
 
             dispatcher.register(literal("mcdg")
-                    .then(literal("gotocoursebyindex").requires(McdgAdminCommands::canUseAdminCommands)
+                    .then(literal("gotocoursebyindex").requires(CommandPermission::canUseAdminCommands)
                             .then(argument("index", IntegerArgumentType.integer(1))
                                     .executes(context -> executeGotoCourseByIndex(
                                             context.getSource(), practiceCourseStorage,
                                             IntegerArgumentType.getInteger(context, "index"))))));
 
             dispatcher.register(literal("mcdg")
-                    .then(literal("cleanupcoursebyindex").requires(McdgAdminCommands::canUseAdminCommands)
+                    .then(literal("cleanupcoursebyindex").requires(CommandPermission::canUseAdminCommands)
                             .then(argument("index", IntegerArgumentType.integer(1))
                                     .executes(context -> executeCleanupCourseByIndex(
                                             context.getSource(), practiceCourseStorage, placementService,
@@ -537,7 +526,7 @@ public final class McdgAdminCommands {
             // Waypoint commands removed (player waypoints replaced by Xaero's Minimap)
 
             dispatcher.register(literal("mcdg")
-                    .then(literal("buildresort").requires(McdgAdminCommands::canUseAdminCommands)
+                    .then(literal("buildresort").requires(CommandPermission::canUseAdminCommands)
                             .executes(context -> ResortAdminCommands.executeBuildResort(
                                     context.getSource(), generator, autoCourseService, practiceCourseStorage, null, null))
                             .then(argument("x", IntegerArgumentType.integer())
@@ -546,26 +535,26 @@ public final class McdgAdminCommands {
                                                     context.getSource(), generator, autoCourseService, practiceCourseStorage,
                                                     IntegerArgumentType.getInteger(context, "x"),
                                                     IntegerArgumentType.getInteger(context, "z")))))
-                            .then(literal("overwrite").requires(McdgAdminCommands::canUseAdminCommands)
+                            .then(literal("overwrite").requires(CommandPermission::canUseAdminCommands)
                                     .executes(context -> ResortAdminCommands.executeBuildResortOverwrite(
                                             context.getSource(), generator, autoCourseService, practiceCourseStorage)))
-                            .then(literal("cancel").requires(McdgAdminCommands::canUseAdminCommands)
+                            .then(literal("cancel").requires(CommandPermission::canUseAdminCommands)
                                     .executes(context -> ResortAdminCommands.executeBuildResortCancel(
                                             context.getSource())))));
 
             dispatcher.register(literal("mcdg")
-                    .then(literal("resetresort").requires(McdgAdminCommands::canUseAdminCommands)
+                    .then(literal("resetresort").requires(CommandPermission::canUseAdminCommands)
                             .executes(context -> ResortAdminCommands.executeResetResort(
                                     context.getSource()))));
 
             dispatcher.register(literal("mcdg")
-                    .then(literal("removesurroundcourses").requires(McdgAdminCommands::canUseAdminCommands)
+                    .then(literal("removesurroundcourses").requires(CommandPermission::canUseAdminCommands)
                             .executes(context -> ResortAdminCommands.executeRemoveSurroundCourses(
                                     context.getSource(), placementService, practiceCourseStorage))));
 
             // autocourse
             dispatcher.register(literal("mcdg")
-                    .then(literal("autocourse").requires(McdgAdminCommands::canUseAdminCommands)
+                    .then(literal("autocourse").requires(CommandPermission::canUseAdminCommands)
                             .executes(context -> autoCourseService.executeAutoCourseNoName(context.getSource()))
                             .then(argument("name", StringArgumentType.greedyString())
                                     .executes(context -> autoCourseService.executeAutoCourseNamed(
@@ -575,7 +564,7 @@ public final class McdgAdminCommands {
 
             // removecourse
             dispatcher.register(literal("mcdg")
-                    .then(literal("removecourse").requires(McdgAdminCommands::canUseAdminCommands)
+                    .then(literal("removecourse").requires(CommandPermission::canUseAdminCommands)
                             .then(argument("index", IntegerArgumentType.integer(1))
                                     .executes(context -> CourseAdminCommands.executeRemoveCourse(
                                             context.getSource(), courseManager, roundStateManager,
@@ -584,7 +573,7 @@ public final class McdgAdminCommands {
 
             // removecourseboth
             dispatcher.register(literal("mcdg")
-                    .then(literal("removecourseboth").requires(McdgAdminCommands::canUseAdminCommands)
+                    .then(literal("removecourseboth").requires(CommandPermission::canUseAdminCommands)
                             .then(argument("index", IntegerArgumentType.integer(1))
                                     .executes(context -> executeRemoveCourseBoth(
                                             context.getSource(), courseManager, roundStateManager,
@@ -593,8 +582,8 @@ public final class McdgAdminCommands {
 
             // usecourse
             dispatcher.register(literal("mcdg")
-                    .then(literal("usecourse").requires(McdgAdminCommands::canUseAdminCommands)
-                            .requires(McdgAdminCommands::canUseAdvancedCommands)
+                    .then(literal("usecourse").requires(CommandPermission::canUseAdminCommands)
+                            .requires(CommandPermission::canUseAdvancedCommands)
                             .then(argument("index", IntegerArgumentType.integer(1))
                                     .executes(context -> CourseAdminCommands.executeUseCourse(
                                             context.getSource(), courseManager, roundStateManager,
@@ -603,8 +592,8 @@ public final class McdgAdminCommands {
 
             // resumecourse
             dispatcher.register(literal("mcdg")
-                    .then(literal("resumecourse").requires(McdgAdminCommands::canUseAdminCommands)
-                            .requires(McdgAdminCommands::canUseAdvancedCommands)
+                    .then(literal("resumecourse").requires(CommandPermission::canUseAdminCommands)
+                            .requires(CommandPermission::canUseAdvancedCommands)
                             .executes(context -> RoundLifecycleCommands.executeResumeCourse(
                                     context.getSource(), courseManager, roundStateManager,
                                     roundPresentationService, skipRoundPresentation, null))
@@ -616,8 +605,8 @@ public final class McdgAdminCommands {
 
             // roundstatus
             dispatcher.register(literal("mcdg")
-                    .then(literal("roundstatus").requires(McdgAdminCommands::canUseAdminCommands)
-                            .requires(McdgAdminCommands::canUseAdvancedCommands)
+                    .then(literal("roundstatus").requires(CommandPermission::canUseAdminCommands)
+                            .requires(CommandPermission::canUseAdvancedCommands)
                             .executes(context -> RoundAdminCommands.executeRoundStatus(
                                     context.getSource(), courseManager, roundStateManager))));
 
@@ -626,55 +615,13 @@ public final class McdgAdminCommands {
         });
     }
 
-        static boolean canUseAdminCommands(ServerCommandSource source) {
-                if (source.hasPermissionLevel(2)) {
-                        return true;
-                }
-
-                // Keep local/integrated dev sessions usable even when OP metadata is not applied.
-                return !source.getServer().isDedicated();
-        }
-
-        private static boolean canUseAdvancedCommands(ServerCommandSource source) {
-                return canUseAdminCommands(source) && SHOW_ADVANCED_COMMANDS;
-        }
-
-        private static int executeDebugPermissions(ServerCommandSource source) {
-                boolean hasPermissionLevelTwo = source.hasPermissionLevel(2);
-                boolean dedicated = source.getServer().isDedicated();
-                boolean allowedByGate = canUseAdminCommands(source);
-
-                String sourceType = "non-entity";
-                String sourceIdentity = source.getName();
-                if (source.getEntity() instanceof ServerPlayerEntity player) {
-                        sourceType = "player";
-                        sourceIdentity = player.getGameProfile().getName() + " (" + player.getUuid() + ")";
-                } else if (source.getEntity() != null) {
-                        sourceType = "entity";
-                        sourceIdentity = source.getEntity().getName().getString();
-                }
-
-                final String finalSourceType = sourceType;
-                final String finalSourceIdentity = sourceIdentity;
-
-                source.sendFeedback(() -> Text.literal(
-                        "mcdg debug perms -> hasPermissionLevel(2)=" + hasPermissionLevelTwo
-                                + ", dedicated=" + dedicated
-                                + ", canUseAdminCommands=" + allowedByGate
-                                + ", showAdvancedCommands=" + SHOW_ADVANCED_COMMANDS
-                                + ", sourceType=" + finalSourceType
-                                + ", source=" + finalSourceIdentity
-                ), false);
-                return 1;
-        }
-
         private static int executeHelp(ServerCommandSource source) {
                 source.sendFeedback(() -> Text.literal("MCDG quick help:"), false);
                 source.sendFeedback(() -> Text.literal("- New course: /mcdg createcourse <seed> -> /mcdg startround (or /mcdg startround strict)."), false);
                 source.sendFeedback(() -> Text.literal("- Generation model is unified across modes: land-first routing with water-carry cap <= 91 blocks (~300 ft)."), false);
                 source.sendFeedback(() -> Text.literal("- Saved course: /mcdg listcourses -> /mcdg playcourse <index>."), false);
                 source.sendFeedback(() -> Text.literal("- In-round basics: /mcdg joinround, /mcdg endround, /mcdg cleanupcourse."), false);
-                if (SHOW_ADVANCED_COMMANDS) {
+                if (CommandPermission.canUseAdvancedCommands(source)) {
                         source.sendFeedback(() -> Text.literal("- Advanced commands are visible (MCDG_SHOW_ADVANCED_COMMANDS=true)."), false);
                 } else {
                         source.sendFeedback(() -> Text.literal("- Advanced commands are hidden by default; set MCDG_SHOW_ADVANCED_COMMANDS=true to expose them."), false);

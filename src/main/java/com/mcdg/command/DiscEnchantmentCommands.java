@@ -28,7 +28,7 @@ public final class DiscEnchantmentCommands {
 
     public static LiteralArgumentBuilder<ServerCommandSource> build() {
         return literal("enchant")
-                .requires(McdgAdminCommands::canUseAdminCommands)
+                .requires(CommandPermission::canUseAdminCommands)
                 .then(literal("clear")
                         .executes(context -> executeClear(context)))
                 .then(argument("enchantment", StringArgumentType.word())
