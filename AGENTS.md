@@ -66,116 +66,14 @@
 3. `McdgAdminCommands` (~2563 lines) — split by command domain (course, round, debug)
 4. `MiniMapRenderer` (~1108 lines) — could split `TerrainSampler`, `HazardOverlayRenderer`
 
+## Completed Integrations
+
+The following mod integrations were investigated and are now included as soft dependencies in test packs. No further work required.
+
+- **Xaero's Minimap** — HUD positioning coordinated with left-side overlays
+- **EMI** — Recipe viewer (no special integration needed)
+- **ClientSort** — Inventory sorting (no special integration needed)
+- **Serene Seasons, Biomes O' Plenty, TerraBlender, GlitchCore** — World generation variety
+- **Veinminer** — Mining convenience (no special integration needed)
+
 ## Future Work
-
-### Map Mod Integration (Xaero's Minimap)
-**Status:** Done
-**Priority:** Medium
-**Context:** Now that the old minimap has been replaced with the lightweight hole map HUD, players may want a full-featured map mod for general navigation.
-
-**Investigation findings:**
-- JourneyMap: More features, heavier performance cost
-- Xaero's Minimap: Lightweight, better for performance (recommended)
-- Both are safe to add as soft dependencies (no conflicts with MCDG)
-
-**Implementation approach:**
-1. Add Xaero's Minimap as a soft dependency in `fabric.mod.json` (`suggests` field)
-2. Detect if Xaero's is loaded via `FabricLoader.getInstance().isModLoaded("xaerominimap")`
-3. Provide user guidance to set minimap position to top-left in Xaero's settings
-4. Adjust MCDG's left-side HUDs (HoleMapOverlay, RunningScoreboardOverlay) to middle and bottom thirds respectively
-5. MCDG works normally without Xaero's installed
-
-**Files to modify:**
-- `src/main/resources/fabric.mod.json` — add soft dependency
-- `src/client/java/com/mcdg/client/McdgClientMod.java` — add detection and configuration logic
-
-**Pack inclusion:** Xaero's Minimap and Xaero's World Map are included in the current test packs.
-
-### Recipe Viewer Mod (EMI vs REI)
-**Status:** Done
-**Priority:** Low
-**Context:** Players may want a recipe viewer for general Minecraft gameplay, but MCDG doesn't require recipe viewing for disc golf gameplay.
-
-**Investigation findings:**
-- **EMI (Almost Enough Items):** Modern, more performant, better API (recommended)
-- **REI (Roughly Enough Items):** More established, slightly heavier performance cost
-- Both are safe to add as soft dependencies (no conflicts with MCDG)
-- No special integration needed (unlike map mods where positioning matters)
-
-**Recommendation:**
-- Add EMI as a soft dependency in `fabric.mod.json` (`suggests` field)
-- No code changes required — MCDG doesn't need to interact with recipe viewers
-- Players can manually install EMI or REI as preferred
-- Document recommended mod pack in README
-
-**Pack inclusion:** EMI is included in the current test packs.
-
-### Inventory Sorter Mod
-**Status:** Done
-**Priority:** Low
-**Context:** Players may want inventory sorting for convenience, but MCDG doesn't have complex inventory management needs (mainly discs and tools).
-
-**Investigation findings:**
-- **ClientSort:** Lightweight, simple sorting (recommended, used in current packs)
-- **Inventory Tweaks Renewed:** More features, heavier performance cost
-- **Item Scroller:** Scroll-based sorting, moderate performance cost
-- All are safe to add as soft dependencies (no conflicts with MCDG)
-- No special integration needed (just UI convenience)
-
-**Recommendation:**
-- Add ClientSort as a soft dependency in `fabric.mod.json`
-- No code changes required — MCDG doesn't need to interact with inventory sorters
-- Players can manually install any inventory sorter as preferred
-- Document recommended mod pack in README
-
-**Pack inclusion:** ClientSort is included in the current test packs.
-
-### World Generation Mods (Seasons, Biomes, Weather)
-**Status:** Done
-**Priority:** Low
-**Context:** Players may want enhanced world generation for variety, but MCDG's procedural course generation works with vanilla terrain. These mods could add visual variety to courses.
-
-**Investigation findings:**
-- **Serene Seasons:** Adds seasons (spring/summer/autumn/winter) with weather changes (recommended)
-- **Biomes O' Plenty:** Adds 80+ new biomes, well-established
-- **Oh The Biomes You'll Go (BYG):** Modern, more biomes, better performance (recommended)
-- **Weather2:** Enhanced weather effects (storms, seasons)
-- All are safe to add as soft dependencies (no conflicts with MCDG)
-- MCDG's course generation works with any terrain (vanilla or modded)
-
-**Potential integration:**
-- Serene Seasons could affect disc flight physics (wind, snow friction)
-- Biome variety could make courses more visually interesting
-- Weather could add challenge (rain affecting grip, wind affecting trajectory)
-
-**Recommendation:**
-- Add Serene Seasons and Biomes O' Plenty as soft dependencies in `fabric.mod.json`
-- Optional: Add weather integration for disc physics (wind, friction changes)
-- Document recommended mod pack in README
-- Test course generation with modded biomes
-
-**Pack inclusion:** Serene Seasons, Biomes O' Plenty, TerraBlender, and GlitchCore are included in the current test packs.
-
-### Vein Miner Mod
-**Status:** Done
-**Priority:** Low
-**Context:** Players may want vein mining for resource gathering, but MCDG is focused on disc golf gameplay and doesn't have significant mining requirements.
-
-**Investigation findings:**
-- **Veinminer (Fabric):** Lightweight, simple (recommended, used in current packs)
-- **Ore Excavation:** More features, highly configurable
-- All are safe to add as soft dependencies (no conflicts with MCDG)
-- No special integration needed (just gameplay convenience)
-
-**Potential uses in MCDG:**
-- Clearing terrain for custom course building
-- Gathering resources for resort construction
-- Speeding up material collection
-
-**Recommendation:**
-- Add Veinminer as a soft dependency in `fabric.mod.json`
-- No code changes required — MCDG doesn't need to interact with vein miners
-- Players can manually install any vein miner as preferred
-- Document recommended mod pack in README
-
-**Pack inclusion:** Veinminer is included in the current test packs.

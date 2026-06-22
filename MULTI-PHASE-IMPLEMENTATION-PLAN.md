@@ -4,7 +4,7 @@
 **Created:** 2026-06-17
 **Last Updated:** 2026-06-22
 **Current Phase:** Phase 1 (Critical Fixes & Foundation)
-**Overall Progress:** 2/6 phases (33% complete)
+**Overall Progress:** Phase 1 of 6 (~85% complete)
 **Goal:** Combine all feature plans into cohesive development phases with logical dependencies and priorities
 
 ---
@@ -15,7 +15,7 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
 
 ## Current Progress
 
-**Overall Progress:** Phase 1 of 6 (33% complete)
+**Overall Progress:** Phase 1 of 6 (~85% complete)
 
 **Completed:**
 - ✅ Phase 1.1: Fade/Hyzer/Anhyzer Physics Fix (COMPLETED - 2026-06-17)
@@ -42,12 +42,20 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
   - Enhanced HUD scaling and Xaero's Minimap integration
   - Optimized minimap rendering and cache rebuilds
   - Fixed server performance issues (basket beacon, waypoint sync)
+- ✅ Phase 1.5a: Round Reward Service (COMPLETED - existing)
+  - Survival-mode players receive enchanted tools, armor, and books based on round score vs par
+  - Ace and strict-ruleset bonuses already wired into round completion
+  - Located in `src/main/java/com/mcdg/game/RoundRewardService.java`
 
 **In Progress:**
-- 🔄 Phase 1.5: Basic Survival Integration
+- 🔄 Phase 1.5b: Disc Enchantments System
+- 🔄 Phase 1.5c: Biome-Themed Course Generation
+- 🔄 Phase 1.5d: Stamina / XP Integration
 
 **Next Priority:**
-- 📋 Phase 1.5: Basic Survival Integration (6-10 hours estimated)
+- 📋 Phase 1.5b: Disc Enchantments System (4-6 hours estimated)
+- 📋 Phase 1.5c: Biome-Themed Course Generation (3-4 hours estimated)
+- 📋 Phase 1.5d: Stamina / XP Integration (2-3 hours estimated)
 
 **Combined Plans:**
 - Fade/Hyzer/Anhyzer Physics Fix (FADE_FIX_PLAN.md)
@@ -126,20 +134,56 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
 
 **Impact:** HIGH - Performance improvement, better UX, third-party mod integration
 
-### **Phase 1.5: Basic Survival Integration**
-**Source:** SURVIVAL-ENHANCEMENTS-PLAN.md (Phase 1)
-**Effort:** 6-10 hours
+### **Phase 1.5a: Round Reward Service** ✅ COMPLETED (existing)
+**Source:** SURVIVAL-ENHANCEMENTS-PLAN.md (rewards)
+**Effort:** Already implemented
+**Dependencies:** None
+
+**Implemented:**
+- `RoundRewardService.java` grants enchanted tools, armor, and enchanted books to survival-mode players
+- Rewards scale by score vs par (under-par = diamond tier, par = iron tier, over-par = basic)
+- Strict-ruleset bonus: additional enchanted book
+- Ace bonus: one enchanted book per ace
+- Items are auto-inserted into inventory or dropped if full
+
+**Impact:** MEDIUM-HIGH - Bridges disc golf and survival progression
+
+### **Phase 1.5b: Disc Enchantments System** 📋 PENDING
+**Source:** SURVIVAL-ENHANCEMENTS-PLAN.md (Phase 1.1)
+**Effort:** 4-6 hours
 **Dependencies:** None
 
 **Tasks:**
 - Implement disc enchantments system (GLIDE, STABILITY, PIERCE, DURABILITY, RANGE)
-- Add biome-themed course generation
-- Implement XP rewards for scoring
-- Add stamina-based throw mechanics
+- Integrate enchantment levels into `TrajectoryCalculator` and `DiscFlightSimulator`
+- Add disc-specific enchanting table / anvil behavior
 
 **Impact:** HIGH - Natural survival integration, immediate player value
 
-**Phase 1 Total Effort:** 32-52 hours
+### **Phase 1.5c: Biome-Themed Course Generation** 📋 PENDING
+**Source:** SURVIVAL-ENHANCEMENTS-PLAN.md (Phase 1.2)
+**Effort:** 3-4 hours
+**Dependencies:** None
+
+**Tasks:**
+- Add `BiomeCourseProfiles` with per-biome hazard/elevation/water/vegetation multipliers
+- Integrate biome profiles into `generateOutwardConeCourse`
+- Support modded biomes via soft-dependency detection (Biomes O' Plenty, BYG)
+
+**Impact:** MEDIUM-HIGH - Course variety and visual interest
+
+### **Phase 1.5d: Stamina / XP Integration** 📋 PENDING
+**Source:** SURVIVAL-ENHANCEMENTS-PLAN.md (Phase 1)
+**Effort:** 2-3 hours
+**Dependencies:** None
+
+**Tasks:**
+- Implement XP rewards for scoring (per-hole and round completion)
+- Add stamina-based throw mechanics (exhaustion on overcharge, recovery over time)
+
+**Impact:** MEDIUM - Survival depth and progression feedback
+
+**Phase 1 Total Effort:** 32-52 hours (14-18 hours remaining)
 
 ---
 
