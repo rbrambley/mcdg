@@ -63,7 +63,6 @@ public class BoomerangDiscEntity extends ProjectileEntity {
             Vec3d toOwner = ownerPos.subtract(pos);
             double dist = toOwner.length();
             if (dist < 1.5) {
-                // Returned to owner
                 if (owner instanceof PlayerEntity player && !stack.isEmpty()) {
                     if (!player.getInventory().insertStack(stack)) {
                         player.dropItem(stack, false);
@@ -101,14 +100,19 @@ public class BoomerangDiscEntity extends ProjectileEntity {
             return;
         }
         if (target instanceof LivingEntity living) {
+            living.timeUntilRegen = 0; // clear immunity frames so damage always applies
             float damage = baseDamage;
             int sharpness = EnchantmentHelper.getLevel(Enchantments.SHARPNESS, stack);
             if (sharpness > 0) {
                 damage += sharpness * 0.5f + 0.5f;
             }
             int fireAspect = EnchantmentHelper.getLevel(Enchantments.FIRE_ASPECT, stack);
-            DamageSource source = this.getDamageSources().thrown(this, this.getOwner());
-            if (living.damage(source, damage)) {
+            Entity owner = this.getOwner();
+            DamageSource source = owner != null
+                    ? this.getDamageSources().thrown(this, owner)
+                    : this.getDamageSources().generic();
+            boolean didDamage = living.damage(source, damage);
+            if (didDamage) {
                 if (fireAspect > 0) {
                     living.setOnFireFor(fireAspect * 4);
                 }
