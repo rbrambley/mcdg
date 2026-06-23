@@ -5,6 +5,7 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
 
@@ -21,7 +22,7 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
     // Client-side constructor (called by ScreenHandlerType factory)
     public DiscWorkbenchScreenHandler(int syncId, PlayerInventory playerInventory) {
         super(McdgScreenHandlers.DISC_WORKBENCH, syncId);
-        this.inventory = new SimpleInventory(2);
+        this.inventory = new SimpleInventory(3);
         initSlots(playerInventory);
     }
 
@@ -31,7 +32,7 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
         this.addSlot(new Slot(inventory, 0, 44, 35) {
             @Override
             public boolean canInsert(ItemStack stack) {
-                return stack.isOf(McdgItems.TRAINING_DISC);
+                return stack.isOf(McdgItems.TRAINING_DISC) || stack.isOf(McdgItems.ELYTRA_DISC);
             }
         });
 
@@ -40,6 +41,14 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
             @Override
             public boolean canInsert(ItemStack stack) {
                 return stack.isOf(McdgItems.DISC_ENCHANTED_BOOK);
+            }
+        });
+
+        // Upgrade material slot (bottom center)
+        this.addSlot(new Slot(inventory, 2, 80, 70) {
+            @Override
+            public boolean canInsert(ItemStack stack) {
+                return stack.isOf(Items.NETHERITE_INGOT);
             }
         });
 
@@ -64,19 +73,23 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
         ItemStack originalStack = slot.getStack();
         ItemStack stack = originalStack.copy();
 
-        if (slotIndex < 2) {
+        if (slotIndex < 3) {
             // Move from workbench to player inventory
-            if (!this.insertItem(originalStack, 2, this.slots.size(), true)) {
+            if (!this.insertItem(originalStack, 3, this.slots.size(), true)) {
                 return ItemStack.EMPTY;
             }
         } else {
             // Move from player to workbench
-            if (originalStack.isOf(McdgItems.TRAINING_DISC)) {
+            if (originalStack.isOf(McdgItems.TRAINING_DISC) || originalStack.isOf(McdgItems.ELYTRA_DISC)) {
                 if (!this.insertItem(originalStack, 0, 1, false)) {
                     return ItemStack.EMPTY;
                 }
             } else if (originalStack.isOf(McdgItems.DISC_ENCHANTED_BOOK)) {
                 if (!this.insertItem(originalStack, 1, 2, false)) {
+                    return ItemStack.EMPTY;
+                }
+            } else if (originalStack.isOf(Items.NETHERITE_INGOT)) {
+                if (!this.insertItem(originalStack, 2, 3, false)) {
                     return ItemStack.EMPTY;
                 }
             } else {
@@ -96,6 +109,7 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
     @Override
     public boolean onButtonClick(PlayerEntity player, int id) {
         if (id == 0) {
+            // Apply enchantment from book to disc
             ItemStack disc = inventory.getStack(0);
             ItemStack book = inventory.getStack(1);
             if (!disc.isOf(McdgItems.TRAINING_DISC) || !book.isOf(McdgItems.DISC_ENCHANTED_BOOK)) {
@@ -114,6 +128,29 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
             book.decrement(1);
             if (book.isEmpty()) {
                 inventory.setStack(1, ItemStack.EMPTY);
+            }
+            return true;
+        }
+        if (id == 1) {
+            // Apply netherite upgrade to Elytra Disc (convert to netherite item)
+            ItemStack disc = inventory.getStack(0);
+            ItemStack upgrade = inventory.getStack(2);
+            if (!disc.isOf(McdgItems.ELYTRA_DISC) || !upgrade.isOf(Items.NETHERITE_INGOT)) {
+                return true;
+            }
+            // Convert to netherite version
+            ItemStack netheriteDisc = new ItemStack(McdgItems.ELYTRA_DISC_NETHERITE, disc.getCount());
+
+            // Preserve disc enchantments
+            java.util.Map<DiscEnchantment, Integer> enchantments = DiscEnchantmentHelper.getAll(disc);
+            for (java.util.Map.Entry<DiscEnchantment, Integer> entry : enchantments.entrySet()) {
+                DiscEnchantmentHelper.setLevel(netheriteDisc, entry.getKey(), entry.getValue());
+            }
+
+            inventory.setStack(0, netheriteDisc);
+            upgrade.decrement(1);
+            if (upgrade.isEmpty()) {
+                inventory.setStack(2, ItemStack.EMPTY);
             }
             return true;
         }

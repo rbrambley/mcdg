@@ -440,6 +440,41 @@ public final class ChargedDiscItem extends Item {
         return lockedChargePercent;
     }
 
+    public static int getLockedTicks() {
+        return lockedTicks;
+    }
+
+    // Client-side setters (used by ElytraDiscItem to share charge state)
+    public static void setClientChargeVisible(boolean visible) {
+        clientChargeVisible = visible;
+    }
+
+    public static void setClientChargePercent(float percent) {
+        clientChargePercent = percent;
+    }
+
+    public static void setLockedChargePercent(float percent) {
+        lockedChargePercent = percent;
+    }
+
+    public static void setLockedTicks(int ticks) {
+        lockedTicks = ticks;
+    }
+
+    public static void setLastAudioThreshold(int threshold) {
+        lastAudioThreshold = threshold;
+    }
+
+    public static int getLastAudioThreshold() {
+        return lastAudioThreshold;
+    }
+
+    public static void resetPowerLock() {
+        powerLocked = false;
+        lockedChargePercent = 0.0f;
+        lockedTicks = 0;
+    }
+
     public static void setPowerLocked(boolean locked) {
         // Final lock - no unlock allowed
         if (!locked) {

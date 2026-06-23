@@ -15,6 +15,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.fabric.api.client.rendering.v1.ColorProviderRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
@@ -56,6 +57,16 @@ public final class McdgClientMod implements ClientModInitializer {
                     }
                     return ChargedDiscItem.getClientChargePercent() >= 0.15f ? 1.0f : 0.0f;
                 }
+        );
+
+        // Tint layer1 of elytra discs: diamond-blue for base, netherite-gray for upgraded
+        ColorProviderRegistry.ITEM.register(
+                (stack, tintIndex) -> tintIndex == 1 ? 0x44B3E8 : -1,
+                McdgItems.ELYTRA_DISC
+        );
+        ColorProviderRegistry.ITEM.register(
+                (stack, tintIndex) -> tintIndex == 1 ? 0x8B9494 : -1,
+                McdgItems.ELYTRA_DISC_NETHERITE
         );
 
         ClientKeybinds.register();
@@ -133,6 +144,7 @@ public final class McdgClientMod implements ClientModInitializer {
             handleHoleMapToggle(client);
             CinematicOverlay.tick(client);
             DiscTrailRenderer.tick();
+            ElytraFlightRenderer.tick();
             RoundInfoOverlay.updateTweens(holeMapState);
 
             // If movement detected during round complete cinematic, clear cinematic immediately

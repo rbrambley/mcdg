@@ -7,6 +7,7 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.Inventories;
 import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.screen.NamedScreenHandlerFactory;
@@ -16,14 +17,17 @@ import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.BlockPos;
 
 public class DiscWorkbenchBlockEntity extends BlockEntity implements NamedScreenHandlerFactory {
-    private final SimpleInventory inventory = new SimpleInventory(2) {
+    private final SimpleInventory inventory = new SimpleInventory(3) {
         @Override
         public boolean isValid(int slot, ItemStack stack) {
             if (slot == 0) {
-                return stack.isOf(McdgItems.TRAINING_DISC);
+                return stack.isOf(McdgItems.TRAINING_DISC) || stack.isOf(McdgItems.ELYTRA_DISC);
             }
             if (slot == 1) {
                 return stack.isOf(McdgItems.DISC_ENCHANTED_BOOK);
+            }
+            if (slot == 2) {
+                return stack.isOf(Items.NETHERITE_INGOT);
             }
             return false;
         }
@@ -50,7 +54,7 @@ public class DiscWorkbenchBlockEntity extends BlockEntity implements NamedScreen
     @Override
     public void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registryLookup) {
         super.readNbt(nbt, registryLookup);
-        DefaultedList<ItemStack> stacks = DefaultedList.ofSize(2, ItemStack.EMPTY);
+        DefaultedList<ItemStack> stacks = DefaultedList.ofSize(3, ItemStack.EMPTY);
         Inventories.readNbt(nbt, stacks, registryLookup);
         for (int i = 0; i < stacks.size(); i++) {
             inventory.setStack(i, stacks.get(i));
@@ -60,7 +64,7 @@ public class DiscWorkbenchBlockEntity extends BlockEntity implements NamedScreen
     @Override
     protected void writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registryLookup) {
         super.writeNbt(nbt, registryLookup);
-        DefaultedList<ItemStack> stacks = DefaultedList.ofSize(2, ItemStack.EMPTY);
+        DefaultedList<ItemStack> stacks = DefaultedList.ofSize(3, ItemStack.EMPTY);
         for (int i = 0; i < stacks.size(); i++) {
             stacks.set(i, inventory.getStack(i));
         }

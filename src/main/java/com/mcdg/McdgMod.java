@@ -8,6 +8,7 @@ import com.mcdg.game.HoleProgressTracker;
 import com.mcdg.game.LeaderboardManager;
 import com.mcdg.game.McdgBlocks;
 import com.mcdg.game.WindManager;
+import com.mcdg.game.ElytraFlightController;
 import com.mcdg.game.McdgEntityTypes;
 import com.mcdg.game.McdgBlockEntities;
 import com.mcdg.game.McdgItems;
@@ -47,6 +48,7 @@ import com.mcdg.net.RoundInviteRequest;
 import com.mcdg.net.RoundInviteNotification;
 import com.mcdg.net.RoundInviteResponse;
 import com.mcdg.net.WindSync;
+import com.mcdg.net.ElytraFlightSync;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
@@ -205,6 +207,7 @@ public final class McdgMod implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(RoundInviteResponse.ID, RoundInviteResponse.CODEC);
 
         PayloadTypeRegistry.playS2C().register(WindSync.ID, WindSync.CODEC);
+        PayloadTypeRegistry.playS2C().register(ElytraFlightSync.ID, ElytraFlightSync.CODEC);
 
         ResourceManagerHelper.registerBuiltinResourcePack(
                 new Identifier(MOD_ID, "mcdg-test-resources"),
@@ -365,6 +368,14 @@ public final class McdgMod implements ModInitializer {
             long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
             if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
                 LOGGER.warn("WindManager tick took {}ms", elapsedMs);
+            }
+        });
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long start = System.nanoTime();
+            ElytraFlightController.tick(server);
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
+                LOGGER.warn("ElytraFlightController tick took {}ms", elapsedMs);
             }
         });
         ServerLifecycleEvents.SERVER_STARTED.register(server -> ResortWaypointManager.clearResortWaypoint());

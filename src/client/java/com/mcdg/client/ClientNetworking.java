@@ -14,6 +14,7 @@ import com.mcdg.net.ThrowTrailStartSync;
 import com.mcdg.net.ThrowTrailCompleteSync;
 import com.mcdg.net.RoundInviteNotification;
 import com.mcdg.net.WindSync;
+import com.mcdg.net.ElytraFlightSync;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 /**
@@ -128,6 +129,9 @@ public final class ClientNetworking {
         );
         ClientPlayNetworking.registerGlobalReceiver(WindSync.ID, (payload, context) ->
             context.client().execute(() -> WindManagerClient.updateWindState(payload))
+        );
+        ClientPlayNetworking.registerGlobalReceiver(ElytraFlightSync.ID, (payload, context) ->
+            context.client().execute(() -> ElytraFlightRenderer.updateFlight(payload))
         );
     }
 }

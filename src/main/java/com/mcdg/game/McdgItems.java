@@ -17,6 +17,8 @@ public final class McdgItems {
     public static Item BOOMERANG_IRON = Items.AIR;
     public static Item BOOMERANG_DIAMOND = Items.AIR;
     public static Item BOOMERANG_NETHERITE = Items.AIR;
+    public static Item ELYTRA_DISC = Items.AIR;
+    public static Item ELYTRA_DISC_NETHERITE = Items.AIR;
     private static boolean strictFlowDebug;
 
     private McdgItems() {
@@ -72,6 +74,18 @@ public final class McdgItems {
             Registries.ITEM,
             new Identifier(McdgMod.MOD_ID, "boomerang_netherite"),
             new BoomerangDiscItem(BoomerangDiscItem.Tier.NETHERITE)
+        );
+
+        ELYTRA_DISC = Registry.register(
+                Registries.ITEM,
+                new Identifier(McdgMod.MOD_ID, "elytra_disc"),
+                new ElytraDiscItem(new Item.Settings().maxCount(1))
+        );
+
+        ELYTRA_DISC_NETHERITE = Registry.register(
+                Registries.ITEM,
+                new Identifier(McdgMod.MOD_ID, "elytra_disc_netherite"),
+                new ElytraDiscNetheriteItem()
         );
     }
 }
