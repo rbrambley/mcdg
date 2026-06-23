@@ -444,7 +444,7 @@ public final class ChargedDiscItem extends Item {
         return lockedTicks;
     }
 
-    // Client-side setters (used by ElytraDiscItem to share charge state)
+    // Client-side setters used by throwable disc items to share charge state
     public static void setClientChargeVisible(boolean visible) {
         clientChargeVisible = visible;
     }

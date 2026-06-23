@@ -1,7 +1,0 @@
-{
-  "parent": "minecraft:item/generated",
-  "textures": {
-    "layer0": "mcdg:item/mcdg_disc_training",
-    "layer1": "mcdg:item/mcdg_disc_training"
-  }
-}

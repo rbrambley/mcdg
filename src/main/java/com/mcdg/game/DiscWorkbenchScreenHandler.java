@@ -32,7 +32,7 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
         this.addSlot(new Slot(inventory, 0, 44, 35) {
             @Override
             public boolean canInsert(ItemStack stack) {
-                return stack.isOf(McdgItems.TRAINING_DISC) || stack.isOf(McdgItems.ELYTRA_DISC);
+                return stack.isOf(McdgItems.TRAINING_DISC);
             }
         });
 
@@ -80,7 +80,7 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
             }
         } else {
             // Move from player to workbench
-            if (originalStack.isOf(McdgItems.TRAINING_DISC) || originalStack.isOf(McdgItems.ELYTRA_DISC)) {
+            if (originalStack.isOf(McdgItems.TRAINING_DISC)) {
                 if (!this.insertItem(originalStack, 0, 1, false)) {
                     return ItemStack.EMPTY;
                 }
@@ -128,29 +128,6 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
             book.decrement(1);
             if (book.isEmpty()) {
                 inventory.setStack(1, ItemStack.EMPTY);
-            }
-            return true;
-        }
-        if (id == 1) {
-            // Apply netherite upgrade to Elytra Disc (convert to netherite item)
-            ItemStack disc = inventory.getStack(0);
-            ItemStack upgrade = inventory.getStack(2);
-            if (!disc.isOf(McdgItems.ELYTRA_DISC) || !upgrade.isOf(Items.NETHERITE_INGOT)) {
-                return true;
-            }
-            // Convert to netherite version
-            ItemStack netheriteDisc = new ItemStack(McdgItems.ELYTRA_DISC_NETHERITE, disc.getCount());
-
-            // Preserve disc enchantments
-            java.util.Map<DiscEnchantment, Integer> enchantments = DiscEnchantmentHelper.getAll(disc);
-            for (java.util.Map.Entry<DiscEnchantment, Integer> entry : enchantments.entrySet()) {
-                DiscEnchantmentHelper.setLevel(netheriteDisc, entry.getKey(), entry.getValue());
-            }
-
-            inventory.setStack(0, netheriteDisc);
-            upgrade.decrement(1);
-            if (upgrade.isEmpty()) {
-                inventory.setStack(2, ItemStack.EMPTY);
             }
             return true;
         }

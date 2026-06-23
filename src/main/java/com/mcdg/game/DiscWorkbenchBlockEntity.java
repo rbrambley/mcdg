@@ -21,7 +21,7 @@ public class DiscWorkbenchBlockEntity extends BlockEntity implements NamedScreen
         @Override
         public boolean isValid(int slot, ItemStack stack) {
             if (slot == 0) {
-                return stack.isOf(McdgItems.TRAINING_DISC) || stack.isOf(McdgItems.ELYTRA_DISC);
+                return stack.isOf(McdgItems.TRAINING_DISC);
             }
             if (slot == 1) {
                 return stack.isOf(McdgItems.DISC_ENCHANTED_BOOK);
