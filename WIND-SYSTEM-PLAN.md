@@ -1,6 +1,6 @@
 # Wind System Implementation Plan
 
-**Status:** Planning Phase  
+**Status:** Phase 5 Complete (Polish and Balancing)  
 **Created:** 2026-06-17  
 **Goal:** Add dynamic wind system that affects disc flight physics with natural weather patterns, admin controls, and tournament support
 
@@ -818,7 +818,7 @@ void testWindPhysicsApplication() {
 - [x] Wind affects disc flight trajectory based on speed and direction
 - [x] Natural wind generation based on biome, weather, and time
 - [x] Admin commands for manual wind control
-- [x] Tournament wind modes for competitive play
+- [ ] Tournament wind modes for competitive play (deferred - requires tournament system)
 - [x] HUD display of current wind conditions
 - [x] Client-server wind synchronization
 - [x] Configuration options for wind system
@@ -836,6 +836,47 @@ void testWindPhysicsApplication() {
 - [x] Admin commands are intuitive and well-documented
 - [x] Tournament wind modes are fair and balanced
 - [x] System can be disabled for players who prefer no wind
+
+---
+
+## Implementation Status
+
+### Completed Phases
+
+**Phase 1: Core Wind System** ✅
+- `WindState` record and `WindMode` enum implemented
+- `WindManager` class with per-world state management
+- `TrajectoryCalculator` integrated with wind physics
+- `ChargedDiscItem` passes wind to trajectory calculation
+- Admin commands: `/mcdg wind set`, `/mcdg wind clear`, `/mcdg wind mode`, `/mcdg wind show`, `/mcdg wind random`
+- Configuration: `MCDG_ENABLE_WIND`, `MCDG_DEFAULT_WIND_SPEED`, `MCDG_WIND_UPDATE_INTERVAL`
+
+**Phase 2: Natural Wind Generation** ✅
+- Biome-based wind modifiers using `BiomeTags` (ocean/plains = windier, forest/jungle = calmer, mountains = very windy)
+- Weather integration (rain = 1.5x, thunder = 2.5x multiplier)
+- Time-based variation (day = 0.8x, night = 1.2x)
+- Smoothed direction transitions to avoid sudden flips
+- Gusting behavior (20% chance, 30% speed increase)
+
+**Phase 3: Client-Side Wind Display** ✅
+- `WindSync` network packet for server-to-client synchronization
+- `WindManagerClient` for client-side wind state
+- Wind indicator on compass HUD (direction + speed with color coding)
+- Wind arrow near power bar during charge
+- Automatic wind sync on mode changes and natural wind updates
+
+**Phase 5: Polish and Balancing** ✅
+- Wind physics coefficients tuned (glide: 0.05, fade: 0.015 - increased from 0.02/0.005)
+- Enhanced `/mcdg wind show` command with gusting indicator and usage hints
+- Documentation updated with implementation status
+
+### Deferred Phases
+
+**Phase 4: Tournament Wind Support** ⏸️
+- Deferred pending tournament system implementation
+- Tournament wind modes (CALM, CONSISTENT, VARIABLE, NATURAL) planned
+- Seeded wind generation for fairness
+- Admin oversight tools for tournament wind management
 
 ---
 

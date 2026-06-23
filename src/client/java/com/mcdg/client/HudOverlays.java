@@ -7,6 +7,7 @@ import com.mcdg.game.StrictPenaltyType;
 import com.mcdg.game.ThrowStance;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.item.ItemStack;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Arm;
@@ -67,6 +68,20 @@ public final class HudOverlays {
         int coordsY = y + rowSpacing;
         drawContext.fill(coordsX - margin, coordsY - padding, coordsX + coordsWidth + margin, coordsY + textHeight, 0x70000000);
         HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(worldCoords).formatted(Formatting.AQUA), coordsX, coordsY, 0x9BE7FF, scale);
+
+        // Add wind indicator
+        if (WindManagerClient.isWindSignificant()) {
+            String windText = "WIND: " + WindManagerClient.getWindDirectionText() + " " + Math.round(WindManagerClient.getCurrentWind().speed() * 100) + "%";
+            int windWidth = Math.round(client.textRenderer.getWidth(windText) * scale);
+            int windX = (drawContext.getScaledWindowWidth() - windWidth) / 2;
+            int windY = coordsY + rowSpacing;
+            
+            Formatting windColor = WindManagerClient.getCurrentWind().speed() > 0.5 ? Formatting.RED : 
+                                   (WindManagerClient.getCurrentWind().speed() > 0.3 ? Formatting.YELLOW : Formatting.GREEN);
+            
+            drawContext.fill(windX - margin, windY - padding, windX + windWidth + margin, windY + textHeight, 0x70000000);
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(windText).formatted(windColor), windX, windY, 0xFFFFFF, scale);
+        }
     }
 
     public static void renderPower(DrawContext drawContext) {
@@ -79,7 +94,11 @@ public final class HudOverlays {
             return;
         }
 
-        if (!client.player.isUsingItem() || !client.player.getActiveItem().isOf(McdgItems.TRAINING_DISC)) {
+        ItemStack activeItem = client.player.getActiveItem();
+        boolean isDiscItem = activeItem.isOf(McdgItems.TRAINING_DISC)
+                || activeItem.isOf(McdgItems.ELYTRA_DISC)
+                || activeItem.isOf(McdgItems.ELYTRA_DISC_NETHERITE);
+        if (!client.player.isUsingItem() || !isDiscItem) {
             return;
         }
 
@@ -160,6 +179,9 @@ public final class HudOverlays {
 
         // Phase 2: Stance and Angle display
         renderStanceIndicator(drawContext, client, barX, barTop, rightHandThrow, scale);
+        
+        // Wind arrow indicator
+        renderWindIndicator(drawContext, client, barX, barTop, rightHandThrow, scale);
     }
 
     /**
@@ -235,6 +257,37 @@ public final class HudOverlays {
                 HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(rulesetText).formatted(Formatting.GRAY), rulesetX, rulesetY, 0xAAAAAA, scale);
             }
         }
+    }
+
+    /**
+     * Render wind arrow indicator near the power bar.
+     * Shows wind direction as an arrow during charge.
+     */
+    private static void renderWindIndicator(DrawContext drawContext, MinecraftClient client, int barX, int barTop, boolean rightHandThrow, float scale) {
+        if (!ChargedDiscItem.isClientChargeVisible()) {
+            return;
+        }
+        
+        if (!WindManagerClient.isWindSignificant()) {
+            return;
+        }
+        
+        float windSpeed = (float) WindManagerClient.getCurrentWind().speed();
+        float windDirection = WindManagerClient.getCurrentWind().directionDegrees();
+        
+        // Draw wind arrow
+        String arrow = WindManagerClient.getWindArrow(windDirection);
+        Formatting color = windSpeed > 0.5 ? Formatting.RED : 
+                          (windSpeed > 0.3 ? Formatting.YELLOW : Formatting.GREEN);
+        
+        Text windText = Text.literal(arrow).formatted(color);
+        int scaledPowerBarWidth = Math.round(POWER_BAR_WIDTH * scale);
+        int textOffset = Math.round(4 * scale);
+        int textWidth = Math.round(client.textRenderer.getWidth(windText) * scale);
+        int textX = rightHandThrow ? barX + scaledPowerBarWidth + textOffset : barX - textWidth - textOffset;
+        int textY = barTop - Math.round(48 * scale); // Above stance indicator
+        
+        HudUtil.drawScaledText(drawContext, client.textRenderer, windText, textX, textY, 0xFFFFFF, scale);
     }
 
     private static final int THROW_ROW_SPACING = 10;

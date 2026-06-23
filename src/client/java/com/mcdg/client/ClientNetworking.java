@@ -13,6 +13,7 @@ import com.mcdg.net.ThrowTrailSync;
 import com.mcdg.net.ThrowTrailStartSync;
 import com.mcdg.net.ThrowTrailCompleteSync;
 import com.mcdg.net.RoundInviteNotification;
+import com.mcdg.net.WindSync;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 /**
@@ -124,6 +125,9 @@ public final class ClientNetworking {
                         payload.catalogIndex()
                 ));
             })
+        );
+        ClientPlayNetworking.registerGlobalReceiver(WindSync.ID, (payload, context) ->
+            context.client().execute(() -> WindManagerClient.updateWindState(payload))
         );
     }
 }

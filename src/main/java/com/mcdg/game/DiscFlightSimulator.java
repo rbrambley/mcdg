@@ -293,7 +293,8 @@ public final class DiscFlightSimulator {
             newVelZ += perpZ * curveStrength;
 
             // Apply wind effect (stronger during glide, weaker during fade)
-            double windEffect = state.stance().hasGlide() ? 0.02 : 0.005;
+            // Phase 5 tuning: Increased coefficients for more noticeable wind impact
+            double windEffect = state.stance().hasGlide() ? 0.05 : 0.015;
             Vec3d wind = state.windVelocity();
             newVelX += wind.x * windEffect;
             newVelY += wind.y * windEffect;

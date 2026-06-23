@@ -46,6 +46,7 @@ import com.mcdg.net.ThrowTrailCompleteSync;
 import com.mcdg.net.RoundInviteRequest;
 import com.mcdg.net.RoundInviteNotification;
 import com.mcdg.net.RoundInviteResponse;
+import com.mcdg.net.WindSync;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
@@ -202,6 +203,8 @@ public final class McdgMod implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(RoundInviteRequest.ID, RoundInviteRequest.CODEC);
         PayloadTypeRegistry.playS2C().register(RoundInviteNotification.ID, RoundInviteNotification.CODEC);
         PayloadTypeRegistry.playC2S().register(RoundInviteResponse.ID, RoundInviteResponse.CODEC);
+
+        PayloadTypeRegistry.playS2C().register(WindSync.ID, WindSync.CODEC);
 
         ResourceManagerHelper.registerBuiltinResourcePack(
                 new Identifier(MOD_ID, "mcdg-test-resources"),

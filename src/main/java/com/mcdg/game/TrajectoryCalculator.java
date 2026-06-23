@@ -190,7 +190,8 @@ public final class TrajectoryCalculator {
             double velZ = vz + perpZ * curveStrength;
 
             // Apply wind effect (stronger during glide, weaker during fade)
-            double windEffect = hasGlide ? 0.02 : 0.005;
+            // Phase 5 tuning: Increased coefficients for more noticeable wind impact
+            double windEffect = hasGlide ? 0.05 : 0.015;
             velX += windVelocity.x * windEffect;
             velY += windVelocity.y * windEffect;
             velZ += windVelocity.z * windEffect;

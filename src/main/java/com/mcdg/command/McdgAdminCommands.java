@@ -2528,7 +2528,23 @@ public final class McdgAdminCommands {
         ServerWorld world = source.getWorld();
         com.mcdg.game.WindState wind = WindManager.getWindState(world);
         String compassDirection = getCompassDirection(wind.directionDegrees());
-        source.sendFeedback(() -> Text.literal("Current wind: " + wind.speed() + " speed, " + wind.directionDegrees() + " degrees (" + compassDirection + "), mode: " + wind.mode()).formatted(Formatting.AQUA), false);
+        
+        net.minecraft.text.MutableText feedback = Text.empty()
+            .append(Text.literal("Current Wind: ").formatted(Formatting.AQUA))
+            .append(Text.literal(wind.speed() + " speed, " + wind.directionDegrees() + "° (" + compassDirection + ")").formatted(Formatting.WHITE))
+            .append(Text.literal(", mode: ").formatted(Formatting.GRAY))
+            .append(Text.literal(wind.mode().toString()).formatted(Formatting.YELLOW));
+        
+        if (wind.isGusting()) {
+            feedback.append(Text.literal(" [GUSTING]").formatted(Formatting.RED));
+        }
+        
+        source.sendFeedback(() -> feedback, false);
+        
+        // Add usage hint
+        source.sendFeedback(() -> Text.literal("Use /mcdg wind set <speed> <direction> to set manual wind").formatted(Formatting.DARK_GRAY), false);
+        source.sendFeedback(() -> Text.literal("Use /mcdg wind mode <calm|natural|fixed> to change wind mode").formatted(Formatting.DARK_GRAY), false);
+        
         return 1;
     }
 
