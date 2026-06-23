@@ -7,7 +7,6 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.Inventories;
 import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.screen.NamedScreenHandlerFactory;
@@ -17,7 +16,7 @@ import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.BlockPos;
 
 public class DiscWorkbenchBlockEntity extends BlockEntity implements NamedScreenHandlerFactory {
-    private final SimpleInventory inventory = new SimpleInventory(3) {
+    private final SimpleInventory inventory = new SimpleInventory(2) {
         @Override
         public boolean isValid(int slot, ItemStack stack) {
             if (slot == 0) {
@@ -25,9 +24,6 @@ public class DiscWorkbenchBlockEntity extends BlockEntity implements NamedScreen
             }
             if (slot == 1) {
                 return stack.isOf(McdgItems.DISC_ENCHANTED_BOOK);
-            }
-            if (slot == 2) {
-                return stack.isOf(Items.NETHERITE_INGOT);
             }
             return false;
         }

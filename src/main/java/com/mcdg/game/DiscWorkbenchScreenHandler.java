@@ -5,7 +5,6 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
 
@@ -22,7 +21,7 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
     // Client-side constructor (called by ScreenHandlerType factory)
     public DiscWorkbenchScreenHandler(int syncId, PlayerInventory playerInventory) {
         super(McdgScreenHandlers.DISC_WORKBENCH, syncId);
-        this.inventory = new SimpleInventory(3);
+        this.inventory = new SimpleInventory(2);
         initSlots(playerInventory);
     }
 
@@ -41,14 +40,6 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
             @Override
             public boolean canInsert(ItemStack stack) {
                 return stack.isOf(McdgItems.DISC_ENCHANTED_BOOK);
-            }
-        });
-
-        // Upgrade material slot (bottom center)
-        this.addSlot(new Slot(inventory, 2, 80, 70) {
-            @Override
-            public boolean canInsert(ItemStack stack) {
-                return stack.isOf(Items.NETHERITE_INGOT);
             }
         });
 
@@ -73,9 +64,9 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
         ItemStack originalStack = slot.getStack();
         ItemStack stack = originalStack.copy();
 
-        if (slotIndex < 3) {
+        if (slotIndex < 2) {
             // Move from workbench to player inventory
-            if (!this.insertItem(originalStack, 3, this.slots.size(), true)) {
+            if (!this.insertItem(originalStack, 2, this.slots.size(), true)) {
                 return ItemStack.EMPTY;
             }
         } else {
@@ -86,10 +77,6 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
                 }
             } else if (originalStack.isOf(McdgItems.DISC_ENCHANTED_BOOK)) {
                 if (!this.insertItem(originalStack, 1, 2, false)) {
-                    return ItemStack.EMPTY;
-                }
-            } else if (originalStack.isOf(Items.NETHERITE_INGOT)) {
-                if (!this.insertItem(originalStack, 2, 3, false)) {
                     return ItemStack.EMPTY;
                 }
             } else {
