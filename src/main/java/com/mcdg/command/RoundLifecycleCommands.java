@@ -231,6 +231,10 @@ public final class RoundLifecycleCommands {
                 source.sendFeedback(() -> Text.literal(
                         "Round started. Players=" + trackedPlayers + ". Use /mcdg gotocourse if needed."
                 ), true);
+                // Send running scoreboard to all participants after round is active
+                for (ServerPlayerEntity player : participants) {
+                    HoleProgressTracker.sendRunningScoreboardToPlayer(player, courseManager, roundStateManager);
+                }
                 return 1;
             }
 
@@ -247,6 +251,10 @@ public final class RoundLifecycleCommands {
                         source.sendFeedback(() -> Text.literal(
                                 "Round live. Players=" + trackedPlayers + "."
                         ), true);
+                        // Send running scoreboard to all participants after round is active
+                        for (ServerPlayerEntity player : participants) {
+                            HoleProgressTracker.sendRunningScoreboardToPlayer(player, courseManager, roundStateManager);
+                        }
                     }
             );
 
@@ -351,6 +359,10 @@ public final class RoundLifecycleCommands {
             source.sendFeedback(() -> Text.literal(
                     "Round resumed. Players=" + trackedPlayers + ". Use /mcdg gotocourse if needed."
             ), true);
+            // Send running scoreboard to all participants after round is active
+            for (ServerPlayerEntity player : participants) {
+                HoleProgressTracker.sendRunningScoreboardToPlayer(player, courseManager, roundStateManager);
+            }
             return 1;
         }
 
@@ -367,6 +379,10 @@ public final class RoundLifecycleCommands {
                     source.sendFeedback(() -> Text.literal(
                             "Round live on existing course. Players=" + trackedPlayers + "."
                     ), true);
+                    // Send running scoreboard to all participants after round is active
+                    for (ServerPlayerEntity player : participants) {
+                        HoleProgressTracker.sendRunningScoreboardToPlayer(player, courseManager, roundStateManager);
+                    }
                 }
         );
 
