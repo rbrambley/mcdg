@@ -294,7 +294,6 @@ public final class McdgClientMod implements ClientModInitializer {
         if (!payload.active()) {
             // Start 30-second fade timer immediately when round ends
             hudHideSinceMs = System.currentTimeMillis();
-            System.out.println("HUD FADE DEBUG: Round ended, starting fade timer at " + hudHideSinceMs);
             roundEnded = true;
             // Clear throw stats when round ends
             DiscTrailRenderer.clearStats();

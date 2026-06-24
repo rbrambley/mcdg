@@ -488,7 +488,6 @@ public final class ChargedDiscItem extends Item {
         lockedChargePercent = clientChargePercent;
         // Calculate and store the tick count at lock time
         lockedTicks = Math.round(lockedChargePercent * MAX_CHARGE_TICKS);
-        System.out.println("[CLIENT] setPowerLocked(true): captured charge=" + String.format("%.1f", lockedChargePercent*100) + "%, ticks=" + lockedTicks);
     }
 
     // Server-side power lock state management - FINAL LOCK, no unlock
