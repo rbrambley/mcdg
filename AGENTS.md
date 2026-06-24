@@ -63,8 +63,7 @@
 - `DiscEnchantment` / `DiscEnchantmentHelper` — disc enchantment types and physics application
 - `DiscEnchantedBook` — enchanted book item granting disc-specific enchantments
 - `DiscWorkbenchBlock` / `DiscWorkbenchScreenHandler` — block and GUI for applying disc enchantments
-- `BoomerangDiscItem` / `BoomerangDiscEntity` — returning throwable disc projectile
-- `GrapplingDiscItem` / `GrapplingDiscEntity` — grappling hook disc that pulls player to landing
+- `McdgEntityTypes` — entity type registration infrastructure (preserved for future special disc types)
 
 ### Client (`src/client/java/com/mcdg/client/`)
 - `McdgClientMod` — client initializer, event wiring (~17 KB)

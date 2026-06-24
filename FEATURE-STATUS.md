@@ -1,7 +1,7 @@
 # MCDG Feature Status Truth Table
 
 **Purpose:** Single source of truth mapping every planned feature to its actual code status.  
-**Last Updated:** 2026-06-22  
+**Last Updated:** 2026-06-24  
 **How to read:**
 - **Plan Status** — what the design documents claim
 - **Code Status** — what actually exists in `src/main/java` and `src/client/java`
@@ -21,8 +21,8 @@
 | Disc Workbench | ✅ Complete | `DiscWorkbenchBlock` with GUI for applying disc enchantments via `DiscWorkbenchScreenHandler` | Accurate | Low |
 | Training Discs | ✅ Complete | Crafting recipe (8 arrows + copper ingot), permanent reusable disc | Accurate | Low |
 | DiscEnchantedBook | ✅ Complete | Enchanted book item integrated with round rewards and merch barrels | Accurate | Low |
-| Grappling Disc | ✅ Complete | `GrapplingDiscItem` / `GrapplingDiscEntity` projectile pulls player to landing | Accurate | Low |
-| Boomerang Disc | ✅ Complete | `BoomerangDiscItem` / `BoomerangDiscEntity` returning throwable disc | Accurate | Low |
+| Grappling Disc | ❌ Removed | Removed June 2024 due to reliability issues; entity type infrastructure preserved for future retry | Accurate | Low |
+| Boomerang Disc | ❌ Removed | Removed June 2024 due to reliability issues; entity type infrastructure preserved for future retry | Accurate | Low |
 | Resort builder | ✅ Complete | `ResortBuilder`, `ResortCourseBuilder`, `WorldSpawnHandler` | Accurate | Low |
 | Disc glide physics (phases 1-6) | ✅ Complete | `DiscFlightSimulator`, `ThrowStance`, `ReleaseAngle`, trails, HUD | Accurate | Low |
 | Charge enhancements | ✅ Complete | Slower charge, 125% overcharge, power lock, audio cues, distance markers | Accurate | Low |
@@ -111,3 +111,25 @@
 - Update this table **after every feature commit**
 - When a feature is implemented, update the corresponding plan document(s) at the same time
 - If plan status and code status diverge for more than one week, flag it as high-risk
+
+---
+
+## Lessons Learned: Grappling & Boomerang Discs (June 2024)
+
+### What Went Wrong
+- **Compounding errors**: Multiple regression triage and testing variations created unreliable behavior
+- **Complex projectile physics**: Both discs required custom entity tick logic that proved difficult to debug
+- **State management**: Entity state (returning vs outgoing, distance tracking) became complex and error-prone
+- **Limited testing infrastructure**: No dedicated test framework for projectile entity behavior
+
+### What Was Preserved
+- **Entity type registration**: Commented out in `McdgEntityTypes.java` for future re-implementation
+- **Registration pattern**: Preserved as reference for future special disc types
+- **No data migration needed**: Items were not persisted in player data, simplifying removal
+
+### Recommendations for Future Retry
+1. **Start with simpler mechanics**: Begin with basic projectile before adding complex behaviors
+2. **Dedicated test framework**: Build entity-specific tests before implementation
+3. **Incremental state management**: Add state tracking gradually, not all at once
+4. **Visual debugging**: Add client-side visualization of entity state during development
+5. **Consider server-only approach**: Evaluate if complex projectile logic can be server-side only

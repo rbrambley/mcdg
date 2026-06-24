@@ -60,9 +60,9 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
   - Permanent reusable disc; crafting recipe: 8 arrows + copper ingot
 - ✅ Phase 1.5f: DiscEnchantedBook + Resort Merch Barrels (COMPLETED - 2026-06-22)
   - `DiscEnchantedBook` item integrated with round rewards and resort merch barrels
-- ✅ Phase 1.5g: Grappling Disc + Boomerang Disc (COMPLETED - 2026-06-22)
-  - `GrapplingDiscItem`/`GrapplingDiscEntity`: pulls player to landing point
-  - `BoomerangDiscItem`/`BoomerangDiscEntity`: returns to thrower in an arc
+- ❌ Phase 1.5g: Grappling Disc + Boomerang Disc (REMOVED - 2026-06-24)
+  - Removed due to reliability issues from compounding errors during regression triage
+  - Entity type infrastructure preserved in `McdgEntityTypes.java` for future retry
 
 **In Progress:**
 - None — Phase 1 complete; Phase 2 work starting
@@ -218,15 +218,26 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
 
 **Impact:** MEDIUM - Survival loot loop, resort discovery
 
-### **Phase 1.5g: Grappling Disc + Boomerang Disc** ✅ COMPLETED (2026-06-22)
-**Effort:** 2-3 hours
+### **Phase 1.5g: Grappling Disc + Boomerang Disc** ❌ REMOVED (2026-06-24)
+**Effort:** 2-3 hours (original implementation)
 **Dependencies:** None
 
-**Tasks:**
+**Status:** Removed due to reliability issues from compounding errors during regression triage and testing variations
+
+**Tasks (Historical):**
 - ✅ `GrapplingDiscItem`/`GrapplingDiscEntity`: throwable projectile that pulls player to landing
 - ✅ `BoomerangDiscItem`/`BoomerangDiscEntity`: returning throwable disc projectile
+- ❌ Removed all item classes, entities, renderers, recipes, and models
+- ✅ Preserved entity type registration infrastructure in `McdgEntityTypes.java` (commented out)
 
-**Impact:** MEDIUM - Fun utility discs, expands item variety
+**Lessons Learned:**
+- Complex projectile physics require dedicated test framework before implementation
+- Incremental state management is critical - add state tracking gradually, not all at once
+- Visual debugging tools needed for entity state during development
+- Consider server-only approach for complex projectile logic
+- Start with simpler mechanics before adding complex behaviors
+
+**Impact:** MEDIUM - Fun utility discs, expands item variety (preserved for future retry)
 
 **Phase 1 Total Effort:** ~40-60 hours — ✅ COMPLETE
 

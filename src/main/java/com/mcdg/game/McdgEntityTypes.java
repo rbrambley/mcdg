@@ -9,13 +9,20 @@ import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
 
 public final class McdgEntityTypes {
+    // Entity type infrastructure preserved for future special disc types
+    // Grappling Disc and Boomerang Disc were removed in June 2024 due to reliability issues
+    // Commented out to preserve registration pattern for future re-implementation attempts
+    /*
     public static EntityType<GrapplingDiscEntity> GRAPPLING_DISC;
     public static EntityType<BoomerangDiscEntity> BOOMERANG_DISC;
+    */
 
     private McdgEntityTypes() {}
 
     @SuppressWarnings("unchecked")
     public static void register() {
+        // Entity registrations commented out - preserved for future special disc types
+        /*
         GRAPPLING_DISC = Registry.register(
                 Registries.ENTITY_TYPE,
                 new Identifier(McdgMod.MOD_ID, "grappling_disc"),
@@ -35,5 +42,6 @@ public final class McdgEntityTypes {
                         .trackingTickInterval(2)
                         .build()
         );
+        */
     }
 }

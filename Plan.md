@@ -18,8 +18,8 @@
 - ✅ DiscEnchantedBook - Enchanted book item integrated with round rewards and resort merch barrels
 - ✅ Disc Workbench - Custom block with GUI for applying disc enchantments
 - ✅ Resort Merch Barrels - Starter discs and enchanted books auto-populated in resort
-- ✅ Grappling Disc - Projectile entity that pulls player to landing point
-- ✅ Boomerang Disc - Returning throwable disc projectile
+- ❌ Grappling Disc - Removed June 2024 due to reliability issues (entity type infrastructure preserved for future retry)
+- ❌ Boomerang Disc - Removed June 2024 due to reliability issues (entity type infrastructure preserved for future retry)
 - ✅ CommandPermission refactor - Extracted utility from McdgAdminCommands
 
 **Current Focus:**
@@ -266,11 +266,13 @@ Key commits:
 - `3f8cafe` feat: DiscEnchantedBook item and round reward integration (gap 1)
 - `bd90f4a` feat: populate resort merch barrels with starter discs and enchanted books (gap 3)
 
-### Grappling Disc and Boomerang Disc
-- **`GrapplingDiscItem` / `GrapplingDiscEntity`**: Throwable projectile that pulls the player to the landing point on impact
-- **`BoomerangDiscItem` / `BoomerangDiscEntity`**: Throwable projectile that returns to the thrower in an arc
+### Grappling Disc and Boomerang Disc (REMOVED June 2024)
+- **Status**: Removed due to reliability issues from compounding errors during regression triage
+- **Preserved**: Entity type registration infrastructure in `McdgEntityTypes.java` (commented out) for future retry
+- **Lessons Learned**: Complex projectile physics require dedicated test framework and incremental state management
+- **Previous Implementation**: `GrapplingDiscItem` / `GrapplingDiscEntity` (pull player to landing), `BoomerangDiscItem` / `BoomerangDiscEntity` (returning throwable)
 
-Key commits:
+Key commits (historical):
 - `a638f84` feat: Grappling Disc and Boomerang Disc items with projectile entities
 
 ### CommandPermission Refactor
