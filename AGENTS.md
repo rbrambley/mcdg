@@ -76,7 +76,6 @@
 - `XaeroMinimapCompat` — soft-dependency detection and HUD layout coordination
 
 ### Networking (`src/main/java/com/mcdg/net/`)
-- `HoleMiniMapSync` — server-to-client round state sync
 - `WaypointSync` — client-to-server waypoint sync
 - `RoundRunningScoresSync` — live scoreboard updates
 - `AceCinematicSync`, `RoundCompleteCinematicSync` — cinematic overlays
