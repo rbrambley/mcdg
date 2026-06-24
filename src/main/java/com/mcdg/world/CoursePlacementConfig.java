@@ -351,6 +351,20 @@ public final class CoursePlacementConfig {
     }
 
     /**
+     * Hazard placement constants.
+     */
+    public static final class HazardPlacement {
+        private HazardPlacement() {
+        }
+
+        /** Maximum patch size for hazard placement */
+        public static final int MAX_PATCH_SIZE = 2;
+
+        /** Probability of placing each block in a hazard patch */
+        public static final double PATCH_BLOCK_PROBABILITY = 0.4;
+    }
+
+    /**
      * Environment variable names.
      */
     public static final class EnvVars {

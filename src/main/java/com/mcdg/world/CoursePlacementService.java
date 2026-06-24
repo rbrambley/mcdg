@@ -481,6 +481,72 @@ public final class CoursePlacementService {
                     progressCallback.accept(Math.max(1, hole.index() / 2));
         }
 
+        // Phase 2.5: place biome-specific hazards along fairways
+        BiomeHazardProfile hazardProfile = BiomeHazardResolver.resolve(theme);
+        McdgMod.LOGGER.info("Hazard profile resolved: {} (density: {})", hazardProfile.name(), hazardProfile.hazardDensity());
+        
+        for (Hole hole : course.holes()) {
+            BlockPos teeSurface = holeTees.get(hole.index());
+            BlockPos basketSurface = holeBaskets.get(hole.index());
+            if (teeSurface == null || basketSurface == null) {
+                continue;
+            }
+
+            int fairwayWidth = FairwayCarver.resolveHoleFairwayWidth(hole);
+            BlockPos alternateAnchor = holeAlternateAnchors.get(hole.index());
+
+            // Use hole-specific seed for deterministic hazard placement
+            long holeSeed = course.seed() + (hole.index() * 7919); // Prime number for good distribution
+
+            if (alternateAnchor != null) {
+                // Place hazards on both fairway segments for alternate anchor routes
+                HazardPlacementService.placeHazardsAlongFairway(
+                    world,
+                    teeSurface.getX(),
+                    teeSurface.getZ(),
+                    alternateAnchor.getX(),
+                    alternateAnchor.getZ(),
+                    fairwayWidth,
+                    originalBlocks,
+                    protectedPositions,
+                    hazardProfile,
+                    holeSeed,
+                    teeSurface,
+                    basketSurface
+                );
+                HazardPlacementService.placeHazardsAlongFairway(
+                    world,
+                    alternateAnchor.getX(),
+                    alternateAnchor.getZ(),
+                    basketSurface.getX(),
+                    basketSurface.getZ(),
+                    fairwayWidth,
+                    originalBlocks,
+                    protectedPositions,
+                    hazardProfile,
+                    holeSeed + 1,
+                    teeSurface,
+                    basketSurface
+                );
+            } else {
+                // Place hazards on single fairway segment
+                HazardPlacementService.placeHazardsAlongFairway(
+                    world,
+                    teeSurface.getX(),
+                    teeSurface.getZ(),
+                    basketSurface.getX(),
+                    basketSurface.getZ(),
+                    fairwayWidth,
+                    originalBlocks,
+                    protectedPositions,
+                    hazardProfile,
+                    holeSeed,
+                    teeSurface,
+                    basketSurface
+                );
+            }
+        }
+
         // Phase 3: place all tee pads, baskets, and tee lanterns after fairways so they remain visible.
         // Pre-protect all basket columns so hub and other structures can't overwrite them.
         for (Hole hole : course.holes()) {
