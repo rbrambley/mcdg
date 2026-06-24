@@ -24,6 +24,10 @@ public final class HoleMapRenderer {
     // OB boundary line (outside fairway corridor)
     public static final int COLOR_OB_LINE = 0xFFFF4444;
 
+    // Expanded hazard colors (minimap overlay)
+    public static final int COLOR_SURFACE_HAZARD = 0x8CFFFF00;   // Yellow for sand/ice/rough/swamp
+    public static final int COLOR_DANGER_HAZARD = 0x8CFF3333;    // Red for lava/cactus
+
     private HoleMapRenderer() {
     }
 
@@ -260,10 +264,10 @@ public final class HoleMapRenderer {
         int gridMinZ = state.hazardGridMinZ;
         byte[] grid = state.hazardGridData;
 
-        // Hazard type colors: 0=none, 1=slope/rough (yellow-orange), 2=water (blue), 3=lava (red)
-        int slopeRoughColor = 0x8CFF9A32;
-        int waterColor = 0x8C3399FF;
-        int lavaColor = 0x8CFF3333;
+        // Hazard type colors: 0=none, 1=surface_hazards (yellow), 2=water (blue), 3=danger_hazards (red)
+        int surfaceHazardColor = COLOR_SURFACE_HAZARD;
+        int waterColor = COLOR_WATER;  // Use existing water color constant
+        int dangerHazardColor = COLOR_DANGER_HAZARD;
 
         for (int gz = 0; gz < gridH; gz++) {
             int worldZ = gridMinZ + gz;
@@ -274,11 +278,11 @@ public final class HoleMapRenderer {
                     byte hazardType = grid[idx];
                     int color;
                     if (hazardType == 1) {
-                        color = slopeRoughColor;
+                        color = surfaceHazardColor;  // Sand/ice/rough/swamp
                     } else if (hazardType == 2) {
-                        color = waterColor;
+                        color = waterColor;          // Water
                     } else if (hazardType == 3) {
-                        color = lavaColor;
+                        color = dangerHazardColor;    // Lava/cactus
                     } else {
                         continue;
                     }

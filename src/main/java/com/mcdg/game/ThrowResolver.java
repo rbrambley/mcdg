@@ -286,6 +286,13 @@ public final class ThrowResolver {
                     roundStateManager.applyPenaltyStrokes(player.getUuid(), penaltyStrokes);
                 }
 
+                // Apply dynamic hazard effects (damage, slowness, disc destruction)
+                HazardType hazardType = HazardManager.getHazardType(world, resultingLie);
+                if (hazardType != HazardType.NONE) {
+                    HazardBehavior behavior = HazardManager.getHazardBehavior(hazardType);
+                    HazardManager.applyHazardEffects(player, behavior, hazardType);
+                }
+
                 // Find safe position before teleporting to avoid suffocation
                 BlockPos safePos = SafePositionFinder.findNearestStandableFeet(world, resultingLie);
                 player.teleport(

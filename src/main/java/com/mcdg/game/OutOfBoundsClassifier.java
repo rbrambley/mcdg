@@ -158,6 +158,20 @@ public final class OutOfBoundsClassifier {
             return new PenaltyDetail(StrictPenaltyType.HAZARD, "Rough");
         }
 
+        // Check for expanded hazards via HazardManager
+        HazardType expandedHazard = HazardManager.getHazardType(world, feet);
+        if (expandedHazard != HazardType.NONE && expandedHazard != HazardType.WATER && expandedHazard != HazardType.LAVA) {
+            // Skip water/lava as they're already handled above
+            HazardBehavior behavior = HazardManager.getHazardBehavior(expandedHazard);
+            if (behavior.addsPenaltyStroke() || behavior.destroysDisc()) {
+                if (debug) {
+                    McdgMod.LOGGER.info("[OBClassifier] feet={} -> EXPANDED_HAZARD: {}", formatPos(feet), expandedHazard.displayName());
+                }
+                // Disc destruction hazards still count as HAZARD for penalty purposes
+                return new PenaltyDetail(StrictPenaltyType.HAZARD, behavior.penaltyReason());
+            }
+        }
+
         if (debug) {
             McdgMod.LOGGER.info("[OBClassifier] feet={} -> NONE (in bounds)", formatPos(feet));
         }

@@ -7,6 +7,9 @@ import com.mcdg.game.PracticeCourseStorage;
 import com.mcdg.game.RoundPresentationService;
 import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.ThrowAutoTestService;
+import com.mcdg.game.HazardManager;
+import com.mcdg.game.HazardType;
+import com.mcdg.game.HazardBehavior;
 import com.mcdg.world.CourseGenerator;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
@@ -17,6 +20,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.math.BlockPos;
 
 /**
  * Debug and autotest command handlers.
@@ -146,6 +150,50 @@ public final class DebugCommands {
                 source.sendFeedback(() -> Text.literal(
                         "Autotest shadow mode is " + (enabled ? "ON" : "OFF") + " (" + mode + ")."
                 ), false);
+                return 1;
+        }
+
+        /**
+         * Debug command to show hazard type at player position.
+         */
+        public static int executeDebugHazardInfo(ServerCommandSource source) {
+                if (!(source.getEntity() instanceof ServerPlayerEntity player)) {
+                        source.sendError(Text.literal("This command can only be run by a player."));
+                        return 0;
+                }
+
+                ServerWorld world = player.getServerWorld();
+                BlockPos feet = player.getBlockPos();
+
+                HazardType hazard = HazardManager.getHazardType(world, feet);
+                HazardBehavior behavior = HazardManager.getHazardBehavior(hazard);
+
+                source.sendFeedback(() -> Text.literal(
+                        "Hazard at " + feet.getX() + "," + feet.getY() + "," + feet.getZ() + ": " + hazard.displayName()
+                                + " (" + hazard.description() + ")"
+                ), false);
+                source.sendFeedback(() -> Text.literal(
+                        "Behavior: destroysDisc=" + behavior.destroysDisc()
+                                + ", penaltyStroke=" + behavior.addsPenaltyStroke()
+                                + ", slowsRetrieval=" + behavior.slowsRetrieval()
+                                + ", bounceMod=" + behavior.bounceModifier()
+                                + ", damage=" + behavior.damageAmount()
+                ), false);
+
+                return 1;
+        }
+
+        /**
+         * Debug command to list all hazard types.
+         */
+        public static int executeDebugHazardList(ServerCommandSource source) {
+                source.sendFeedback(() -> Text.literal("Available Hazard Types:"), false);
+                for (HazardType type : HazardType.values()) {
+                        HazardBehavior behavior = HazardManager.getHazardBehavior(type);
+                        source.sendFeedback(() -> Text.literal(
+                                " - " + type.displayName() + ": " + type.description()
+                        ), false);
+                }
                 return 1;
         }
 

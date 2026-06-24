@@ -338,7 +338,11 @@ public final class McdgAdminCommands {
                                 .then(literal("obclassifier")
                                         .executes(context -> executeDebugObClassifier(context.getSource()))
                                         .then(argument("enabled", BoolArgumentType.bool())
-                                                .executes(context -> executeDebugObClassifierSet(context.getSource(), BoolArgumentType.getBool(context, "enabled"))))))
+                                                .executes(context -> executeDebugObClassifierSet(context.getSource(), BoolArgumentType.getBool(context, "enabled")))))
+                                .then(literal("hazard")
+                                        .executes(context -> DebugCommands.executeDebugHazardInfo(context.getSource())))
+                                .then(literal("hazardlist")
+                                        .executes(context -> DebugCommands.executeDebugHazardList(context.getSource()))))
                         .then(literal("validateplacement").requires(CommandPermission::canUseAdminCommands)
                                 .requires(CommandPermission::canUseAdvancedCommands)
                                 .executes(context -> executeValidatePlacement(

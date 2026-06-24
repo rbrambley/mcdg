@@ -82,17 +82,25 @@ public final class HoleHazardGridService {
 
                 byte hazardType = 0;
 
+                // Optimized hazard detection - use targeted checks first, then HazardManager for expanded hazards
                 // Check fluid penalty zones (water/lava) - render on map
                 if (OutOfBoundsClassifier.isFluidPenaltyZone(world, feet)) {
                     if (world.getFluidState(feet).isIn(FluidTags.WATER) || world.getFluidState(feet.down()).isIn(FluidTags.WATER)) {
-                        hazardType = 2; // Water (blue)
+                        hazardType = 2; // Water (WATER category for blue color)
                     } else {
-                        hazardType = 3; // Lava (red)
+                        hazardType = 3; // Lava (danger hazard category)
                     }
                 } else if (slopeEnabled && OutOfBoundsClassifier.isSteepSlopeHazard(world, feet, slopeThreshold)) {
-                    hazardType = 1; // Slope/rough (yellow-orange)
+                    hazardType = 1; // Slope (surface hazard category)
                 } else if (roughEnabled && OutOfBoundsClassifier.isDenseRoughHazard(world, feet, roughThreshold)) {
-                    hazardType = 1; // Slope/rough (yellow-orange)
+                    hazardType = 1; // Rough (surface hazard category)
+                } else {
+                    // Only use HazardManager for non-fluid, non-slope, non-rough hazards
+                    // This avoids expensive isSteepDrop checks for most cells
+                    HazardType hazard = HazardManager.getHazardType(world, feet);
+                    if (hazard != HazardType.NONE && hazard != HazardType.WATER && hazard != HazardType.LAVA) {
+                        hazardType = HazardManager.getGridCategoryByte(hazard);
+                    }
                 }
 
                 grid[z * width + x] = hazardType;
