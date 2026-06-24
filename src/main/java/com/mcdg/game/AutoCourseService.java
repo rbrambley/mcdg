@@ -54,6 +54,7 @@ public final class AutoCourseService {
     private final CoursePlacementValidator placementValidator;
     private final PracticeCourseStorage practiceCourseStorage;
     private final CourseGenerator courseGenerator;
+    private final ActiveCourseManager activeCourseManager;
     private final HoleLayoutValidator layoutValidator = new HoleLayoutValidator();
 
     private AutoBuildState state;
@@ -62,12 +63,14 @@ public final class AutoCourseService {
             CoursePlacementService placementService,
             CoursePlacementValidator placementValidator,
             CourseGenerator courseGenerator,
-            PracticeCourseStorage practiceCourseStorage
+            PracticeCourseStorage practiceCourseStorage,
+            ActiveCourseManager activeCourseManager
     ) {
         this.placementService = placementService;
         this.placementValidator = placementValidator;
         this.courseGenerator = courseGenerator;
         this.practiceCourseStorage = practiceCourseStorage;
+        this.activeCourseManager = activeCourseManager;
     }
 
     public boolean isActive() {
@@ -201,6 +204,18 @@ public final class AutoCourseService {
                 AutoCourseScenarioResult result = state.placer.getResult();
                 Course namedCourse = new Course(result.course().seed(), state.courseName, result.course().holes());
                 int catalogIndex = practiceCourseStorage.saveReusable(server, namedCourse, result.placedState(), "autocourse", false);
+                
+                // Activate the newly built course immediately
+                ServerPlayerEntity player = server.getPlayerManager().getPlayer(state.ownerUuid);
+                if (player != null && activeCourseManager != null) {
+                    activeCourseManager.setActiveCourse(namedCourse);
+                    activeCourseManager.setPlacedCourseState(result.placedState());
+                    activeCourseManager.setActiveCourseCatalogIndex(catalogIndex);
+                    activeCourseManager.setPersistentPlacedCourse(true);
+                    activeCourseManager.setLegacyPracticeSnapshot(false);
+                    activeCourseManager.setRoundActive(false);
+                }
+                
                 broadcastSuccess(server, "Course '" + state.courseName + "' built and saved as #" + catalogIndex + ". Use [LIST COURSES] to start a round.");
                 broadcastListCoursesButton(server);
             } catch (Exception ex) {

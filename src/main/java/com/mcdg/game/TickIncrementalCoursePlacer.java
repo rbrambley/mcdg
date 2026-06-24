@@ -7,8 +7,11 @@ import com.mcdg.data.FairwaySegment;
 import com.mcdg.data.Hole;
 import com.mcdg.data.TeePoint;
 import com.mcdg.rules.TournamentRulesetManager;
+import com.mcdg.world.BiomeTheme;
+import com.mcdg.world.BiomeThemeResolver;
 import com.mcdg.world.CoursePlacementConfig;
 import com.mcdg.world.CoursePlacementService;
+import com.mcdg.world.CourseStructureBuilder;
 import com.mcdg.world.HoleLayoutValidator;
 import com.mcdg.world.PlacementUtils;
 import java.util.ArrayList;
@@ -33,6 +36,7 @@ public final class TickIncrementalCoursePlacer {
     private final BlockPos hubOrigin;
     private final Course course;
     private final Consumer<String> progressMessage;
+    private final boolean skipHub;
     private final boolean skipWaterEstimation;
 
     private final List<Hole> builtHoles = new ArrayList<>();
@@ -50,10 +54,8 @@ public final class TickIncrementalCoursePlacer {
     private AutoCourseService.AutoCourseScenarioResult result = null;
 
     /**
-     * @param skipHub retained for API symmetry with {@code placeCourseIncrementally}. Each hole is
-     *                placed independently with no central hub (matching the original behavior, which
-     *                always passed {@code skipHub=true} to the per-hole placement), so this flag is
-     *                intentionally not consulted here.
+     * @param skipHub if false, builds a central hub after all holes are placed (for player autocourse).
+     *                if true, skips hub building (for resort courses).
      */
     public TickIncrementalCoursePlacer(
             CoursePlacementService placementService,
@@ -84,6 +86,7 @@ public final class TickIncrementalCoursePlacer {
         this.hubOrigin = hubOrigin;
         this.course = course;
         this.progressMessage = progressMessage;
+        this.skipHub = skipHub;
         this.skipWaterEstimation = skipWaterEstimation;
     }
 
@@ -209,11 +212,25 @@ public final class TickIncrementalCoursePlacer {
         PlacedCourseState mergedState = new PlacedCourseState(
                 world.getRegistryKey(), mergedOriginals, tees, baskets, alternates, effectivePars);
 
+        // Build central hub if requested (for player autocourse, not resort courses)
+        if (!skipHub && !builtHoles.isEmpty()) {
+            Hole firstHole = builtHoles.get(0);
+            BlockPos firstTee = tees.get(firstHole.index());
+            BlockPos firstBasket = baskets.get(firstHole.index());
+            if (firstTee != null && firstBasket != null) {
+                BiomeTheme theme = BiomeThemeResolver.resolve(world.getBiome(firstTee));
+                CourseStructureBuilder.placeCourseCentralHub(
+                    world, firstTee, firstBasket, course.name(), 
+                    mergedOriginals, globalProtectedPositions, theme
+                );
+            }
+        }
+
         // Compute hazard grids for all holes (for hole map rendering)
         HoleHazardGridService.reset();
         TournamentRulesetManager rulesetManager = McdgMod.getRulesetManager();
         String courseKey = HoleHazardGridService.courseKey(builtCourse.name(), builtCourse.seed());
-        for (Hole hole : builtCourse.holes()) {
+        for (Hole hole : builtHoles) {
             BlockPos tee = tees.get(hole.index());
             BlockPos basket = baskets.get(hole.index());
             if (tee != null && basket != null) {

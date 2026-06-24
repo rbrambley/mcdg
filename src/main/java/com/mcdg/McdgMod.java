@@ -158,7 +158,8 @@ public final class McdgMod implements ModInitializer {
             COURSE_PLACEMENT_SERVICE,
             COURSE_PLACEMENT_VALIDATOR,
             COURSE_GENERATOR,
-            PRACTICE_COURSE_STORAGE
+            PRACTICE_COURSE_STORAGE,
+            ACTIVE_COURSE_MANAGER
     );
         private static final ThrowAutoTestService THROW_AUTO_TEST_SERVICE = new ThrowAutoTestService(
             ACTIVE_COURSE_MANAGER,

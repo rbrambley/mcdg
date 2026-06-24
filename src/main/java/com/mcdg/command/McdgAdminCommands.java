@@ -40,7 +40,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import net.minecraft.block.Blocks;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.ItemEntity;
@@ -1211,51 +1210,14 @@ public final class McdgAdminCommands {
                         if (teePos == null) {
                                 return new SavedCourseIntegrity(false, "hole " + holeIndex + " tee is missing");
                         }
-                        if (!isExpectedTeePad(world, teePos)) {
-                                return new SavedCourseIntegrity(false, "hole " + holeIndex + " tee pad is missing");
-                        }
 
                         BlockPos basketPos = placed.holeBaskets().get(holeIndex);
                         if (basketPos == null) {
                                 return new SavedCourseIntegrity(false, "hole " + holeIndex + " basket is missing");
                         }
-                        if (!isExpectedBasketMarker(world, hole, basketPos)) {
-                                return new SavedCourseIntegrity(false, "hole " + holeIndex + " basket marker is missing");
-                        }
                 }
 
                 return new SavedCourseIntegrity(true, "ok");
-        }
-
-        private static boolean isExpectedTeePad(ServerWorld world, BlockPos teeCenter) {
-                for (int dx = -1; dx <= 1; dx++) {
-                        for (int dz = -1; dz <= 1; dz++) {
-                                BlockPos sample = teeCenter.add(dx, 0, dz);
-                                if (dx == 0 && dz == 0) {
-                                        if (!world.getBlockState(sample).isOf(Blocks.LIME_CONCRETE)) {
-                                                return false;
-                                        }
-                                } else if (!world.getBlockState(sample).isOf(Blocks.SMOOTH_STONE)) {
-                                        return false;
-                                }
-                        }
-                }
-                return true;
-        }
-
-        private static boolean isExpectedBasketMarker(ServerWorld world, Hole hole, BlockPos basketStoredPos) {
-                if (!world.getBlockState(basketStoredPos).isOf(Blocks.HOPPER)) {
-                        return false;
-                }
-
-                int basketHeight = Math.max(1, hole.basket().basketHeight());
-                for (int i = 1; i <= basketHeight + 1; i++) {
-                        if (!world.getBlockState(basketStoredPos.up(i)).isOf(Blocks.IRON_BARS)) {
-                                return false;
-                        }
-                }
-
-                return world.getBlockState(basketStoredPos.up(basketHeight + 2)).isOf(Blocks.LANTERN);
         }
 
         private record SavedCourseIntegrity(boolean valid, String reason) {
