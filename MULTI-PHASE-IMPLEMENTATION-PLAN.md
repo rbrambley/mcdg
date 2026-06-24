@@ -3,8 +3,8 @@
 **Status:** Master Implementation Plan
 **Created:** 2026-06-17
 **Last Updated:** 2026-06-22
-**Current Phase:** Phase 2 (Enhanced Gameplay Systems)
-**Overall Progress:** Phase 1 of 6 (✅ COMPLETE) — Phase 2 starting
+**Current Phase:** Phase 2 (Enhanced Gameplay Systems) — in progress
+**Overall Progress:** Phase 1 of 6 (✅ COMPLETE) — Phase 2.1 complete, 2.2/2.3 pending
 **Goal:** Combine all feature plans into cohesive development phases with logical dependencies and priorities
 
 ---
@@ -15,7 +15,7 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
 
 ## Current Progress
 
-**Overall Progress:** Phase 1 of 6 (✅ COMPLETE) — Phase 2 starting
+**Overall Progress:** Phase 1 of 6 (✅ COMPLETE) — Phase 2.1 complete, 2.2/2.3 pending
 
 **Completed:**
 - ✅ Phase 1.1: Fade/Hyzer/Anhyzer Physics Fix (COMPLETED - 2026-06-17)
@@ -65,10 +65,9 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
   - Entity type infrastructure preserved in `McdgEntityTypes.java` for future retry
 
 **In Progress:**
-- None — Phase 1 complete; Phase 2 work starting
+- Phase 2 (Enhanced Gameplay Systems) — 2.1 complete; 2.2 and 2.3 pending
 
 **Next Priority:**
-- 📋 Phase 2.1: Wind System
 - 📋 Phase 2.2: Expanded Hazards
 - 📋 Phase 2.3: Custom Throw Animations
 
@@ -251,12 +250,13 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
 **Source:** WIND-SYSTEM-PLAN.md (Phase 1)
 **Effort:** 4-6 hours
 **Dependencies:** None
+**Status:** ✅ COMPLETED (2026-06-24)
 
 **Tasks:**
-- Implement WindManager with per-world state
-- Add wind parameter to TrajectoryCalculator and DiscFlightSimulator
-- Add basic admin commands (/mcdg wind set, clear, show)
-- Implement natural wind generation
+- ✅ Implement WindManager with per-world state
+- ✅ Add wind parameter to TrajectoryCalculator and DiscFlightSimulator
+- ✅ Add basic admin commands (/mcdg wind set, clear, show)
+- ✅ Implement natural wind generation (biome/weather/time modifiers, gusts, client sync)
 
 **Impact:** HIGH - Adds environmental depth to gameplay
 

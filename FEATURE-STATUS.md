@@ -37,7 +37,7 @@
 
 | Feature | Plan Status | Code Status | Verdict | Risk |
 |---------|-------------|-------------|---------|------|
-| Wind system | 📋 Planning | No `WindManager`, `WindState`, or wind physics hooks | Accurate | Low |
+| Wind system | ✅ Complete | `WindManager`, `WindManagerClient`, `WindSync`, biome/weather/time modifiers, gusts, HUD indicator, admin commands | Accurate | Low |
 | Custom throw animations | ⏸️ Placeholder | UseAction mappings only (Overhand=SPEAR, Backhand=CROSSBOW, Forehand=BOW) | Accurate | Low |
 | Expanded hazards (sand, rough, ice) | 📋 Planning | Basic `OutOfBoundsClassifier` exists; `HoleHazardGridService` exists but limited hazard types | Accurate | Low |
 
