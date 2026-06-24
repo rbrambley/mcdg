@@ -266,7 +266,7 @@ Key commits:
 - `3f8cafe` feat: DiscEnchantedBook item and round reward integration (gap 1)
 - `bd90f4a` feat: populate resort merch barrels with starter discs and enchanted books (gap 3)
 
-### Grappling Disc and Boomerang Disc (REMOVED June 2024)
+### Grappling Disc and Boomerang Disc (REMOVED June 2026)
 - **Status**: Removed due to reliability issues from compounding errors during regression triage
 - **Preserved**: Entity type registration infrastructure in `McdgEntityTypes.java` (commented out) for future retry
 - **Lessons Learned**: Complex projectile physics require dedicated test framework and incremental state management

@@ -10,7 +10,7 @@ import net.minecraft.util.Identifier;
 
 public final class McdgEntityTypes {
     // Entity type infrastructure preserved for future special disc types
-    // Grappling Disc and Boomerang Disc were removed in June 2024 due to reliability issues
+    // Grappling Disc and Boomerang Disc were removed in June 2026 due to reliability issues
     // Commented out to preserve registration pattern for future re-implementation attempts
     /*
     public static EntityType<GrapplingDiscEntity> GRAPPLING_DISC;
