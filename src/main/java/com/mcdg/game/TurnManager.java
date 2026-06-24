@@ -206,20 +206,6 @@ public final class TurnManager {
                 broadcastTurnChange(server, placed.worldKey(), hole, newPlayer, courseManager.getActiveParticipantIds());
             }
         }
-        
-        // Log turn state for debugging
-        for (Map.Entry<Integer, UUID> entry : updatedActiveByHole.entrySet()) {
-            Integer hole = entry.getKey();
-            UUID playerId = entry.getValue();
-            if (playerId != null) {
-                String playerName = BotSimulator.isBot(playerId) 
-                    ? BotSimulator.getBotProfile(playerId).map(BotSimulator.BotProfile::name).orElse("Bot")
-                    : server.getPlayerManager().getPlayer(playerId) != null 
-                        ? server.getPlayerManager().getPlayer(playerId).getGameProfile().getName()
-                        : playerId.toString().substring(0, 8);
-                McdgMod.LOGGER.info("TurnManager: Hole {} active turn: {}", hole, playerName);
-            }
-        }
     }
 
     private static void broadcastTurnChange(
