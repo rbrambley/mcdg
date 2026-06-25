@@ -94,6 +94,21 @@ public final class TrajectoryCalculator {
             Map<DiscEnchantment, Integer> enchantments,
             Vec3d windVelocity
     ) {
+        return calculateTrajectory(world, startPos, initialVelocity, launchYawDegrees, charge, stance, angle, enchantments, windVelocity, DiscStats.DEFAULT);
+    }
+
+    public static TrajectoryResult calculateTrajectory(
+            ServerWorld world,
+            Vec3d startPos,
+            Vec3d initialVelocity,
+            float launchYawDegrees,
+            float charge,
+            ThrowStance stance,
+            ReleaseAngle angle,
+            Map<DiscEnchantment, Integer> enchantments,
+            Vec3d windVelocity,
+            DiscStats discStats
+    ) {
         // Current position and velocity (simulation state) — use primitives to avoid GC churn
         double px = startPos.x;
         double py = startPos.y + RELEASE_HEIGHT_OFFSET;
@@ -113,6 +128,10 @@ public final class TrajectoryCalculator {
         if (glideLevel > 0 && hasGlide) {
             glideTicks = Math.round(glideTicks * (1.0f + glideLevel * DiscEnchantment.GLIDE.perLevelMultiplier()));
         }
+        // Apply tier-based glide multiplier (Phase 3.1)
+        if (discStats.glideMultiplier() != 1.0 && hasGlide) {
+            glideTicks = Math.max(1, (int) Math.round(glideTicks * discStats.glideMultiplier()));
+        }
 
         // Stance/angle curve calculation
         // HYZER exaggerates natural fade (2x), FLAT keeps natural (1x), ANHYZER neutralizes (0x)
@@ -123,6 +142,11 @@ public final class TrajectoryCalculator {
         int fadeLevel = enchantments.getOrDefault(DiscEnchantment.FADE_CONTROL, 0);
         if (fadeLevel > 0) {
             curveMultiplier *= (1.0 - fadeLevel * DiscEnchantment.FADE_CONTROL.perLevelMultiplier());
+        }
+        // Apply tier-based stability multiplier (Phase 3.1)
+        // Higher stability reduces fade curve; lower stability increases it
+        if (discStats.stabilityMultiplier() != 1.0) {
+            curveMultiplier *= (2.0 - discStats.stabilityMultiplier());
         }
 
         // Path points for visual trail (sample every 5 ticks to save memory)
@@ -149,6 +173,8 @@ public final class TrajectoryCalculator {
                 } else {
                     upwardImpulse = UPWARD_IMPULSE;
                 }
+                // Apply tier-based glide multiplier (Phase 3.1)
+                upwardImpulse *= discStats.glideMultiplier();
             }
 
             // Apply gravity

@@ -4,7 +4,7 @@
 **Created:** 2026-06-17
 **Last Updated:** 2026-06-25
 **Current Phase:** Phase 2 (Enhanced Gameplay Systems) — 2.1/2.2 complete, 2.3 placeholder complete
-**Overall Progress:** Phase 1 of 6 (✅ COMPLETE) — Phase 2.1/2.2 complete, 2.3 placeholder complete, ready to enter Phase 3
+**Overall Progress:** Phase 1 of 6 (✅ COMPLETE) — Phase 2.1/2.2 complete, 2.3 placeholder complete, Phase 3.1 core tiered discs complete
 **Goal:** Combine all feature plans into cohesive development phases with logical dependencies and priorities
 
 ---
@@ -15,7 +15,7 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
 
 ## Current Progress
 
-**Overall Progress:** Phase 1 of 6 (✅ COMPLETE) — Phase 2.1/2.2 complete, 2.3 placeholder complete, ready to enter Phase 3
+**Overall Progress:** Phase 1 of 6 (✅ COMPLETE) — Phase 2.1/2.2 complete, 2.3 placeholder complete, Phase 3.1 core tiered discs complete
 
 **Completed:**
 - ✅ Phase 1.1: Fade/Hyzer/Anhyzer Physics Fix (COMPLETED - 2026-06-17)
@@ -65,10 +65,11 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
   - Entity type infrastructure preserved in `McdgEntityTypes.java` for future retry
 
 **In Progress:**
-- Phase 2 (Enhanced Gameplay Systems) — 2.1/2.2 complete, 2.3 placeholder complete
+- Phase 3.1 follow-up: disc bags, accessories, skill-based unlocks
 
 **Next Priority:**
-- 📋 Phase 3.1: Disc Crafting Progression
+- ✅ Phase 3.1: Disc Crafting Progression (core tiered discs complete)
+- 📋 Phase 3.1 follow-up: disc bags, accessories, skill-based unlocks
 - 📋 Phase 3.2: Custom Disc Stats
 
 **Combined Plans:**
@@ -305,12 +306,14 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
 **Source:** CRAFTING-PROGRESSION-SYSTEM.md (Phase 1-2)
 **Effort:** 10-14 hours
 **Dependencies:** Phase 1.3 (survival integration)
+**Status:** ✅ Core tiered discs complete (2026-06-25)
 
 **Tasks:**
-- Implement disc tier crafting (Wooden → Stone → Iron → Gold → Diamond → Netherite)
-- Add enchanting system for discs
-- Implement skill-based unlocks
-- Add accessory crafting (retriever, analyzer, compass)
+- ✅ Implement disc tier crafting (Wooden → Stone → Iron → Gold → Diamond → Netherite)
+- ✅ Add tier-based flight stats (glide, stability, throw speed, wind resistance, durability)
+- ⏸️ Add enchanting system for discs (Phase 1.5b Disc Workbench already exists; anvil/table integration deferred)
+- ⏸️ Implement skill-based unlocks (deferred to Phase 3.1 follow-up)
+- ⏸️ Add accessory crafting (retriever, analyzer, compass) (deferred)
 
 **Impact:** HIGH - Core progression system
 

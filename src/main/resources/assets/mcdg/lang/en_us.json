@@ -1,6 +1,12 @@
 {
   "modmenu.nameTranslation.mcdg": "Minecraft Course Disc Golf",
   "item.mcdg.training_disc": "Training Disc",
+  "item.mcdg.wooden_disc": "Wooden Disc",
+  "item.mcdg.stone_disc": "Stone Disc",
+  "item.mcdg.iron_disc": "Iron Disc",
+  "item.mcdg.gold_disc": "Gold Disc",
+  "item.mcdg.diamond_disc": "Diamond Disc",
+  "item.mcdg.netherite_disc": "Netherite Disc",
   "item.mcdg.scorecard": "Score Card",
   "item.mcdg.disc_enchanted_book": "Disc Enchanted Book",
   "block.mcdg.disc_workbench": "Disc Workbench",

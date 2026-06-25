@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "AA",
+    "AA"
+  ],
+  "key": {
+    "A": {
+      "tag": "minecraft:planks"
+    }
+  },
+  "result": {
+    "id": "mcdg:wooden_disc"
+  }
+}

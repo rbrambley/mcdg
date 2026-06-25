@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "AAA",
+    " B "
+  ],
+  "key": {
+    "A": {
+      "item": "minecraft:cobblestone"
+    },
+    "B": {
+      "item": "mcdg:wooden_disc"
+    }
+  },
+  "result": {
+    "id": "mcdg:stone_disc"
+  }
+}

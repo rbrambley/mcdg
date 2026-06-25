@@ -20,6 +20,7 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.UseAction;
+import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
@@ -30,7 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-public final class ChargedDiscItem extends Item {
+public class ChargedDiscItem extends Item {
     private static final int MAX_CHARGE_TICKS = 120;
     private static final float MAX_POWER_MULTIPLIER = 1.25f;
     private static final float MIN_VELOCITY = 0.7f;
@@ -272,6 +273,10 @@ public final class ChargedDiscItem extends Item {
             velocity *= (1.0f + distanceLevel * DiscEnchantment.DISTANCE.perLevelMultiplier());
         }
 
+        // Apply tier-based disc stats (Phase 3.1)
+        DiscStats stats = getDiscStats(stack);
+        velocity *= (float) stats.throwSpeedMultiplier();
+
         // Calculate throw trajectory (predicted flight path, no pearl entity)
         // Get server-side stance (defaults to OVERHAND/FLAT if not set)
         ThrowStance stance = SERVER_PLAYER_STANCE.getOrDefault(playerUuid, ThrowStance.OVERHAND);
@@ -290,8 +295,9 @@ public final class ChargedDiscItem extends Item {
 
         Vec3d startPos = new Vec3d(serverPlayer.getX(), serverPlayer.getY(), serverPlayer.getZ());
 
-        // Get current wind for trajectory calculation
+        // Get current wind for trajectory calculation and apply tier wind resistance
         Vec3d windVelocity = WindManager.getWindState(serverPlayer.getServerWorld()).velocity();
+        Vec3d effectiveWind = stats.applyWindResistance(windVelocity);
 
         // Calculate complete trajectory (terrain-aware collision)
         TrajectoryCalculator.TrajectoryResult trajectory = TrajectoryCalculator.calculateTrajectory(
@@ -303,7 +309,8 @@ public final class ChargedDiscItem extends Item {
                 stance,
                 angle,
                 enchantments,
-                windVelocity
+                effectiveWind,
+                stats
         );
 
         McdgMod.LOGGER.info(
@@ -402,6 +409,11 @@ public final class ChargedDiscItem extends Item {
         }
         Hand swingHand = serverPlayer.getMainHandStack().isOf(stack.getItem()) ? Hand.MAIN_HAND : Hand.OFF_HAND;
         serverPlayer.swingHand(swingHand, true);
+        // Tiered discs lose durability on each throw; training disc has no durability.
+        if (stack.isDamageable()) {
+            EquipmentSlot slot = swingHand == Hand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND;
+            stack.damage(1, serverPlayer, slot);
+        }
         serverPlayer.sendMessage(buildReleaseText(charge), true);
     }
 
@@ -416,6 +428,14 @@ public final class ChargedDiscItem extends Item {
         // For now, return BOW as default since client-side access is not available in main source set
         // Future enhancement: Could add server-side stance tracking or move this to client source set
         return UseAction.BOW;
+    }
+
+    /**
+     * Returns the flight stats for the given disc stack.
+     * Subclasses (tiered discs) override this to provide tier-specific stats.
+     */
+    protected DiscStats getDiscStats(ItemStack stack) {
+        return DiscStats.DEFAULT;
     }
 
     private static float computeChargePercent(int usedTicks) {

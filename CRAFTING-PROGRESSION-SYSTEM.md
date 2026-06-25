@@ -25,8 +25,8 @@ This progression system transforms disc golf equipment from a single item into a
 | Item | Status | Notes |
 |------|--------|-------|
 | Training Disc | ✅ Complete | Permanent reusable disc; recipe: 8 arrows + copper ingot; no durability loss |
-| Wooden Disc | 📋 Planned | Tier 1 beginner disc (see below) |
-| Tiered discs (Stone → Netherite) | 📋 Planned | Full progression tree not yet started |
+| Wooden Disc | ✅ Complete | Tier 1 beginner disc; 0.8x glide, 0.8x stability, 50 durability |
+| Tiered discs (Stone → Netherite) | ✅ Complete | Tiered stats, crafting recipes, and durability wired into disc flight physics |
 | Disc Bag | 📋 Planned | Planned but not implemented |
 
 ---

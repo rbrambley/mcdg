@@ -39,10 +39,9 @@ public final class McdgClientMod implements ClientModInitializer {
     private static float lastLayoutScale = -1f;
     private static int cachedScoreboardRequired = 0;
 
-    @Override
-    public void onInitializeClient() {
+    private static void registerDiscChargePredicate(net.minecraft.item.Item item) {
         ModelPredicateProviderRegistry.register(
-                McdgItems.TRAINING_DISC,
+                item,
                 TRAINING_DISC_CHARGED_PREDICATE,
                 (stack, world, entity, seed) -> {
                     if (!ChargedDiscItem.isClientChargeVisible()) {
@@ -51,6 +50,17 @@ public final class McdgClientMod implements ClientModInitializer {
                     return ChargedDiscItem.getClientChargePercent() >= 0.15f ? 1.0f : 0.0f;
                 }
         );
+    }
+
+    @Override
+    public void onInitializeClient() {
+        registerDiscChargePredicate(McdgItems.TRAINING_DISC);
+        registerDiscChargePredicate(McdgItems.WOODEN_DISC);
+        registerDiscChargePredicate(McdgItems.STONE_DISC);
+        registerDiscChargePredicate(McdgItems.IRON_DISC);
+        registerDiscChargePredicate(McdgItems.GOLD_DISC);
+        registerDiscChargePredicate(McdgItems.DIAMOND_DISC);
+        registerDiscChargePredicate(McdgItems.NETHERITE_DISC);
 
         ClientKeybinds.register();
         HandledScreens.register(McdgScreenHandlers.DISC_WORKBENCH, DiscWorkbenchScreen::new);

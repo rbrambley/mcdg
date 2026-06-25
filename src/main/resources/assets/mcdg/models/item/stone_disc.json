@@ -1,0 +1,14 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "mcdg:item/stone_disc"
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "mcdg:charged": 1.0
+      },
+      "model": "mcdg:item/stone_disc_charged"
+    }
+  ]
+}

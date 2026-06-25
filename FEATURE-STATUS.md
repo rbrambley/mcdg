@@ -48,7 +48,7 @@
 
 | Feature | Plan Status | Code Status | Verdict | Risk |
 |---------|-------------|-------------|---------|------|
-| Disc crafting progression | � Partial | Training Disc recipe complete; tiered wooden→netherite discs not yet implemented | Accurate | Low |
+| Disc crafting progression | � Partial | Wooden→Netherite tiered discs, recipes, durability, and tier physics implemented; bags, accessories, skill unlocks still pending | Accurate | Low |
 | Custom disc stats | 📋 Planning | No `DiscFlightRatings`, `DiscCharacteristics`, or disc builder | Accurate | Low |
 | Challenge courses | 📋 Planning | No challenge course generation or special rewards | Accurate | Low |
 

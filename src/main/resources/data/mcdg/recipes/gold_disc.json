@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "AAA",
+    " B "
+  ],
+  "key": {
+    "A": {
+      "item": "minecraft:gold_ingot"
+    },
+    "B": {
+      "item": "mcdg:iron_disc"
+    }
+  },
+  "result": {
+    "id": "mcdg:gold_disc"
+  }
+}
