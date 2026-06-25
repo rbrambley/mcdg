@@ -1,5 +1,7 @@
 package com.mcdg.game;
 
+import net.minecraft.util.math.Vec3d;
+
 /**
  * Immutable flight statistics for a disc tier.
  * Applied during trajectory calculation to modify glide, fade, throw speed, and wind resistance.
@@ -31,8 +33,8 @@ public record DiscStats(
      * Returns a wind velocity reduced by this disc's wind resistance.
      * 0.0 resistance means full wind effect; 1.0 means no wind effect.
      */
-    public net.minecraft.util.math.Vec3d applyWindResistance(net.minecraft.util.math.Vec3d wind) {
+    public Vec3d applyWindResistance(Vec3d wind) {
         double factor = 1.0 - windResistance;
-        return new net.minecraft.util.math.Vec3d(wind.x * factor, wind.y * factor, wind.z * factor);
+        return new Vec3d(wind.x * factor, wind.y * factor, wind.z * factor);
     }
 }

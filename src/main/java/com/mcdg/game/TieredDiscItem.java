@@ -40,10 +40,9 @@ public class TieredDiscItem extends ChargedDiscItem {
     public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, net.minecraft.client.item.TooltipType type) {
         super.appendTooltip(stack, context, tooltip, type);
         Formatting color = Formatting.byName(tier.colorName());
-        tooltip.add(Text.literal(tier.displayName() + " Disc").formatted(color));
-        if (tier.durability() > 0) {
-            int remaining = tier.durability() - stack.getDamage();
-            tooltip.add(Text.literal("Durability: " + remaining + " / " + tier.durability()).formatted(Formatting.GRAY));
+        if (color == null) {
+            color = Formatting.WHITE;
         }
+        tooltip.add(Text.literal(tier.displayName() + " Disc").formatted(color));
     }
 }

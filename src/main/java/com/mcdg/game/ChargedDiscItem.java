@@ -6,6 +6,7 @@ import com.mcdg.game.ReleaseAngle;
 import com.mcdg.net.ThrowTrailStartSync;
 
 import com.mcdg.rules.TournamentRulesetManager;
+import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.projectile.thrown.EnderPearlEntity;
@@ -20,7 +21,6 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.UseAction;
-import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
@@ -433,6 +433,7 @@ public class ChargedDiscItem extends Item {
     /**
      * Returns the flight stats for the given disc stack.
      * Subclasses (tiered discs) override this to provide tier-specific stats.
+     * The stack parameter is reserved for future NBT-based per-disc customization.
      */
     protected DiscStats getDiscStats(ItemStack stack) {
         return DiscStats.DEFAULT;
