@@ -42,7 +42,8 @@ public final class MenuScreenSync {
             boolean isAdmin,
             String rulesetName,
             String presetName,
-            List<CourseEntry> courses
+            List<CourseEntry> courses,
+            boolean caveMode
     ) implements CustomPayload {
 
         public static Payload read(RegistryByteBuf buf) {
@@ -63,9 +64,10 @@ public final class MenuScreenSync {
             for (int i = 0; i < courseCount; i++) {
                 courses.add(CourseEntry.read(buf));
             }
+            boolean caveMode = buf.readBoolean();
             return new Payload(roundActive, courseLoaded, courseName, activeCatalogIndex,
                     activeHoleCount, hasSavedSession, savedCourseName, savedHole, savedStrokes,
-                    isAdmin, rulesetName, presetName, List.copyOf(courses));
+                    isAdmin, rulesetName, presetName, List.copyOf(courses), caveMode);
         }
 
         public void write(RegistryByteBuf buf) {
@@ -85,6 +87,7 @@ public final class MenuScreenSync {
             for (CourseEntry entry : courses) {
                 entry.write(buf);
             }
+            buf.writeBoolean(caveMode);
         }
 
         @Override

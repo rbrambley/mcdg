@@ -14,6 +14,7 @@ import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CourseStructureBuilder;
 import com.mcdg.world.HoleLayoutValidator;
 import com.mcdg.world.PlacementUtils;
+import com.mcdg.world.cave.CavePlacementHelper;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -38,6 +39,7 @@ public final class TickIncrementalCoursePlacer {
     private final Consumer<String> progressMessage;
     private final boolean skipHub;
     private final boolean skipWaterEstimation;
+    private final boolean caveMode;
 
     private final List<Hole> builtHoles = new ArrayList<>();
     private final Map<BlockPos, BlockState> mergedOriginals = new HashMap<>();
@@ -77,6 +79,19 @@ public final class TickIncrementalCoursePlacer {
             Consumer<String> progressMessage,
             boolean skipWaterEstimation
     ) {
+        this(placementService, world, hubOrigin, course, skipHub, progressMessage, skipWaterEstimation, false);
+    }
+
+    public TickIncrementalCoursePlacer(
+            CoursePlacementService placementService,
+            ServerWorld world,
+            BlockPos hubOrigin,
+            Course course,
+            boolean skipHub,
+            Consumer<String> progressMessage,
+            boolean skipWaterEstimation,
+            boolean caveMode
+    ) {
         if (course == null || course.holes().isEmpty()) {
             throw new IllegalArgumentException("TickIncrementalCoursePlacer requires a course with at least one hole");
         }
@@ -88,6 +103,7 @@ public final class TickIncrementalCoursePlacer {
         this.progressMessage = progressMessage;
         this.skipHub = skipHub;
         this.skipWaterEstimation = skipWaterEstimation;
+        this.caveMode = caveMode;
     }
 
     /**
@@ -176,6 +192,11 @@ public final class TickIncrementalCoursePlacer {
             placementService.resetPlacedCourse(world, placed);
             rollbackPartial();
             throw new RuntimeException("Incremental placement hole " + hole.index() + " produced no tee/basket");
+        }
+
+        // Add cave lighting if in cave mode
+        if (caveMode) {
+            CavePlacementHelper.placeCaveLighting(world, actualTee, actualBasket, mergedOriginals, globalProtectedPositions);
         }
 
         int actualFeet = layoutValidator.distanceFeetFromBlocks(

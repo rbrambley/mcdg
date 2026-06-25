@@ -283,6 +283,7 @@ public final class MenuCommands {
                 savedStrokes = 0;
             }
         }
+        boolean caveMode = player != null && player.getBlockPos().getY() < 40;
         MenuScreenSync.Payload payload = new MenuScreenSync.Payload(
                 roundActive, courseLoaded, courseName,
                 activeCatalogIndex, activeHoleCount,
@@ -290,7 +291,8 @@ public final class MenuCommands {
                 isAdmin,
                 ruleset.name().toLowerCase(),
                 preset.name().toLowerCase(),
-                courses
+                courses,
+                caveMode
         );
         ServerPlayNetworking.send(player, payload);
         return 1;

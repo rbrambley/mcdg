@@ -13,6 +13,7 @@ import com.mcdg.world.CourseGenerator;
 import com.mcdg.world.CoursePlacementConfig;
 import com.mcdg.world.PlacementUtils;
 import com.mcdg.world.HoleLayoutValidator;
+import com.mcdg.world.cave.CaveEnvironmentValidator;
 import com.mcdg.game.PlacedCourseState;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -93,6 +95,10 @@ public final class AutoCourseService {
     }
 
     public int executeAutoCourseNamed(ServerCommandSource source, String courseName) {
+        return executeAutoCourseNamed(source, courseName, HOLE_COUNT, false);
+    }
+
+    public int executeAutoCourseNamed(ServerCommandSource source, String courseName, int holeCount, boolean forceCaveMode) {
         ServerPlayerEntity player = source.getPlayer();
         if (player == null) {
             source.sendError(Text.literal("autocourse must be run by a player."));
@@ -113,14 +119,43 @@ public final class AutoCourseService {
             source.sendError(Text.literal("A course named '" + duplicate.get() + "' already exists. Choose a different name."));
             return 0;
         }
+
+        // Check for cave mode
+        boolean caveMode = forceCaveMode || player.getBlockPos().getY() < CaveEnvironmentValidator.getCaveYThreshold();
+        
+        // Use 3 holes as default for cave mode
+        int actualHoleCount = caveMode ? 3 : holeCount;
+
         UUID playerId = player.getUuid();
         BlockPos origin = player.getBlockPos();
+        
+        if (caveMode) {
+            // Prepare cave area first (clear vegetation and obstacles)
+            java.util.Map<BlockPos, BlockState> caveOriginalBlocks = new java.util.HashMap<>();
+            CaveEnvironmentValidator.prepareCaveArea(player.getServerWorld(), origin, caveOriginalBlocks);
+
+            // Then validate the prepared area
+            CaveEnvironmentValidator.ValidationResult validation = CaveEnvironmentValidator.validateCaveEnvironment(player);
+            if (!validation.isValid()) {
+                source.sendError(Text.literal("Cave environment validation failed: " + validation.errorMessage()));
+                // Roll back the clearing if validation fails
+                for (java.util.Map.Entry<BlockPos, BlockState> entry : caveOriginalBlocks.entrySet()) {
+                    player.getServerWorld().setBlockState(entry.getKey(), entry.getValue(), 3);
+                }
+                return 0;
+            }
+            // Add "Cave" prefix to course name for cave courses
+            if (!trimmed.toLowerCase().startsWith("cave")) {
+                trimmed = "Cave " + trimmed;
+            }
+        }
         long seed = java.util.concurrent.ThreadLocalRandom.current().nextLong();
-        Course course = generateOutwardConeCourse(seed, origin, player.getYaw(), 25, 80);
-        state = new AutoBuildState(playerId, trimmed, seed, course, origin, player.getServerWorld());
+        Course course = generateOutwardConeCourse(seed, origin, player.getYaw(), 25, 80, actualHoleCount, caveMode);
+        state = new AutoBuildState(playerId, trimmed, seed, course, origin, player.getServerWorld(), caveMode);
 
         final String name = trimmed;
-        source.sendFeedback(() -> Text.literal("Auto-building course '" + name + "' (" + HOLE_COUNT + " holes) starting at your position...").formatted(Formatting.GREEN), false);
+        final String modeText = caveMode ? "Cave " : "";
+        source.sendFeedback(() -> Text.literal("Auto-building " + modeText + "course '" + name + "' (" + actualHoleCount + " holes) starting at your position...").formatted(Formatting.GREEN), false);
         source.sendFeedback(() -> Text.literal("Placing course holes, this may take a few seconds...").formatted(Formatting.YELLOW), false);
         return 1;
     }
@@ -148,7 +183,7 @@ public final class AutoCourseService {
         }
 
         java.util.Random random = new java.util.Random(seed);
-        Course course = generateOutwardConeCourse(seed, player.getBlockPos(), player.getYaw(), 25, 80);
+        Course course = generateOutwardConeCourse(seed, player.getBlockPos(), player.getYaw(), 25, 80, HOLE_COUNT, false);
 
 
         source.sendFeedback(() -> Text.literal("Auto-building course '" + trimmed + "' (" + HOLE_COUNT + " holes) starting at your position...").formatted(Formatting.GREEN), false);
@@ -184,9 +219,46 @@ public final class AutoCourseService {
         state.cooldownTicks = 0;
 
         if (state.placer == null) {
-            state.placer = new TickIncrementalCoursePlacer(
-                    placementService, state.world, state.origin, state.course, false,
-                    msg -> broadcastProgress(server, msg));
+            if (state.caveMode) {
+                // Use standalone cave placement service for cave courses
+                PlacedCourseState placedState =
+                    com.mcdg.world.cave.CaveCoursePlacementService.placeCaveCourse(
+                            state.world, state.origin, state.course,
+                            holeIndex -> broadcastProgress(server, "Placing hole " + holeIndex + "...")
+                    );
+
+                // Save and activate the cave course
+                try {
+                    Course namedCourse = new Course(state.course.seed(), state.courseName, state.course.holes());
+                    int catalogIndex = practiceCourseStorage.saveReusable(server, namedCourse, placedState, "autocourse", false);
+
+                    // Activate the newly built course immediately
+                    ServerPlayerEntity player = server.getPlayerManager().getPlayer(state.ownerUuid);
+                    if (player != null && activeCourseManager != null) {
+                        activeCourseManager.setActiveCourse(namedCourse);
+                        activeCourseManager.setPlacedCourseState(placedState);
+                        activeCourseManager.setActiveCourseCatalogIndex(catalogIndex);
+                        activeCourseManager.setPersistentPlacedCourse(true);
+                        activeCourseManager.setLegacyPracticeSnapshot(false);
+                        activeCourseManager.setRoundActive(false);
+                    }
+
+                    broadcastSuccess(server, "Cave course '" + state.courseName + "' built and saved as #" + catalogIndex + ". Use [LIST COURSES] to start a round.");
+                    broadcastListCoursesButton(server);
+                } catch (Exception ex) {
+                    broadcastError(server, "Cave course build failed: " + ex.getMessage());
+                    McdgMod.LOGGER.error("Cave course build failed", ex);
+                }
+
+                // Mark as done and clean up
+                state.done = true;
+                state = null;
+                return;
+            } else {
+                state.placer = new TickIncrementalCoursePlacer(
+                        placementService, state.world, state.origin, state.course, false,
+                        msg -> broadcastProgress(server, msg), false, false);
+            }
         }
 
         long start = System.nanoTime();
@@ -277,7 +349,11 @@ public final class AutoCourseService {
      * Callers are responsible for resetting the placed state via CoursePlacementService.resetPlacedCourse().
      */
     public AutoCourseScenarioResult runSynchronousScenario(ServerWorld world, BlockPos origin, long seed, String courseName) {
-        Course course = generateOutwardConeCourse(seed, origin, 0.0f, 25, 80);
+        return runSynchronousScenario(world, origin, seed, courseName, HOLE_COUNT, false);
+    }
+
+    public AutoCourseScenarioResult runSynchronousScenario(ServerWorld world, BlockPos origin, long seed, String courseName, int holeCount, boolean caveMode) {
+        Course course = generateOutwardConeCourse(seed, origin, 0.0f, 25, 80, holeCount, caveMode);
         return placeCourseIncrementally(world, origin, course, true, null);
     }
 
@@ -300,12 +376,17 @@ public final class AutoCourseService {
      */
     public TickIncrementalCoursePlacer createTickIncrementalPlacer(
             ServerWorld world, BlockPos hubOrigin, Course course, boolean skipHub, java.util.function.Consumer<String> progressMessage) {
-        return new TickIncrementalCoursePlacer(placementService, world, hubOrigin, course, skipHub, progressMessage, false);
+        return new TickIncrementalCoursePlacer(placementService, world, hubOrigin, course, skipHub, progressMessage, false, false);
     }
 
     public TickIncrementalCoursePlacer createTickIncrementalPlacer(
             ServerWorld world, BlockPos hubOrigin, Course course, boolean skipHub, java.util.function.Consumer<String> progressMessage, boolean skipWaterEstimation) {
-        return new TickIncrementalCoursePlacer(placementService, world, hubOrigin, course, skipHub, progressMessage, skipWaterEstimation);
+        return new TickIncrementalCoursePlacer(placementService, world, hubOrigin, course, skipHub, progressMessage, skipWaterEstimation, false);
+    }
+
+    public TickIncrementalCoursePlacer createTickIncrementalPlacer(
+            ServerWorld world, BlockPos hubOrigin, Course course, boolean skipHub, java.util.function.Consumer<String> progressMessage, boolean skipWaterEstimation, boolean caveMode) {
+        return new TickIncrementalCoursePlacer(placementService, world, hubOrigin, course, skipHub, progressMessage, skipWaterEstimation, caveMode);
     }
 
     public AutoCourseScenarioResult placeCourseIncrementally(ServerWorld world, BlockPos hubOrigin, Course course, boolean skipHub, java.util.function.Consumer<String> progressMessage) {
@@ -321,7 +402,7 @@ public final class AutoCourseService {
     }
 
     /**
-     * Generates a 9-hole Course using an outward teardrop cone layout.
+     * Generates a Course using an outward teardrop cone layout.
      * All hole positions are relative to the origin so placeCourseIncrementally can place them.
      *
      * @param origin              the reference point (resort center or player position)
@@ -330,8 +411,27 @@ public final class AutoCourseService {
      * @param baseLineWidth       width of the base line (80 blocks)
      */
     public Course generateOutwardConeCourse(long seed, BlockPos origin, float facingYaw, int baseLineDistance, int baseLineWidth) {
+        return generateOutwardConeCourse(seed, origin, facingYaw, baseLineDistance, baseLineWidth, HOLE_COUNT, false);
+    }
+
+    /**
+     * Generates a Course using an outward teardrop cone layout with cave mode support.
+     * All hole positions are relative to the origin so placeCourseIncrementally can place them.
+     *
+     * @param origin              the reference point (resort center or player position)
+     * @param facingYaw           the direction the cone opens (degrees)
+     * @param baseLineDistance    distance from origin to the base line (100-150 for resort, 25 for player)
+     * @param baseLineWidth       width of the base line (80 blocks)
+     * @param holeCount           number of holes to generate
+     * @param caveMode            whether to generate in cave mode (shorter distances, tighter layout)
+     */
+    public Course generateOutwardConeCourse(long seed, BlockPos origin, float facingYaw, int baseLineDistance, int baseLineWidth, int holeCount, boolean caveMode) {
         java.util.Random random = new java.util.Random(seed);
-        int signatureHoleIndex = random.nextInt(HOLE_COUNT) + 1;
+        int signatureHoleIndex = holeCount > 0 ? random.nextInt(holeCount) + 1 : 1;
+        
+        // Use relative Y=0 for cave mode (places at player's Y level), otherwise use absolute Y=64
+        // Course coordinates are relative to origin, so Y=0 means same Y as player
+        int baseY = caveMode ? 0 : 64;
 
         double yawRad = Math.toRadians(facingYaw);
         double fwdX = -Math.sin(yawRad);
@@ -340,7 +440,8 @@ public final class AutoCourseService {
         double rightZ = -fwdX;
 
         int baseLineHalf = baseLineWidth / 2;
-        double coneAngle = Math.toRadians(30.0);
+        // Adjust cone angle for cave mode (tighter layouts in caves)
+        double coneAngle = Math.toRadians(caveMode ? 20.0 : 30.0);
         double tanCone = Math.tan(coneAngle);
 
         int ox = origin.getX();
@@ -361,32 +462,56 @@ public final class AutoCourseService {
             return Math.abs(right) <= allowedRight;
         };
 
-        // Phase-based distance ranges (blocks)
-        int[] minDistBlocks = { 0, 150, 180, 200, 100, 100,  80,  70,  60 };
-        int[] maxDistBlocks = { 0, 300, 400, 450, 250, 220, 180, 160, 140 };
+        // Adjust distances for cave mode (shorter for tighter spaces)
+        double distanceMultiplier = caveMode ? 0.6 : 1.0;
+        
+        // Phase-based distance ranges (blocks) - dynamic based on hole count
+        int[] minDistBlocks = new int[holeCount + 1];
+        int[] maxDistBlocks = new int[holeCount + 1];
+        
+        // Generate distance arrays based on hole count
+        for (int i = 1; i <= holeCount; i++) {
+            double phaseProgress = (double) i / holeCount;
+            if (phaseProgress <= 0.33) {
+                // Outbound phase
+                minDistBlocks[i] = (int) (150 * distanceMultiplier);
+                maxDistBlocks[i] = (int) (300 * distanceMultiplier);
+            } else if (phaseProgress <= 0.66) {
+                // Turnaround phase
+                minDistBlocks[i] = (int) (100 * distanceMultiplier);
+                maxDistBlocks[i] = (int) (250 * distanceMultiplier);
+            } else {
+                // Return phase
+                minDistBlocks[i] = (int) (60 * distanceMultiplier);
+                maxDistBlocks[i] = (int) (180 * distanceMultiplier);
+            }
+        }
 
         // Phase-based basket angle base (radians), relative to forward direction
-        // Outbound (1-3): mostly forward, small spread
-        // Turnaround (4-6): angled back ~60-120 degrees
-        // Return (7-9): pulling back ~120-180 degrees
-        double[] basketAngleBase = {
-            0.0,
-            0.0,            // hole 1: straight out
-            0.15,           // hole 2: slight spread
-            0.25,           // hole 3: more spread
-            Math.PI * 0.45, // hole 4: ~80deg turn
-            Math.PI * 0.55, // hole 5: ~100deg turn
-            Math.PI * 0.65, // hole 6: ~117deg turn
-            Math.PI * 0.70, // hole 7: ~126deg back
-            Math.PI * 0.78, // hole 8: ~140deg back
-            Math.PI * 0.86  // hole 9: ~155deg back toward baseline
-        };
+        // Dynamic based on hole count
+        double[] basketAngleBase = new double[holeCount + 1];
+        basketAngleBase[0] = 0.0;
+        
+        for (int i = 1; i <= holeCount; i++) {
+            double phaseProgress = (double) i / holeCount;
+            if (phaseProgress <= 0.33) {
+                // Outbound: mostly forward, small spread
+                basketAngleBase[i] = phaseProgress * 0.75;
+            } else if (phaseProgress <= 0.66) {
+                // Turnaround: angled back
+                basketAngleBase[i] = Math.PI * (0.4 + (phaseProgress - 0.33) * 0.5);
+            } else {
+                // Return: pulling back toward baseline
+                basketAngleBase[i] = Math.PI * (0.7 + (phaseProgress - 0.66) * 0.3);
+            }
+        }
 
-        final int MIN_HOLE_SPACING = 40;
-        final int MIN_TEE_TEE_BLOCKS = 45;
-        final int MIN_BASKET_BASKET_BLOCKS = 35;
-        final int MIN_TEE_PREV_BASKET_BLOCKS = 20;
-        final int MIN_BASKET_PREV_TEE_BLOCKS = 35;
+        // Adjust spacing for cave mode (wider spacing to prevent intersecting holes)
+        final int MIN_HOLE_SPACING = caveMode ? 55 : 40;
+        final int MIN_TEE_TEE_BLOCKS = caveMode ? 65 : 45;
+        final int MIN_BASKET_BASKET_BLOCKS = caveMode ? 55 : 35;
+        final int MIN_TEE_PREV_BASKET_BLOCKS = caveMode ? 35 : 20;
+        final int MIN_BASKET_PREV_TEE_BLOCKS = caveMode ? 50 : 35;
         List<int[]> midpoints = new ArrayList<>(); // {midX, midZ}
         List<int[]> previousTees = new ArrayList<>();
         List<int[]> previousBaskets = new ArrayList<>();
@@ -400,7 +525,7 @@ public final class AutoCourseService {
         double globalAngleSign = random.nextBoolean() ? 1.0 : -1.0;
         int prevBasketZ = baseCenterZ;
 
-        for (int i = 1; i <= HOLE_COUNT; i++) {
+        for (int i = 1; i <= holeCount; i++) {
             int teeX, teeZ;
             double teeFwdX = (i == 1) ? fwdX : prevHeadingX;
             double teeFwdZ = (i == 1) ? fwdZ : prevHeadingZ;
@@ -413,7 +538,8 @@ public final class AutoCourseService {
                 teeZ = baseCenterZ + (int) Math.round(rightZ * rightOffset);
             } else {
                 // Sequential: tee near previous basket, stepping along previous hole trajectory
-                int teeForward = 35 + random.nextInt(21); // 35-55 blocks past basket
+                // Adjust distance for cave mode (tighter layouts in caves)
+                int teeForward = caveMode ? 25 + random.nextInt(16) : 35 + random.nextInt(21); // 25-40 vs 35-55 blocks
                 int teeRight = (random.nextInt(31) - 15); // +/-15 blocks
                 teeX = prevBasketX + (int) Math.round(teeFwdX * teeForward + teeRightX * teeRight);
                 teeZ = prevBasketZ + (int) Math.round(teeFwdZ * teeForward + teeRightZ * teeRight);
@@ -434,8 +560,8 @@ public final class AutoCourseService {
 
             while (!placed && placementAttempts < MAX_PLACEMENT_ATTEMPTS) {
                 placementAttempts++;
-            if (i == HOLE_COUNT) {
-                // Hole 9 basket lands near base line, offset >= 30 from tee1
+            if (i == holeCount) {
+                // Final hole basket lands near base line, offset >= 30 from tee1
                 int hole9RightOffset = 30 + random.nextInt(31);
                 if (random.nextBoolean()) {
                     hole9RightOffset = -hole9RightOffset;
@@ -580,8 +706,8 @@ public final class AutoCourseService {
                     i,
                     par,
                     distanceFeet,
-                    new TeePoint(relTeeX, 64, relTeeZ),
-                    new BasketPoint(relBasketX, 64, relBasketZ, bh),
+                    new TeePoint(relTeeX, baseY, relTeeZ),
+                    new BasketPoint(relBasketX, baseY, relBasketZ, bh),
                     List.of(new FairwaySegment(0, 0, localBasketX, localBasketZ, fw)),
                     i == signatureHoleIndex ? SignatureHoleType.ISLAND_GREEN : SignatureHoleType.NONE
             );
@@ -652,17 +778,20 @@ public final class AutoCourseService {
         private final Course course;
         private final BlockPos origin;
         private final ServerWorld world;
+        private final boolean caveMode;
         private int ticksWaited = TICKS_BETWEEN_HOLES;
         private int cooldownTicks = 0;
         private TickIncrementalCoursePlacer placer = null;
+        private boolean done = false;
 
-        private AutoBuildState(UUID ownerUuid, String courseName, long seed, Course course, BlockPos origin, ServerWorld world) {
+        private AutoBuildState(UUID ownerUuid, String courseName, long seed, Course course, BlockPos origin, ServerWorld world, boolean caveMode) {
             this.ownerUuid = ownerUuid;
             this.courseName = courseName;
             this.seed = seed;
             this.course = course;
             this.origin = origin;
             this.world = world;
+            this.caveMode = caveMode;
         }
     }
 

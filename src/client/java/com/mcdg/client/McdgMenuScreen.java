@@ -172,13 +172,18 @@ public final class McdgMenuScreen extends Screen {
     }
 
     private void addAutoCourseBtn(String label, int x, int y, int w, int textColor, int tint) {
-        ButtonWidget btn = ButtonWidget.builder(Text.literal(label), b -> {
+        boolean caveMode = state.caveMode();
+        String finalLabel = caveMode ? "🕳️ " + label : label;
+        int finalTint = caveMode ? BTN_TINT_RED : tint;
+        int finalTextColor = caveMode ? TEXT_RED : textColor;
+        
+        ButtonWidget btn = ButtonWidget.builder(Text.literal(finalLabel), b -> {
             if (client != null) {
                 client.setScreen(new AutoCourseNameScreen(this));
             }
         }).dimensions(x, y, w, BTN_H).build();
         contentButtons.add(btn);
-        buttonTints.add(new int[]{x, y, w, BTN_H, tint});
+        buttonTints.add(new int[]{x, y, w, BTN_H, finalTint});
         addDrawableChild(btn);
     }
 

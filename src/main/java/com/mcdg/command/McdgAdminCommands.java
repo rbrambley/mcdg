@@ -3,6 +3,8 @@ package com.mcdg.command;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 
+import com.mojang.brigadier.arguments.BoolArgumentType;
+
 import com.mcdg.McdgMod;
 import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
