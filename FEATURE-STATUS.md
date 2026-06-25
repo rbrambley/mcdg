@@ -1,7 +1,7 @@
 # MCDG Feature Status Truth Table
 
 **Purpose:** Single source of truth mapping every planned feature to its actual code status.  
-**Last Updated:** 2026-06-24  
+**Last Updated:** 2026-06-25  
 **How to read:**
 - **Plan Status** — what the design documents claim
 - **Code Status** — what actually exists in `src/main/java` and `src/client/java`
@@ -38,8 +38,9 @@
 | Feature | Plan Status | Code Status | Verdict | Risk |
 |---------|-------------|-------------|---------|------|
 | Wind system | ✅ Complete | `WindManager`, `WindManagerClient`, `WindSync`, biome/weather/time modifiers, gusts, HUD indicator, admin commands | Accurate | Low |
-| Custom throw animations | ⏸️ Placeholder | UseAction mappings only (Overhand=SPEAR, Backhand=CROSSBOW, Forehand=BOW) | Accurate | Low |
-| Expanded hazards (sand, rough, ice) | 📋 Planning | Basic `OutOfBoundsClassifier` exists; `HoleHazardGridService` exists but limited hazard types | Accurate | Low |
+| Custom throw animations | ⏸️ Placeholder | UseAction mappings only (Overhand=SPEAR, Backhand=CROSSBOW, Forehand=BOW); event-based arm animations deferred | Accurate | Low |
+| Expanded hazards (sand, rough, ice, cactus, swamp, lava, cliff) | ✅ Complete | `HazardType` enum, `HazardBehavior` record, `HazardManager`, `BiomeHazardProfile`/`HazardPlacementService`, minimap grid colors | Accurate | Low |
+| Cave course autobuild | ✅ Complete | `CaveCoursePlacementService`, `CaveStructureBuilder`, `CaveHazardPlacementService` with water tunnels, tee pads, basket markers | Accurate | Low |
 
 ---
 

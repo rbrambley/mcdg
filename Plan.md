@@ -1,8 +1,8 @@
 # MCDG Coordinated Plan
 
-## Overall Status Summary (2026-06-22)
+## Overall Status Summary (2026-06-25)
 
-**Active Development Phase:** Phase 1 - Critical Fixes & Foundation (✅ COMPLETE)
+**Active Development Phase:** Phase 2 - Enhanced Gameplay Systems (✅ COMPLETE)
 
 **Recently Completed (June 2026):**
 - ✅ Real-Time Progressive Trail Rendering - Players can now "watch the disc fly"
@@ -21,12 +21,15 @@
 - ❌ Grappling Disc - Removed June 2024 due to reliability issues (entity type infrastructure preserved for future retry)
 - ❌ Boomerang Disc - Removed June 2024 due to reliability issues (entity type infrastructure preserved for future retry)
 - ✅ CommandPermission refactor - Extracted utility from McdgAdminCommands
+- ✅ Wind System (Phase 2.1) - Per-world wind, biome/weather/time modifiers, gusts, client sync, admin commands
+- ✅ Expanded Hazards (Phase 2.2) - Sand, rough, ice, cactus, swamp, lava, cliff hazards with biome placement
+- ✅ Cave Course Autobuild - Underground course generator with water tunnels, tee pads, and basket markers
+- ⏸️ Custom Throw Animations (Phase 2.3) - UseAction placeholder complete; full event-based animations deferred
 
 **Current Focus:**
-- 📋 Phase 2: Enhanced Gameplay Systems (Wind System, Custom Throw Animations)
+- 📋 Phase 3: Progression Systems (Disc Crafting Progression, Custom Disc Stats, Challenge Courses)
 
 **Upcoming Phases:**
-- Phase 2: Enhanced Gameplay Systems (Wind System, Custom Throw Animations)
 - Phase 3: Progression Systems (Disc Crafting, Custom Disc Stats, Challenge Courses)
 - Phase 4: Advanced Features (Quest System)
 - Phase 5: Polish & Integration

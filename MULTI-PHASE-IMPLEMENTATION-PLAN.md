@@ -2,9 +2,9 @@
 
 **Status:** Master Implementation Plan
 **Created:** 2026-06-17
-**Last Updated:** 2026-06-22
-**Current Phase:** Phase 2 (Enhanced Gameplay Systems) — in progress
-**Overall Progress:** Phase 1 of 6 (✅ COMPLETE) — Phase 2.1 complete, 2.2/2.3 pending
+**Last Updated:** 2026-06-25
+**Current Phase:** Phase 2 (Enhanced Gameplay Systems) — 2.1/2.2 complete, 2.3 placeholder complete
+**Overall Progress:** Phase 1 of 6 (✅ COMPLETE) — Phase 2.1/2.2 complete, 2.3 placeholder complete, ready to enter Phase 3
 **Goal:** Combine all feature plans into cohesive development phases with logical dependencies and priorities
 
 ---
@@ -15,7 +15,7 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
 
 ## Current Progress
 
-**Overall Progress:** Phase 1 of 6 (✅ COMPLETE) — Phase 2.1 complete, 2.2/2.3 pending
+**Overall Progress:** Phase 1 of 6 (✅ COMPLETE) — Phase 2.1/2.2 complete, 2.3 placeholder complete, ready to enter Phase 3
 
 **Completed:**
 - ✅ Phase 1.1: Fade/Hyzer/Anhyzer Physics Fix (COMPLETED - 2026-06-17)
@@ -65,11 +65,11 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
   - Entity type infrastructure preserved in `McdgEntityTypes.java` for future retry
 
 **In Progress:**
-- Phase 2 (Enhanced Gameplay Systems) — 2.1 complete; 2.2 and 2.3 pending
+- Phase 2 (Enhanced Gameplay Systems) — 2.1/2.2 complete, 2.3 placeholder complete
 
 **Next Priority:**
-- 📋 Phase 2.2: Expanded Hazards
-- 📋 Phase 2.3: Custom Throw Animations
+- 📋 Phase 3.1: Disc Crafting Progression
+- 📋 Phase 3.2: Custom Disc Stats
 
 **Combined Plans:**
 - Fade/Hyzer/Anhyzer Physics Fix (FADE_FIX_PLAN.md)
@@ -264,26 +264,34 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
 **Source:** SURVIVAL-ENHANCEMENTS-PLAN.md (Phase 2.2)
 **Effort:** 3-5 hours
 **Dependencies:** None (biome course generation completed in Phase 1.5c)
+**Status:** ✅ COMPLETED (2026-06-24)
 
 **Tasks:**
-- Add new hazard types (sand traps, rough, ice, cactus, swamps)
-- Implement hazard behavior system
-- Add visual feedback for different hazards
+- ✅ Add new hazard types (`HazardType` enum: SAND, ROUGH, ICE, CACTUS, SWAMP, LAVA, CLIFF, WATER)
+- ✅ Implement hazard behavior system (`HazardBehavior` record, `HazardManager` detection)
+- ✅ Add visual feedback for different hazards (`HazardType.GridCategory` encoded for minimap, `HoleMapRenderer` color overlays)
+- ✅ Biome-specific hazard placement during course generation (`BiomeHazardProfile`, `BiomeHazardResolver`, `HazardPlacementService`)
 
 **Impact:** MEDIUM-HIGH - Course variety and challenge depth
+
+**Bonus Feature Completed:**
+- ✅ Cave Course Autobuild (2026-06-25) — `CaveCoursePlacementService`, `CaveStructureBuilder`, `CaveHazardPlacementService` with water tunnels, tee pads, and basket markers
 
 ### **Phase 2.3: Custom Throw Animations**
 **Source:** CUSTOM-THROW-ANIMATION-PLAN.md
 **Effort:** 10-20 hours
 **Dependencies:** None
+**Status:** ✅ PLACEHOLDER COMPLETE (2026-06-24) — UseAction mappings provide distinct vanilla poses
 
 **Tasks:**
-- Implement event-based rendering hooks
-- Create stance-specific arm animations
-- Add timing and smoothing
-- Integrate with existing UseAction system
+- ✅ Integrate with existing `UseAction` system (Overhand → SPEAR, Backhand → CROSSBOW, Forehand → BOW)
+- ⏸️ Implement event-based rendering hooks (deferred to future polish)
+- ⏸️ Create stance-specific arm animations (deferred to future polish)
+- ⏸️ Add timing and smoothing (deferred to future polish)
 
 **Impact:** MEDIUM - Visual polish, authentic feel
+
+**Note:** Current placeholder gives immediate visual feedback at zero risk. Full event-based arm animations are tracked as future polish, not a Phase 2 blocker.
 
 **Phase 2 Total Effort:** 19-33 hours
 
