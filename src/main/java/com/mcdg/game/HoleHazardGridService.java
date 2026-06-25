@@ -95,9 +95,9 @@ public final class HoleHazardGridService {
                 } else if (roughEnabled && OutOfBoundsClassifier.isDenseRoughHazard(world, feet, roughThreshold)) {
                     hazardType = 1; // Rough (surface hazard category)
                 } else {
-                    // Only use HazardManager for non-fluid, non-slope, non-rough hazards
-                    // This avoids expensive isSteepDrop checks for most cells
-                    HazardType hazard = HazardManager.getHazardType(world, feet);
+                    // Use the lightweight grid variant that skips the expensive cliff scan;
+                    // elevation hazards are already covered by the slope pass above.
+                    HazardType hazard = HazardManager.getHazardTypeForGrid(world, feet);
                     if (hazard != HazardType.NONE && hazard != HazardType.WATER && hazard != HazardType.LAVA) {
                         hazardType = HazardManager.getGridCategoryByte(hazard);
                     }

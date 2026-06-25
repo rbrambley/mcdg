@@ -33,6 +33,10 @@ public final class CaveCoursePlacementService {
     /**
      * Places a course in a cave environment at the specified origin.
      * All placement uses the origin's Y coordinate without surface resolution.
+     *
+     * Memory note: protectedPositions stores every block in a 9x9x6 box around each tee and basket.
+     * With the default 3-hole cave course this is at most ~3,000 BlockPos objects, which is trivial;
+     * larger cave courses would scale linearly with hole count.
      */
     public static PlacedCourseState placeCaveCourse(
             ServerWorld world,

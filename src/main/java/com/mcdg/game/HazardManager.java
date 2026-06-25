@@ -3,10 +3,14 @@ package com.mcdg.game;
 import com.mcdg.McdgMod;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.item.ItemStack;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.registry.tag.FluidTags;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Hand;
 import net.minecraft.util.math.BlockPos;
 
 /**
@@ -65,6 +69,49 @@ public final class HazardManager {
         // Check cliff (steep elevation drop)
         if (isSteepDrop(world, feet)) {
             return HazardType.CLIFF;
+        }
+
+        return HazardType.NONE;
+    }
+
+    /**
+     * Lightweight hazard detection for HoleMap grid sampling.
+     * Performs the same surface/fluid checks as {@link #getHazardType(ServerWorld, BlockPos)}
+     * but skips the expensive cliff/elevation drop scan because the grid already has a
+     * dedicated slope pass via {@link OutOfBoundsClassifier#isSteepSlopeHazard}.
+     */
+    public static HazardType getHazardTypeForGrid(ServerWorld world, BlockPos feet) {
+        BlockState block = world.getBlockState(feet);
+        BlockState below = world.getBlockState(feet.down());
+
+        if (isFluidHazard(world, feet)) {
+            if (world.getFluidState(feet).isIn(FluidTags.WATER) || world.getFluidState(feet.down()).isIn(FluidTags.WATER)) {
+                return HazardType.WATER;
+            } else {
+                return HazardType.LAVA;
+            }
+        }
+
+        if (block.isOf(Blocks.SAND) || block.isOf(Blocks.RED_SAND) ||
+            below.isOf(Blocks.SAND) || below.isOf(Blocks.RED_SAND)) {
+            return HazardType.SAND;
+        }
+
+        if (block.isOf(Blocks.ICE) || block.isOf(Blocks.PACKED_ICE) ||
+            below.isOf(Blocks.ICE) || below.isOf(Blocks.PACKED_ICE)) {
+            return HazardType.ICE;
+        }
+
+        if (block.isOf(Blocks.CACTUS) || below.isOf(Blocks.CACTUS)) {
+            return HazardType.CACTUS;
+        }
+
+        if (isDenseRoughMaterial(block) || isDenseRoughMaterial(below)) {
+            return HazardType.ROUGH;
+        }
+
+        if (isSwampMaterial(block) || isSwampMaterial(below)) {
+            return HazardType.SWAMP;
         }
 
         return HazardType.NONE;
@@ -177,10 +224,18 @@ public final class HazardManager {
         }
 
         if (behavior.destroysDisc()) {
-            // Disc destruction logic - remove disc from player inventory
-            // This is a placeholder for future disc destruction implementation
-            // For now, we just log it and apply a penalty
-            McdgMod.LOGGER.info("Disc destroyed by hazard: {}", hazardType.displayName());
+            // Destroy the disc held by the player (main hand preferred, then off hand).
+            ItemStack mainHand = player.getMainHandStack();
+            if (mainHand.isOf(McdgItems.TRAINING_DISC)) {
+                player.setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
+            } else {
+                ItemStack offHand = player.getOffHandStack();
+                if (offHand.isOf(McdgItems.TRAINING_DISC)) {
+                    player.setStackInHand(Hand.OFF_HAND, ItemStack.EMPTY);
+                }
+            }
+            player.sendMessage(Text.literal("Your disc was destroyed by the " + hazardType.displayName() + "!").formatted(Formatting.RED), true);
+            McdgMod.LOGGER.info("Disc destroyed by hazard: {} for player {}", hazardType.displayName(), player.getGameProfile().getName());
         }
     }
 }

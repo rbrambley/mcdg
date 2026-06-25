@@ -84,6 +84,10 @@ public final class CaveEnvironmentValidator {
     /**
      * Prepares the cave area for course placement by clearing vegetation and uneven terrain.
      * This is called before course placement to ensure suitable floor space.
+     *
+     * Note: this clears a bounded 17x17x6 volume (~1,734 blocks) synchronously on the server thread.
+     * It is intentionally a one-shot admin action, not tick-spread, so the player sees the cleared
+     * area before the validator and course placer run.
      */
     public static void prepareCaveArea(ServerWorld world, BlockPos center, Map<BlockPos, BlockState> originalBlocks) {
         int clearRadius = 8;

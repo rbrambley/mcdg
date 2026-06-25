@@ -13,6 +13,8 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.Heightmap;
 
+import java.util.Optional;
+
 /**
  * Classifies whether a player lie is in-bounds, out-of-bounds, or in a hazard.
  */
@@ -26,10 +28,10 @@ public final class OutOfBoundsClassifier {
     private OutOfBoundsClassifier() {}
 
     /**
-     * Detailed penalty classification including human-readable reason.
+     * Detailed penalty classification including human-readable reason and the resolved hazard type.
      */
-    public record PenaltyDetail(StrictPenaltyType type, String reason) {
-        public static final PenaltyDetail NONE = new PenaltyDetail(StrictPenaltyType.NONE, "In Bounds");
+    public record PenaltyDetail(StrictPenaltyType type, String reason, Optional<HazardType> hazardType) {
+        public static final PenaltyDetail NONE = new PenaltyDetail(StrictPenaltyType.NONE, "In Bounds", Optional.empty());
     }
 
     /**
@@ -141,21 +143,21 @@ public final class OutOfBoundsClassifier {
             if (debug) {
                 McdgMod.LOGGER.info("[OBClassifier] feet={} -> FLUID_OB", formatPos(feet));
             }
-            return new PenaltyDetail(StrictPenaltyType.OB, "Water");
+            return new PenaltyDetail(StrictPenaltyType.OB, "Water", Optional.empty());
         }
 
         if (rulesetManager.strictEnableSlopeHazard() && isSteepSlopeHazard(world, feet, rulesetManager.strictSlopeHazardDeltaY())) {
             if (debug) {
                 McdgMod.LOGGER.info("[OBClassifier] feet={} -> SLOPE_HAZARD", formatPos(feet));
             }
-            return new PenaltyDetail(StrictPenaltyType.HAZARD, "Slope");
+            return new PenaltyDetail(StrictPenaltyType.HAZARD, "Slope", Optional.empty());
         }
 
         if (rulesetManager.strictEnableRoughHazard() && isDenseRoughHazard(world, feet, rulesetManager.strictRoughHazardLeafLogThreshold())) {
             if (debug) {
                 McdgMod.LOGGER.info("[OBClassifier] feet={} -> ROUGH_HAZARD", formatPos(feet));
             }
-            return new PenaltyDetail(StrictPenaltyType.HAZARD, "Rough");
+            return new PenaltyDetail(StrictPenaltyType.HAZARD, "Rough", Optional.empty());
         }
 
         // Check for expanded hazards via HazardManager
@@ -168,7 +170,7 @@ public final class OutOfBoundsClassifier {
                     McdgMod.LOGGER.info("[OBClassifier] feet={} -> EXPANDED_HAZARD: {}", formatPos(feet), expandedHazard.displayName());
                 }
                 // Disc destruction hazards still count as HAZARD for penalty purposes
-                return new PenaltyDetail(StrictPenaltyType.HAZARD, behavior.penaltyReason());
+                return new PenaltyDetail(StrictPenaltyType.HAZARD, behavior.penaltyReason(), Optional.of(expandedHazard));
             }
         }
 

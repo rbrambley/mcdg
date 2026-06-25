@@ -7,6 +7,7 @@ import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.SafePositionFinder;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import net.minecraft.entity.projectile.thrown.EnderPearlEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -286,8 +287,21 @@ public final class ThrowResolver {
                     roundStateManager.applyPenaltyStrokes(player.getUuid(), penaltyStrokes);
                 }
 
-                // Apply dynamic hazard effects (damage, slowness, disc destruction)
-                HazardType hazardType = HazardManager.getHazardType(world, resultingLie);
+                // Determine hazard type for effect application.
+                // For HAZARD penalty, resultingLie is currentFeet, so reuse the classification result.
+                // For OB penalty, resultingLie is the safe lie from crossing resolution, so scan it.
+                BlockPos finalResultingLie = resultingLie;
+                HazardType hazardType;
+                if (landingPenalty == StrictPenaltyType.HAZARD) {
+                    hazardType = currentFeetDetail.hazardType()
+                            .or(() -> standableFeetDetail.hazardType())
+                            .orElseGet(() -> HazardManager.getHazardType(world, finalResultingLie));
+                } else if (landingPenalty == StrictPenaltyType.OB) {
+                    hazardType = HazardManager.getHazardType(world, finalResultingLie);
+                } else {
+                    hazardType = HazardType.NONE;
+                }
+
                 if (hazardType != HazardType.NONE) {
                     HazardBehavior behavior = HazardManager.getHazardBehavior(hazardType);
                     HazardManager.applyHazardEffects(player, behavior, hazardType);
