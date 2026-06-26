@@ -4,7 +4,6 @@ import com.mcdg.McdgMod;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
-import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
@@ -24,7 +23,7 @@ public final class McdgBlocks {
         Registry.register(
                 Registries.ITEM,
                 new Identifier(McdgMod.MOD_ID, "disc_workbench"),
-                new BlockItem(DISC_WORKBENCH, new Item.Settings())
+                new DiscWorkbenchItem(DISC_WORKBENCH, new Item.Settings())
         );
     }
 }

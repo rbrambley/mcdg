@@ -125,10 +125,23 @@ public final class DiscEnchantedBook extends Item {
         int level = getLevel(stack);
         if (enchant != null && level > 0) {
             tooltip.add(Text.literal(enchant.displayName() + " " + roman(level)).formatted(enchant.color()));
-            tooltip.add(Text.literal("Hold Training Disc in main hand, right-click").formatted(net.minecraft.util.Formatting.GRAY));
+            int percent = Math.round(enchant.perLevelMultiplier() * level * 100.0f);
+            tooltip.add(Text.translatable(effectKey(enchant), roman(level), percent)
+                    .formatted(net.minecraft.util.Formatting.GRAY));
+            tooltip.add(Text.translatable("tooltip.mcdg.enchanted_book.usage")
+                    .formatted(net.minecraft.util.Formatting.DARK_GRAY));
         } else {
-            tooltip.add(Text.literal("Empty book").formatted(net.minecraft.util.Formatting.DARK_GRAY));
+            tooltip.add(Text.translatable("tooltip.mcdg.enchanted_book.empty")
+                    .formatted(net.minecraft.util.Formatting.DARK_GRAY));
         }
+    }
+
+    private static String effectKey(DiscEnchantment enchant) {
+        return switch (enchant) {
+            case GLIDE -> "tooltip.mcdg.enchanted_book.effect.glide";
+            case FADE_CONTROL -> "tooltip.mcdg.enchanted_book.effect.fade_control";
+            case DISTANCE -> "tooltip.mcdg.enchanted_book.effect.distance";
+        };
     }
 
     private static String roman(int level) {

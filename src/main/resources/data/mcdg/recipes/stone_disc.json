@@ -1,12 +1,13 @@
 {
   "type": "minecraft:crafting_shaped",
   "pattern": [
-    "AAA",
-    " B "
+    " A ",
+    "ABA",
+    " A "
   ],
   "key": {
     "A": {
-      "item": "minecraft:cobblestone"
+      "tag": "minecraft:stone_tool_materials"
     },
     "B": {
       "item": "mcdg:wooden_disc"

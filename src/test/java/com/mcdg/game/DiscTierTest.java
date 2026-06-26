@@ -38,6 +38,46 @@ public class DiscTierTest {
     }
 
     @Test
+    @DisplayName("DiscTier flight numbers should match approved tooltip ratings")
+    public void testFlightNumbers() {
+        assertEquals(50, DiscTier.TRAINING.durability());
+        assertEquals(3, DiscTier.TRAINING.flightSpeed());
+        assertEquals(4, DiscTier.TRAINING.flightGlide());
+        assertEquals(0, DiscTier.TRAINING.flightTurn());
+        assertEquals(1, DiscTier.TRAINING.flightFade());
+
+        assertEquals(4, DiscTier.WOODEN.flightSpeed());
+        assertEquals(3, DiscTier.WOODEN.flightGlide());
+        assertEquals(-1, DiscTier.WOODEN.flightTurn());
+        assertEquals(1, DiscTier.WOODEN.flightFade());
+
+        assertEquals(5, DiscTier.STONE.flightSpeed());
+        assertEquals(3, DiscTier.STONE.flightGlide());
+        assertEquals(0, DiscTier.STONE.flightTurn());
+        assertEquals(1, DiscTier.STONE.flightFade());
+
+        assertEquals(6, DiscTier.IRON.flightSpeed());
+        assertEquals(4, DiscTier.IRON.flightGlide());
+        assertEquals(0, DiscTier.IRON.flightTurn());
+        assertEquals(2, DiscTier.IRON.flightFade());
+
+        assertEquals(7, DiscTier.GOLD.flightSpeed());
+        assertEquals(5, DiscTier.GOLD.flightGlide());
+        assertEquals(-1, DiscTier.GOLD.flightTurn());
+        assertEquals(1, DiscTier.GOLD.flightFade());
+
+        assertEquals(9, DiscTier.DIAMOND.flightSpeed());
+        assertEquals(6, DiscTier.DIAMOND.flightGlide());
+        assertEquals(0, DiscTier.DIAMOND.flightTurn());
+        assertEquals(3, DiscTier.DIAMOND.flightFade());
+
+        assertEquals(11, DiscTier.NETHERITE.flightSpeed());
+        assertEquals(7, DiscTier.NETHERITE.flightGlide());
+        assertEquals(1, DiscTier.NETHERITE.flightTurn());
+        assertEquals(4, DiscTier.NETHERITE.flightFade());
+    }
+
+    @Test
     @DisplayName("DiscStats wind resistance should be stored correctly")
     public void testWindResistance() {
         assertEquals(0.0, new DiscStats(1.0, 1.0, 1.0, 0.0).windResistance(), 0.0001);

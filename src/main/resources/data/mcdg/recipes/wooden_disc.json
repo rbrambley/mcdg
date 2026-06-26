@@ -1,12 +1,16 @@
 {
   "type": "minecraft:crafting_shaped",
   "pattern": [
-    "AA",
-    "AA"
+    " A ",
+    "AFA",
+    " A "
   ],
   "key": {
     "A": {
       "tag": "minecraft:planks"
+    },
+    "F": {
+      "item": "minecraft:feather"
     }
   },
   "result": {

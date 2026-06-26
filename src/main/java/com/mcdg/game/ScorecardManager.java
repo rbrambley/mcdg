@@ -16,6 +16,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 public final class ScorecardManager {
     public static final String KEY_SCORECARD = "McdgScorecard";
     public static final String KEY_COURSE_NAME = "courseName";
+    public static final String KEY_PLAYER_NAME = "playerName";
     public static final String KEY_HOLES = "holes";
     public static final String KEY_HOLE_INDEX = "index";
     public static final String KEY_DISTANCE_FEET = "distanceFeet";
@@ -100,6 +101,26 @@ public final class ScorecardManager {
         }
 
         root.put(KEY_HOLES, holes);
+        SCORECARD_BY_PLAYER.put(player.getUuid(), root.copy());
+        setScorecardRoot(stack, root);
+    }
+
+    /**
+     * Stores the player name on the scorecard when the round is completed,
+     * turning the scorecard into a souvenir.
+     */
+    public static void recordCompletionPlayer(ServerPlayerEntity player) {
+        ItemStack stack = findScorecard(player);
+        if (stack.isEmpty()) {
+            return;
+        }
+
+        NbtCompound root = getScorecardRoot(stack);
+        if (root == null) {
+            return;
+        }
+
+        root.putString(KEY_PLAYER_NAME, player.getGameProfile().getName());
         SCORECARD_BY_PLAYER.put(player.getUuid(), root.copy());
         setScorecardRoot(stack, root);
     }

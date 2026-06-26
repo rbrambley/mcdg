@@ -30,11 +30,7 @@ public final class McdgItems {
             boolean strictFlowDebugEnabled
     ) {
         strictFlowDebug = strictFlowDebugEnabled;
-        TRAINING_DISC = Registry.register(
-                Registries.ITEM,
-                new Identifier(McdgMod.MOD_ID, "training_disc"),
-                new ChargedDiscItem(new Item.Settings().maxCount(1), courseManager, roundStateManager, rulesetManager, strictFlowDebug)
-        );
+        TRAINING_DISC = registerTieredDisc("training_disc", DiscTier.TRAINING, courseManager, roundStateManager, rulesetManager);
 
         WOODEN_DISC = registerTieredDisc("wooden_disc", DiscTier.WOODEN, courseManager, roundStateManager, rulesetManager);
         STONE_DISC = registerTieredDisc("stone_disc", DiscTier.STONE, courseManager, roundStateManager, rulesetManager);

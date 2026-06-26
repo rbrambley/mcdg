@@ -19,13 +19,19 @@ public final class ScorecardItem extends Item {
     public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, TooltipType type) {
         NbtCompound root = ScorecardManager.getScorecardRoot(stack);
         if (root == null) {
-            tooltip.add(Text.literal("No round data yet.").formatted(Formatting.DARK_GRAY));
+            tooltip.add(Text.translatable("tooltip.mcdg.scorecard.empty").formatted(Formatting.DARK_GRAY));
             return;
         }
 
         String courseName = root.getString(ScorecardManager.KEY_COURSE_NAME);
         if (!courseName.isBlank()) {
             tooltip.add(Text.literal(courseName).formatted(Formatting.AQUA));
+        }
+
+        String playerName = root.getString(ScorecardManager.KEY_PLAYER_NAME);
+        if (!playerName.isBlank()) {
+            tooltip.add(Text.translatable("tooltip.mcdg.scorecard.completed_by", playerName)
+                    .formatted(Formatting.GOLD));
         }
 
         tooltip.add(Text.literal(String.format("%-2s %-6s %-3s %-5s", "H", "Dist", "Par", "Score")).formatted(Formatting.GRAY));

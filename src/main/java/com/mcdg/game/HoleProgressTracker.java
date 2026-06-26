@@ -262,6 +262,7 @@ public final class HoleProgressTracker {
                     removeTemporaryRoundItems(player);
 
                     roundStateManager.recordCompletedRound(player.getUuid(), state.totalStrokes());
+                    ScorecardManager.recordCompletionPlayer(player);
                     if (leaderboardManager != null) {
                         leaderboardManager.recordScore(server, course.name(), player.getGameProfile().getName(), state.totalStrokes());
                     }

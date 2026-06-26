@@ -541,6 +541,13 @@ public class ChargedDiscItem extends Item {
 
     @Override
     public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, net.minecraft.client.item.TooltipType type) {
+        // Subclasses (TieredDiscItem) add their own layout; enchantments are added via addEnchantmentTooltip.
+    }
+
+    /**
+     * Adds the active disc enchantments to the tooltip.
+     */
+    protected void addEnchantmentTooltip(ItemStack stack, List<Text> tooltip) {
         Map<DiscEnchantment, Integer> enchantments = DiscEnchantmentHelper.getAll(stack);
         for (Map.Entry<DiscEnchantment, Integer> entry : enchantments.entrySet()) {
             DiscEnchantment enchant = entry.getKey();
