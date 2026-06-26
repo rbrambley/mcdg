@@ -27,18 +27,10 @@ public class AccessoryEffectTest {
     }
 
     @Test
-    @DisplayName("Wind Sense provides a wind resistance bonus")
-    public void testWindSenseValues() {
-        assertEquals("Wind Sense", AccessoryEffect.WIND_SENSE.displayName());
-        assertEquals(0.10f, AccessoryEffect.WIND_SENSE.perLevelMultiplier(), 0.0001f);
-        assertEquals(1, AccessoryEffect.WIND_SENSE.maxLevel());
-    }
-
-    @Test
-    @DisplayName("Range Finder has no per-level multiplier")
+    @DisplayName("Range Finder provides a throw speed/distance bonus")
     public void testRangeFinderValues() {
         assertEquals("Range Finder", AccessoryEffect.RANGE_FINDER.displayName());
-        assertEquals(0.0f, AccessoryEffect.RANGE_FINDER.perLevelMultiplier(), 0.0001f);
+        assertEquals(0.05f, AccessoryEffect.RANGE_FINDER.perLevelMultiplier(), 0.0001f);
         assertEquals(1, AccessoryEffect.RANGE_FINDER.maxLevel());
     }
 }

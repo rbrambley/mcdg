@@ -16,13 +16,12 @@ public final class PlayerThrowStats {
             return baseStats;
         }
 
-        double stability = baseStats.stabilityMultiplier();
-        double throwSpeed = baseStats.throwSpeedMultiplier();
-        double glide = baseStats.glideMultiplier();
-        double windResistance = baseStats.windResistance();
+        DiscStats stats = AccessoryManager.applyAccessoryEffects(baseStats, player);
 
-        // Accessory effects
-        stability += AccessoryManager.getStabilityBonus(player);
+        double glide = stats.glideMultiplier();
+        double stability = stats.stabilityMultiplier();
+        double throwSpeed = stats.throwSpeedMultiplier();
+        double windResistance = stats.windResistance();
 
         // Skill effects (only apply to ServerPlayerEntity on the server)
         if (player instanceof net.minecraft.server.network.ServerPlayerEntity serverPlayer) {

@@ -27,6 +27,6 @@ public class AccessoryItem extends Item {
         super.appendTooltip(stack, context, tooltip, type);
         tooltip.add(Text.translatable("tooltip.mcdg.accessory.effect", effect.displayName())
                 .formatted(effect.color()));
-        tooltip.add(Text.translatable("tooltip.mcdg.accessory.slot").formatted(Formatting.DARK_GRAY));
+        tooltip.add(Text.translatable(effect.tooltipKey()).formatted(Formatting.DARK_GRAY));
     }
 }

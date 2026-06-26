@@ -8,8 +8,7 @@ import net.minecraft.util.Formatting;
 public enum AccessoryEffect {
     GRIP_STABILITY("Grip Stability", "DARK_GREEN", 0.08f),
     DURABILITY_PRESERVE("Durability Preserve", "AQUA", 0.15f),
-    WIND_SENSE("Wind Sense", "YELLOW", 0.10f),
-    RANGE_FINDER("Range Finder", "GOLD", 0.0f);
+    RANGE_FINDER("Range Finder", "GOLD", 0.05f);
 
     private final String displayName;
     private final String colorName;
@@ -36,5 +35,13 @@ public enum AccessoryEffect {
 
     public int maxLevel() {
         return 1;
+    }
+
+    public String tooltipKey() {
+        return switch (this) {
+            case GRIP_STABILITY -> "tooltip.mcdg.accessory.glove";
+            case DURABILITY_PRESERVE -> "tooltip.mcdg.accessory.towel";
+            case RANGE_FINDER -> "tooltip.mcdg.accessory.range_finder";
+        };
     }
 }

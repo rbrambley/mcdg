@@ -1,16 +1,19 @@
 package com.mcdg.game;
 
+import java.util.List;
+import java.util.UUID;
+import net.minecraft.client.item.TooltipType;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.NbtComponent;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.world.World;
-
-import java.util.UUID;
 
 /**
  * A portable disc bag that stores multiple discs for quick access during rounds.
@@ -32,6 +35,13 @@ public class DiscBagItem extends Item {
             user.openHandledScreen(new DiscBagScreenHandlerFactory(bagStack, world.getRegistryManager()));
         }
         return TypedActionResult.success(user.getStackInHand(hand));
+    }
+
+    @Override
+    public void appendTooltip(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, TooltipType type) {
+        super.appendTooltip(stack, context, tooltip, type);
+        tooltip.add(Text.translatable("tooltip.mcdg.disc_bag.usage").formatted(Formatting.GRAY));
+        tooltip.add(Text.translatable("tooltip.mcdg.disc_bag.capacity", BAG_SLOTS).formatted(Formatting.DARK_GRAY));
     }
 
     /**

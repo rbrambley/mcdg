@@ -65,16 +65,25 @@ public final class AccessoryManager {
     }
 
     /**
+     * Computes the throw speed/distance multiplier bonus from range finder accessories.
+     */
+    public static float getRangeBonus(PlayerEntity player) {
+        int level = getEffectLevel(player, AccessoryEffect.RANGE_FINDER);
+        return level * AccessoryEffect.RANGE_FINDER.perLevelMultiplier();
+    }
+
+    /**
      * Applies accessory effects to the base disc stats to create an effective
      * stat set for the current throw.
      */
     public static DiscStats applyAccessoryEffects(DiscStats baseStats, PlayerEntity player) {
         float stabilityBonus = getStabilityBonus(player);
         double effectiveStability = Math.min(2.0, baseStats.stabilityMultiplier() + stabilityBonus);
+        double effectiveThrowSpeed = Math.min(2.0, baseStats.throwSpeedMultiplier() + getRangeBonus(player));
         return new DiscStats(
                 baseStats.glideMultiplier(),
                 effectiveStability,
-                baseStats.throwSpeedMultiplier(),
+                effectiveThrowSpeed,
                 baseStats.windResistance()
         );
     }
