@@ -38,6 +38,8 @@
 | Feature | Plan Status | Code Status | Verdict | Risk |
 |---------|-------------|-------------|---------|------|
 | Wind system | ✅ Complete | `WindManager`, `WindManagerClient`, `WindSync`, biome/weather/time modifiers, gusts, HUD indicator, admin commands | Accurate | Low |
+| Round lifecycle wind automation | ✅ Complete | `RoundWindPolicy`, `RoundWindService`, CALM default, consistent per round, manual override, hooks in round commands | Accurate | Low |
+| Tournament wind modes | 📋 Post-release | `TournamentWindManager` not implemented; placeholder remains in `WindManager` | Accurate | Low |
 | Custom throw animations | ⏸️ Placeholder | UseAction mappings only (Overhand=SPEAR, Backhand=CROSSBOW, Forehand=BOW); event-based arm animations deferred | Accurate | Low |
 | Expanded hazards (sand, rough, ice, cactus, swamp, lava, cliff) | ✅ Complete | `HazardType` enum, `HazardBehavior` record, `HazardManager`, `BiomeHazardProfile`/`HazardPlacementService`, minimap grid colors | Accurate | Low |
 | Cave course autobuild | ✅ Complete | `CaveCoursePlacementService`, `CaveStructureBuilder`, `CaveHazardPlacementService` with water tunnels, tee pads, basket markers | Accurate | Low |

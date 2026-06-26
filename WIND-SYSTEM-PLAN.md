@@ -818,6 +818,7 @@ void testWindPhysicsApplication() {
 - [x] Wind affects disc flight trajectory based on speed and direction
 - [x] Natural wind generation based on biome, weather, and time
 - [x] Admin commands for manual wind control
+- [x] Round lifecycle wind automation (CALM default, consistent per round, manual override disables automation)
 - [ ] Tournament wind modes for competitive play (deferred - requires tournament system)
 - [x] HUD display of current wind conditions
 - [x] Client-server wind synchronization
@@ -870,6 +871,15 @@ void testWindPhysicsApplication() {
 - Enhanced `/mcdg wind show` command with gusting indicator and usage hints
 - Documentation updated with implementation status
 
+**Round Lifecycle Automation** ✅
+- `RoundWindPolicy` and `RoundWindService` implemented
+- Wind automatically applied on round start and restored on round end/cleanup
+- `RoundWindMode.CALM` default preserves legacy behavior
+- Consistent wind for the entire round (no mid-round changes)
+- Manual `/mcdg wind` command disables automation until round end or `/mcdg wind auto`
+- Configuration: `MCDG_ROUND_WIND_MODE` (CALM, NATURAL, FIXED_RANDOM)
+- Hooks added to `startround`, `resumecourse`, `playcourse`, `endround`, `cleanupcourse`, and session commands
+
 ### Deferred Phases
 
 **Phase 4: Tournament Wind Support** ⏸️
@@ -877,6 +887,8 @@ void testWindPhysicsApplication() {
 - Tournament wind modes (CALM, CONSISTENT, VARIABLE, NATURAL) planned
 - Seeded wind generation for fairness
 - Admin oversight tools for tournament wind management
+- Per-hole wind variation (deferred to post-round-automation polish)
+- Wind presets (light/moderate/strong) (deferred to config expansion)
 
 ---
 

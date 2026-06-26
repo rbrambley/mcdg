@@ -17,6 +17,7 @@ import com.mcdg.game.RoundInventoryCleaner;
 import com.mcdg.game.RoundPresentationService;
 import com.mcdg.game.RoundSessionStorage;
 import com.mcdg.game.RoundStateManager;
+import com.mcdg.game.RoundWindService;
 import com.mcdg.game.ScorecardManager;
 import com.mcdg.game.ThrowAutoTestService;
 import com.mcdg.McdgMod;
@@ -108,6 +109,12 @@ public final class RoundAdminCommands {
         }
 
         CommandUtils.removeTemporaryRoundItemsFromCourseWorldPlayers(source, courseManager);
+        courseManager.getPlacedCourseState().ifPresent(placed -> {
+            ServerWorld world = source.getServer().getWorld(placed.worldKey());
+            if (world != null) {
+                RoundWindService.onRoundEnd(world);
+            }
+        });
         courseManager.setRoundActive(false);
         CommandUtils.clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
         source.sendFeedback(() -> Text.literal("Round ended. Use /mcdg cleanupcourse to restore terrain edits."), true);

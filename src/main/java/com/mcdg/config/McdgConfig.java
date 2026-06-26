@@ -1,5 +1,7 @@
 package com.mcdg.config;
 
+import com.mcdg.game.RoundWindMode;
+
 public record McdgConfig(
         boolean enableHudScoringDebug,
     boolean enableStrictFlowDebug,
@@ -11,7 +13,8 @@ public record McdgConfig(
         boolean productionMode,
         boolean enableWindSystem,
         double defaultWindSpeed,
-        int windUpdateIntervalTicks
+        int windUpdateIntervalTicks,
+        RoundWindMode roundWindMode
 ) {
     public static McdgConfig loadDefault() {
         boolean productionMode = readBoolEnvWithDefault("MCDG_PRODUCTION_MODE", true);
@@ -25,7 +28,8 @@ public record McdgConfig(
         boolean enableWind = readBoolEnvWithDefault("MCDG_ENABLE_WIND", true);
         double defaultWindSpeed = readDoubleEnv("MCDG_DEFAULT_WIND_SPEED", 0.2, 0.0, 1.0);
         int windUpdateInterval = readIntEnv("MCDG_WIND_UPDATE_INTERVAL", 200, 20, 600);
-    return new McdgConfig(hudScoringDebug, strictFlowDebug, skipPresentation, respawnPenaltyStrokes, 9, true, survivalRewards, productionMode, enableWind, defaultWindSpeed, windUpdateInterval);
+        RoundWindMode roundWindMode = readRoundWindModeEnv("MCDG_ROUND_WIND_MODE", RoundWindMode.CALM);
+    return new McdgConfig(hudScoringDebug, strictFlowDebug, skipPresentation, respawnPenaltyStrokes, 9, true, survivalRewards, productionMode, enableWind, defaultWindSpeed, windUpdateInterval, roundWindMode);
     }
 
     private static boolean readBoolEnv(String name) {
@@ -78,6 +82,19 @@ public record McdgConfig(
             double parsed = Double.parseDouble(raw.trim());
             return Math.max(min, Math.min(max, parsed));
         } catch (NumberFormatException ex) {
+            return fallback;
+        }
+    }
+
+    private static RoundWindMode readRoundWindModeEnv(String name, RoundWindMode fallback) {
+        String raw = System.getenv(name);
+        if (raw == null || raw.isBlank()) {
+            return fallback;
+        }
+
+        try {
+            return RoundWindMode.valueOf(raw.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
             return fallback;
         }
     }

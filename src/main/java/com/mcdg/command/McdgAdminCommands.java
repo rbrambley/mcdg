@@ -60,6 +60,8 @@ import net.minecraft.util.math.Box;
 import com.mcdg.game.OutOfBoundsClassifier;
 import com.mcdg.game.BotSimulator;
 import com.mcdg.game.BotSimulator.BotSkill;
+import com.mcdg.game.RoundWindMode;
+import com.mcdg.game.RoundWindService;
 import com.mcdg.game.WindManager;
 import com.mcdg.game.WindMode;
 import com.mojang.brigadier.arguments.BoolArgumentType;
@@ -485,7 +487,9 @@ public final class McdgAdminCommands {
                                 .then(literal("show")
                                         .executes(context -> executeWindShow(context.getSource())))
                                 .then(literal("random")
-                                        .executes(context -> executeWindRandom(context.getSource()))))
+                                        .executes(context -> executeWindRandom(context.getSource())))
+                                .then(literal("auto")
+                                        .executes(context -> executeWindAuto(context.getSource()))))
                         ));
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
@@ -851,6 +855,7 @@ public final class McdgAdminCommands {
                         }
 
                         RoundChunkLoader.loadCourseChunks(world, placed);
+                        RoundWindService.onRoundStart(world, course.seed());
 
                         for (ServerPlayerEntity player : participants) {
                                 BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
@@ -1009,6 +1014,7 @@ public final class McdgAdminCommands {
                 }
 
                 RoundChunkLoader.loadCourseChunks(world, placed);
+                RoundWindService.onRoundStart(world, course.seed());
 
                 for (ServerPlayerEntity player : participants) {
                         BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
@@ -1431,6 +1437,7 @@ public final class McdgAdminCommands {
                 placementService.resetPlacedCourse(world, placed);
                 removeJunkDropsNearCourse(world, placed);
                 removeTemporaryRoundItemsFromCourseWorldPlayers(source, courseManager);
+                RoundWindService.onRoundEnd(world);
                 courseManager.clearPlacedCourseState();
                 courseManager.setRoundActive(false);
                 clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
@@ -1659,6 +1666,12 @@ public final class McdgAdminCommands {
                 }
 
                 removeTemporaryRoundItemsFromCourseWorldPlayers(source, courseManager);
+                courseManager.getPlacedCourseState().ifPresent(placed -> {
+                        ServerWorld world = source.getServer().getWorld(placed.worldKey());
+                        if (world != null) {
+                                RoundWindService.onRoundEnd(world);
+                        }
+                });
                 courseManager.setRoundActive(false);
                 clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
                 source.sendFeedback(() -> Text.literal("Round ended. Use /mcdg resetcourse to restore terrain edits."), true);
@@ -2273,6 +2286,7 @@ public final class McdgAdminCommands {
         placementService.resetPlacedCourse(world, placed);
         removeJunkDropsNearCourse(world, placed);
         removeTemporaryRoundItemsFromCourseWorldPlayers(source, courseManager);
+        RoundWindService.onRoundEnd(world);
         courseManager.setRoundActive(false);
         clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
 
@@ -2317,6 +2331,9 @@ public final class McdgAdminCommands {
         boolean wasActiveMatch = activeCatalogIndex != null && activeCatalogIndex == oneBasedIndex;
         if (wasActiveMatch || courseManager.isRoundActive()) {
             removeTemporaryRoundItemsFromCourseWorldPlayers(source, courseManager);
+            if (world != null) {
+                RoundWindService.onRoundEnd(world);
+            }
             courseManager.setActiveCourse(null);
             courseManager.clearPlacedCourseState();
             courseManager.setActiveCourseCatalogIndex(null);
@@ -2536,6 +2553,15 @@ public final class McdgAdminCommands {
         ServerWorld world = source.getWorld();
         WindManager.setWindMode(world, WindMode.NATURAL);
         source.sendFeedback(() -> Text.literal("Wind set to random natural mode").formatted(Formatting.GREEN), true);
+        return 1;
+    }
+
+    private static int executeWindAuto(ServerCommandSource source) {
+        ServerWorld world = source.getWorld();
+        RoundWindService.reEnableAutomation(world, 0L);
+        source.sendFeedback(() -> Text.literal(
+                "Round wind automation re-enabled | mode=" + RoundWindService.getRoundWindMode()
+        ).formatted(Formatting.GREEN), true);
         return 1;
     }
 

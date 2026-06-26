@@ -23,7 +23,13 @@ public final class WindManager {
     
     // Per-world wind state storage
     private static final ConcurrentHashMap<Identifier, WindState> WORLD_WIND_STATES = new ConcurrentHashMap<>();
-    
+
+    // Saved wind state before a round started, used to restore conditions after the round
+    private static final ConcurrentHashMap<Identifier, WindState> PRE_ROUND_WIND_STATES = new ConcurrentHashMap<>();
+
+    // Tracks worlds where an admin has manually set wind, disabling round lifecycle automation
+    private static final ConcurrentHashMap<Identifier, Boolean> MANUAL_OVERRIDES = new ConcurrentHashMap<>();
+
     // Configuration (will be set from McdgConfig)
     private static boolean windSystemEnabled = true;
     private static double defaultWindSpeed = 0.2;
@@ -91,14 +97,15 @@ public final class WindManager {
         }
         
         WORLD_WIND_STATES.put(worldId, newState);
-        
+        setManualOverride(worldId, true);
+
         // Broadcast wind update to all players
         broadcastWindUpdate(world, newState);
-        
+
         McdgMod.LOGGER.info("Wind mode set | world={} mode={} speed={} direction={}°", 
                           worldId, mode, newState.speed(), newState.directionDegrees());
     }
-    
+
     /**
      * Set manual wind for a world (FIXED mode).
      */
@@ -106,14 +113,66 @@ public final class WindManager {
         Identifier worldId = world.getRegistryKey().getValue();
         WindState newState = WindState.fixed(speed, directionDegrees);
         WORLD_WIND_STATES.put(worldId, newState);
-        
+        setManualOverride(worldId, true);
+
         // Broadcast wind update to all players
         broadcastWindUpdate(world, newState);
-        
+
         McdgMod.LOGGER.info("Manual wind set | world={} speed={} direction={}°", 
                           worldId, speed, directionDegrees);
     }
-    
+
+    /**
+     * Set a wind state directly without marking it as a manual override.
+     * Used by round lifecycle automation so it does not disable itself.
+     */
+    public static void setWorldWindState(ServerWorld world, WindState wind) {
+        Identifier worldId = world.getRegistryKey().getValue();
+        WORLD_WIND_STATES.put(worldId, wind);
+        broadcastWindUpdate(world, wind);
+    }
+
+    /**
+     * Save the current wind state for a world so it can be restored after a round.
+     */
+    public static void saveWorldWind(ServerWorld world) {
+        Identifier worldId = world.getRegistryKey().getValue();
+        PRE_ROUND_WIND_STATES.put(worldId, getWindState(world));
+    }
+
+    /**
+     * Restore the wind state saved before the round and drop the saved snapshot.
+     */
+    public static void restoreWorldWind(ServerWorld world) {
+        Identifier worldId = world.getRegistryKey().getValue();
+        WindState saved = PRE_ROUND_WIND_STATES.remove(worldId);
+        if (saved != null) {
+            setWorldWindState(world, saved);
+            McdgMod.LOGGER.info("Restored pre-round wind | world={}", worldId);
+        }
+    }
+
+    /**
+     * Mark whether a world has a manual wind override, disabling round automation.
+     */
+    public static void setManualOverride(Identifier worldId, boolean overridden) {
+        MANUAL_OVERRIDES.put(worldId, overridden);
+    }
+
+    /**
+     * Check if a world currently has a manual wind override active.
+     */
+    public static boolean isManualOverride(Identifier worldId) {
+        return Boolean.TRUE.equals(MANUAL_OVERRIDES.get(worldId));
+    }
+
+    /**
+     * Clear the manual override flag for a world.
+     */
+    public static void clearManualOverride(Identifier worldId) {
+        MANUAL_OVERRIDES.remove(worldId);
+    }
+
     /**
      * Set tournament wind for a specific tournament.
      */
@@ -189,8 +248,9 @@ public final class WindManager {
     /**
      * Generate natural wind based on world conditions.
      * Phase 2: Includes biome, weather, and time modifiers with smoothed direction changes.
+     * Package-private so RoundWindService can generate round-scoped natural wind.
      */
-    private static WindState generateNaturalWind(ServerWorld world, WindState previousWind) {
+    static WindState generateNaturalWind(ServerWorld world, WindState previousWind) {
         long currentTick = world.getServer().getTicks();
         
         // Get biome modifier at spawn position (representative location)
@@ -307,6 +367,8 @@ public final class WindManager {
     public static void reset() {
         int count = WORLD_WIND_STATES.size();
         WORLD_WIND_STATES.clear();
+        PRE_ROUND_WIND_STATES.clear();
+        MANUAL_OVERRIDES.clear();
         McdgMod.LOGGER.info("WindManager reset | cleared {} world wind states", count);
     }
     

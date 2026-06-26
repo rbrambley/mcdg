@@ -11,6 +11,7 @@ import com.mcdg.game.RoundChunkLoader;
 import com.mcdg.game.RoundInventoryCleaner;
 import com.mcdg.game.RoundSessionStorage;
 import com.mcdg.game.RoundStateManager;
+import com.mcdg.game.RoundWindService;
 import com.mcdg.game.ScorecardManager;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -109,6 +110,7 @@ public final class SessionCommands {
             courseManager.removeActiveParticipantIds(removedIds);
             if (courseManager.getActiveParticipantIds().isEmpty()) {
                 courseManager.setRoundActive(false);
+                RoundWindService.onRoundEnd(world);
             }
         }
 
@@ -189,6 +191,7 @@ public final class SessionCommands {
         int skipped = 0;
         int manualUsed = 0;
         int autoUsed = 0;
+        boolean roundWasAlreadyActive = courseManager.isRoundActive();
         for (ServerPlayerEntity player : players) {
             UUID playerId = player.getUuid();
             var manual = playerRoundSessionStorage.loadPlayer(source.getServer(), playerId, null).orElse(null);
@@ -237,6 +240,10 @@ public final class SessionCommands {
                             + (usedManual ? " from manual save." : " from auto state.")
             ), true);
             resumed++;
+        }
+
+        if (resumed > 0 && !roundWasAlreadyActive && courseManager.isRoundActive()) {
+            RoundWindService.onRoundStart(world, course.seed());
         }
 
         final int resumedCount = resumed;
@@ -335,6 +342,7 @@ public final class SessionCommands {
                 ServerWorld worldToUnload = source.getServer().getWorld(placedToUnload.worldKey());
                 if (worldToUnload != null) {
                     RoundChunkLoader.unloadAll(worldToUnload);
+                    RoundWindService.onRoundEnd(worldToUnload);
                 }
             }
             courseManager.setActiveCourse(null);

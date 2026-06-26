@@ -29,6 +29,7 @@ import com.mcdg.game.RoundPresentationService;
 import com.mcdg.game.RoundRespawnHandler;
 import com.mcdg.game.RoundSessionStorage;
 import com.mcdg.game.RoundStateManager;
+import com.mcdg.game.RoundWindService;
 import com.mcdg.game.ScorecardManager;
 import com.mcdg.game.PlayerSkillManager;
 import com.mcdg.game.ThrowAutoTestService;
@@ -252,7 +253,8 @@ public final class McdgMod implements ModInitializer {
         
         // Initialize wind manager with configuration
         WindManager.initialize(config.enableWindSystem(), config.defaultWindSpeed(), config.windUpdateIntervalTicks());
-        
+        RoundWindService.initialize(config.roundWindMode());
+
         McdgItems.register(ACTIVE_COURSE_MANAGER, ROUND_STATE_MANAGER, TOURNAMENT_RULESET_MANAGER, config.enableStrictFlowDebug());
         McdgBlocks.register();
         McdgBlockEntities.register();

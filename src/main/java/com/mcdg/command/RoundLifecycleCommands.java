@@ -9,6 +9,7 @@ import com.mcdg.game.PlacedCourseState;
 import com.mcdg.game.PracticeCourseStorage;
 import com.mcdg.game.RoundPresentationService;
 import com.mcdg.game.RoundStateManager;
+import com.mcdg.game.RoundWindService;
 import com.mcdg.game.ScorecardManager;
 import com.mcdg.game.RoundChunkLoader;
 import com.mcdg.world.CoursePlacementService;
@@ -196,6 +197,7 @@ public final class RoundLifecycleCommands {
             }
             courseManager.setPlacedCourseState(placed);
             RoundChunkLoader.loadCourseChunks(world, placed);
+            RoundWindService.onRoundStart(world, course.seed());
 
             for (ServerPlayerEntity player : participants) {
                 BlockPos safeTee = SafePositionFinder.resolveSafeFeetNear(world, firstTee);
@@ -331,6 +333,7 @@ public final class RoundLifecycleCommands {
         CommandUtils.clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
         CommandUtils.removeTemporaryRoundItemsFromPlayers(participants);
         RoundChunkLoader.loadCourseChunks(world, placed);
+        RoundWindService.onRoundStart(world, course.seed());
 
         List<UUID> participantIds = new ArrayList<>();
         BlockPos firstTee = placed.holeTees().get(1);
@@ -432,6 +435,7 @@ public final class RoundLifecycleCommands {
         CommandUtils.clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
         practiceCourseStorage.clear(source.getServer());
         HoleProgressTracker.resetAllState(source.getServer());
+        RoundWindService.onRoundEnd(world);
 
         source.sendFeedback(() -> Text.literal("Course cleanup complete. Original blocks restored."), true);
         return 1;
@@ -472,6 +476,7 @@ public final class RoundLifecycleCommands {
             courseManager.setRoundActive(false);
             CommandUtils.clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
             practiceCourseStorage.clear(source.getServer());
+            RoundWindService.onRoundEnd(world);
         }
         HoleProgressTracker.resetAllState(source.getServer());
 
