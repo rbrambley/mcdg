@@ -92,6 +92,9 @@ public final class WorldSpawnHandler {
 
         // Queue surround courses for background building (non-blocking)
         ResortCourseBuilder.queueSurroundCourses(overworld, spawnPos, autoCourseService, practiceCourseStorage, server);
+
+        // Place lost course entrances in the world
+        LostCoursePlacement.placeLostCourseEntrances(overworld, spawnPos);
     }
 
     private static boolean isFreshWorld(MinecraftServer server) {

@@ -3,8 +3,8 @@
 **Status:** Master Implementation Plan
 **Created:** 2026-06-17
 **Last Updated:** 2026-06-25
-**Current Phase:** Phase 3 (Progression Systems) — 3.1 core complete, 3.1 follow-up pending
-**Overall Progress:** Phase 1 of 6 (✅ COMPLETE) — Phase 2.1/2.2 complete, 2.3 placeholder complete, Phase 3.1 core tiered discs complete
+**Current Phase:** Phase 3 (Progression Systems) — 3.1 core complete, 3.1 follow-up complete, 3.3 complete
+**Overall Progress:** Phase 1 of 6 (✅ COMPLETE) — Phase 2.1/2.2 complete, 2.3 placeholder complete, Phase 3.1 core tiered discs complete, Phase 3.3 challenge courses complete
 **Goal:** Combine all feature plans into cohesive development phases with logical dependencies and priorities
 
 ---
@@ -65,12 +65,10 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
   - Entity type infrastructure preserved in `McdgEntityTypes.java` for future retry
 
 **In Progress:**
-- Phase 3.1 follow-up: disc bags, accessories, skill-based unlocks
+- Phase 3.2: Custom Disc Stats
 
 **Next Priority:**
-- 📋 Phase 3.1 follow-up: disc bags, accessories, skill-based unlocks
 - 📋 Phase 3.2: Custom Disc Stats
-- 📋 Phase 3.3: Challenge Courses
 
 **Combined Plans:**
 - Fade/Hyzer/Anhyzer Physics Fix (FADE_FIX_PLAN.md)
@@ -334,16 +332,16 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
 
 **Impact:** HIGH - Strategic depth, authentic disc golf feel
 
-### **Phase 3.3: Challenge Courses**
+### **Phase 3.3: Challenge Courses** ✅ COMPLETED (2026-06-26)
 **Source:** SURVIVAL-ENHANCEMENTS-PLAN.md (Phase 2.3)
 **Effort:** 3-4 hours
 **Dependencies:** Phase 2.2 (biome courses, hazards)
 
 **Tasks:**
-- Implement lost course discovery system
-- Add boss holes and time trials
-- Create exploration rewards
-- Add challenge course generation
+- ✅ Implement lost course discovery system
+- ✅ Add boss holes and time trials
+- ✅ Create exploration rewards
+- ✅ Add challenge course generation
 
 **Impact:** MEDIUM - Exploration content, replayability
 

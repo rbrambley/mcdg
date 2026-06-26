@@ -24,6 +24,9 @@ import com.mcdg.game.DiscFlightSimulator;
 import com.mcdg.game.ElytraDiscMigration;
 import com.mcdg.game.EntityCapper;
 import com.mcdg.game.PracticeCourseStorage;
+import com.mcdg.game.ChallengeCourseDiscoveryHandler;
+import com.mcdg.game.ChallengeCourseManager;
+import com.mcdg.game.ChallengeCourseCatalog;
 import com.mcdg.game.RoundInventoryCleaner;
 import com.mcdg.game.RoundPresentationService;
 import com.mcdg.game.RoundRespawnHandler;
@@ -403,6 +406,9 @@ public final class McdgMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> ResortCourseBuilder.reset());
         ResortChestReplenisher.registerInteractionHandler();
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> ResortChestReplenisher.clear());
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            ChallengeCourseManager.getCatalog().ifPresent(catalog -> catalog.save(server));
+        });
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
             server.execute(() -> {
                 restoreRoundParticipantOnJoin(handler.player, server);
@@ -439,6 +445,13 @@ public final class McdgMod implements ModInitializer {
             for (ServerWorld world : server.getWorlds()) {
                 world.getGameRules().get(GameRules.DO_MOB_GRIEFING).set(false, server);
             }
+            
+            // Load or create challenge course catalog
+            ChallengeCourseCatalog catalog = ChallengeCourseCatalog.load(server)
+                .orElseGet(ChallengeCourseCatalog::new);
+            ChallengeCourseManager.initialize(catalog);
+            LOGGER.info("Challenge course catalog initialized with {} courses", 
+                catalog.getAllCourses().size());
         });
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
             if (!(player instanceof ServerPlayerEntity serverPlayer)) {
@@ -454,7 +467,13 @@ public final class McdgMod implements ModInitializer {
                     return ActionResult.SUCCESS;
                 }
             }
+            // Handle challenge course discovery
+            ChallengeCourseDiscoveryHandler.onBlockInteract(player, hitResult.getBlockPos(), world.getBlockState(hitResult.getBlockPos()));
             return ActionResult.PASS;
+        });
+
+        PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
+            ChallengeCourseDiscoveryHandler.onBlockBreak(player, pos, state);
         });
 
         LOGGER.info("Initialized {} (defaultHoles={}, protection={}, hudScoringDebug={}, strictFlowDebug={}, skipRoundPresentation={}, rulesetDefault={}, strictRespawnPenaltyStrokes={}, survivalRewards={}, productionMode={})",

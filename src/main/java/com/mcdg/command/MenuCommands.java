@@ -4,6 +4,8 @@ import com.mcdg.game.ActiveCourseManager;
 import com.mcdg.game.PlayerRoundSessionStorage;
 import com.mcdg.game.PlacedCourseState;
 import com.mcdg.game.PracticeCourseStorage;
+import com.mcdg.game.ChallengeCourseManager;
+import com.mcdg.game.ChallengeCourseCatalog;
 import com.mcdg.net.MenuScreenSync;
 import com.mcdg.rules.TournamentRulesetManager;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -65,6 +67,7 @@ public final class MenuCommands {
         } else {
             source.sendFeedback(() -> Text.literal("─ Play ─").formatted(Formatting.GREEN), false);
             source.sendFeedback(() -> menuButton("List Courses", "/mcdg listcourses", Formatting.AQUA, true), false);
+            source.sendFeedback(() -> menuButton("Challenge Courses", "/mcdg menu challenge", Formatting.LIGHT_PURPLE, true), false);
             source.sendFeedback(() -> menuButton("Join Round", "/mcdg joinround", Formatting.GREEN, true), false);
         }
 
@@ -140,6 +143,49 @@ public final class MenuCommands {
         source.sendFeedback(() -> menuButton("Fast (forgiving)", "/mcdg ruleset surface fast", Formatting.GREEN, true), false);
         source.sendFeedback(() -> menuButton("Balanced (default)", "/mcdg ruleset surface balanced", Formatting.YELLOW, true), false);
         source.sendFeedback(() -> menuButton("Tournament (hardest)", "/mcdg ruleset surface tournament", Formatting.RED, true), false);
+        sendBackToMenu(source);
+        return 1;
+    }
+
+    public static int executeMenuChallenge(ServerCommandSource source) {
+        source.sendFeedback(() -> Text.literal("Challenge Courses").formatted(Formatting.LIGHT_PURPLE, Formatting.BOLD), false);
+        
+        var catalog = ChallengeCourseManager.getCatalog();
+        if (catalog.isEmpty()) {
+            source.sendFeedback(() -> Text.literal("No challenge courses discovered yet.").formatted(Formatting.GRAY), false);
+            source.sendFeedback(() -> Text.literal("Explore the world to find lost course entrances!").formatted(Formatting.DARK_GRAY), false);
+        } else {
+            var courses = catalog.get().getAllCourses();
+            source.sendFeedback(() -> Text.literal("Discovered Courses: " + courses.size()).formatted(Formatting.LIGHT_PURPLE), false);
+            
+            for (var entry : courses) {
+                // Course name and type
+                source.sendFeedback(() -> Text.literal("• " + entry.name() + " [" + entry.type().getDisplayName() + "]")
+                    .formatted(Formatting.GOLD), false);
+                
+                // Discovery date
+                String discoveryDate = entry.discoveredAt().toString().substring(0, 10);
+                source.sendFeedback(() -> Text.literal("  Discovered: " + discoveryDate)
+                    .formatted(Formatting.DARK_GRAY), false);
+                
+                // Best score
+                catalog.get().getBestScore(entry.courseId()).ifPresent(bestScore -> {
+                    source.sendFeedback(() -> Text.literal("  Best Score: " + bestScore)
+                        .formatted(Formatting.GREEN), false);
+                });
+                
+                // Players who completed
+                var completions = catalog.get().getPlayersWhoCompleted(entry.courseId());
+                if (!completions.isEmpty()) {
+                    source.sendFeedback(() -> Text.literal("  Completed by: " + completions.size() + " player(s)")
+                        .formatted(Formatting.AQUA), false);
+                }
+                
+                // Start button (placeholder - would need actual round start integration)
+                source.sendFeedback(() -> menuButton("  Start " + entry.name(), "/mcdg startchallenge " + entry.courseId(), Formatting.GREEN, true), false);
+            }
+        }
+        
         sendBackToMenu(source);
         return 1;
     }

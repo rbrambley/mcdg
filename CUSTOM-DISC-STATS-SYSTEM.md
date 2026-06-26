@@ -1,747 +1,398 @@
 # Custom Disc Stats System Plan
 
-**Status:** Planning Phase  
+**Status:** Planning Phase — Foundation Exists  
 **Created:** 2026-06-17  
-**Goal:** Create detailed disc statistics system for realistic disc variety and specialization
+**Last Updated:** 2026-06-26  
+**Goal:** Extend the existing tiered disc system with realistic per-disc flight ratings and optional customization
 
 ---
 
 ## Overview
 
-This system transforms discs from simple tiered items into specialized equipment with unique flight characteristics, similar to real disc golf where different disc molds have distinct speed, glide, turn, and fade ratings. Players can collect, customize, and optimize their disc bag for different courses and conditions.
+This system evolves the current tiered discs (`DiscTier` / `TieredDiscItem` / `DiscStats`) into specialized equipment with unique flight characteristics, similar to real disc golf where different disc molds have distinct speed, glide, turn, and fade ratings. Players can collect, customize, and optimize their disc bag for different courses and conditions.
+
+**Current Foundation (Phase 3.1 Complete):**
+- `DiscTier` already defines flight numbers (speed, glide, turn, fade) and physics modifiers
+- `DiscStats` already applies glide, stability, throw speed, and wind resistance multipliers
+- `DiscEnchantment` already modifies flight numbers through the Disc Workbench
+- `DiscBagItem` already provides a 12-slot portable disc bag
+- `SkillUnlock` already gates progression-based abilities
+- `AccessoryEffect` already provides passive bonuses (grip, durability, range)
+- `WindManager` / `WindManagerClient` already provides wind simulation
 
 **Design Philosophy:**
-- Realistic disc flight characteristics based on disc golf physics
+- Extend the existing tiered system rather than replace it
 - Meaningful differences between disc types
 - Strategic disc selection for different situations
-- Customization and personalization options
-- Collection and discovery aspects
+- Customization gated by existing skill unlocks
+- Avoid duplicating the enchantment/accessory systems
+- Collection and discovery aspects built on the existing Disc Bag
+
+---
+
+## Existing Foundation
+
+### Current Tiered Disc System
+
+The `DiscTier` enum already defines flight numbers for each material tier:
+
+| Tier | Speed | Glide | Turn | Fade | Notes |
+|------|-------|-------|------|------|-------|
+| Training | 3 | 4 | 0 | 1 | Indestructible, neutral |
+| Wooden | 4 | 3 | -1 | 1 | Slight understability |
+| Stone | 5 | 3 | 0 | 1 | Moderate, durable |
+| Iron | 6 | 4 | 0 | 2 | Standard fairway |
+| Gold | 7 | 5 | -1 | 1 | Faster, less stable |
+| Diamond | 9 | 6 | 0 | 3 | Distance driver |
+| Netherite | 11 | 7 | 1 | 4 | Overstable, wind resistant |
+
+The `DiscStats` record applies:
+- `glideMultiplier`
+- `stabilityMultiplier`
+- `throwSpeedMultiplier`
+- `windResistance` (0.0 = full wind effect, 1.0 = no wind effect)
+
+### Existing Skill Unlocks
+
+| Skill | Requirement | Custom Disc Use |
+|-------|-------------|-----------------|
+| `POWER_CONTROL` | Earn 100 MCDG skill XP | Access advanced power ratings |
+| `RELEASE_CONTROL` | Complete 10 rounds | Unlock custom disc creation |
+| `WIND_READING` | Throw 500 discs | Unlock wind-resistance tuning |
+| `FOCUS` | Land 50 throws within 10ft | Unlock precision tuning |
+| `DISC_MASTERY` | Throw one of each tier | Unlock legendary/rare disc molds |
+
+### Existing Disc Bag
+
+`DiscBagItem` is a 12-slot portable inventory. Phase 3.2 will extend this with:
+- Disc categorization
+- Bag analysis
+- Flight-chart preview
+- But **not** a separate library system
+
+---
+
+## Phase 3.2 Scope
+
+### MVP Goals
+
+1. **Per-disc flight ratings** stored on the item stack
+2. **Mold system** providing named archetypes beyond material tiers
+3. **Physics integration** that reads ratings from the disc stack
+4. **Tooltip/HUD improvements** showing the four flight numbers
+5. **Disc bag enhancements** for categorization and basic analysis
+
+### Out of Scope for Phase 3.2
+
+- Full custom disc builder UI (retained for Phase 3.3/4)
+- Player-created molds
+- Player-to-player trading
+- Wear/aging system until its relationship with durability is resolved
+- Legendary/epic rarity tiers unless they are simple loot-table additions
 
 ---
 
 ## Disc Statistics Model
 
-### **Primary Flight Ratings**
+### Primary Flight Ratings
+
+Reuses the existing ranges already present in `TieredDiscItem`:
 
 ```java
 record DiscFlightRatings(
     int speed,          // 1-14: Speed at release (higher = faster)
-    int glide,          // 1-7: Ability to maintain altitude (higher = more float)
-    int turn,           // -5 to +1: High-speed turn (negative = more turn)
-    int fade,           // 0-5: Low-speed fade (higher = more fade)
-    double stability   // Calculated from turn/fade combination
+    int glide,          // 1-7: Ability to maintain altitude
+    int turn,           // -5 to +1: High-speed turn
+    int fade,           // 0-5: Low-speed fade
+    double stability    // Calculated from turn/fade combination
 )
 ```
 
-**Rating Descriptions:**
+The stability formula is:
+```java
+stability = fade - (turn * 0.5); // Higher = more overstable
+```
 
-**Speed (1-14):**
-- **1-5:** Putters/Approach discs (slow, controlled)
-- **6-9:** Fairway drivers (moderate speed)
-- **10-12:** Distance drivers (fast)
-- **13-14:** Max distance drivers (very fast)
+### Extended Disc Stats
 
-**Glide (1-7):**
-- **1-3:** Low glide (drops quickly)
-- **4-5:** Moderate glide (standard)
-- **6-7:** High glide (floats longer)
-
-**Turn (-5 to +1):**
-- **-5 to -3:** High turn (turns right for RHBH)
-- **-2 to -1:** Moderate turn
-- **0:** Stable (no high-speed turn)
-- **+1:** Overstable (resists turning)
-
-**Fade (0-5):**
-- **0-1:** Low fade (straight finish)
-- **2-3:** Moderate fade (standard finish)
-- **4-5:** High fade (strong left finish for RHBH)
-
-### **Secondary Characteristics**
+Extend the existing `DiscStats` record to include flight ratings:
 
 ```java
-record DiscCharacteristics(
-    double weight,         // 150-200 grams (affects stability in wind)
-    double rimDepth,       // 0.5-2.0 cm (affects grip and feel)
-    double rimWidth,       // 1.0-2.5 cm (affects aerodynamics)
-    double stiffness,      // Disc firmness (affects durability and feel)
-    DiscPlastic plasticType,  // Material properties
-    List<DiscAbility> specialAbilities
+record DiscStats(
+    double glideMultiplier,
+    double stabilityMultiplier,
+    double throwSpeedMultiplier,
+    double windResistance,
+    int flightSpeed,
+    int flightGlide,
+    int flightTurn,
+    int flightFade
 )
 ```
 
-**Plastic Types:**
-- **Base:** Basic plastic, good grip, wears quickly
-- **Premium:** Durable, consistent flight, less grip
-- **Champion:** Very durable, overstable, consistent
-- **Star:** Durable, grippy, balanced flight
-- **DX:** Grippy, wears to understable over time
+This keeps the existing physics API intact while adding the new flight numbers.
 
-### **Derived Statistics**
+### Mold / Archetype
 
 ```java
-record DiscDerivedStats(
-    double totalDistance,      // Estimated max distance
-    double windResistance,    // Resistance to wind effects
-    double accuracy,           // Overall accuracy rating
-    double predictability,     // Flight consistency
-    String flightShape,        // Visual flight shape description
-    String recommendedUse      // Best use case
-)
-```
-
----
-
-## Disc Archetypes
-
-### **Putters**
-
-**Classic Putter**
-- **Ratings:** Speed 2, Glide 3, Turn 0, Fade 1
-- **Characteristics:** 170g, 1.2cm rim depth, Base plastic
-- **Flight:** Straight, predictable, short range
-- **Use:** Putting, approach shots, short drives
-
-**Beaded Putter**
-- **Ratings:** Speed 2, Glide 3, Turn -1, Fade 2
-- **Characteristics:** 175g, 1.4cm rim depth, Premium plastic
-- **Flight:** Slight turn, stable finish, bead for grip
-- **Use:** Windy putting, approach shots
-
-### **Midrange Discs**
-
-**Straight Midrange**
-- **Ratings:** Speed 4, Glide 4, Turn 0, Fade 2
-- **Characteristics:** 175g, 1.1cm rim depth, Star plastic
-- **Flight:** Straight flight, reliable, moderate range
-- **Use:** Controlled drives, approach shots, tight fairways
-
-**Overstable Midrange**
-- **Ratings:** Speed 4, Glide 3, Turn +1, Fade 3
-- **Characteristics:** 180g, 1.3cm rim depth, Champion plastic
-- **Flight:** No turn, strong fade, predictable
-- **Use:** Hyzer shots, spike hyzers, windy conditions
-
-**Understable Midrange**
-- **Ratings:** Speed 5, Glide 5, Turn -3, Fade 1
-- **Characteristics:** 170g, 1.0cm rim depth, DX plastic
-- **Flight:** High turn, gentle fade, turnover shots
-- **Use:** Turnover shots, anhyzer flips, rollers
-
-### **Fairway Drivers**
-
-**Control Driver**
-- **Ratings:** Speed 6, Glide 4, Turn -1, Fade 2
-- **Characteristics:** 175g, 1.1cm rim depth, Star plastic
-- **Flight:** Straight flight, reliable, moderate distance
-- **Use:** Accuracy drives, narrow fairways, tunnel shots
-
-**Distance Driver**
-- **Ratings:** Speed 9, Glide 5, Turn -2, Fade 2
-- **Characteristics:** 170g, 1.0cm rim depth, Star plastic
-- **Flight:** Long turnover, gentle fade, max distance
-- **Use:** Long drives, open holes, distance lines
-
-**Overstable Driver**
-- **Ratings:** Speed 8, Glide 4, Turn 0, Fade 4
-- **Characteristics:** 180g, 1.3cm rim depth, Champion plastic
-- **Flight:** No turn, strong fade, predictable finish
-- **Use:** Hyzer bombs, windy conditions, spike hyzers
-
-### **Distance Drivers**
-
-**Max Distance Driver**
-- **Ratings:** Speed 13, Glide 6, Turn -3, Fade 2
-- **Characteristics:** 165g, 0.9cm rim depth, Star plastic
-- **Flight:** High speed, big turn, long glide, S-curve
-- **Use:** Maximum distance, open holes, downwind throws
-
-**Stable Distance Driver**
-- **Ratings:** Speed 11, Glide 5, Turn -1, Fade 3
-- **Characteristics:** 175g, 1.1cm rim depth, Champion plastic
-- **Flight:** Fast, slight turn, reliable fade, long range
-- **Use:** Long drives with control, headwind shots
-
-**Understable Distance Driver**
-- **Ratings:** Speed 12, Glide 6, Turn -4, Fade 1
-- **Characteristics:** 165g, 0.8cm rim depth, DX plastic
-- **Flight:** Very understable, big turnover, long flights
-- **Use:** Roller shots, massive turnovers, tailwind throws
-
----
-
-## Custom Disc Creation
-
-### **Disc Customization System**
-
-```java
-record CustomDisc(
-    UUID discId,
-    String name,
-    String moldName,
-    DiscFlightRatings ratings,
-    DiscCharacteristics characteristics,
-    String plasticType,
-    String color,
-    String stampDesign,
-    UUID creatorId,           // Player who created it
-    int creationDate,
-    int uses,                 // Number of times thrown
-    double wearLevel          // 0.0-1.0 (affects flight over time)
-)
-```
-
-### **Disc Creator Interface**
-
-**Custom Disc Builder:**
-```java
-public class DiscBuilder {
-    private String name;
-    private DiscFlightRatings ratings;
-    private DiscCharacteristics characteristics;
-    private String plasticType;
-    private String color;
-    private String stampDesign;
-    
-    public CustomDisc build() {
-        validateDisc();
-        return new CustomDisc(
-            UUID.randomUUID(),
-            name,
-            determineMoldName(ratings),
-            ratings,
-            characteristics,
-            plasticType,
-            color,
-            stampDesign,
-            getPlayerId(),
-            getCurrentDate(),
-            0,
-            0.0
-        );
-    }
-    
-    private void validateDisc() {
-        // Validate ratings are within realistic bounds
-        // Ensure characteristics match ratings
-        // Check for overpowered combinations
-    }
+enum DiscMold {
+    CLASSIC_PUTTER,
+    BEADED_PUTTER,
+    STRAIGHT_MIDRANGE,
+    OVERSTABLE_MIDRANGE,
+    UNDERSTABLE_MIDRANGE,
+    CONTROL_DRIVER,
+    DISTANCE_DRIVER,
+    OVERSTABLE_DRIVER,
+    STABLE_DISTANCE_DRIVER,
+    UNDERSTABLE_DISTANCE_DRIVER,
+    MAX_DISTANCE_DRIVER
 }
 ```
 
-**Builder UI:**
-- Sliders for speed, glide, turn, fade
-- Plastic type selection
-- Color picker
-- Stamp design selection
-- Preview of flight characteristics
-- Cost estimation
+Each mold maps to a default `DiscFlightRatings` and a set of valid tiers.
 
-### **Disc Crafting Requirements**
+### Tier + Mold Interaction
 
-**Material Costs:**
-- **Base disc:** 1x base material (wood/stone/iron/etc.)
-- **Custom ratings:** Additional materials based on complexity
-- **Special plastics:** Rare materials (gold/diamond/netherite)
-- **Custom stamp:** Dye or special items
+- Material tier determines **durability**, **base wind resistance**, and **maximum mold speed**
+- Mold determines the **flight numbers**
+- A Wooden disc cannot be a Max Distance Driver mold
+- A Netherite disc can be any mold
 
-**Skill Requirements:**
-- **Basic customization:** Complete 10 rounds
-- **Advanced customization:** Achieve specific scores
-- **Expert customization:** Tournament wins
+Example:
+
+| Tier | Max Mold Speed | Example Mold | Final Speed |
+|------|----------------|--------------|-------------|
+| Wooden | 6 | Control Driver | 4 |
+| Iron | 9 | Distance Driver | 6 |
+| Diamond | 12 | Stable Distance Driver | 9 |
+| Netherite | 14 | Max Distance Driver | 11 |
 
 ---
 
-## Disc Collection System
+## Custom Disc Creation (Deferred to Phase 3.3)
 
-### **Disc Library**
+### Proposed Builder
 
-```java
-public class DiscLibrary {
-    private static final Map<UUID, List<CustomDisc>> playerCollections = new ConcurrentHashMap<>();
-    
-    public static void addDisc(UUID playerId, CustomDisc disc) {
-        playerCollections.computeIfAbsent(playerId, k -> new ArrayList<>()).add(disc);
-    }
-    
-    public static List<CustomDisc> getPlayerDiscs(UUID playerId) {
-        return playerCollections.getOrDefault(playerId, new ArrayList<>());
-    }
-    
-    public static List<CustomDisc> getDiscsByType(UUID playerId, DiscType type) {
-        return getPlayerDiscs(playerId).stream()
-            .filter(disc -> getDiscType(disc.ratings()) == type)
-            .collect(Collectors.toList());
-    }
-}
-```
+When implemented, the custom disc builder should:
 
-### **Disc Categories**
+- Use a dedicated workbench block (extend or augment `DiscWorkbenchBlock`)
+- Require `RELEASE_CONTROL` and `DISC_MASTERY` skill unlocks
+- Use the existing tier materials as base cost
+- Allow selecting a mold and plastic type
+- Validate that the resulting ratings are within the tier's allowed ranges
 
-**By Speed:**
-- Putters (Speed 1-3)
-- Midrange (Speed 4-5)
-- Fairway Drivers (Speed 6-9)
-- Distance Drivers (Speed 10-14)
+### Plastic Types
 
-**By Stability:**
-- Understable (Turn ≤ -2)
-- Stable (Turn -1 to 0)
-- Overstable (Turn ≥ +1)
+Reused as simple modifiers:
 
-**By Use Case:**
-- Putting/Approach
-- Controlled Drives
-- Distance
-- Special Purpose (rollers, thumbers, etc.)
-
-### **Disc Bag Management**
-
-**Optimal Bag Composition:**
-- 1-2 Putters
-- 2-3 Midrange discs
-- 3-4 Fairway drivers
-- 2-3 Distance drivers
-- 1-2 Special purpose discs
-
-**Bag Analysis Tool:**
-```java
-public class BagAnalyzer {
-    public static BagAnalysis analyzeBag(List<CustomDisc> discs) {
-        return new BagAnalysis(
-            calculateCoverage(discs),
-            calculateStabilitySpread(discs),
-            calculateDistanceRange(discs),
-            identifyGaps(discs),
-            recommendAdditions(discs)
-        );
-    }
-}
-```
+| Plastic | Effect |
+|---------|--------|
+| Base | Standard, no bonus |
+| Premium | +5% durability |
+| Champion | +10% wind resistance |
+| Star | +5% glide |
+| DX | +1 turn (more understable) |
 
 ---
 
-## Special Abilities
+## Integration with Existing Systems
 
-### **Unique Disc Abilities**
+### Physics Integration
 
-**Wind Cutter**
-- **Effect:** 50% wind resistance
-- **Requirement:** Overstable ratings, Champion plastic
-- **Visual:** Blue particle trail
+The existing `TrajectoryCalculator` already receives a `DiscStats` object. Phase 3.2 changes the lookup path:
 
-**Glide Boost**
-- **Effect:** +20% glide duration
-- **Requirement:** High glide rating, Star plastic
-- **Visual:** Green particle trail
+```java
+DiscStats stats = getDiscStats(stack);
+Vec3d effectiveWind = stats.applyWindResistance(wind);
+```
 
-**Turnover Master**
-- **Effect:** Enhanced turn characteristics
-- **Requirement:** High turn rating, DX plastic
-- **Visual:** Orange particle trail
+`TieredDiscItem.getDiscStats()` currently returns `tier.stats()`. For custom/mold discs, this will return the per-disc stats instead.
 
-**Fade Enhancer**
-- **Effect:** Stronger fade for spike hyzers
-- **Requirement:** High fade rating, Champion plastic
-- **Visual:** Red particle trail
+### Enchantment Integration
 
-**Precision**
-- **Effect:** +15% accuracy, reduced charge variability
-- **Requirement:** Stable ratings, Premium plastic
-- **Visual:** White particle trail
+Existing enchantments (`GLIDE`, `STABILITY`, `PIERCE`, `DURABILITY`, `RANGE`) already modify flight numbers. The plan preserves this behavior:
 
-### **Ability Combinations**
+- Enchantments are **stacked modifiers** applied to the base mold ratings
+- Custom disc **mold ratings** are the base; enchantments enhance them
+- This avoids creating a third parallel bonus system
 
-**Common Combinations:**
-- Wind Cutter + Precision (windy accuracy)
-- Glide Boost + Turnover Master (max distance)
-- Fade Enhancer + Overstable (hyzer bombs)
+### Accessory Integration
 
-**Rare Combinations:**
-- Wind Cutter + Glide Boost (all conditions)
-- Precision + Fade Enhancer (accurate hyzers)
+Accessories provide passive bonuses independent of the disc:
 
-**Legendary Combinations:**
-- All abilities (ultimate disc, very rare)
+- `GRIP_STABILITY` → reduces angle penalty
+- `DURABILITY_PRESERVE` → chance to skip durability loss
+- `RANGE_FINDER` → future distance feedback (reserved)
+
+Custom disc stats do not duplicate these effects.
+
+### Skill Integration
+
+Skill unlocks gate features rather than modify physics directly:
+
+- `RELEASE_CONTROL` → unlock custom disc creation
+- `DISC_MASTERY` → unlock all molds
+- `WIND_READING` → unlock wind-resistance tuning in builder
+- `POWER_CONTROL` → unlock higher speed caps
+- `FOCUS` → unlock precision tuning
+
+### Wind Integration
+
+Wind resistance is already part of `DiscStats`. Mold/plastic choices can adjust this value, but the core wind physics remain in `TrajectoryCalculator`.
 
 ---
 
 ## Wear and Aging System
 
-### **Disc Wear Mechanics**
+**Status: Pending design decision**
 
-```java
-public class DiscWearSystem {
-    public static void applyWear(CustomDisc disc, int throwCount) {
-        double wearRate = calculateWearRate(disc);
-        double newWear = disc.wearLevel() + (wearRate * throwCount);
-        
-        // Wear affects flight characteristics
-        DiscFlightRatings wornRatings = applyWearEffects(disc.ratings(), newWear);
-        
-        // Update disc with worn characteristics
-        disc = new CustomDisc(
-            disc.discId(),
-            disc.name(),
-            disc.moldName(),
-            wornRatings,
-            disc.characteristics(),
-            disc.plasticType(),
-            disc.color(),
-            disc.stampDesign(),
-            disc.creatorId(),
-            disc.creationDate(),
-            disc.uses() + throwCount,
-            Math.min(1.0, newWear)
-        );
-    }
-    
-    private static DiscFlightRatings applyWearEffects(DiscFlightRatings ratings, double wearLevel) {
-        // Worn discs become more understable
-        int turn = ratings.turn() - (int) (wearLevel * 2);
-        int fade = Math.max(0, ratings.fade() - (int) (wearLevel * 1));
-        
-        return new DiscFlightRatings(
-            ratings.speed(),
-            ratings.glide(),
-            Math.max(-5, turn),
-            fade
-        );
-    }
-}
-```
+The existing tiered discs use Minecraft durability. Adding a separate wear system would create two degradation mechanics on the same item.
 
-**Wear Effects by Plastic:**
-- **Base:** Wears quickly, becomes significantly understable
-- **Premium:** Moderate wear, gradual changes
-- **Champion:** Slow wear, maintains characteristics
-- **Star:** Balanced wear, predictable changes
-- **DX:** Wears to understable, popular for "seasoned" discs
+Options:
 
-### **Disc Maintenance**
+1. **Replace durability with wear** (simpler, but breaks existing repair/enchantment expectations)
+2. **Keep durability, add wear as flavor text** (wear affects flight numbers only at very high use counts)
+3. **Defer wear system entirely** until Phase 3.3 or later
 
-**Repair Options:**
-- **Disc Polish:** Reduces wear level by 25%
-- **Disc Renewal:** Resets wear to 0 (consumes special item)
-- **Plastic Restoration:** Restores original plastic characteristics
-
----
-
-## Discovery and Acquisition
-
-### **Disc Discovery Methods**
-
-**Crafting:**
-- Create custom discs with Disc Builder
-- Requires materials and skill unlocks
-
-**Finding:**
-- Discover rare discs in structures (villages, temples, etc.)
-- Find discs as tournament rewards
-- Receive discs from quest completions
-
-**Trading:**
-- Trade with other players
-- Villager disc golf trades
-- Special event disc drops
-
-**Special Events:**
-- Limited edition discs
-- Seasonal discs
-- Community event rewards
-
-### **Rare Disc System**
-
-**Rarity Tiers:**
-- **Common:** Standard flight ratings, base materials
-- **Uncommon:** Slightly enhanced stats, premium materials
-- **Rare:** Unique flight characteristics, special plastics
-- **Epic:** Multiple special abilities, legendary materials
-- **Legendary:** Unique abilities, perfect stats, very rare
-
-**Visual Indicators:**
-- Color-coded item borders
-- Special particle effects
-- Unique stamp designs
-- Glowing effects for rare discs
-
----
-
-## Integration with Physics System
-
-### **Physics Integration**
-
-```java
-// In TrajectoryCalculator.java
-public static TrajectoryResult calculateTrajectory(
-    ServerWorld world,
-    Vec3d startPos,
-    Vec3d initialVelocity,
-    float launchYawDegrees,
-    float charge,
-    ThrowStance stance,
-    ReleaseAngle angle,
-    CustomDisc disc  // NEW: Custom disc with stats
-) {
-    // Apply disc-specific physics
-    double speedMultiplier = calculateSpeedMultiplier(disc.ratings().speed());
-    double glideMultiplier = calculateGlideMultiplier(disc.ratings().glide());
-    double turnModifier = calculateTurnModifier(disc.ratings().turn());
-    double fadeModifier = calculateFadeModifier(disc.ratings().fade());
-    
-    // Apply plastic characteristics
-    double windResistance = calculateWindResistance(disc.characteristics().plasticType());
-    double stability = calculateStability(disc.characteristics().weight());
-    
-    // Apply wear effects
-    double wearEffect = 1.0 - (disc.wearLevel() * 0.15); // 15% reduction at max wear
-    
-    // Combine all modifiers
-    double combinedGlide = glideMultiplier * speedMultiplier * wearEffect;
-    double combinedFade = fadeModifier * turnModifier * wearEffect;
-    
-    // Calculate trajectory with custom disc physics
-    // ... existing trajectory calculation with custom modifiers
-}
-```
-
-### **Stance Interaction**
-
-**Disc-Stance Synergy:**
-- **Overhand:** Works best with overstable discs (fade compensation)
-- **Backhand:** Works best with stable to understable discs
-- **Forehand:** Works best with overstable discs (natural fade compensation)
-
-**Optimal Combinations:**
-- Overhand + Overstable Driver = Straight flight
-- Backhand + Understable Driver = Max distance S-curve
-- Forehand + Stable Midrange = Accurate approaches
+**Recommendation:** Option 3. Resolve after the MVP is stable.
 
 ---
 
 ## UI/UX Design
 
-### **Disc Inspector**
+### Disc Inspector
 
-**Disc Details Display:**
-- Flight ratings (speed, glide, turn, fade)
-- Flight shape visualization
-- Recommended use cases
-- Wear level indicator
-- Special abilities display
+- Tooltip already shows flight numbers via `TieredDiscItem.appendTooltip`
+- Add a keybind or right-click action to show a detailed panel:
+  - Flight ratings
+  - Mold name
+  - Plastic type
+  - Recommended use case
+  - Wear level (if enabled later)
 
-**Flight Chart:**
-- Visual flight path prediction
-- Turn and fade indicators
-- Distance estimation
-- Wind effect preview
+### Disc Bag Manager
 
-### **Disc Bag Manager**
+- Extend `DiscBagScreen` with:
+  - Sort buttons (by speed, stability, distance)
+  - Filter buttons (putters, midranges, drivers)
+  - Basic "bag coverage" indicator showing gaps in stability/distance
 
-**Bag Configuration:**
-- Drag-and-drop disc organization
-- Bag slot management
-- Quick access slots
-- Bag analysis and recommendations
+### Flight Chart Preview
 
-**Bag Optimization:**
-- Suggest optimal discs for current course
-- Identify gaps in coverage
-- Recommend disc additions
-
-### **Disc Creator UI**
-
-**Customization Interface:**
-- Rating sliders with real-time feedback
-- Plastic type selector with descriptions
-- Color picker with preview
-- Stamp design gallery
-- Cost and requirement display
-
-**Flight Preview:**
-- 3D flight path visualization
-- Comparison with similar discs
-- Performance prediction
+- Client-side only
+- Renders a predicted flight path in a UI panel
+- Uses the same `TrajectoryCalculator` logic with zero-wind assumption
 
 ---
 
 ## Configuration and Balance
 
-### **Server Configuration**
+### Server Configuration
 
 ```java
 public record DiscStatsConfig(
-    boolean enableCustomDiscs,
-    boolean enableWearSystem,
-    boolean enableSpecialAbilities,
-    boolean enableRareDiscs,
-    double maxSpeedRating,
-    double maxGlideRating,
-    int maxCustomDiscsPerPlayer,
-    double wearRateMultiplier,
-    boolean allowDiscTrading
+    boolean enableMoldSystem,
+    boolean enableCustomDiscBuilder,
+    boolean enableDiscBagAnalysis,
+    int maxMoldSpeedForTier,
+    double maxWindResistanceBonus,
+    int maxCustomDiscsPerPlayer
 )
 ```
 
-### **Balance Considerations**
+### Balance Considerations
 
-**Rating Limits:**
-- Speed: 1-14 (realistic disc golf range)
-- Glide: 1-7 (realistic disc golf range)
-- Turn: -5 to +1 (realistic disc golf range)
-- Fade: 0-5 (realistic disc golf range)
-
-**Power Limits:**
-- No disc should be strictly better than all others
-- Trade-offs between speed, glide, turn, fade
-- Special abilities balanced by drawbacks
-
-**Wear Balance:**
-- Wear should be noticeable but not crippling
-- Different wear rates by plastic type
-- Maintenance options available
+- No mold should be strictly better than all others
+- Material tier still gates maximum performance
+- Enchantments and accessories remain the primary power customization
+- Custom builder is gated behind skill unlocks to prevent early-game power spikes
 
 ---
 
 ## Testing Strategy
 
-### **Unit Tests**
+### Unit Tests
 
-**Disc Physics Tests:**
-- Rating calculation accuracy
-- Flight characteristic validation
-- Wear effect modeling
-- Physics integration testing
+- `DiscFlightRatings` validation
+- Mold-to-tier compatibility
+- `DiscStats` physics integration
+- Enchantment + mold interaction
 
-### **Integration Tests**
+### Integration Tests
 
-**System Integration:**
-- Custom disc physics with trajectory calculator
-- Wear system with gameplay
-- Bag management with inventory
-- Trading system with economy
+- Custom disc physics with `TrajectoryCalculator`
+- Bag categorization with `DiscBagScreen`
+- Skill gating with `PlayerSkillManager`
 
-### **Balance Testing**
+### Balance Testing
 
-**Gameplay Balance:**
-- Disc performance across different conditions
-- Balance between custom and standard discs
-- Wear system impact on gameplay
-- Special ability balance
+- Compare distance and accuracy across molds
+- Verify no single mold dominates all holes
+- Check that tiered progression still feels meaningful
 
 ---
 
 ## Implementation Timeline
 
-### **Phase 1: Core Disc Stats (6-8 hours)**
-- Disc statistics data model
-- Flight rating system
-- Physics integration
-- Basic disc types
+### Phase 3.2 MVP (10-14 hours)
 
-### **Phase 2: Custom Disc Creation (4-6 hours)**
-- Disc builder system
-- Customization UI
-- Crafting requirements
-- Validation system
+1. **Stats data model** (2-3 hours)
+   - Extend `DiscStats` with flight numbers
+   - Create `DiscMold` enum
+   - Add mold-to-tier validation
 
-### **Phase 3: Collection System (4-6 hours)**
-- Disc library management
-- Bag management tools
-- Organization features
-- Analysis tools
+2. **Physics integration** (2-3 hours)
+   - Update `TieredDiscItem.getDiscStats()` to consider mold
+   - Wire flight numbers into `TrajectoryCalculator`
+   - Ensure wind resistance still works
 
-### **Phase 4: Advanced Features (6-8 hours)**
-- Special abilities system
-- Wear and aging mechanics
-- Rare disc system
-- Discovery methods
+3. **Mold generation** (2-3 hours)
+   - Add mold tags to recipes or loot
+   - Generate default mold for each tier
+   - Ensure existing discs remain compatible
 
-### **Phase 5: UI and Polish (4-6 hours)**
-- Disc inspector UI
-- Bag manager UI
-- Creator UI polish
-- Performance optimization
+4. **Tooltip and inspector** (2-3 hours)
+   - Improve tooltip formatting
+   - Add detailed inspector panel
+   - Show mold name and plastic
 
-**Total Estimated Time:** 24-34 hours
+5. **Disc bag enhancements** (2-3 hours)
+   - Sort/filter buttons
+   - Basic coverage indicator
 
----
+### Phase 3.3 Custom Builder (8-12 hours, deferred)
 
-## Future Enhancements
-
-### **Advanced Customization**
-
-**Disc Molds:**
-- Player-created disc molds
-- Community mold sharing
-- Mold rating system
-
-**Custom Stamps:**
-- Player-designed stamp art
-- Community stamp gallery
-- Limited edition stamps
-
-### **Economy Integration**
-
-**Disc Marketplace:**
-- Player-to-player trading
-- Auction system
-- Rarity-based pricing
-
-**Professional Services:**
-- Disc tuning services
-- Custom disc commissions
-- Disc appraisal system
-
-### **Social Features**
-
-**Disc Sharing:**
-- Gift discs to other players
-- Disc recommendations
-- Community disc reviews
-
-**Competitions:**
-- Disc design contests
-- Custom disc tournaments
-- Collection showcases
+- Custom disc builder UI
+- Plastic selection
+- Stamp/color customization
+- Advanced validation
 
 ---
 
 ## Success Criteria
 
-### **Functional Requirements**
-- [x] Custom disc stats integrate with physics system
-- [x] Flight characteristics feel realistic and varied
-- [x] Customization system is intuitive and balanced
-- [x] Wear system adds depth without frustration
-- [x] Collection system provides meaningful goals
+### Functional Requirements
+- [ ] Mold system extends existing tiered discs without breaking them
+- [ ] Flight ratings integrate with `TrajectoryCalculator`
+- [ ] Enchantments and accessories remain relevant
+- [ ] Disc bag categorization works
+- [ ] Skill gating is functional
 
-### **User Experience Requirements**
-- [x] Disc variety enhances strategic gameplay
-- [x] Custom discs feel personal and rewarding
-- [x] Bag management is convenient and informative
-- [x] Discovery system is exciting and fair
-- [x] Balance between custom and standard discs
+### User Experience Requirements
+- [ ] Disc variety feels meaningful
+- [ ] Tooltips clearly communicate flight numbers
+- [ ] Bag management is convenient
+- [ ] Tier progression remains satisfying
 
-### **Technical Requirements**
-- [x] No performance degradation
-- [x] Stable disc data management
-- [x] Accurate physics simulation
-- [x] Scalable collection system
-- [x] Robust customization validation
+### Technical Requirements
+- [ ] No performance regression
+- [ ] Existing save data remains compatible
+- [ ] Wind physics remain consistent
+- [ ] `quickRegression` passes
 
 ---
 
 ## Conclusion
 
-This custom disc stats system transforms discs from simple tiered items into specialized equipment with unique flight characteristics, similar to real disc golf. Players can collect, customize, and optimize their disc bag for different courses and conditions, adding strategic depth and personalization to the game.
-
-The system provides:
-- **Realistic flight characteristics** based on disc golf physics
-- **Strategic disc selection** for different situations
-- **Customization options** for personal expression
-- **Collection goals** for long-term engagement
-- **Wear mechanics** for equipment management
-- **Balance** between variety and fairness
-
-This gives players the authentic disc golf experience of building and optimizing their disc bag while maintaining the sport-focused gameplay that makes MCDG unique.
+Phase 3.2 builds directly on the Phase 3.1 tiered disc system. Rather than replacing it, the custom disc stats system adds molds, flight ratings, and bag management on top of the existing `DiscTier`, `DiscStats`, `DiscEnchantment`, and `DiscBagItem` foundations. This keeps the scope focused and avoids duplicating mechanics already handled by enchantments and accessories.

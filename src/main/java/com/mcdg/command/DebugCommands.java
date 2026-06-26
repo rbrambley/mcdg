@@ -10,11 +10,15 @@ import com.mcdg.game.ThrowAutoTestService;
 import com.mcdg.game.HazardManager;
 import com.mcdg.game.HazardType;
 import com.mcdg.game.HazardBehavior;
+import com.mcdg.game.ChallengeCourseManager;
+import com.mcdg.game.ChallengeCourseDiscoveryHandler;
+import com.mcdg.game.LostCourse;
 import com.mcdg.world.CourseGenerator;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.PlacementAutoTestService;
 import java.util.List;
+import java.util.UUID;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -269,6 +273,94 @@ public final class DebugCommands {
                         "Quick throw test running: seed=" + seed + ", throws=" + throwCount + "."
                 ), true);
                 return 1;
+        }
+
+        /**
+         * Lists all lost courses in the world.
+         */
+        public static int executeListLostCourses(ServerCommandSource source) {
+                List<LostCourse> courses = ChallengeCourseManager.getAllLostCourses();
+                
+                if (courses.isEmpty()) {
+                        source.sendFeedback(() -> Text.literal("No lost courses registered."), false);
+                        return 1;
+                }
+
+                source.sendFeedback(() -> Text.literal("Lost Courses (" + courses.size() + "):"), false);
+                for (LostCourse course : courses) {
+                        String status = course.isDiscovered() ? "[DISCOVERED]" : "[HIDDEN]";
+                        source.sendFeedback(() -> Text.literal(
+                                " - " + status + " " + course.name() + " (" + course.type().getDisplayName() + ")"
+                                        + " at (" + course.entrancePosition().getX() + ", " + course.entrancePosition().getY() + ", " + course.entrancePosition().getZ() + ")"
+                        ), false);
+                }
+
+                return 1;
+        }
+
+        /**
+         * Discovers a lost course by ID.
+         */
+        public static int executeDiscoverCourse(ServerCommandSource source, String courseIdString) {
+                if (!(source.getEntity() instanceof ServerPlayerEntity player)) {
+                        source.sendError(Text.literal("This command can only be run by a player."));
+                        return 0;
+                }
+
+                try {
+                        UUID courseId = UUID.fromString(courseIdString);
+                        ChallengeCourseDiscoveryHandler.discoverCourseById(player, courseId);
+                        source.sendFeedback(() -> Text.literal("Attempting to discover course: " + courseIdString), true);
+                        return 1;
+                } catch (IllegalArgumentException e) {
+                        source.sendError(Text.literal("Invalid UUID format: " + courseIdString));
+                        return 0;
+                }
+        }
+
+        /**
+         * Clears all lost courses (for testing).
+         */
+        public static int executeClearLostCourses(ServerCommandSource source) {
+                int count = ChallengeCourseManager.getAllLostCourses().size();
+                ChallengeCourseManager.clearAllLostCourses();
+                source.sendFeedback(() -> Text.literal("Cleared " + count + " lost courses."), true);
+                return 1;
+        }
+
+        /**
+         * Places a test lost course at player position.
+         */
+        public static int executePlaceTestLostCourse(ServerCommandSource source) {
+                if (!(source.getEntity() instanceof ServerPlayerEntity player)) {
+                        source.sendError(Text.literal("This command can only be run by a player."));
+                        return 0;
+                }
+
+                BlockPos playerPos = player.getBlockPos();
+                LostCourse testCourse = createTestLostCourse(playerPos);
+                
+                ChallengeCourseManager.registerLostCourse(testCourse);
+                ChallengeCourseManager.placeLostCourseEntrance(player.getServerWorld(), playerPos, testCourse);
+                
+                source.sendFeedback(() -> Text.literal("Placed test lost course: " + testCourse.name() + " at your position"), true);
+                return 1;
+        }
+
+        /**
+         * Creates a test lost course for debugging.
+         */
+        private static LostCourse createTestLostCourse(BlockPos pos) {
+                UUID courseId = UUID.randomUUID();
+                return new LostCourse(
+                        courseId,
+                        "Test Lost Course",
+                        pos,
+                        pos.add(50, 0, 50),
+                        List.of(),
+                        com.mcdg.game.ChallengeCourseType.LOST_COURSE,
+                        false
+                );
         }
 
 }
