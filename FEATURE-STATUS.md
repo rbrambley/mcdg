@@ -49,7 +49,7 @@
 | Feature | Plan Status | Code Status | Verdict | Risk |
 |---------|-------------|-------------|---------|------|
 | Disc crafting progression (core) | ✅ Complete | Wooden→Netherite tiered discs, recipes, durability, tier physics, flight stats integration, scorecard souvenirs implemented | Accurate | Low |
-| Disc crafting progression (follow-up) | ⏸️ Pending | Skill-based unlocks, accessory crafting (retriever, analyzer, compass), anvil/table enchanting integration not yet implemented | Accurate | Low |
+| Disc crafting progression (follow-up) | ✅ Complete | Disc bag (`DiscBagItem`, `DiscBagScreenHandler`), accessories (`AccessoryItem`, `AccessoryManager` with glove/towel/range finder), skill unlocks (`SkillUnlock`, `PlayerSkillManager`, `/mcdg skills`) | Accurate | Low |
 | Custom disc stats | 📋 Planning | No `DiscFlightRatings`, `DiscCharacteristics`, or disc builder | Accurate | Low |
 | Challenge courses | 📋 Planning | No challenge course generation or special rewards | Accurate | Low |
 

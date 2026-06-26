@@ -24,4 +24,7 @@ net/
 # Auto-generated tester manifest
 releases/test-packs/MANIFEST.json
 
+# Runtime logs
+logs/
+
 !src/main/java/com/mcdg/net/

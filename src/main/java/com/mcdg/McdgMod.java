@@ -1,6 +1,7 @@
 package com.mcdg;
 
 import com.mcdg.command.McdgAdminCommands;
+import com.mcdg.command.SkillCommands;
 import com.mcdg.config.McdgConfig;
 import com.mcdg.game.ActiveCourseManager;
 import com.mcdg.game.HoleMapSyncService;
@@ -29,6 +30,7 @@ import com.mcdg.game.RoundRespawnHandler;
 import com.mcdg.game.RoundSessionStorage;
 import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.ScorecardManager;
+import com.mcdg.game.PlayerSkillManager;
 import com.mcdg.game.ThrowAutoTestService;
 import com.mcdg.game.RoundInviteManager;
 import com.mcdg.net.AceCinematicSync;
@@ -273,6 +275,7 @@ public final class McdgMod implements ModInitializer {
             BUILD_COURSE_SESSION_MANAGER,
             AUTO_COURSE_SERVICE
         );
+        SkillCommands.register();
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             long start = System.nanoTime();
             PLACEMENT_AUTO_TEST_SERVICE.tick(server);
@@ -337,6 +340,14 @@ public final class McdgMod implements ModInitializer {
                 LOGGER.warn("autosaveRoundSession tick took {}ms", elapsedMs);
             }
         });
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long start = System.nanoTime();
+            PlayerSkillManager.tickAutosave(server);
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
+                LOGGER.warn("PlayerSkillManager.tickAutosave took {}ms", elapsedMs);
+            }
+        });
 		ServerTickEvents.END_SERVER_TICK.register(server -> {
             long start = System.nanoTime();
             ResortCourseBuilder.tick(server);
@@ -377,6 +388,7 @@ public final class McdgMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::maybeStartHeadlessAutoTest);
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::maybeStartAutoStrictSetup);
         ServerLifecycleEvents.SERVER_STARTED.register(server -> LEADERBOARD_MANAGER.load(server));
+        ServerLifecycleEvents.SERVER_STARTED.register(PlayerSkillManager::load);
         ServerLifecycleEvents.SERVER_STARTED.register(server -> WorldSpawnHandler.onServerStarted(server, AUTO_COURSE_SERVICE, PRACTICE_COURSE_STORAGE));
         // Warm storage caches after full startup (including WorldSpawnHandler) so the
         // first G key press after any server restart is instant for all players.
@@ -384,6 +396,7 @@ public final class McdgMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPING.register(McdgMod::flushRoundSessionOnShutdown);
         ServerLifecycleEvents.SERVER_STOPPING.register(BUILD_COURSE_SESSION_MANAGER::save);
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> LEADERBOARD_MANAGER.save(server));
+        ServerLifecycleEvents.SERVER_STOPPING.register(PlayerSkillManager::save);
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> ResortWaypointManager.clearResortWaypoint());
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> ResortCourseBuilder.reset());
         ResortChestReplenisher.registerInteractionHandler();
@@ -395,12 +408,14 @@ public final class McdgMod implements ModInitializer {
                 // Warm storage caches on join so the first G key press is instant.
                 PRACTICE_COURSE_STORAGE.listReusable(server);
                 PLAYER_ROUND_SESSION_STORAGE.loadPlayer(server, handler.player.getUuid(), null);
+                PlayerSkillManager.onPlayerJoin(handler.player);
             })
         );
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
             server.execute(() -> {
                 HoleMapSyncService.onPlayerDisconnect(handler.player.getUuid());
                 handlePlayerDisconnectDuringWarmup(handler.player.getUuid(), server);
+                PlayerSkillManager.onPlayerDisconnect(handler.player);
             })
         );
         HoleProgressTracker.register(

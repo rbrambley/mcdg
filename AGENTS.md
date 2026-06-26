@@ -102,7 +102,7 @@ The following mod integrations were investigated and are now included as soft de
 - **Veinminer** — Mining convenience (no special integration needed)
 
 ## Future Work
-- Phase 3: Tiered disc crafting progression (wooden→netherite), custom disc flight ratings, challenge courses
+- Phase 3: Tiered disc crafting progression (wooden→netherite), disc bags, accessories, skill unlocks (completed), custom disc flight ratings, challenge courses
 - Phase 4: Quest system core and content, survival mode rounds
 - Phase 5: System integration pass, UI/UX polish, performance optimization, balance & tuning
 - Phase 6: Tournament system, advanced customization

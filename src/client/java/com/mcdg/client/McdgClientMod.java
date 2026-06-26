@@ -64,6 +64,7 @@ public final class McdgClientMod implements ClientModInitializer {
 
         ClientKeybinds.register();
         HandledScreens.register(McdgScreenHandlers.DISC_WORKBENCH, DiscWorkbenchScreen::new);
+        HandledScreens.register(McdgScreenHandlers.DISC_BAG, DiscBagScreen::new);
 
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
             client.options.getChatScale().setValue(0.65);

@@ -3,6 +3,7 @@ package com.mcdg.game;
 import com.mcdg.McdgMod;
 import com.mcdg.rules.TournamentRulesetManager;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
@@ -18,6 +19,10 @@ public final class McdgItems {
     public static Item NETHERITE_DISC = Items.AIR;
     public static Item SCORECARD = Items.AIR;
     public static Item DISC_ENCHANTED_BOOK = Items.AIR;
+    public static Item DISC_BAG = Items.AIR;
+    public static Item DISC_GLOVE = Items.AIR;
+    public static Item DISC_TOWEL = Items.AIR;
+    public static Item RANGE_FINDER = Items.AIR;
     private static boolean strictFlowDebug;
 
     private McdgItems() {
@@ -50,6 +55,24 @@ public final class McdgItems {
             new Identifier(McdgMod.MOD_ID, "disc_enchanted_book"),
             new DiscEnchantedBook(new Item.Settings().maxCount(1))
         );
+
+        DISC_BAG = Registry.register(
+            Registries.ITEM,
+            new Identifier(McdgMod.MOD_ID, "disc_bag"),
+            new DiscBagItem(new Item.Settings().maxCount(1))
+        );
+
+        DISC_GLOVE = registerAccessory("disc_glove", AccessoryEffect.GRIP_STABILITY);
+        DISC_TOWEL = registerAccessory("disc_towel", AccessoryEffect.DURABILITY_PRESERVE);
+        RANGE_FINDER = registerAccessory("range_finder", AccessoryEffect.RANGE_FINDER);
+    }
+
+    private static Item registerAccessory(String id, AccessoryEffect effect) {
+        return Registry.register(
+                Registries.ITEM,
+                new Identifier(McdgMod.MOD_ID, id),
+                new AccessoryItem(new Item.Settings().maxCount(1), effect)
+        );
     }
 
     private static Item registerTieredDisc(
@@ -65,5 +88,21 @@ public final class McdgItems {
                 new Identifier(McdgMod.MOD_ID, id),
                 new TieredDiscItem(settings, tier, courseManager, roundStateManager, rulesetManager, strictFlowDebug)
         );
+    }
+
+    /**
+     * Returns true if the stack is any MCDG disc (training or tiered).
+     */
+    public static boolean isDisc(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        return stack.isOf(TRAINING_DISC) ||
+               stack.isOf(WOODEN_DISC) ||
+               stack.isOf(STONE_DISC) ||
+               stack.isOf(IRON_DISC) ||
+               stack.isOf(GOLD_DISC) ||
+               stack.isOf(DIAMOND_DISC) ||
+               stack.isOf(NETHERITE_DISC);
     }
 }

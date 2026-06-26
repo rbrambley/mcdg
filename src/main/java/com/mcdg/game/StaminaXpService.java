@@ -40,7 +40,8 @@ public final class StaminaXpService {
         float normalizedCharge = Math.clamp(chargePercent, 0.0f, 1.25f);
         float multiplier = MIN_EXHAUSTION_MULTIPLIER
                 + (normalizedCharge / 1.25f) * (MAX_EXHAUSTION_MULTIPLIER - MIN_EXHAUSTION_MULTIPLIER);
-        float exhaustion = BASE_THROW_EXHAUSTION * multiplier;
+        float skillMultiplier = PlayerThrowStats.getExhaustionMultiplier(player);
+        float exhaustion = BASE_THROW_EXHAUSTION * multiplier * skillMultiplier;
 
         player.getHungerManager().addExhaustion(exhaustion);
 

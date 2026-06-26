@@ -31,7 +31,7 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
         this.addSlot(new Slot(inventory, 0, 44, 35) {
             @Override
             public boolean canInsert(ItemStack stack) {
-                return stack.isOf(McdgItems.TRAINING_DISC);
+                return McdgItems.isDisc(stack);
             }
         });
 
@@ -71,7 +71,7 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
             }
         } else {
             // Move from player to workbench
-            if (originalStack.isOf(McdgItems.TRAINING_DISC)) {
+            if (McdgItems.isDisc(originalStack)) {
                 if (!this.insertItem(originalStack, 0, 1, false)) {
                     return ItemStack.EMPTY;
                 }
@@ -99,7 +99,7 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
             // Apply enchantment from book to disc
             ItemStack disc = inventory.getStack(0);
             ItemStack book = inventory.getStack(1);
-            if (!disc.isOf(McdgItems.TRAINING_DISC) || !book.isOf(McdgItems.DISC_ENCHANTED_BOOK)) {
+            if (!McdgItems.isDisc(disc) || !book.isOf(McdgItems.DISC_ENCHANTED_BOOK)) {
                 return true;
             }
             DiscEnchantment enchant = DiscEnchantedBook.getEnchantment(book);

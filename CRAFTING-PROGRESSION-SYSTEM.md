@@ -60,6 +60,9 @@ This progression system transforms disc golf equipment from a single item into a
 - Allow combining enchanted discs
 - Add enchantment cost scaling by disc tier
 
+#### **Enchantment Restriction (Fixed)**
+- `DiscEnchantedBook` and `DiscWorkbench` now accept any MCDG disc (Training→Netherite) via `McdgItems.isDisc()`.
+
 ---
 
 ## Progression Tiers

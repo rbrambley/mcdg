@@ -28,6 +28,9 @@ public final class ThrowResolver {
     private static final int THROW_RELEASE_GRACE_TICKS = 8;
     // Temporary safety rollback: keep core throw/lie flow stable while strict landing penalties are reworked.
     private static final boolean ENABLE_STRICT_LANDING_PENALTIES = true;
+    // Near-pin radius for skill progression: within ~10ft (3 blocks) horizontally of the basket.
+    private static final int NEAR_PIN_RADIUS_BLOCKS = 3;
+    private static final int NEAR_PIN_HEIGHT_TOLERANCE = 4;
     private static final Map<UUID, Integer> LAST_PROCESSED_THROW_TOTAL = new HashMap<>();
     private static final Map<UUID, Integer> LAST_THROW_PENDING_TICKS = new HashMap<>();
     private static final Map<UUID, UUID> LAST_THROW_PEARL_UUID = new HashMap<>();
@@ -350,6 +353,12 @@ public final class ThrowResolver {
         }
 
         roundStateManager.updateLie(player.getUuid(), resultingLie);
+
+        // Record near-pin for skill progression if the throw landed close to the basket but did not make it.
+        if (!madeShot && isNearPin(resultingLie, basket)) {
+            PlayerSkillManager.recordNearPin(player);
+        }
+
         // Use calculated trajectory distance when available so Throw HUD and Round HUD "Last" match.
         // Falls back to block-to-block distance for legacy pearl throws.
         int lastThrowDistance = calc != null
@@ -475,6 +484,13 @@ public final class ThrowResolver {
                 + " processedTotal=" + (processedTotal == null ? "-" : processedTotal)
                 + " pendingTicks=" + (pendingTicks == null ? "-" : pendingTicks)
                 + " lastReason=" + reason;
+    }
+
+    private static boolean isNearPin(BlockPos lie, BlockPos basket) {
+        int dx = Math.abs(lie.getX() - basket.getX());
+        int dz = Math.abs(lie.getZ() - basket.getZ());
+        int dy = Math.abs(lie.getY() - basket.getY());
+        return dx <= NEAR_PIN_RADIUS_BLOCKS && dz <= NEAR_PIN_RADIUS_BLOCKS && dy <= NEAR_PIN_HEIGHT_TOLERANCE;
     }
 
     private static StrictPenaltyType combinePenalty(StrictPenaltyType first, StrictPenaltyType second) {

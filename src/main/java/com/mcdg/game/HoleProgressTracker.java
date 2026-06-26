@@ -294,6 +294,9 @@ public final class HoleProgressTracker {
                     }
                     StaminaXpService.awardRoundXp(player, state.totalStrokes(), totalPar, state.aceCount(), rulesetManager.isStrict());
 
+                    PlayerSkillManager.awardXp(player, Math.max(0, totalPar - state.totalStrokes()) * 10 + state.aceCount() * 25);
+                    PlayerSkillManager.recordRoundCompleted(player, state.currentHole(), state.aceCount());
+
                     roundStateManager.clearPlayer(player.getUuid());
 
                     if (firstTee != null) {

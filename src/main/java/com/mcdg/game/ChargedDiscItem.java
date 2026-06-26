@@ -275,7 +275,10 @@ public class ChargedDiscItem extends Item {
 
         // Apply tier-based disc stats (Phase 3.1)
         DiscStats stats = getDiscStats(stack);
+        // Apply accessory and skill effects to the effective disc stats
+        stats = PlayerThrowStats.applyPlayerEffects(stats, serverPlayer);
         velocity *= (float) stats.throwSpeedMultiplier();
+        velocity *= (1.0f + PlayerThrowStats.getPowerMultiplierBonus(serverPlayer));
 
         // Calculate throw trajectory (predicted flight path, no pearl entity)
         // Get server-side stance (defaults to OVERHAND/FLAT if not set)
@@ -310,7 +313,8 @@ public class ChargedDiscItem extends Item {
                 angle,
                 enchantments,
                 effectiveWind,
-                stats
+                stats,
+                PlayerThrowStats.getAnglePenaltyReduction(serverPlayer)
         );
 
         McdgMod.LOGGER.info(
@@ -397,6 +401,8 @@ public class ChargedDiscItem extends Item {
         BlockPos recordedThrowLie = state == null ? serverPlayer.getBlockPos() : state.lie();
         roundStateManager.recordThrow(serverPlayer.getUuid(), recordedThrowLie);
         StaminaXpService.consumeThrowStamina(serverPlayer, charge);
+        DiscTier thrownTier = stack.getItem() instanceof TieredDiscItem tieredDisc ? tieredDisc.tier() : null;
+        PlayerSkillManager.recordThrow(serverPlayer, thrownTier);
         if (strictFlowDebug) {
             McdgMod.LOGGER.info(
                 "Strict throw release | player={} charge={} velocity={} pos={} strict={}",
@@ -410,9 +416,13 @@ public class ChargedDiscItem extends Item {
         Hand swingHand = serverPlayer.getMainHandStack().isOf(stack.getItem()) ? Hand.MAIN_HAND : Hand.OFF_HAND;
         serverPlayer.swingHand(swingHand, true);
         // Tiered discs lose durability on each throw; training disc has no durability.
+        // Disc towel accessory reduces durability loss chance.
         if (stack.isDamageable()) {
-            EquipmentSlot slot = swingHand == Hand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND;
-            stack.damage(1, serverPlayer, slot);
+            float preserveChance = AccessoryManager.getDurabilityPreserveMultiplier(serverPlayer);
+            if (serverPlayer.getRandom().nextFloat() >= preserveChance) {
+                EquipmentSlot slot = swingHand == Hand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND;
+                stack.damage(1, serverPlayer, slot);
+            }
         }
         serverPlayer.sendMessage(buildReleaseText(charge), true);
     }

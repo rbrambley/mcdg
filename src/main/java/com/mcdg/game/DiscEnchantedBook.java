@@ -94,9 +94,9 @@ public final class DiscEnchantedBook extends Item {
         }
 
         ItemStack mainHand = user.getMainHandStack();
-        if (!mainHand.isOf(McdgItems.TRAINING_DISC)) {
+        if (!McdgItems.isDisc(mainHand)) {
             if (user instanceof ServerPlayerEntity sp) {
-                sp.sendMessage(Text.literal("Hold Training Disc in main hand, enchanted book in off hand, then right-click.").formatted(net.minecraft.util.Formatting.RED), true);
+                sp.sendMessage(Text.literal("Hold a disc in main hand, enchanted book in off hand, then right-click.").formatted(net.minecraft.util.Formatting.RED), true);
             }
             return TypedActionResult.fail(bookStack);
         }

@@ -109,6 +109,22 @@ public final class TrajectoryCalculator {
             Vec3d windVelocity,
             DiscStats discStats
     ) {
+        return calculateTrajectory(world, startPos, initialVelocity, launchYawDegrees, charge, stance, angle, enchantments, windVelocity, discStats, 0.0f);
+    }
+
+    public static TrajectoryResult calculateTrajectory(
+            ServerWorld world,
+            Vec3d startPos,
+            Vec3d initialVelocity,
+            float launchYawDegrees,
+            float charge,
+            ThrowStance stance,
+            ReleaseAngle angle,
+            Map<DiscEnchantment, Integer> enchantments,
+            Vec3d windVelocity,
+            DiscStats discStats,
+            float anglePenaltyReduction
+    ) {
         // Current position and velocity (simulation state) — use primitives to avoid GC churn
         double px = startPos.x;
         double py = startPos.y + RELEASE_HEIGHT_OFFSET;
@@ -147,6 +163,11 @@ public final class TrajectoryCalculator {
         // Higher stability reduces fade curve; lower stability increases it
         if (discStats.stabilityMultiplier() != 1.0) {
             curveMultiplier *= (2.0 - discStats.stabilityMultiplier());
+        }
+
+        // Apply skill-based angle penalty reduction
+        if (anglePenaltyReduction > 0.0f) {
+            curveMultiplier *= (1.0 - anglePenaltyReduction);
         }
 
         // Path points for visual trail (sample every 5 ticks to save memory)
