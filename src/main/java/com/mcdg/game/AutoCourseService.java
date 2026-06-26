@@ -38,10 +38,10 @@ import net.minecraft.util.math.BlockPos;
 public final class AutoCourseService {
     private static final int HOLE_COUNT = 9;
     private static final int TICKS_BETWEEN_HOLES = 20;
-    private static final int MIN_DISTANCE_FEET = 90;
-    private static final int MAX_DISTANCE_FEET = 1400;
+    private static final int MIN_DISTANCE_FEET = 150;
+    private static final int MAX_DISTANCE_FEET = 2500;
     private static final int PAR3_MAX_FEET = 450;
-    private static final int PAR4_MAX_FEET = 900;
+    private static final int PAR4_MAX_FEET = 1500;
     private static final int MIN_FAIRWAY_WIDTH = 4;
     private static final int MAX_FAIRWAY_WIDTH = 10;
     private static final int COURSE_RADIUS_MIN = 80;
@@ -440,9 +440,12 @@ public final class AutoCourseService {
         double rightZ = -fwdX;
 
         int baseLineHalf = baseLineWidth / 2;
-        // Adjust cone angle for cave mode (tighter layouts in caves)
-        double coneAngle = Math.toRadians(caveMode ? 20.0 : 30.0);
+        // Wider cone for the teardrop so return-phase baskets stay inside it instead
+        // of being shrunk to short distances. Cave mode still uses a tighter cone.
+        double coneAngle = Math.toRadians(caveMode ? 30.0 : 60.0);
         double tanCone = Math.tan(coneAngle);
+        // Teardrop peak angle is a fraction of the cone so every hole stays inside it.
+        double teardropMaxAngle = coneAngle * 0.6;
 
         int ox = origin.getX();
         int oz = origin.getZ();
@@ -464,46 +467,26 @@ public final class AutoCourseService {
 
         // Adjust distances for cave mode (shorter for tighter spaces)
         double distanceMultiplier = caveMode ? 0.6 : 1.0;
-        
-        // Phase-based distance ranges (blocks) - dynamic based on hole count
+
+        // Target roughly 350 ft per hole for the first holeCount-1 holes.
+        // 350 ft / 3.28 = 107 blocks, so 95-120 blocks puts the average at ~107 blocks.
         int[] minDistBlocks = new int[holeCount + 1];
         int[] maxDistBlocks = new int[holeCount + 1];
-        
-        // Generate distance arrays based on hole count
-        for (int i = 1; i <= holeCount; i++) {
-            double phaseProgress = (double) i / holeCount;
-            if (phaseProgress <= 0.33) {
-                // Outbound phase
-                minDistBlocks[i] = (int) (150 * distanceMultiplier);
-                maxDistBlocks[i] = (int) (300 * distanceMultiplier);
-            } else if (phaseProgress <= 0.66) {
-                // Turnaround phase
-                minDistBlocks[i] = (int) (100 * distanceMultiplier);
-                maxDistBlocks[i] = (int) (250 * distanceMultiplier);
-            } else {
-                // Return phase
-                minDistBlocks[i] = (int) (60 * distanceMultiplier);
-                maxDistBlocks[i] = (int) (180 * distanceMultiplier);
-            }
+        int targetMin = (int) Math.round(95 * distanceMultiplier);
+        int targetMax = (int) Math.round(120 * distanceMultiplier);
+        for (int i = 1; i < holeCount; i++) {
+            minDistBlocks[i] = targetMin;
+            maxDistBlocks[i] = targetMax;
         }
 
-        // Phase-based basket angle base (radians), relative to forward direction
-        // Dynamic based on hole count
+        // Smooth teardrop curve for basket angles. The angle sweeps from 0 up to a peak
+        // and back to 0, so the final hole can naturally return to the baseline area.
+        // Holes stay well inside the widened cone, avoiding the old shrink-to-short behavior.
         double[] basketAngleBase = new double[holeCount + 1];
         basketAngleBase[0] = 0.0;
-        
-        for (int i = 1; i <= holeCount; i++) {
-            double phaseProgress = (double) i / holeCount;
-            if (phaseProgress <= 0.33) {
-                // Outbound: mostly forward, small spread
-                basketAngleBase[i] = phaseProgress * 0.75;
-            } else if (phaseProgress <= 0.66) {
-                // Turnaround: angled back
-                basketAngleBase[i] = Math.PI * (0.4 + (phaseProgress - 0.33) * 0.5);
-            } else {
-                // Return: pulling back toward baseline
-                basketAngleBase[i] = Math.PI * (0.7 + (phaseProgress - 0.66) * 0.3);
-            }
+        for (int i = 1; i < holeCount; i++) {
+            double normalized = (double) i / holeCount;
+            basketAngleBase[i] = teardropMaxAngle * Math.sin(Math.PI * normalized);
         }
 
         // Adjust spacing for cave mode (wider spacing to prevent intersecting holes)
@@ -573,10 +556,20 @@ public final class AutoCourseService {
                     basketX = baseCenterX + (int) Math.round(rightX * hole9RightOffset);
                     basketZ = baseCenterZ + (int) Math.round(rightZ * hole9RightOffset);
                 }
+                // Cap the final (signature) hole physically so it never exceeds the Par 5 maximum.
+                int maxFinalBlocks = (int) Math.round(MAX_DISTANCE_FEET / 3.28084);
+                double dx = basketX - teeX;
+                double dz = basketZ - teeZ;
+                double finalDist = Math.hypot(dx, dz);
+                if (finalDist > maxFinalBlocks) {
+                    double scale = maxFinalBlocks / finalDist;
+                    basketX = teeX + (int) Math.round(dx * scale);
+                    basketZ = teeZ + (int) Math.round(dz * scale);
+                }
             } else {
                 double angleBase = basketAngleBase[i];
                 double angleSign = globalAngleSign;
-                double jitter = (random.nextDouble() - 0.5) * 0.4;
+                double jitter = (random.nextDouble() - 0.5) * 0.3; // ±0.15 rad ≈ ±8.6°
                 double basketAngle = Math.toRadians(facingYaw) + (angleBase * angleSign) + jitter;
 
                 int distBlocks;
