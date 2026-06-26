@@ -70,6 +70,10 @@ public final class ResortCourseBuilder {
         if (pendingCandidates.isEmpty()) {
             McdgMod.LOGGER.warn("No suitable surround course locations found for auto-build.");
             isBuilding = false;
+            // Record that the auto-build process completed so it is not re-queued on every restart.
+            if (server != null) {
+                WorldSpawnHandler.markCoursesBuilt(server);
+            }
             return;
         }
 
@@ -282,7 +286,9 @@ public final class ResortCourseBuilder {
         }
         McdgMod.LOGGER.info("Finished building resort courses: {} of {} succeeded", builtCourses, SURROUND_COURSE_COUNT);
 
-        if (builtCourses >= SURROUND_COURSE_COUNT && server != null) {
+        // Mark the surround-course build as completed so the auto-build process does
+        // not run again on every server restart, even if fewer than 3 courses succeeded.
+        if (server != null) {
             WorldSpawnHandler.markCoursesBuilt(server);
         }
 
