@@ -444,8 +444,8 @@ public final class AutoCourseService {
         // of being shrunk to short distances. Cave mode still uses a tighter cone.
         double coneAngle = Math.toRadians(caveMode ? 30.0 : 60.0);
         double tanCone = Math.tan(coneAngle);
-        // Teardrop peak angle is a fraction of the cone so every hole stays inside it.
-        double teardropMaxAngle = coneAngle * 0.6;
+        // Teardrop peak angle is a fraction of the cone, randomized per seed for course uniqueness.
+        double teardropMaxAngle = coneAngle * (0.4 + random.nextDouble() * 0.4); // 0.4-0.8
 
         int ox = origin.getX();
         int oz = origin.getZ();
@@ -544,25 +544,29 @@ public final class AutoCourseService {
             while (!placed && placementAttempts < MAX_PLACEMENT_ATTEMPTS) {
                 placementAttempts++;
             if (i == holeCount) {
-                // Final hole basket lands near base line, offset >= 30 from tee1
-                int hole9RightOffset = 30 + random.nextInt(31);
+                // Final hole basket lands near base line with varied offset for Par 4 or Par 5.
+                // Wider offset range (100-200 blocks right/left, 50-150 blocks forward) to vary distance.
+                int hole9RightOffset = 100 + random.nextInt(101);
                 if (random.nextBoolean()) {
                     hole9RightOffset = -hole9RightOffset;
                 }
-                int hole9Forward = random.nextInt(21);
+                int hole9Forward = 50 + random.nextInt(101);
                 basketX = baseCenterX + (int) Math.round(fwdX * hole9Forward + rightX * hole9RightOffset);
                 basketZ = baseCenterZ + (int) Math.round(fwdZ * hole9Forward + rightZ * hole9RightOffset);
                 if (!inCone.test(basketX, basketZ)) {
                     basketX = baseCenterX + (int) Math.round(rightX * hole9RightOffset);
                     basketZ = baseCenterZ + (int) Math.round(rightZ * hole9RightOffset);
                 }
-                // Cap the final (signature) hole physically so it never exceeds the Par 5 maximum.
+                // Cap the final hole at the Par 5 maximum, but scale to a random value in the upper range
+                // (2000-2500 ft) so it's not always exactly 2500 ft and can be a Par 4 as well.
                 int maxFinalBlocks = (int) Math.round(MAX_DISTANCE_FEET / 3.28084);
+                int minFinalBlocks = (int) Math.round(2000 / 3.28084);
                 double dx = basketX - teeX;
                 double dz = basketZ - teeZ;
                 double finalDist = Math.hypot(dx, dz);
                 if (finalDist > maxFinalBlocks) {
-                    double scale = maxFinalBlocks / finalDist;
+                    double targetBlocks = minFinalBlocks + random.nextDouble() * (maxFinalBlocks - minFinalBlocks);
+                    double scale = targetBlocks / finalDist;
                     basketX = teeX + (int) Math.round(dx * scale);
                     basketZ = teeZ + (int) Math.round(dz * scale);
                 }
@@ -582,12 +586,24 @@ public final class AutoCourseService {
                 basketX = teeX + (int) Math.round(Math.cos(basketAngle) * distBlocks);
                 basketZ = teeZ + (int) Math.round(Math.sin(basketAngle) * distBlocks);
 
-                // Shrink distance if out of cone
+                // Shrink distance if out of cone, but enforce a minimum floor to avoid overly short holes.
+                // If shrinking would go below the target minimum, re-roll the angle slightly instead.
                 if (!inCone.test(basketX, basketZ)) {
+                    int originalDist = distBlocks;
                     for (int attempt = 0; attempt < 10 && !inCone.test(basketX, basketZ); attempt++) {
-                        distBlocks = (int) (distBlocks * 0.85);
-                        basketX = teeX + (int) Math.round(Math.cos(basketAngle) * distBlocks);
-                        basketZ = teeZ + (int) Math.round(Math.sin(basketAngle) * distBlocks);
+                        int nextDist = (int) (distBlocks * 0.85);
+                        if (nextDist < targetMin) {
+                            // Re-roll angle with reduced jitter to try to fit inside cone at target distance
+                            double reducedJitter = (random.nextDouble() - 0.5) * 0.15; // ±0.075 rad ≈ ±4.3°
+                            basketAngle = Math.toRadians(facingYaw) + (angleBase * angleSign) + reducedJitter;
+                            distBlocks = originalDist;
+                            basketX = teeX + (int) Math.round(Math.cos(basketAngle) * distBlocks);
+                            basketZ = teeZ + (int) Math.round(Math.sin(basketAngle) * distBlocks);
+                        } else {
+                            distBlocks = nextDist;
+                            basketX = teeX + (int) Math.round(Math.cos(basketAngle) * distBlocks);
+                            basketZ = teeZ + (int) Math.round(Math.sin(basketAngle) * distBlocks);
+                        }
                     }
                 }
             }
