@@ -3,13 +3,17 @@ package com.mcdg.game;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.mcdg.McdgMod;
+import com.mcdg.net.SkillsStatusSync;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.WorldSavePath;
@@ -95,6 +99,22 @@ public final class PlayerSkillManager {
             playerData.put(player.getUuid(), data);
             dirtyPlayers.put(player.getUuid(), true);
         }
+        sendSkillsStatus(player);
+    }
+
+    private static void sendSkillsStatus(ServerPlayerEntity player) {
+        PlayerSkillData data = playerData.get(player.getUuid());
+        if (data == null) {
+            return;
+        }
+        Set<String> unlockedSkills = new HashSet<>();
+        for (SkillUnlock skill : SkillUnlock.values()) {
+            if (Boolean.TRUE.equals(data.unlockedSkills.get(skill.key()))) {
+                unlockedSkills.add(skill.key());
+            }
+        }
+        SkillsStatusSync.Payload payload = new SkillsStatusSync.Payload(Set.copyOf(unlockedSkills));
+        ServerPlayNetworking.send(player, payload);
     }
 
     public static void onPlayerDisconnect(ServerPlayerEntity player) {
@@ -148,6 +168,28 @@ public final class PlayerSkillManager {
         return status;
     }
 
+    public static int getSkillProgress(ServerPlayerEntity player, SkillUnlock skill) {
+        PlayerSkillData data = playerData.get(player.getUuid());
+        if (data == null) {
+            return 0;
+        }
+        return switch (skill) {
+            case POWER_CONTROL -> data.totalXp;
+            case RELEASE_CONTROL -> data.roundsCompleted;
+            case WIND_READING -> data.totalThrows;
+            case FOCUS -> data.nearPins;
+            case DISC_MASTERY -> {
+                int tiersCrafted = 0;
+                for (DiscTier tier : DiscTier.values()) {
+                    if (data.tierDiscsCrafted.getOrDefault(tier.name().toLowerCase(), 0) >= 1) {
+                        tiersCrafted++;
+                    }
+                }
+                yield tiersCrafted;
+            }
+        };
+    }
+
     private static void modify(ServerPlayerEntity player, java.util.function.Consumer<PlayerSkillData> action) {
         PlayerSkillData data = playerData.computeIfAbsent(player.getUuid(), uuid -> new PlayerSkillData());
         action.accept(data);
@@ -155,6 +197,7 @@ public final class PlayerSkillManager {
     }
 
     private static void evaluateUnlocks(ServerPlayerEntity player, PlayerSkillData data) {
+        boolean newUnlock = false;
         for (SkillUnlock skill : SkillUnlock.values()) {
             if (Boolean.TRUE.equals(data.unlockedSkills.get(skill.key()))) {
                 continue;
@@ -162,7 +205,11 @@ public final class PlayerSkillManager {
             if (SkillUnlockEvaluator.isSkillUnlocked(skill, data)) {
                 data.unlockedSkills.put(skill.key(), true);
                 SkillUnlockNotifier.notifyUnlock(player, skill);
+                newUnlock = true;
             }
+        }
+        if (newUnlock) {
+            sendSkillsStatus(player);
         }
     }
 

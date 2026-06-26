@@ -2,9 +2,11 @@ package com.mcdg.client;
 
 import com.mcdg.net.LeaderboardRequest;
 import com.mcdg.net.MenuScreenSync;
+import com.mcdg.net.SkillsScreenSync;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -44,9 +46,10 @@ public final class McdgMenuScreen extends Screen {
     private static final int CONTENT_MAX_H     = PANEL_H - 28 - 20 - 16;
     private static final int ROWS_VISIBLE      = CONTENT_MAX_H / (BTN_H + BTN_GAP);
 
-    private enum Page { DASHBOARD, COURSES, BUILD, RULES, ADMIN, COURSE_MAINTENANCE }
+    private enum Page { DASHBOARD, COURSES, BUILD, RULES, ADMIN, COURSE_MAINTENANCE, SKILLS }
 
     private final MenuScreenSync.Payload state;
+    private SkillsScreenSync.Payload skillsData;
     private Page currentPage = Page.DASHBOARD;
     private int playScrollOffset = 0;
 
@@ -58,11 +61,31 @@ public final class McdgMenuScreen extends Screen {
     private final List<ButtonWidget> contentButtons = new ArrayList<>();
     private final List<int[]> buttonTints = new ArrayList<>();
     private final List<ButtonDescription> buttonDescriptions = new ArrayList<>();
+    private final List<SkillCardData> skillCards = new ArrayList<>();
     private ButtonDescription hoveredDescription = null;
 
     public McdgMenuScreen(MenuScreenSync.Payload state) {
         super(Text.literal("MCDG"));
         this.state = state;
+    }
+
+    public McdgMenuScreen(MenuScreenSync.Payload state, SkillsScreenSync.Payload skillsData) {
+        super(Text.literal("MCDG"));
+        this.state = state;
+        this.skillsData = skillsData;
+        this.currentPage = Page.SKILLS;
+    }
+
+    public static void openSkillsPage(SkillsScreenSync.Payload skillsData) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client != null) {
+            client.execute(() -> {
+                MenuScreenSync.Payload dummyState = new MenuScreenSync.Payload(
+                    false, false, "", 0, 0, false, "", 0, 0, false, "", "", List.of(), false
+                );
+                client.setScreen(new McdgMenuScreen(dummyState, skillsData));
+            });
+        }
     }
 
     @Override
@@ -76,6 +99,7 @@ public final class McdgMenuScreen extends Screen {
         contentButtons.clear();
         buttonTints.clear();
         buttonDescriptions.clear();
+        skillCards.clear();
 
         int panelX = (width - PANEL_W) / 2;
         int panelY = (height - PANEL_H) / 2;
@@ -101,6 +125,7 @@ public final class McdgMenuScreen extends Screen {
             addNavButton("Build", Page.BUILD, navX, navStartY + (slot++ * 26), btnW);
         }
         addNavButton("Rules",     Page.RULES,     navX, navStartY + (slot++ * 26), btnW);
+        addNavButton("Skills",    Page.SKILLS,    navX, navStartY + (slot++ * 26), btnW);
         if (state.isAdmin()) {
             addNavButton("Admin", Page.ADMIN, navX, navStartY + (slot * 26), btnW);
         }
@@ -127,6 +152,7 @@ public final class McdgMenuScreen extends Screen {
             case COURSES   -> buildCoursesPage(cx, cy, bw, panelX, panelY);
             case BUILD     -> buildBuildPage(cx, cy, bw);
             case RULES     -> buildRulesPage(cx, cy, bw);
+            case SKILLS    -> buildSkillsPage(cx, cy, bw);
             case ADMIN     -> buildAdminPage(cx, cy, bw);
             case COURSE_MAINTENANCE -> buildCourseMaintenancePage(cx, cy, bw, panelX, panelY);
         }
@@ -299,6 +325,34 @@ public final class McdgMenuScreen extends Screen {
             addBtnWithDesc("└ Surface: Balanced", "Moderate corridors, slope hazards enabled", "/mcdg ruleset surface balanced", cx + indent, y, bw - indent, TEXT_MUTED, BTN_TINT_MUTED); y += BTN_H + DESC_SPACING + BTN_GAP;
             addBtnWithDesc("└ Surface: Tournament", "Narrowest corridors, all hazards enabled", "/mcdg ruleset surface tournament", cx + indent, y, bw - indent, TEXT_MUTED, BTN_TINT_MUTED);
         }
+    }
+
+    private void buildSkillsPage(int cx, int cy, int bw) {
+        if (skillsData == null) {
+            addBtn(Text.translatable("gui.mcdg.skills.refresh").getString(), "/mcdg skills gui", cx, cy, bw, TEXT_GOLD, BTN_TINT_GOLD);
+            return;
+        }
+
+        int y = cy;
+        for (SkillsScreenSync.SkillEntry skill : skillsData.skills().values()) {
+            int skillColor = Formatting.byName(skill.colorName()) == null ? TEXT_WHITE : Formatting.byName(skill.colorName()).getColorValue();
+            int statusColor = skill.unlocked() ? TEXT_GREEN : TEXT_RED;
+            String statusText = skill.unlocked() ? Text.translatable("chat.mcdg.skill_status_unlocked").getString() : Text.translatable("chat.mcdg.skill_status_locked").getString();
+
+            String progressText = skill.unlocked() ? "✓" : skill.currentProgress() + "/" + skill.requiredCount();
+            float progress = skill.unlocked() ? 1.0f : (float) skill.currentProgress() / skill.requiredCount();
+
+            addSkillCard(skill.displayName(), skill.benefitDescription(), skill.description(), progressText, progress, skillColor, statusColor, statusText, cx, y, bw);
+            y += 55 + BTN_GAP;
+        }
+    }
+
+    private void addSkillCard(String name, String benefit, String requirement, String progressText, float progress, int nameColor, int statusColor, String statusText, int x, int y, int w) {
+        int cardH = 55;
+        int barW = w - 20;
+        int barH = 6;
+
+        skillCards.add(new SkillCardData(x, y, w, cardH, name, benefit, requirement, progressText, progress, nameColor, statusColor, statusText, barW, barH));
     }
 
     private void addBtnWithDesc(String label, String description, String command, int x, int y, int w, int textColor, int tint) {
@@ -573,6 +627,9 @@ public final class McdgMenuScreen extends Screen {
         }
 
         int contentWidth = PANEL_W - CONTENT_X_OFFSET - 8;
+        for (SkillCardData card : skillCards) {
+            renderSkillCard(context, card);
+        }
         for (ButtonDescription desc : buttonDescriptions) {
             if (desc.isHeader) {
                 context.fill(desc.x, desc.y - 3, desc.x + contentWidth, desc.y - 2, BORDER_COLOR);
@@ -730,5 +787,39 @@ public final class McdgMenuScreen extends Screen {
         ButtonDescription(int x, int y, String description) {
             this(x, y, description, description, false);
         }
+    }
+
+    private static record SkillCardData(int x, int y, int w, int h, String name, String benefit, String requirement, String progressText, float progress, int nameColor, int statusColor, String statusText, int barW, int barH) {}
+
+    private void renderSkillCard(DrawContext context, SkillCardData card) {
+        boolean unlocked = card.progress >= 1.0f;
+        int cardBg = unlocked ? 0x1A1A2E : 0x0F0F1A;
+        int cardBorder = card.nameColor;
+
+        context.fill(card.x, card.y, card.x + card.w, card.y + card.h, cardBg);
+        context.drawBorder(card.x, card.y, card.w, card.h, cardBorder);
+
+        int textX = card.x + 8;
+        int textY = card.y + 6;
+
+        context.drawTextWithShadow(textRenderer, Text.literal(card.name()).formatted(Formatting.BOLD), textX, textY, card.nameColor);
+        textY += 12;
+
+        context.drawTextWithShadow(textRenderer, Text.literal(card.benefit()), textX, textY, TEXT_WHITE);
+        textY += 10;
+
+        context.drawTextWithShadow(textRenderer, Text.literal(card.requirement()), textX, textY, TEXT_MUTED);
+        textY += 10;
+
+        int barX = card.x + 8;
+        int barY = card.y + card.h - card.barH - 6;
+        context.fill(barX, barY, barX + card.barW, barY + card.barH, 0xFF000000);
+        int filledWidth = (int) (card.barW * card.progress);
+        int barColor = unlocked ? TEXT_GREEN : 0xFF4A90A4;
+        context.fill(barX, barY, barX + filledWidth, barY + card.barH, barColor);
+
+        String progressStr = card.progressText();
+        int progressX = card.x + card.w - 8 - textRenderer.getWidth(progressStr);
+        context.drawTextWithShadow(textRenderer, Text.literal(progressStr), progressX, barY - 10, card.statusColor);
     }
 }

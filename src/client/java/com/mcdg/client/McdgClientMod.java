@@ -32,6 +32,7 @@ public final class McdgClientMod implements ClientModInitializer {
     private static long holeMapStateReceivedAtMs;
     private static long hudHideSinceMs;
     private static boolean roundEnded = false;
+    private static java.util.Set<String> unlockedSkills = new java.util.HashSet<>();
 
     // Cached left-side layout inputs — recomputed only when inputs change
     private static RunningRoundScoreState lastLayoutScoreState = null;
@@ -261,6 +262,14 @@ public final class McdgClientMod implements ClientModInitializer {
 
     public static long getHoleMapStateReceivedAtMs() {
         return holeMapStateReceivedAtMs;
+    }
+
+    public static java.util.Set<String> getUnlockedSkills() {
+        return unlockedSkills;
+    }
+
+    public static void updateUnlockedSkills(java.util.Set<String> skills) {
+        unlockedSkills = skills;
     }
 
 

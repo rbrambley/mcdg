@@ -7,6 +7,8 @@ import com.mcdg.net.HoleMapSync;
 import com.mcdg.net.LeaderboardResponse;
 import com.mcdg.net.MenuScreenSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
+import com.mcdg.net.SkillsScreenSync;
+import com.mcdg.net.SkillsStatusSync;
 import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.ThrowPowerLockSync;
 import com.mcdg.net.ThrowTrailSync;
@@ -58,6 +60,12 @@ public final class ClientNetworking {
         });
         ClientPlayNetworking.registerGlobalReceiver(MenuScreenSync.ID, (payload, context) ->
             context.client().execute(() -> context.client().setScreen(new McdgMenuScreen(payload)))
+        );
+        ClientPlayNetworking.registerGlobalReceiver(SkillsScreenSync.ID, (payload, context) ->
+            context.client().execute(() -> McdgMenuScreen.openSkillsPage(payload))
+        );
+        ClientPlayNetworking.registerGlobalReceiver(SkillsStatusSync.ID, (payload, context) ->
+            context.client().execute(() -> McdgClientMod.updateUnlockedSkills(payload.unlockedSkills()))
         );
         ClientPlayNetworking.registerGlobalReceiver(RoundRunningScoresSync.ID, (payload, context) ->
             context.client().execute(() -> McdgClientMod.onRoundRunningScoresSync(payload, context.client()))

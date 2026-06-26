@@ -45,6 +45,8 @@ import com.mcdg.net.LeaderboardResponse;
 import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.MenuScreenSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
+import com.mcdg.net.SkillsScreenSync;
+import com.mcdg.net.SkillsStatusSync;
 import com.mcdg.net.ThrowPowerLockSync;
 import com.mcdg.net.ThrowStanceSync;
 import com.mcdg.net.ThrowTrailSync;
@@ -202,6 +204,8 @@ public final class McdgMod implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(RoundCompleteCinematicSync.ID, RoundCompleteCinematicSync.CODEC);
         PayloadTypeRegistry.playS2C().register(MenuScreenSync.ID, MenuScreenSync.CODEC);
         PayloadTypeRegistry.playS2C().register(LeaderboardResponse.ID, LeaderboardResponse.CODEC);
+        PayloadTypeRegistry.playS2C().register(SkillsScreenSync.ID, SkillsScreenSync.CODEC);
+        PayloadTypeRegistry.playS2C().register(SkillsStatusSync.ID, SkillsStatusSync.CODEC);
 
         PayloadTypeRegistry.playS2C().register(ThrowPowerLockSync.ID, ThrowPowerLockSync.CODEC);
         PayloadTypeRegistry.playS2C().register(ThrowTrailSync.ID, ThrowTrailSync.CODEC);

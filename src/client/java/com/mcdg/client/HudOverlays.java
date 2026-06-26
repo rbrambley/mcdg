@@ -12,6 +12,7 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Arm;
 import net.minecraft.util.Formatting;
+import java.util.Set;
 
 /**
  * Standalone HUD overlays that don't depend on round or minimap state.
@@ -493,7 +494,7 @@ public final class HudOverlays {
         int panelW = Math.max(RoundInfoOverlay.getSharedPanelWidth(), maxTextW + Math.round(16 * scale));
         RoundInfoOverlay.setSharedPanelWidth(panelW);
 
-        int contentRows = 2;
+        int contentRows = 3; // stance, angle, skills
         int scaledRowSpacing = Math.round(THROW_ROW_SPACING * scale);
         int panelH = Math.round(16 * scale) + (contentRows * scaledRowSpacing) + Math.round(4 * scale);
 
@@ -519,9 +520,38 @@ public final class HudOverlays {
         HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(angleName).formatted(angleColor), drawX, row, angleTextColor, scale);
         int angleHintX = x + panelW - Math.round(6 * scale) - angleHintW;
         HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(angleHint).formatted(Formatting.DARK_GRAY), angleHintX, row, hintColor, scale);
-        
+
+        // Render skill icons
+        row += scaledRowSpacing;
+        renderSkillIcons(drawContext, client, x, row, panelW, scale, hudAlpha);
+
         // Track panel height for scorecard positioning
         lastStanceSettingsPanelHeight = panelH;
+    }
+
+    private static void renderSkillIcons(DrawContext drawContext, MinecraftClient client, int x, int y, int panelW, float scale, float hudAlpha) {
+        Set<String> unlockedSkills = McdgClientMod.getUnlockedSkills();
+        if (unlockedSkills.isEmpty()) {
+            // Adjust panel height if no skills unlocked
+            lastStanceSettingsPanelHeight = Math.round(16 * scale) + (2 * Math.round(THROW_ROW_SPACING * scale)) + Math.round(4 * scale);
+            return;
+        }
+
+        // Skill icons and their colors
+        String[] skillKeys = {"power_control", "release_control", "wind_reading", "focus", "disc_mastery"};
+        String[] skillIcons = {"⚡", "🎯", "💨", "🎯", "🏆"};
+        Formatting[] skillColors = {Formatting.RED, Formatting.AQUA, Formatting.YELLOW, Formatting.GREEN, Formatting.LIGHT_PURPLE};
+
+        int iconSpacing = Math.round(12 * scale);
+        int startX = x + Math.round(6 * scale);
+        int iconY = y;
+
+        for (int i = 0; i < skillKeys.length; i++) {
+            if (unlockedSkills.contains(skillKeys[i])) {
+                int iconColor = HudUtil.withAlpha(colorFromFormatting(skillColors[i]), hudAlpha);
+                HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(skillIcons[i]), startX + (i * iconSpacing), iconY, iconColor, scale);
+            }
+        }
     }
 
     private static int colorFromFormatting(Formatting fmt) {
@@ -532,6 +562,7 @@ public final class HudOverlays {
             case RED -> 0xFF5555;
             case WHITE -> 0xFFFFFF;
             case YELLOW -> 0xFFFF55;
+            case LIGHT_PURPLE -> 0xFF55FF;
             default -> 0xFFFFFF;
         };
     }

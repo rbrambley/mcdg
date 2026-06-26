@@ -4,8 +4,11 @@ import static net.minecraft.server.command.CommandManager.literal;
 
 import com.mcdg.game.PlayerSkillManager;
 import com.mcdg.game.SkillUnlock;
+import com.mcdg.net.SkillsScreenSync;
+import java.util.HashMap;
 import java.util.Map;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
@@ -48,6 +51,37 @@ public final class SkillCommands {
                                     ).formatted(Formatting.GRAY), false);
                             }
                         }
+                        return 1;
+                    })
+                )
+                .then(literal("gui")
+                    .executes(context -> {
+                        ServerCommandSource source = context.getSource();
+                        ServerPlayerEntity player = source.getPlayer();
+                        if (player == null) {
+                            source.sendError(Text.literal("Only players can use this command."));
+                            return 0;
+                        }
+
+                        Map<String, SkillsScreenSync.SkillEntry> skills = new HashMap<>();
+                        for (SkillUnlock skill : SkillUnlock.values()) {
+                            boolean unlocked = PlayerSkillManager.hasSkill(player, skill);
+                            int progress = PlayerSkillManager.getSkillProgress(player, skill);
+                            SkillsScreenSync.SkillEntry entry = new SkillsScreenSync.SkillEntry(
+                                skill.key(),
+                                skill.displayName(),
+                                skill.description(),
+                                skill.benefitDescription(),
+                                skill.color().getName(),
+                                skill.requiredCount(),
+                                progress,
+                                unlocked
+                            );
+                            skills.put(skill.key(), entry);
+                        }
+
+                        SkillsScreenSync.Payload payload = new SkillsScreenSync.Payload(Map.copyOf(skills));
+                        ServerPlayNetworking.send(player, payload);
                         return 1;
                     })
                 )
