@@ -3,7 +3,7 @@
 **Status:** Master Implementation Plan
 **Created:** 2026-06-17
 **Last Updated:** 2026-06-25
-**Current Phase:** Phase 2 (Enhanced Gameplay Systems) — 2.1/2.2 complete, 2.3 placeholder complete
+**Current Phase:** Phase 3 (Progression Systems) — 3.1 core complete, 3.1 follow-up pending
 **Overall Progress:** Phase 1 of 6 (✅ COMPLETE) — Phase 2.1/2.2 complete, 2.3 placeholder complete, Phase 3.1 core tiered discs complete
 **Goal:** Combine all feature plans into cohesive development phases with logical dependencies and priorities
 
@@ -68,9 +68,9 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
 - Phase 3.1 follow-up: disc bags, accessories, skill-based unlocks
 
 **Next Priority:**
-- ✅ Phase 3.1: Disc Crafting Progression (core tiered discs complete)
 - 📋 Phase 3.1 follow-up: disc bags, accessories, skill-based unlocks
 - 📋 Phase 3.2: Custom Disc Stats
+- 📋 Phase 3.3: Challenge Courses
 
 **Combined Plans:**
 - Fade/Hyzer/Anhyzer Physics Fix (FADE_FIX_PLAN.md)
@@ -304,16 +304,20 @@ This plan integrates all MCDG enhancement initiatives into a structured multi-ph
 
 ### **Phase 3.1: Disc Crafting Progression**
 **Source:** CRAFTING-PROGRESSION-SYSTEM.md (Phase 1-2)
-**Effort:** 10-14 hours
+**Effort:** 10-14 hours (core complete), 6-8 hours (follow-up)
 **Dependencies:** Phase 1.3 (survival integration)
-**Status:** ✅ Core tiered discs complete (2026-06-25)
+**Status:** ✅ Core tiered discs complete (2026-06-25), ⏸️ Follow-up pending
 
-**Tasks:**
+**Completed Tasks:**
 - ✅ Implement disc tier crafting (Wooden → Stone → Iron → Gold → Diamond → Netherite)
 - ✅ Add tier-based flight stats (glide, stability, throw speed, wind resistance, durability)
-- ⏸️ Add enchanting system for discs (Phase 1.5b Disc Workbench already exists; anvil/table integration deferred)
-- ⏸️ Implement skill-based unlocks (deferred to Phase 3.1 follow-up)
-- ⏸️ Add accessory crafting (retriever, analyzer, compass) (deferred)
+- ✅ Integrate flight stats with TrajectoryCalculator
+- ✅ Add scorecard souvenirs
+
+**Follow-up Tasks (Phase 3.1b):**
+- ⏸️ Implement skill-based unlocks (achievement tracking, unlock conditions, progression display)
+- ⏸️ Add accessory crafting (retriever, analyzer, compass)
+- ⏸️ Anvil/table enchanting integration (Disc Workbench already exists from Phase 1.5b)
 
 **Impact:** HIGH - Core progression system
 

@@ -1,8 +1,8 @@
 # Crafting Progression System Plan
 
-**Status:** Partially Implemented — Training Disc complete; tiered progression pending  
-**Created:** 2026-06-17  
-**Last Updated:** 2026-06-22  
+**Status:** Core Complete — Training Disc + Tiered Discs complete; accessories and skill unlocks pending
+**Created:** 2026-06-17
+**Last Updated:** 2026-06-26
 **Goal:** Create comprehensive crafting progression system for disc golf in survival mode
 
 ---
@@ -27,7 +27,38 @@ This progression system transforms disc golf equipment from a single item into a
 | Training Disc | ✅ Complete | Permanent reusable disc; recipe: 8 arrows + copper ingot; no durability loss |
 | Wooden Disc | ✅ Complete | Tier 1 beginner disc; 0.8x glide, 0.8x stability, 50 durability |
 | Tiered discs (Stone → Netherite) | ✅ Complete | Tiered stats, crafting recipes, and durability wired into disc flight physics |
+| Flight stats integration | ✅ Complete | TrajectoryCalculator integration with tier-based modifiers |
+| Scorecard souvenirs | ✅ Complete | Round completion grants scorecard items |
 | Disc Bag | 📋 Planned | Planned but not implemented |
+| Skill-based unlocks | 📋 Planned | Achievement tracking and unlock conditions not yet implemented |
+| Accessory crafting | 📋 Planned | Retriever, analyzer, compass not yet implemented |
+
+---
+
+## Phase 3.1 Follow-up: Accessories & Skill Unlocks
+
+### **Status:** 📋 Planning (not yet started)
+**Estimated Effort:** 6-8 hours
+**Dependencies:** Phase 3.1 core (complete)
+
+### **Remaining Tasks**
+
+#### **Skill-Based Unlocks (3-4 hours)**
+- Implement achievement tracking system
+- Add unlock condition system (e.g., "complete 5 rounds under par", "ace 3 holes")
+- Create progression display in GUI
+- Design alternative unlock paths for different playstyles
+
+#### **Accessory Crafting (2-3 hours)**
+- **Disc Retriever:** Tool to recover discs from hazards/out of bounds
+- **Disc Analyzer:** Item that shows detailed flight stats of held disc
+- **Disc Compass:** Points to nearest basket or lost disc
+- Crafting recipes and material requirements
+
+#### **Anvil/Table Enchanting Integration (1-2 hours)**
+- Integrate existing Disc Workbench enchantments with vanilla anvil
+- Allow combining enchanted discs
+- Add enchantment cost scaling by disc tier
 
 ---
 

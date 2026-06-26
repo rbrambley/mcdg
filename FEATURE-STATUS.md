@@ -1,7 +1,7 @@
 # MCDG Feature Status Truth Table
 
-**Purpose:** Single source of truth mapping every planned feature to its actual code status.  
-**Last Updated:** 2026-06-25  
+**Purpose:** Single source of truth mapping every planned feature to its actual code status.
+**Last Updated:** 2026-06-26  
 **How to read:**
 - **Plan Status** — what the design documents claim
 - **Code Status** — what actually exists in `src/main/java` and `src/client/java`
@@ -48,7 +48,8 @@
 
 | Feature | Plan Status | Code Status | Verdict | Risk |
 |---------|-------------|-------------|---------|------|
-| Disc crafting progression | � Partial | Wooden→Netherite tiered discs, recipes, durability, and tier physics implemented; bags, accessories, skill unlocks still pending | Accurate | Low |
+| Disc crafting progression (core) | ✅ Complete | Wooden→Netherite tiered discs, recipes, durability, tier physics, flight stats integration, scorecard souvenirs implemented | Accurate | Low |
+| Disc crafting progression (follow-up) | ⏸️ Pending | Skill-based unlocks, accessory crafting (retriever, analyzer, compass), anvil/table enchanting integration not yet implemented | Accurate | Low |
 | Custom disc stats | 📋 Planning | No `DiscFlightRatings`, `DiscCharacteristics`, or disc builder | Accurate | Low |
 | Challenge courses | 📋 Planning | No challenge course generation or special rewards | Accurate | Low |
 
