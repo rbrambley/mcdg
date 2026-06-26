@@ -6,6 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.mcdg.McdgMod;
 import com.mcdg.data.Course;
+import com.mcdg.game.ChallengeCourseParameters;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.WorldSavePath;
 import net.minecraft.util.math.BlockPos;
@@ -32,7 +33,7 @@ public final class ChallengeCourseCatalog {
     /**
      * Adds or updates a course in the catalog.
      */
-    public void addOrUpdateCourse(LostCourse course, Course generatedCourse) {
+    public void addOrUpdateCourse(LostCourse course, Course generatedCourse, ChallengeCourseParameters parameters) {
         CatalogEntry entry = new CatalogEntry(
             course.courseId(),
             course.name(),
@@ -40,6 +41,7 @@ public final class ChallengeCourseCatalog {
             course.entrancePosition(),
             course.courseAnchor(),
             generatedCourse,
+            parameters,
             Instant.now(),
             new HashMap<>(), // playerRewards
             new HashMap<>()  // playerCompletions
@@ -181,13 +183,16 @@ public final class ChallengeCourseCatalog {
         private final BlockPos entrancePosition;
         private final BlockPos courseAnchor;
         private final Course generatedCourse;
+        private final ChallengeCourseParameters parameters;
         private final Instant discoveredAt;
         private final Map<UUID, PlayerRewardData> playerRewards;
         private final Map<UUID, PlayerCompletionData> playerCompletions;
+        private boolean isPlaced;
 
         public CatalogEntry(UUID courseId, String name, ChallengeCourseType type, 
                           BlockPos entrancePosition, BlockPos courseAnchor, Course generatedCourse,
-                          Instant discoveredAt, Map<UUID, PlayerRewardData> playerRewards,
+                          ChallengeCourseParameters parameters, Instant discoveredAt, 
+                          Map<UUID, PlayerRewardData> playerRewards,
                           Map<UUID, PlayerCompletionData> playerCompletions) {
             this.courseId = courseId;
             this.name = name;
@@ -195,9 +200,11 @@ public final class ChallengeCourseCatalog {
             this.entrancePosition = entrancePosition;
             this.courseAnchor = courseAnchor;
             this.generatedCourse = generatedCourse;
+            this.parameters = parameters;
             this.discoveredAt = discoveredAt;
             this.playerRewards = playerRewards;
             this.playerCompletions = playerCompletions;
+            this.isPlaced = false;
         }
 
         public UUID courseId() { return courseId; }
@@ -206,9 +213,12 @@ public final class ChallengeCourseCatalog {
         public BlockPos entrancePosition() { return entrancePosition; }
         public BlockPos courseAnchor() { return courseAnchor; }
         public Course generatedCourse() { return generatedCourse; }
+        public ChallengeCourseParameters parameters() { return parameters; }
         public Instant discoveredAt() { return discoveredAt; }
         public Map<UUID, PlayerRewardData> playerRewards() { return playerRewards; }
         public Map<UUID, PlayerCompletionData> playerCompletions() { return playerCompletions; }
+        public boolean isPlaced() { return isPlaced; }
+        public void setPlaced(boolean placed) { this.isPlaced = placed; }
     }
 
     /**
@@ -226,4 +236,27 @@ public final class ChallengeCourseCatalog {
         Instant completedAt,
         int score
     ) {}
+
+    /**
+     * Marks a course as placed in the world.
+     */
+    public void markCourseAsPlaced(UUID courseId) {
+        CatalogEntry entry = entries.get(courseId);
+        if (entry != null) {
+            CatalogEntry updatedEntry = new CatalogEntry(
+                entry.courseId(),
+                entry.name(),
+                entry.type(),
+                entry.entrancePosition(),
+                entry.courseAnchor(),
+                entry.generatedCourse(),
+                entry.parameters(),
+                entry.discoveredAt(),
+                entry.playerRewards(),
+                entry.playerCompletions()
+            );
+            updatedEntry.setPlaced(true);
+            entries.put(courseId, updatedEntry);
+        }
+    }
 }

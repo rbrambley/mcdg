@@ -6,6 +6,7 @@ import com.mcdg.game.PlacedCourseState;
 import com.mcdg.game.PracticeCourseStorage;
 import com.mcdg.game.ChallengeCourseManager;
 import com.mcdg.game.ChallengeCourseCatalog;
+import com.mcdg.game.ChallengeCourseBuilder;
 import com.mcdg.net.MenuScreenSync;
 import com.mcdg.rules.TournamentRulesetManager;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -181,7 +182,7 @@ public final class MenuCommands {
                         .formatted(Formatting.AQUA), false);
                 }
                 
-                // Start button (placeholder - would need actual round start integration)
+                // Start button
                 source.sendFeedback(() -> menuButton("  Start " + entry.name(), "/mcdg startchallenge " + entry.courseId(), Formatting.GREEN, true), false);
             }
         }

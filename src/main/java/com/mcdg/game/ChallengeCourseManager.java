@@ -16,12 +16,12 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import java.util.Random;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -32,9 +32,6 @@ public final class ChallengeCourseManager {
     private static final Map<UUID, LostCourse> LOST_COURSES = new ConcurrentHashMap<>();
     private static ChallengeCourseCatalog catalog;
     private static final SeededCourseGenerator COURSE_GENERATOR = new SeededCourseGenerator();
-    private static final int BOSS_HOLE_DISTANCE_FEET = 600;
-    private static final int TIME_TRIAL_HOLE_COUNT = 3;
-    private static final int TIME_TRIAL_PAR_BONUS_SECONDS = 30;
 
     private ChallengeCourseManager() {}
 
@@ -115,8 +112,9 @@ public final class ChallengeCourseManager {
             return;
         }
 
-        // Add to catalog
-        catalog.addOrUpdateCourse(course, generatedCourse);
+        // Add to catalog with parameters
+        ChallengeCourseParameters params = ChallengeCourseParameters.forType(course.type());
+        catalog.addOrUpdateCourse(course, generatedCourse, params);
 
         // Mark as discovered in the original lost course tracking
         LostCourse discoveredCourse = course.markDiscovered();
@@ -142,101 +140,13 @@ public final class ChallengeCourseManager {
      * Generates a challenge course based on its type.
      */
     public static Course generateChallengeCourse(LostCourse lostCourse) {
+        ChallengeCourseParameters params = ChallengeCourseParameters.forType(lostCourse.type());
         Random random = new Random(lostCourse.courseId().getLeastSignificantBits());
         
-        return switch (lostCourse.type()) {
-            case LOST_COURSE -> generateStandardCourse(lostCourse.courseAnchor(), random);
-            case BOSS_HOLE -> generateBossHole(lostCourse.courseAnchor(), random);
-            case TIME_TRIAL -> generateTimeTrialCourse(lostCourse.courseAnchor(), random);
-            case ACCURACY_CHALLENGE -> generateAccuracyChallenge(lostCourse.courseAnchor(), random);
-            case DISTANCE_CHALLENGE -> generateDistanceChallenge(lostCourse.courseAnchor(), random);
-        };
+        return COURSE_GENERATOR.generateWithParameters(random.nextLong(), params, 0.0f);
     }
 
-    /**
-     * Generates a standard 9-hole course for lost courses.
-     */
-    private static Course generateStandardCourse(BlockPos anchor, Random random) {
-        long seed = random.nextLong();
-        return COURSE_GENERATOR.generate(seed, 9);
-    }
 
-    /**
-     * Generates a single challenging boss hole.
-     */
-    private static Course generateBossHole(BlockPos anchor, Random random) {
-        long seed = random.nextLong();
-        Course singleHoleCourse = COURSE_GENERATOR.generate(seed, 1);
-        
-        // Adjust the hole to be more challenging
-        Hole original = singleHoleCourse.holes().get(0);
-        Hole bossHole = new Hole(
-            original.index(),
-            Math.max(original.par(), 4), // Ensure at least Par 4
-            Math.max(original.distanceFeet(), BOSS_HOLE_DISTANCE_FEET),
-            original.tee(),
-            original.basket(),
-            original.fairwaySegments(),
-            original.signatureType()
-        );
-        
-        return new Course(seed, "Boss Hole Challenge", List.of(bossHole));
-    }
-
-    /**
-     * Generates a short 3-hole time trial course.
-     */
-    private static Course generateTimeTrialCourse(BlockPos anchor, Random random) {
-        long seed = random.nextLong();
-        return COURSE_GENERATOR.generate(seed, TIME_TRIAL_HOLE_COUNT);
-    }
-
-    /**
-     * Generates an accuracy challenge course with short holes.
-     */
-    private static Course generateAccuracyChallenge(BlockPos anchor, Random random) {
-        long seed = random.nextLong();
-        Course course = COURSE_GENERATOR.generate(seed, 5);
-        
-        // Modify holes to be shorter for accuracy focus
-        List<Hole> accuracyHoles = new ArrayList<>();
-        for (Hole hole : course.holes()) {
-            Hole accuracyHole = new Hole(
-                hole.index(),
-                3, // All Par 3
-                Math.min(hole.distanceFeet(), 300), // Max 300 ft
-                hole.tee(),
-                hole.basket(),
-                hole.fairwaySegments(),
-                hole.signatureType()
-            );
-            accuracyHoles.add(accuracyHole);
-        }
-        
-        return new Course(seed, "Accuracy Challenge", accuracyHoles);
-    }
-
-    /**
-     * Generates a distance challenge with one very long hole.
-     */
-    private static Course generateDistanceChallenge(BlockPos anchor, Random random) {
-        long seed = random.nextLong();
-        Course singleHoleCourse = COURSE_GENERATOR.generate(seed, 1);
-        
-        // Make the hole very long
-        Hole original = singleHoleCourse.holes().get(0);
-        Hole distanceHole = new Hole(
-            original.index(),
-            5, // Par 5
-            Math.max(original.distanceFeet(), 1000), // At least 1000 ft
-            original.tee(),
-            original.basket(),
-            original.fairwaySegments(),
-            original.signatureType()
-        );
-        
-        return new Course(seed, "Distance Challenge", List.of(distanceHole));
-    }
 
     /**
      * Handles challenge course completion and rewards.

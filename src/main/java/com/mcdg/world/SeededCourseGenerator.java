@@ -6,6 +6,7 @@ import com.mcdg.data.FairwaySegment;
 import com.mcdg.data.Hole;
 import com.mcdg.data.SignatureHoleType;
 import com.mcdg.data.TeePoint;
+import com.mcdg.game.ChallengeCourseParameters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -79,6 +80,34 @@ public final class SeededCourseGenerator implements CourseGenerator {
         }
 
         String name = generateCourseName(random);
+        return new Course(seed, name, holes);
+    }
+
+    /**
+     * Generates a course with custom challenge-specific parameters.
+     */
+    public Course generateWithParameters(long seed, ChallengeCourseParameters params, float facingYaw) {
+        if (params.holeCount() < 1) {
+            throw new IllegalArgumentException("holeCount must be >= 1");
+        }
+
+        Random random = new Random(seed);
+        List<Hole> holes = new ArrayList<>(params.holeCount());
+
+        int baseX = 0;
+        int baseZ = 0;
+
+        for (int i = 1; i <= params.holeCount(); i++) {
+            Hole hole = generateHoleWithParameters(random, baseX, baseZ, i, holes, params);
+            holes.add(hole);
+        }
+
+        if (facingYaw != 0.0f) {
+            holes = rotateHoles(holes, facingYaw);
+        }
+
+        // Challenge courses don't get signature holes by default
+        String name = generateChallengeCourseName(random, params);
         return new Course(seed, name, holes);
     }
 
@@ -285,5 +314,111 @@ public final class SeededCourseGenerator implements CourseGenerator {
             "Hollow", "Knoll", "Pass", "Trail", "Heights", "Bluffs", "Vista", "Dunes"
         };
         return first[random.nextInt(first.length)] + " " + second[random.nextInt(second.length)];
+    }
+
+    /**
+     * Generates a hole with custom challenge-specific parameters.
+     */
+    private Hole generateHoleWithParameters(Random random, int baseX, int baseZ, int holeIndex, 
+                                            List<Hole> placedHoles, ChallengeCourseParameters params) {
+        int maxAttempts = MAX_HOLE_ATTEMPTS;
+        int columnIndex = (holeIndex - 1) % HOLE_GRID_COLUMNS;
+        int rowIndex = (holeIndex - 1) / HOLE_GRID_COLUMNS;
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            int teeX = baseX + (columnIndex * HOLE_X_SPACING) + random.nextInt((TEE_JITTER * 2) + 1) - TEE_JITTER;
+            int teeZ = baseZ + (rowIndex * HOLE_Z_SPACING) + random.nextInt((TEE_JITTER * 2) + 1) - TEE_JITTER;
+
+            int targetDistanceFeet = randomRange(random, params.minDistanceFeet(), params.maxDistanceFeet());
+            int targetDistanceBlocks = Math.max(1, Math.round(targetDistanceFeet / 3.0f));
+
+            double angle = resolveBasketAngle(random, holeIndex, columnIndex, rowIndex, params.holeCount());
+
+            int basketX = teeX + (int) Math.round(Math.cos(angle) * targetDistanceBlocks);
+            int basketZ = teeZ + (int) Math.round(Math.sin(angle) * targetDistanceBlocks);
+
+            int fairwayWidth = randomRange(random, params.minFairwayWidth(), params.maxFairwayWidth());
+            int basketHeight = 1 + random.nextInt(2);
+            int actualDistanceFeet = validator.distanceFeetFromBlocks(teeX, teeZ, basketX, basketZ);
+
+            // Validate distance
+            if (actualDistanceFeet < params.minDistanceFeet() || actualDistanceFeet > params.maxDistanceFeet()) {
+                continue;
+            }
+
+            // Validate par constraints
+            int computedPar = computePar(actualDistanceFeet);
+            if (params.forceSinglePar()) {
+                if (computedPar != params.forcedPar()) {
+                    continue;
+                }
+            } else {
+                if (computedPar < params.minPar() || computedPar > params.maxPar()) {
+                    continue;
+                }
+            }
+
+            Hole candidate = new Hole(
+                    holeIndex,
+                    params.forceSinglePar() ? params.forcedPar() : computedPar,
+                    actualDistanceFeet,
+                    new TeePoint(teeX, BASE_HEIGHT, teeZ),
+                    new BasketPoint(basketX, BASE_HEIGHT, basketZ, basketHeight),
+                    List.of(new FairwaySegment(teeX, teeZ, basketX, basketZ, fairwayWidth)),
+                    SignatureHoleType.NONE
+            );
+
+            if (validator.isNonOverlapping(candidate, placedHoles)) {
+                return candidate;
+            }
+        }
+
+        // Fallback: generate a simpler hole if attempts fail
+        return generateFallbackHole(random, baseX, baseZ, holeIndex, placedHoles, params);
+    }
+
+    /**
+     * Fallback hole generation when parameter constraints are too strict.
+     */
+    private Hole generateFallbackHole(Random random, int baseX, int baseZ, int holeIndex,
+                                     List<Hole> placedHoles, ChallengeCourseParameters params) {
+        int columnIndex = (holeIndex - 1) % HOLE_GRID_COLUMNS;
+        int rowIndex = (holeIndex - 1) / HOLE_GRID_COLUMNS;
+
+        int teeX = baseX + (columnIndex * HOLE_X_SPACING);
+        int teeZ = baseZ + (rowIndex * HOLE_Z_SPACING);
+
+        int targetDistanceFeet = (params.minDistanceFeet() + params.maxDistanceFeet()) / 2;
+        int targetDistanceBlocks = Math.max(1, Math.round(targetDistanceFeet / 3.0f));
+
+        double angle = random.nextDouble() * 2 * Math.PI;
+        int basketX = teeX + (int) Math.round(Math.cos(angle) * targetDistanceBlocks);
+        int basketZ = teeZ + (int) Math.round(Math.sin(angle) * targetDistanceBlocks);
+
+        int fairwayWidth = (params.minFairwayWidth() + params.maxFairwayWidth()) / 2;
+        int actualDistanceFeet = validator.distanceFeetFromBlocks(teeX, teeZ, basketX, basketZ);
+
+        return new Hole(
+                holeIndex,
+                params.forceSinglePar() ? params.forcedPar() : computePar(actualDistanceFeet),
+                actualDistanceFeet,
+                new TeePoint(teeX, BASE_HEIGHT, teeZ),
+                new BasketPoint(basketX, BASE_HEIGHT, basketZ, 1),
+                List.of(new FairwaySegment(teeX, teeZ, basketX, basketZ, fairwayWidth)),
+                SignatureHoleType.NONE
+        );
+    }
+
+    /**
+     * Generates a name for challenge courses.
+     */
+    private String generateChallengeCourseName(Random random, ChallengeCourseParameters params) {
+        String[] adjectives = {"Hidden", "Ancient", "Mystic", "Forgotten", "Secret", "Lost"};
+        String[] nouns = {"Grove", "Sanctuary", "Haven", "Realm", "Domain", "Valley"};
+        
+        String adj = adjectives[random.nextInt(adjectives.length)];
+        String noun = nouns[random.nextInt(nouns.length)];
+        
+        return adj + " " + noun;
     }
 }
