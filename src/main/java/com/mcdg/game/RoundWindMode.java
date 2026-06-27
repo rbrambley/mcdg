@@ -6,7 +6,7 @@ package com.mcdg.game;
  */
 public enum RoundWindMode {
     /**
-     * No wind during rounds. Safe default that preserves legacy behavior.
+     * No wind during rounds. Legacy mode that disables wind effects.
      */
     CALM,
 

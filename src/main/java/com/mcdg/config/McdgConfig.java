@@ -28,7 +28,7 @@ public record McdgConfig(
         boolean enableWind = readBoolEnvWithDefault("MCDG_ENABLE_WIND", true);
         double defaultWindSpeed = readDoubleEnv("MCDG_DEFAULT_WIND_SPEED", 0.2, 0.0, 1.0);
         int windUpdateInterval = readIntEnv("MCDG_WIND_UPDATE_INTERVAL", 200, 20, 600);
-        RoundWindMode roundWindMode = readRoundWindModeEnv("MCDG_ROUND_WIND_MODE", RoundWindMode.CALM);
+        RoundWindMode roundWindMode = readRoundWindModeEnv("MCDG_ROUND_WIND_MODE", RoundWindMode.FIXED_RANDOM);
     return new McdgConfig(hudScoringDebug, strictFlowDebug, skipPresentation, respawnPenaltyStrokes, 9, true, survivalRewards, productionMode, enableWind, defaultWindSpeed, windUpdateInterval, roundWindMode);
     }
 
