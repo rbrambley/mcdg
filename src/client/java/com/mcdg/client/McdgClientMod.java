@@ -253,6 +253,9 @@ public final class McdgClientMod implements ClientModInitializer {
             
             // Cinematics
             CinematicOverlay.render(drawContext);
+
+            // Scorecard-in-frame tooltip
+            ScorecardFrameTooltipRenderer.render(drawContext, MinecraftClient.getInstance(), hudAlpha);
         });
     }
 
