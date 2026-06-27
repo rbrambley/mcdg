@@ -2,6 +2,7 @@ package com.mcdg.client;
 
 import com.mcdg.net.LeaderboardRequest;
 import com.mcdg.net.MenuScreenSync;
+import com.mcdg.net.SkillsScreenRequest;
 import com.mcdg.net.SkillsScreenSync;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import java.util.ArrayList;
@@ -50,6 +51,7 @@ public final class McdgMenuScreen extends Screen {
 
     private final MenuScreenSync.Payload state;
     private SkillsScreenSync.Payload skillsData;
+    private boolean skillsDataRequested = false;
     private Page currentPage = Page.DASHBOARD;
     private int playScrollOffset = 0;
 
@@ -86,6 +88,12 @@ public final class McdgMenuScreen extends Screen {
                 client.setScreen(new McdgMenuScreen(dummyState, skillsData));
             });
         }
+    }
+
+    public void updateSkillsData(SkillsScreenSync.Payload data) {
+        this.skillsData = data;
+        this.skillsDataRequested = true;
+        rebuild();
     }
 
     @Override
@@ -329,7 +337,11 @@ public final class McdgMenuScreen extends Screen {
 
     private void buildSkillsPage(int cx, int cy, int bw) {
         if (skillsData == null) {
-            addBtn(Text.translatable("gui.mcdg.skills.refresh").getString(), "/mcdg skills gui", cx, cy, bw, TEXT_GOLD, BTN_TINT_GOLD);
+            if (!skillsDataRequested) {
+                ClientPlayNetworking.send(new SkillsScreenRequest.Payload());
+                skillsDataRequested = true;
+            }
+            addBtn(Text.translatable("gui.mcdg.skills.loading").getString(), null, cx, cy, bw, TEXT_MUTED, BTN_TINT_NONE);
             return;
         }
 

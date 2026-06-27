@@ -62,7 +62,13 @@ public final class ClientNetworking {
             context.client().execute(() -> context.client().setScreen(new McdgMenuScreen(payload)))
         );
         ClientPlayNetworking.registerGlobalReceiver(SkillsScreenSync.ID, (payload, context) ->
-            context.client().execute(() -> McdgMenuScreen.openSkillsPage(payload))
+            context.client().execute(() -> {
+                if (context.client().currentScreen instanceof McdgMenuScreen menuScreen) {
+                    menuScreen.updateSkillsData(payload);
+                } else {
+                    McdgMenuScreen.openSkillsPage(payload);
+                }
+            })
         );
         ClientPlayNetworking.registerGlobalReceiver(SkillsStatusSync.ID, (payload, context) ->
             context.client().execute(() -> McdgClientMod.updateUnlockedSkills(payload.unlockedSkills()))

@@ -28,6 +28,7 @@
   "chat.mcdg.skill_status_locked": "Locked",
   "chat.mcdg.skill_status_unlocked": "Unlocked",
   "gui.mcdg.skills.header": "Skills",
+  "gui.mcdg.skills.loading": "Loading skills...",
   "gui.mcdg.skills.refresh": "Refresh Skills",
   "tooltip.mcdg.flight": "Flight: %s / %s / %s / %s",
   "tooltip.mcdg.durability": "Durability: %s",

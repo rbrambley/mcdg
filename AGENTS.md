@@ -110,3 +110,108 @@ The following mod integrations were investigated and are now included as soft de
 - Server-only feasibility analysis for LAN play without client mod
 - Async file I/O for round session saves
 - Configurable minimap quality settings (Low/Medium/High)
+
+## Website Implementation Plan
+
+Planned GitHub-hosted site for the MCDG Modpack using Astro + GitHub Pages. The site serves both as a **User Guide** and as a **promotional showcase** for the modpack.
+
+### Decisions
+- **Framework:** Astro (free, open-source, fast, excellent for content-heavy sites)
+- **Hosting:** GitHub Pages (free, works with public repos, custom-domain support)
+- **Design:** Gaming-focused dark theme with tier-based accent colors
+- **Primary content:** Existing project documentation plus new landing-page copy
+- **Total cost:** $0
+
+### Proposed Site Structure
+```
+mcdg-website/
+├── src/
+│   ├── pages/
+│   │   ├── index.astro              # Landing page
+│   │   ├── guide/
+│   │   │   ├── installation.astro
+│   │   │   ├── gameplay.astro
+│   │   │   ├── progression.astro
+│   │   │   └── multiplayer.astro
+│   │   ├── features/
+│   │   │   ├── physics.astro
+│   │   │   ├── courses.astro
+│   │   │   ├── wind-system.astro
+│   │   │   └── progression.astro
+│   │   └── about.astro
+│   ├── components/
+│   │   ├── layout/Header.astro
+│   │   ├── layout/Footer.astro
+│   │   ├── ui/Hero.astro
+│   │   ├── ui/FeatureCard.astro
+│   │   ├── ui/DiscStats.astro
+│   │   ├── ui/TierComparison.astro
+│   │   └── content/CommandBlock.astro
+│   ├── layouts/
+│   │   ├── MainLayout.astro
+│   │   ├── GuideLayout.astro
+│   │   └── FeatureLayout.astro
+│   └── styles/global.css
+├── public/images/
+└── .github/workflows/deploy.yml
+```
+
+### Content Sources to Migrate
+- **README.md** → landing page overview
+- **USERGUIDE.md** → installation, gameplay, controls, troubleshooting
+- **SERVER-SETUP-GUIDE.md** → multiplayer/server setup
+- **CRAFTING-PROGRESSION-SYSTEM.md** → disc crafting, bags, accessories, skills
+- **DISC-FLIGHT-SIMULATION.md** → physics deep-dive + interactive disc flight calculator
+- **WIND-SYSTEM-PLAN.md** → wind system feature page
+- **RESORT-PLAN.md** → resort feature page
+- **TOURNAMENT-PLAN.md** → future tournament feature page
+- **FEATURE-STATUS.md** → current roadmap / feature overview
+
+### Visual Assets to Reuse
+- Disc textures: `src/main/resources/assets/mcdg/textures/item/`
+- Block textures: `src/main/resources/assets/mcdg/textures/block/`
+- GUI textures: `src/main/resources/assets/mcdg/textures/gui/`
+- Item names/descriptions: `src/main/resources/assets/mcdg/lang/en_us.json`
+- New in-game screenshots will be needed for hero/course gallery sections
+
+### Design Direction
+- Dark background (`#0f0f1a`) with neon green accent (`#00ff88`)
+- Tier color palette:
+  - Training: copper (`#b87333`)
+  - Wooden: brown (`#8b7355`)
+  - Stone: gray (`#7a7a7a`)
+  - Iron: silver (`#a0a0a0`)
+  - Gold: gold (`#ffd700`)
+  - Diamond: cyan (`#00ffff`)
+  - Netherite: dark purple (`#1a1a2e`)
+- Interactive components: disc flight calculator, tier comparison table, feature cards
+
+### Implementation Phases
+1. **Project Setup** — Initialize Astro, Tailwind, sitemap, GitHub Pages config
+2. **Design System** — Create global styles, color variables, core UI components
+3. **Content Migration** — Convert existing docs to Astro pages
+4. **Interactive Features** — Build disc flight calculator, tier comparison, course gallery
+5. **Asset Preparation** — Copy textures, optimize images, create hero graphics
+6. **Deployment & Testing** — Set up GitHub Actions CI/CD, test build and deploy
+
+### Deployment
+- Use GitHub Actions to build on push to `main` and deploy to GitHub Pages
+- `.github/workflows/deploy.yml` with `actions/upload-pages-artifact` and `actions/deploy-pages`
+
+### Verification
+- Lighthouse score 90+ on all metrics
+- Responsive on mobile, tablet, and desktop
+- All navigation and interactive components functional
+- Images and assets load correctly
+- GitHub Pages URL live and accessible
+
+### Maintenance
+- Update download links when new releases ship
+- Sync feature pages with new design docs as systems evolve
+- Add new screenshots when new visual features are added
+- Add blog/news section if regular updates begin
+
+### Notes
+- No code changes to the MCDG mod itself are required for the website
+- In-game screenshots are the main missing asset; textures can be used as placeholders
+- Astro, GitHub Pages, and all recommended tools are free for public repositories

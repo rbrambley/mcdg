@@ -45,6 +45,7 @@ import com.mcdg.net.LeaderboardResponse;
 import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.MenuScreenSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
+import com.mcdg.net.SkillsScreenRequest;
 import com.mcdg.net.SkillsScreenSync;
 import com.mcdg.net.SkillsStatusSync;
 import com.mcdg.net.ThrowPowerLockSync;
@@ -196,6 +197,7 @@ public final class McdgMod implements ModInitializer {
     @Override
     public void onInitialize() {
         PayloadTypeRegistry.playC2S().register(LeaderboardRequest.ID, LeaderboardRequest.CODEC);
+        PayloadTypeRegistry.playC2S().register(SkillsScreenRequest.ID, SkillsScreenRequest.CODEC);
         PayloadTypeRegistry.playC2S().register(ThrowPowerLockSync.ID, ThrowPowerLockSync.CODEC);
         PayloadTypeRegistry.playC2S().register(ThrowStanceSync.ID, ThrowStanceSync.CODEC);
         PayloadTypeRegistry.playS2C().register(AceCinematicSync.ID, AceCinematicSync.CODEC);
@@ -226,6 +228,14 @@ public final class McdgMod implements ModInitializer {
         );
         ServerPlayNetworking.registerGlobalReceiver(LeaderboardRequest.ID, (payload, context) ->
             context.server().execute(() -> handleLeaderboardRequest(context.player(), payload.courseName()))
+        );
+        ServerPlayNetworking.registerGlobalReceiver(SkillsScreenRequest.ID, (payload, context) ->
+            context.server().execute(() -> {
+                ServerPlayerEntity player = context.player();
+                if (player != null) {
+                    ServerPlayNetworking.send(player, PlayerSkillManager.createSkillsScreenPayload(player));
+                }
+            })
         );
         ServerPlayNetworking.registerGlobalReceiver(ThrowPowerLockSync.ID, (payload, context) ->
                 context.server().execute(() -> {

@@ -3,6 +3,7 @@ package com.mcdg.game;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.mcdg.McdgMod;
+import com.mcdg.net.SkillsScreenSync;
 import com.mcdg.net.SkillsStatusSync;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -188,6 +189,26 @@ public final class PlayerSkillManager {
                 yield tiersCrafted;
             }
         };
+    }
+
+    public static SkillsScreenSync.Payload createSkillsScreenPayload(ServerPlayerEntity player) {
+        Map<String, SkillsScreenSync.SkillEntry> skills = new HashMap<>();
+        for (SkillUnlock skill : SkillUnlock.values()) {
+            boolean unlocked = hasSkill(player, skill);
+            int progress = getSkillProgress(player, skill);
+            SkillsScreenSync.SkillEntry entry = new SkillsScreenSync.SkillEntry(
+                    skill.key(),
+                    skill.displayName(),
+                    skill.description(),
+                    skill.benefitDescription(),
+                    skill.color().getName(),
+                    skill.requiredCount(),
+                    progress,
+                    unlocked
+            );
+            skills.put(skill.key(), entry);
+        }
+        return new SkillsScreenSync.Payload(Map.copyOf(skills));
     }
 
     private static void modify(ServerPlayerEntity player, java.util.function.Consumer<PlayerSkillData> action) {
