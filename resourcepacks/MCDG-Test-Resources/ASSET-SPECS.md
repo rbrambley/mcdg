@@ -23,20 +23,6 @@ Recommended baseline size: 32x32
 - mcdg_ui_penalty_hazard.png
 - mcdg_ui_turn_active.png
 
-## Sound Targets
-
-Place OGG files in assets/mcdg/sounds/sfx:
-
-- make.ogg
-- clank.ogg
-- penalty.ogg
-
-These are mapped by assets/mcdg/sounds.json:
-
-- mcdg:sfx.make
-- mcdg:sfx.clank
-- mcdg:sfx.penalty
-
 ## Readability Rules
 
 - Prioritize contrast over detail for gameplay-critical markers.

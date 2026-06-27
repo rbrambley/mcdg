@@ -4,6 +4,9 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+import com.google.gson.TypeAdapter;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import com.mcdg.McdgMod;
 import com.mcdg.data.Course;
 import com.mcdg.game.ChallengeCourseParameters;
@@ -21,7 +24,10 @@ import java.util.*;
  * Persistent storage for discovered challenge courses with per-player tracking.
  */
 public final class ChallengeCourseCatalog {
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Gson GSON = new GsonBuilder()
+        .setPrettyPrinting()
+        .registerTypeAdapter(Instant.class, new InstantTypeAdapter())
+        .create();
     private static final String FILE_NAME = "mcdg-challenge-course-catalog.json";
     private static final int CURRENT_VERSION = 1;
 
@@ -257,6 +263,30 @@ public final class ChallengeCourseCatalog {
             );
             updatedEntry.setPlaced(true);
             entries.put(courseId, updatedEntry);
+        }
+    }
+
+    /**
+     * Custom TypeAdapter for java.time.Instant to avoid reflection issues with Java 17+ module system.
+     * Serializes Instant as ISO-8601 string (e.g., "2024-01-15T10:30:00Z").
+     */
+    private static class InstantTypeAdapter extends TypeAdapter<Instant> {
+        @Override
+        public void write(JsonWriter out, Instant value) throws IOException {
+            if (value == null) {
+                out.nullValue();
+            } else {
+                out.value(value.toString());
+            }
+        }
+
+        @Override
+        public Instant read(JsonReader in) throws IOException {
+            String value = in.nextString();
+            if (value == null) {
+                return null;
+            }
+            return Instant.parse(value);
         }
     }
 }
