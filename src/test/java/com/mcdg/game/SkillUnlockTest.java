@@ -42,7 +42,7 @@ public class SkillUnlockTest {
     @DisplayName("Disc Mastery requires throwing all tiers")
     public void testDiscMasteryRequirement() {
         assertEquals("Throw one of each tiered disc", SkillUnlock.DISC_MASTERY.description());
-        assertEquals(1, SkillUnlock.DISC_MASTERY.requiredCount());
+        assertEquals(7, SkillUnlock.DISC_MASTERY.requiredCount());
     }
 
     @Test

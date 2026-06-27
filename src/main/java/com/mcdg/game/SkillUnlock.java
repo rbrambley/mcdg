@@ -10,7 +10,7 @@ public enum SkillUnlock {
     RELEASE_CONTROL("Release Control", "Complete 10 rounds", "25% reduction in angle penalty", "AQUA", 10),
     WIND_READING("Wind Reading", "Throw 500 discs", "+15% wind resistance", "YELLOW", 500),
     FOCUS("Focus", "Land 50 throws within 10ft of the basket", "15% reduction in stamina cost", "GREEN", 50),
-    DISC_MASTERY("Disc Mastery", "Throw one of each tiered disc", "+5% to glide, stability, and throw speed", "LIGHT_PURPLE", 1);
+    DISC_MASTERY("Disc Mastery", "Throw one of each tiered disc", "+5% to glide, stability, and throw speed", "LIGHT_PURPLE", 7);
 
     private final String displayName;
     private final String description;

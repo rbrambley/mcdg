@@ -6,6 +6,7 @@ import com.mcdg.net.SkillsScreenRequest;
 import com.mcdg.net.SkillsScreenSync;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import net.minecraft.client.MinecraftClient;
@@ -47,6 +48,12 @@ public final class McdgMenuScreen extends Screen {
     private static final int CONTENT_MAX_H     = PANEL_H - 28 - 20 - 16;
     private static final int ROWS_VISIBLE      = CONTENT_MAX_H / (BTN_H + BTN_GAP);
 
+    private static final int SKILL_CARD_H      = 48;
+    private static final int SKILL_CARD_GAP    = 4;
+    private static final float SKILL_TEXT_SCALE = 0.75f;
+    private static final int SKILL_CONTENT_TOP = 44;
+    private static final int SKILL_CONTENT_BOTTOM_PAD = 8;
+
     private enum Page { DASHBOARD, COURSES, BUILD, RULES, ADMIN, COURSE_MAINTENANCE, SKILLS }
 
     private final MenuScreenSync.Payload state;
@@ -54,6 +61,7 @@ public final class McdgMenuScreen extends Screen {
     private boolean skillsDataRequested = false;
     private Page currentPage = Page.DASHBOARD;
     private int playScrollOffset = 0;
+    private int skillsScrollOffset = 0;
 
     private boolean confirmPending = false;
     private String confirmLabel = "";
@@ -144,6 +152,7 @@ public final class McdgMenuScreen extends Screen {
             currentPage = page;
             confirmPending = false;
             playScrollOffset = 0;
+            skillsScrollOffset = 0;
             rebuild();
         }).dimensions(x, y, w, BTN_H).build();
         navButtons.add(btn);
@@ -160,7 +169,7 @@ public final class McdgMenuScreen extends Screen {
             case COURSES   -> buildCoursesPage(cx, cy, bw, panelX, panelY);
             case BUILD     -> buildBuildPage(cx, cy, bw);
             case RULES     -> buildRulesPage(cx, cy, bw);
-            case SKILLS    -> buildSkillsPage(cx, cy, bw);
+            case SKILLS    -> buildSkillsPage(cx, cy, bw, panelX, panelY);
             case ADMIN     -> buildAdminPage(cx, cy, bw);
             case COURSE_MAINTENANCE -> buildCourseMaintenancePage(cx, cy, bw, panelX, panelY);
         }
@@ -226,6 +235,7 @@ public final class McdgMenuScreen extends Screen {
             currentPage = page;
             confirmPending = false;
             playScrollOffset = 0;
+            skillsScrollOffset = 0;
             rebuild();
         }).dimensions(x, y, w, BTN_H).build();
         contentButtons.add(btn);
@@ -335,7 +345,7 @@ public final class McdgMenuScreen extends Screen {
         }
     }
 
-    private void buildSkillsPage(int cx, int cy, int bw) {
+    private void buildSkillsPage(int cx, int cy, int bw, int panelX, int panelY) {
         if (skillsData == null) {
             if (!skillsDataRequested) {
                 ClientPlayNetworking.send(new SkillsScreenRequest.Payload());
@@ -345,8 +355,17 @@ public final class McdgMenuScreen extends Screen {
             return;
         }
 
+        List<SkillsScreenSync.SkillEntry> skills = new ArrayList<>(skillsData.skills().values());
+        skills.sort(Comparator.comparing(SkillsScreenSync.SkillEntry::key));
+
+        int skillsAreaH = PANEL_H - SKILL_CONTENT_TOP - SKILL_CONTENT_BOTTOM_PAD;
+        int visibleSkills = Math.max(1, skillsAreaH / (SKILL_CARD_H + SKILL_CARD_GAP));
+        int maxOffset = Math.max(0, skills.size() - visibleSkills);
+        skillsScrollOffset = Math.max(0, Math.min(skillsScrollOffset, maxOffset));
+
         int y = cy;
-        for (SkillsScreenSync.SkillEntry skill : skillsData.skills().values()) {
+        for (int i = skillsScrollOffset; i < skillsScrollOffset + visibleSkills && i < skills.size(); i++) {
+            SkillsScreenSync.SkillEntry skill = skills.get(i);
             int skillColor = Formatting.byName(skill.colorName()) == null ? TEXT_WHITE : Formatting.byName(skill.colorName()).getColorValue();
             int statusColor = skill.unlocked() ? TEXT_GREEN : TEXT_RED;
             String statusText = skill.unlocked() ? Text.translatable("chat.mcdg.skill_status_unlocked").getString() : Text.translatable("chat.mcdg.skill_status_locked").getString();
@@ -354,17 +373,31 @@ public final class McdgMenuScreen extends Screen {
             String progressText = skill.unlocked() ? "✓" : skill.currentProgress() + "/" + skill.requiredCount();
             float progress = skill.unlocked() ? 1.0f : (float) skill.currentProgress() / skill.requiredCount();
 
-            addSkillCard(skill.displayName(), skill.benefitDescription(), skill.description(), progressText, progress, skillColor, statusColor, statusText, cx, y, bw);
-            y += 55 + BTN_GAP;
+            addSkillCard(skill.displayName(), skill.benefitDescription(), skill.description(), progressText, progress, skill.unlocked(), skillColor, statusColor, statusText, cx, y, bw);
+            y += SKILL_CARD_H + SKILL_CARD_GAP;
+        }
+
+        if (skills.size() > visibleSkills) {
+            int scrollBarX = panelX + PANEL_W - 12;
+            int scrollAreaY = panelY + SKILL_CONTENT_TOP;
+            int scrollAreaH = visibleSkills * (SKILL_CARD_H + SKILL_CARD_GAP);
+            addDrawableChild(ButtonWidget.builder(Text.literal("▲"), b -> {
+                skillsScrollOffset = Math.max(0, skillsScrollOffset - 1);
+                rebuild();
+            }).dimensions(scrollBarX, scrollAreaY, 10, 12).build());
+            addDrawableChild(ButtonWidget.builder(Text.literal("▼"), b -> {
+                skillsScrollOffset = Math.min(maxOffset, skillsScrollOffset + 1);
+                rebuild();
+            }).dimensions(scrollBarX, scrollAreaY + scrollAreaH - 12, 10, 12).build());
         }
     }
 
-    private void addSkillCard(String name, String benefit, String requirement, String progressText, float progress, int nameColor, int statusColor, String statusText, int x, int y, int w) {
-        int cardH = 55;
-        int barW = w - 20;
-        int barH = 6;
+    private void addSkillCard(String name, String benefit, String requirement, String progressText, float progress, boolean unlocked, int nameColor, int statusColor, String statusText, int x, int y, int w) {
+        int cardH = SKILL_CARD_H;
+        int barW = w - 16;
+        int barH = 5;
 
-        skillCards.add(new SkillCardData(x, y, w, cardH, name, benefit, requirement, progressText, progress, nameColor, statusColor, statusText, barW, barH));
+        skillCards.add(new SkillCardData(x, y, w, cardH, name, benefit, requirement, progressText, progress, unlocked, nameColor, statusColor, statusText, barW, barH));
     }
 
     private void addBtnWithDesc(String label, String description, String command, int x, int y, int w, int textColor, int tint) {
@@ -390,6 +423,7 @@ public final class McdgMenuScreen extends Screen {
         ButtonWidget btn = ButtonWidget.builder(Text.literal(label), b -> {
             currentPage = targetPage;
             playScrollOffset = 0;
+            skillsScrollOffset = 0;
             confirmPending = false;
             rebuild();
         }).dimensions(x, y, w, BTN_H).build();
@@ -586,6 +620,15 @@ public final class McdgMenuScreen extends Screen {
             rebuild();
             return true;
         }
+        if (currentPage == Page.SKILLS && !confirmPending && skillsData != null) {
+            int skillsAreaH = PANEL_H - SKILL_CONTENT_TOP - SKILL_CONTENT_BOTTOM_PAD;
+            int visibleSkills = Math.max(1, skillsAreaH / (SKILL_CARD_H + SKILL_CARD_GAP));
+            int skillCount = skillsData.skills().size();
+            int maxOffset = Math.max(0, skillCount - visibleSkills);
+            skillsScrollOffset = Math.max(0, Math.min(maxOffset, skillsScrollOffset - (int) Math.signum(verticalAmount)));
+            rebuild();
+            return true;
+        }
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
 
@@ -639,9 +682,13 @@ public final class McdgMenuScreen extends Screen {
         }
 
         int contentWidth = PANEL_W - CONTENT_X_OFFSET - 8;
+        int contentTop = panelY + SKILL_CONTENT_TOP;
+        int contentBottom = panelY + PANEL_H - SKILL_CONTENT_BOTTOM_PAD;
+        context.enableScissor(panelX + CONTENT_X_OFFSET, contentTop, panelX + PANEL_W - 8, contentBottom);
         for (SkillCardData card : skillCards) {
             renderSkillCard(context, card);
         }
+        context.disableScissor();
         for (ButtonDescription desc : buttonDescriptions) {
             if (desc.isHeader) {
                 context.fill(desc.x, desc.y - 3, desc.x + contentWidth, desc.y - 2, BORDER_COLOR);
@@ -738,6 +785,7 @@ public final class McdgMenuScreen extends Screen {
             case "Courses"   -> Page.COURSES;
             case "Build"     -> Page.BUILD;
             case "Rules"     -> Page.RULES;
+            case "Skills"    -> Page.SKILLS;
             case "Admin"     -> Page.ADMIN;
             default          -> Page.DASHBOARD;
         };
@@ -801,37 +849,70 @@ public final class McdgMenuScreen extends Screen {
         }
     }
 
-    private static record SkillCardData(int x, int y, int w, int h, String name, String benefit, String requirement, String progressText, float progress, int nameColor, int statusColor, String statusText, int barW, int barH) {}
+    private static record SkillCardData(int x, int y, int w, int h, String name, String benefit, String requirement, String progressText, float progress, boolean unlocked, int nameColor, int statusColor, String statusText, int barW, int barH) {}
 
     private void renderSkillCard(DrawContext context, SkillCardData card) {
-        boolean unlocked = card.progress >= 1.0f;
-        int cardBg = unlocked ? 0x1A1A2E : 0x0F0F1A;
+        boolean unlocked = card.unlocked;
+        int cardBg = unlocked ? 0xFF1A1A2E : 0xFF0F0F1A;
         int cardBorder = card.nameColor;
 
         context.fill(card.x, card.y, card.x + card.w, card.y + card.h, cardBg);
         context.drawBorder(card.x, card.y, card.w, card.h, cardBorder);
 
-        int textX = card.x + 8;
-        int textY = card.y + 6;
+        int padX = 6;
+        int padY = 5;
+        int lineH = 8;
+        int textX = card.x + padX;
+        int textY = card.y + padY;
+        int textMaxW = card.w - padX * 2;
+        int scaledMaxW = (int) (textMaxW / SKILL_TEXT_SCALE);
 
-        context.drawTextWithShadow(textRenderer, Text.literal(card.name()).formatted(Formatting.BOLD), textX, textY, card.nameColor);
-        textY += 12;
+        var matrices = context.getMatrices();
+        matrices.push();
+        matrices.translate(textX, textY, 0);
+        matrices.scale(SKILL_TEXT_SCALE, SKILL_TEXT_SCALE, 1.0f);
 
-        context.drawTextWithShadow(textRenderer, Text.literal(card.benefit()), textX, textY, TEXT_WHITE);
-        textY += 10;
+        String progressStr = card.progressText();
+        int progressWidth = textRenderer.getWidth(progressStr);
+        int nameScaledMaxW = scaledMaxW - progressWidth - 4;
+        List<net.minecraft.text.OrderedText> nameLines = textRenderer.wrapLines(
+                Text.literal(card.name()).formatted(Formatting.BOLD), nameScaledMaxW);
+        if (!nameLines.isEmpty()) {
+            context.drawTextWithShadow(textRenderer, nameLines.get(0), 0, 0, card.nameColor);
+        }
 
-        context.drawTextWithShadow(textRenderer, Text.literal(card.requirement()), textX, textY, TEXT_MUTED);
-        textY += 10;
+        int progressLogicalX = scaledMaxW - progressWidth;
+        context.drawTextWithShadow(textRenderer, Text.literal(progressStr), progressLogicalX, 0, card.statusColor);
 
-        int barX = card.x + 8;
-        int barY = card.y + card.h - card.barH - 6;
+        matrices.pop();
+
+        textY += lineH + 1;
+        matrices.push();
+        matrices.translate(textX, textY, 0);
+        matrices.scale(SKILL_TEXT_SCALE, SKILL_TEXT_SCALE, 1.0f);
+        List<net.minecraft.text.OrderedText> benefitLines = textRenderer.wrapLines(
+                Text.literal(card.benefit()), scaledMaxW);
+        if (!benefitLines.isEmpty()) {
+            context.drawTextWithShadow(textRenderer, benefitLines.get(0), 0, 0, TEXT_WHITE);
+        }
+        matrices.pop();
+
+        textY += lineH;
+        matrices.push();
+        matrices.translate(textX, textY, 0);
+        matrices.scale(SKILL_TEXT_SCALE, SKILL_TEXT_SCALE, 1.0f);
+        List<net.minecraft.text.OrderedText> requirementLines = textRenderer.wrapLines(
+                Text.literal(card.requirement()), scaledMaxW);
+        if (!requirementLines.isEmpty()) {
+            context.drawTextWithShadow(textRenderer, requirementLines.get(0), 0, 0, TEXT_MUTED);
+        }
+        matrices.pop();
+
+        int barX = card.x + padX;
+        int barY = card.y + card.h - card.barH - padY;
         context.fill(barX, barY, barX + card.barW, barY + card.barH, 0xFF000000);
         int filledWidth = (int) (card.barW * card.progress);
         int barColor = unlocked ? TEXT_GREEN : 0xFF4A90A4;
         context.fill(barX, barY, barX + filledWidth, barY + card.barH, barColor);
-
-        String progressStr = card.progressText();
-        int progressX = card.x + card.w - 8 - textRenderer.getWidth(progressStr);
-        context.drawTextWithShadow(textRenderer, Text.literal(progressStr), progressX, barY - 10, card.statusColor);
     }
 }
