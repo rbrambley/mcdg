@@ -42,13 +42,10 @@ public final class WindManagerClient {
 
     /**
      * Get wind direction text (e.g., "N", "NE", "E").
-     * Returns "CALM" if wind speed is below threshold.
+     * Always returns direction, never "CALM".
      */
     public static String getWindDirectionText() {
         WindState wind = getCurrentWind();
-        if (wind.speed() < 0.1) {
-            return "CALM";
-        }
         return getCompassDirection(wind.directionDegrees());
     }
 
@@ -72,9 +69,10 @@ public final class WindManagerClient {
 
     /**
      * Check if wind is strong enough to display.
+     * Always returns true to show wind arrow even at minimum speeds.
      */
     public static boolean isWindSignificant() {
-        return getCurrentWind().speed() >= 0.1;
+        return true;
     }
 
     /**

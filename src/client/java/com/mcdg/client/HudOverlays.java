@@ -12,6 +12,7 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Arm;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.math.RotationAxis;
 import java.util.Set;
 
 /**
@@ -259,8 +260,8 @@ public final class HudOverlays {
     }
 
     /**
-     * Render wind arrow indicator near the power bar.
-     * Shows wind direction as an arrow during charge.
+     * Render prominent wind arrow indicator near the power bar.
+     * Shows wind direction as a large graphical arrow with speed and direction text.
      */
     private static void renderWindIndicator(DrawContext drawContext, MinecraftClient client, int barX, int barTop, boolean rightHandThrow, float scale) {
         if (!ChargedDiscItem.isClientChargeVisible()) {
@@ -273,20 +274,121 @@ public final class HudOverlays {
         
         float windSpeed = (float) WindManagerClient.getCurrentWind().speed();
         float windDirection = WindManagerClient.getCurrentWind().directionDegrees();
+        float playerYaw = client.player.getYaw();
         
-        // Draw wind arrow
-        String arrow = WindManagerClient.getWindArrow(windDirection);
-        Formatting color = windSpeed > 0.5 ? Formatting.RED : 
-                          (windSpeed > 0.3 ? Formatting.YELLOW : Formatting.GREEN);
+        // Convert Minecraft yaw to compass convention: 0=North, 90=East, 180=South, 270=West
+        float compassYaw = Math.floorMod(Math.round(180.0f - playerYaw), 360);
+        // Calculate wind direction relative to where the player is facing
+        float relativeWind = Math.floorMod(Math.round(windDirection - compassYaw), 360);
+        // Rotation to apply to the up-pointing arrow; previous version used this sign
+        float rotationAngle = -relativeWind;
         
-        Text windText = Text.literal(arrow).formatted(color);
-        int scaledPowerBarWidth = Math.round(POWER_BAR_WIDTH * scale);
-        int textOffset = Math.round(4 * scale);
-        int textWidth = Math.round(client.textRenderer.getWidth(windText) * scale);
-        int textX = rightHandThrow ? barX + scaledPowerBarWidth + textOffset : barX - textWidth - textOffset;
-        int textY = barTop - Math.round(48 * scale); // Above stance indicator
+        // Determine color based on wind speed
+        int arrowColor;
+        if (windSpeed > 0.5) {
+            arrowColor = 0xFFFF5555; // Red for strong wind
+        } else if (windSpeed > 0.3) {
+            arrowColor = 0xFFFFFF55; // Yellow for moderate wind
+        } else {
+            arrowColor = 0xFF55FF55; // Green for light wind
+        }
         
+        // Position wind indicator centered on screen, just above the crosshair
+        int centerX = drawContext.getScaledWindowWidth() / 2;
+        int indicatorY = drawContext.getScaledWindowHeight() / 2 - Math.round(24 * scale);
+        
+        // Draw background box for emphasis
+        int boxWidth = Math.round(72 * scale);
+        int boxHeight = Math.round(64 * scale);
+        int boxX = centerX - boxWidth / 2;
+        int boxY = indicatorY - boxHeight / 2;
+        
+        drawContext.fill(boxX - 2, boxY - 2, boxX + boxWidth + 2, boxY + boxHeight + 2, 0xFF000000); // Black border
+        drawContext.fill(boxX, boxY, boxX + boxWidth, boxY + boxHeight, 0xDD000000); // Dark background
+        
+        // Draw a large rotated arrow using simple polygons
+        int arrowCenterX = centerX;
+        int arrowCenterY = indicatorY - Math.round(5 * scale);
+        int shaftLength = Math.round(28 * scale);
+        int shaftWidth = Math.round(8 * scale);
+        int headLength = Math.round(14 * scale);
+        int headWidth = Math.round(28 * scale);
+        int tailLength = Math.round(6 * scale);
+        int tailWidth = Math.round(12 * scale);
+        
+        drawContext.getMatrices().push();
+        drawContext.getMatrices().translate(arrowCenterX, arrowCenterY, 0);
+        drawContext.getMatrices().multiply(RotationAxis.POSITIVE_Z.rotationDegrees(rotationAngle));
+        
+        // Shaft (centered vertically around origin)
+        int halfShaft = shaftLength / 2;
+        int halfWidth = shaftWidth / 2;
+        drawContext.fill(-halfWidth, -halfShaft, halfWidth, halfShaft, arrowColor);
+        
+        // Arrow head (triangle pointing up from top of shaft)
+        int headBaseY = -halfShaft;
+        int headTipY = headBaseY - headLength;
+        int halfHead = headWidth / 2;
+        drawFilledTriangle(drawContext, -halfHead, headBaseY, halfHead, headBaseY, 0, headTipY, arrowColor);
+        
+        // Tail/base marker (small rectangle at bottom of shaft)
+        int tailBaseY = halfShaft;
+        int tailTipY = tailBaseY + tailLength;
+        int halfTail = tailWidth / 2;
+        drawContext.fill(-halfTail, tailBaseY, halfTail, tailTipY, arrowColor);
+        
+        drawContext.getMatrices().pop();
+        
+        // Draw speed and direction text below arrow
+        String directionText = WindManagerClient.getWindDirectionText();
+        String speedText = Math.round(windSpeed * 100) + "%";
+        String fullText = directionText + " " + speedText;
+        
+        int textY = indicatorY + Math.round(20 * scale);
+        int textWidth = Math.round(client.textRenderer.getWidth(fullText) * scale);
+        int textX = centerX - textWidth / 2;
+        
+        Text windText = Text.literal(fullText).formatted(Formatting.WHITE);
         HudUtil.drawScaledText(drawContext, client.textRenderer, windText, textX, textY, 0xFFFFFF, scale);
+    }
+    
+    /**
+     * Draw a filled triangle using horizontal scanlines.
+     * Vertices are in the current matrix coordinate space.
+     */
+    private static void drawFilledTriangle(DrawContext drawContext, int x1, int y1, int x2, int y2, int x3, int y3, int color) {
+        int[] xs = {x1, x2, x3};
+        int[] ys = {y1, y2, y3};
+        
+        // Sort vertices by y ascending
+        for (int i = 0; i < 2; i++) {
+            for (int j = i + 1; j < 3; j++) {
+                if (ys[j] < ys[i]) {
+                    int tmp = ys[i]; ys[i] = ys[j]; ys[j] = tmp;
+                    tmp = xs[i]; xs[i] = xs[j]; xs[j] = tmp;
+                }
+            }
+        }
+        
+        int totalHeight = ys[2] - ys[0];
+        if (totalHeight <= 0) {
+            return;
+        }
+        
+        for (int y = ys[0]; y <= ys[2]; y++) {
+            boolean upper = y > ys[1];
+            int segmentHeight = upper ? ys[2] - ys[1] : ys[1] - ys[0];
+            if (segmentHeight <= 0) {
+                segmentHeight = 1;
+            }
+            float alpha = (float) (y - (upper ? ys[1] : ys[0])) / segmentHeight;
+            int xA = upper ? Math.round(xs[1] + (xs[2] - xs[1]) * alpha) : Math.round(xs[0] + (xs[1] - xs[0]) * alpha);
+            int xB = Math.round(xs[0] + (xs[2] - xs[0]) * (float) (y - ys[0]) / totalHeight);
+            if (xA > xB) {
+                int tmp = xA; xA = xB; xB = tmp;
+            }
+            drawContext.fill(xA, y, xB + 1, y + 1, color);
+        }
     }
 
     private static final int THROW_ROW_SPACING = 10;
