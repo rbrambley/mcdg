@@ -507,6 +507,8 @@ public final class McdgAdminCommands {
                                                         )))))
                                 .then(literal("clear")
                                         .executes(context -> executeWindClear(context.getSource())))
+                                .then(literal("calm")
+                                        .executes(context -> executeWindCalm(context.getSource())))
                                 .then(literal("mode")
                                         .then(literal("calm")
                                                 .executes(context -> executeWindMode(context.getSource(), WindMode.CALM)))
@@ -518,6 +520,8 @@ public final class McdgAdminCommands {
                                         .executes(context -> executeWindShow(context.getSource())))
                                 .then(literal("random")
                                         .executes(context -> executeWindRandom(context.getSource())))
+                                .then(literal("gust")
+                                        .executes(context -> executeWindGust(context.getSource())))
                                 .then(literal("auto")
                                         .executes(context -> executeWindAuto(context.getSource()))))
                         ));
@@ -2655,6 +2659,13 @@ public final class McdgAdminCommands {
         return 1;
     }
 
+    private static int executeWindCalm(ServerCommandSource source) {
+        ServerWorld world = source.getWorld();
+        WindManager.setWindMode(world, WindMode.CALM);
+        source.sendFeedback(() -> Text.literal("Wind set to calm (0 speed)").formatted(Formatting.GREEN), true);
+        return 1;
+    }
+
     private static int executeWindMode(ServerCommandSource source, WindMode mode) {
         ServerWorld world = source.getWorld();
         WindManager.setWindMode(world, mode);
@@ -2681,6 +2692,7 @@ public final class McdgAdminCommands {
         
         // Add usage hint
         source.sendFeedback(() -> Text.literal("Use /mcdg wind set <speed> <direction> to set manual wind").formatted(Formatting.DARK_GRAY), false);
+        source.sendFeedback(() -> Text.literal("Use /mcdg wind calm|random|gust for quick wind changes").formatted(Formatting.DARK_GRAY), false);
         source.sendFeedback(() -> Text.literal("Use /mcdg wind mode <calm|natural|fixed> to change wind mode").formatted(Formatting.DARK_GRAY), false);
         
         return 1;
@@ -2690,6 +2702,13 @@ public final class McdgAdminCommands {
         ServerWorld world = source.getWorld();
         WindManager.setWindMode(world, WindMode.NATURAL);
         source.sendFeedback(() -> Text.literal("Wind set to random natural mode").formatted(Formatting.GREEN), true);
+        return 1;
+    }
+
+    private static int executeWindGust(ServerCommandSource source) {
+        ServerWorld world = source.getWorld();
+        WindManager.triggerGust(world);
+        source.sendFeedback(() -> Text.literal("Wind gust triggered").formatted(Formatting.GREEN), true);
         return 1;
     }
 

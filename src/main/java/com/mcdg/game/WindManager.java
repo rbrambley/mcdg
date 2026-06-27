@@ -123,6 +123,43 @@ public final class WindManager {
     }
 
     /**
+     * Trigger a gust event for a world.
+     * Increases current wind speed by 30% (or creates a moderate gust if calm)
+     * and marks it as gusting.
+     */
+    public static void triggerGust(ServerWorld world) {
+        Identifier worldId = world.getRegistryKey().getValue();
+        WindState current = getWindState(world);
+
+        double gustSpeed;
+        float direction;
+        if (current.speed() <= 0.0) {
+            gustSpeed = 0.3 + (world.random.nextDouble() * 0.2);
+            direction = world.random.nextFloat() * 360.0f;
+        } else {
+            gustSpeed = Math.min(1.0, current.speed() * 1.3);
+            direction = current.directionDegrees();
+        }
+
+        WindState gust = new WindState(
+            WindState.calculateVelocity(gustSpeed, direction),
+            gustSpeed,
+            direction,
+            WindMode.FIXED,
+            true,
+            world.getServer().getTicks(),
+            null
+        );
+
+        WORLD_WIND_STATES.put(worldId, gust);
+        setManualOverride(worldId, true);
+        broadcastWindUpdate(world, gust);
+
+        McdgMod.LOGGER.info("Wind gust triggered | world={} speed={} direction={}°", 
+                          worldId, gustSpeed, direction);
+    }
+
+    /**
      * Set a wind state directly without marking it as a manual override.
      * Used by round lifecycle automation so it does not disable itself.
      */
