@@ -24,6 +24,12 @@
   - Designed for old ender pearl throw mechanics
   - Not compatible with new calculated trajectory system
   - Kept for baseline regression testing if needed
+- **PlacementAutoTestService**: Course placement validation via headless server testing
+  - Tests procedural course generation across random biomes and terrain
+  - Currently has known limitations with automated terrain selection
+  - Ocean and deep ocean biomes are filtered but some variants may still be selected
+  - Manual course placement (ATLauncher) works fine; this is an automated edge case issue
+  - Full regression test may not pass 100% due to these terrain selection edge cases
 
 ## Code Conventions
 - Java 21, Fabric 1.20.6

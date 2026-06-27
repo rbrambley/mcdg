@@ -153,10 +153,20 @@ public final class CoursePlacementService {
         if (useFixedAnchor) {
             // buildcourse: use origin directly so placement matches preview position exactly.
             anchor = SurfaceResolver.resolveSurfacePos(world, origin.getX(), origin.getZ());
+            anchorBiome = PlacementUtils.biomeId(world.getBiome(anchor));
+            
+            // Reject ocean biomes even for fixed anchors
+            if (anchorBiome.toLowerCase().contains("ocean")) {
+                McdgMod.LOGGER.warn(
+                        "Course anchor rejected: ocean biome unsuitable for placement biome={}",
+                        anchorBiome
+                );
+                throw new IllegalStateException("Cannot place course in ocean biome: " + anchorBiome);
+            }
+            
             if (!skipWaterEstimation) {
                 projectedWaterRatio = CourseAnchorFinder.estimateProjectedWaterRatio(world, course, anchor, courseBounds);
             }
-            anchorBiome = PlacementUtils.biomeId(world.getBiome(anchor));
             McdgMod.LOGGER.info(
                     "Course anchor fixed (buildcourse) anchor=({}, {}, {}) biome={} projectedWaterRatio={}",
                     anchor.getX(), anchor.getY(), anchor.getZ(), anchorBiome,
@@ -178,7 +188,20 @@ public final class CoursePlacementService {
                         String.format(java.util.Locale.ROOT, "%.3f", projectedWaterRatio)
                 );
 
-                if (projectedWaterRatio <= COURSE_ANCHOR_HARD_REJECT_WATER_RATIO) {
+                // Apply stricter water ratio limits for beach biomes
+                double effectiveHardRejectRatio = COURSE_ANCHOR_HARD_REJECT_WATER_RATIO;
+                String biomeId = anchorBiome.toLowerCase();
+                if (biomeId.contains("beach") || biomeId.contains("stony_shore")) {
+                    effectiveHardRejectRatio = 0.10; // Stricter limit for beaches (10% vs 22%)
+                }
+                
+                // Reject ocean biomes entirely
+                if (biomeId.contains("ocean")) {
+                    rejectedAnchorKeys.add(CourseAnchorFinder.anchorClusterKey(anchor));
+                    continue; // Skip this anchor and try next position
+                }
+
+                if (projectedWaterRatio <= effectiveHardRejectRatio) {
                     break;
                 }
 

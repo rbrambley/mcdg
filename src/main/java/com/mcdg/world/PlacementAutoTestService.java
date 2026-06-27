@@ -237,6 +237,9 @@ public final class PlacementAutoTestService {
                     "autocourse-run-" + runNumber
             );
             return ScenarioOutcome.success(runNumber, seed, report);
+        } catch (IllegalStateException ex) {
+            // Handle ocean biome rejections gracefully during autotest
+            return ScenarioOutcome.failure(runNumber, seed, "[autocourse_biome_rejected] " + ex.getMessage());
         } catch (RuntimeException ex) {
             return ScenarioOutcome.failure(runNumber, seed, "[autocourse] " + ex.getMessage());
         } finally {
@@ -271,6 +274,9 @@ public final class PlacementAutoTestService {
                     (shadowSurfaceRule ? "shadow-surface-run-" : "batch-run-") + runNumber
             );
             return ScenarioOutcome.success(runNumber, seed, report);
+        } catch (IllegalStateException ex) {
+            // Handle ocean biome rejections gracefully during autotest
+            return ScenarioOutcome.failure(runNumber, seed, "[biome_rejected] " + ex.getMessage());
         } catch (RuntimeException ex) {
             return ScenarioOutcome.failure(runNumber, seed, ex.getMessage());
         } finally {

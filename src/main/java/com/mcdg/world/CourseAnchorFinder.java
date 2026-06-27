@@ -4,8 +4,11 @@ import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import java.util.HashSet;
 import java.util.Set;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.registry.tag.BiomeTags;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.biome.Biome;
 
 /**
  * Finds and scores candidate anchor positions for course placement.
@@ -52,39 +55,61 @@ final class CourseAnchorFinder {
         int x = origin.getX();
         int z = origin.getZ();
         BlockPos best = SurfaceResolver.resolveSurfacePos(world, x, z);
+        
+        // Reject ocean and deep ocean biomes entirely - they're unsuitable for course placement
+        if (isUnsuitableBiome(world, best)) {
+            rejectedAnchorKeys.add(anchorClusterKey(best));
+        }
+        
         int bestScore = scoreCourseAnchor(world, best, x, z, course, courseBounds, rejectedAnchorKeys);
 
         int ringStep = 4;
         for (int radius = ringStep; radius <= ANCHOR_SEARCH_RADIUS; radius += ringStep) {
             for (int sx = x - radius; sx <= x + radius; sx += ringStep) {
                 BlockPos north = SurfaceResolver.resolveSurfacePos(world, sx, z - radius);
-                int northScore = scoreCourseAnchor(world, north, x, z, course, courseBounds, rejectedAnchorKeys);
-                if (northScore < bestScore) {
-                    bestScore = northScore;
-                    best = north;
+                
+                // Reject ocean and deep ocean biomes entirely
+                if (!isUnsuitableBiome(world, north)) {
+                    int northScore = scoreCourseAnchor(world, north, x, z, course, courseBounds, rejectedAnchorKeys);
+                    if (northScore < bestScore) {
+                        bestScore = northScore;
+                        best = north;
+                    }
                 }
 
                 BlockPos south = SurfaceResolver.resolveSurfacePos(world, sx, z + radius);
-                int southScore = scoreCourseAnchor(world, south, x, z, course, courseBounds, rejectedAnchorKeys);
-                if (southScore < bestScore) {
-                    bestScore = southScore;
-                    best = south;
+                
+                // Reject ocean and deep ocean biomes entirely
+                if (!isUnsuitableBiome(world, south)) {
+                    int southScore = scoreCourseAnchor(world, south, x, z, course, courseBounds, rejectedAnchorKeys);
+                    if (southScore < bestScore) {
+                        bestScore = southScore;
+                        best = south;
+                    }
                 }
             }
 
             for (int sz = z - radius + ringStep; sz <= z + radius - ringStep; sz += ringStep) {
                 BlockPos west = SurfaceResolver.resolveSurfacePos(world, x - radius, sz);
-                int westScore = scoreCourseAnchor(world, west, x, z, course, courseBounds, rejectedAnchorKeys);
-                if (westScore < bestScore) {
-                    bestScore = westScore;
-                    best = west;
+                
+                // Reject ocean and deep ocean biomes entirely
+                if (!isUnsuitableBiome(world, west)) {
+                    int westScore = scoreCourseAnchor(world, west, x, z, course, courseBounds, rejectedAnchorKeys);
+                    if (westScore < bestScore) {
+                        bestScore = westScore;
+                        best = west;
+                    }
                 }
 
                 BlockPos east = SurfaceResolver.resolveSurfacePos(world, x + radius, sz);
-                int eastScore = scoreCourseAnchor(world, east, x, z, course, courseBounds, rejectedAnchorKeys);
-                if (eastScore < bestScore) {
-                    bestScore = eastScore;
-                    best = east;
+                
+                // Reject ocean and deep ocean biomes entirely
+                if (!isUnsuitableBiome(world, east)) {
+                    int eastScore = scoreCourseAnchor(world, east, x, z, course, courseBounds, rejectedAnchorKeys);
+                    if (eastScore < bestScore) {
+                        bestScore = eastScore;
+                        best = east;
+                    }
                 }
             }
         }
@@ -107,11 +132,18 @@ final class CourseAnchorFinder {
         }
 
         double waterRatio = estimateProjectedWaterRatio(world, course, candidate, courseBounds);
+        
+        // Apply stricter water ratio limits for beach/shore biomes
+        double effectiveMaxWaterRatio = COURSE_ANCHOR_MAX_WATER_SAMPLE_RATIO;
+        if (isBeachBiome(world, candidate)) {
+            effectiveMaxWaterRatio = 0.15; // Stricter limit for beaches (15% vs 30%)
+        }
+        
         score += (int) Math.round(waterRatio * COURSE_ANCHOR_WATER_RATIO_SCORE_WEIGHT);
 
-        if (waterRatio > COURSE_ANCHOR_MAX_WATER_SAMPLE_RATIO) {
+        if (waterRatio > effectiveMaxWaterRatio) {
             score += COURSE_ANCHOR_WATER_REJECT_PENALTY;
-            score += (int) Math.round((waterRatio - COURSE_ANCHOR_MAX_WATER_SAMPLE_RATIO) * 100000.0);
+            score += (int) Math.round((waterRatio - effectiveMaxWaterRatio) * 100000.0);
         }
 
         return score;
@@ -160,6 +192,39 @@ final class CourseAnchorFinder {
         long cx = (long) (pos.getX() >> 4);
         long cz = (long) (pos.getZ() >> 4);
         return (cx << 32) ^ (cz & 0xffffffffL);
+    }
+
+    /**
+     * Checks if a biome is unsuitable for course placement.
+     * Ocean and deep ocean variants are rejected entirely due to excessive water coverage.
+     */
+    private static boolean isUnsuitableBiome(ServerWorld world, BlockPos pos) {
+        RegistryEntry<Biome> biome = world.getBiome(pos);
+        String biomeId = PlacementUtils.biomeId(biome).toLowerCase();
+        
+        // Reject all ocean and deep ocean variants using BiomeTags
+        if (biome.isIn(BiomeTags.IS_OCEAN)) {
+            return true;
+        }
+        
+        // Additional string-based filtering for ocean variants that might not be tagged
+        // This catches variants like lukewarm_ocean, deep_cold_ocean, etc.
+        if (biomeId.contains("ocean")) {
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Checks if a position is in a beach or shore biome.
+     * Beach biomes get stricter water ratio limits due to their transitional nature.
+     */
+    private static boolean isBeachBiome(ServerWorld world, BlockPos pos) {
+        RegistryEntry<Biome> biome = world.getBiome(pos);
+        String biomeId = PlacementUtils.biomeId(biome).toLowerCase();
+        
+        return biomeId.contains("beach") || biomeId.contains("stony_shore");
     }
 
     record CourseBounds(int minX, int minZ, int maxX, int maxZ, int centerX, int centerZ) {
