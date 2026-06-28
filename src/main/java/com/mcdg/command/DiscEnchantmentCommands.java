@@ -71,8 +71,8 @@ public final class DiscEnchantmentCommands {
         }
 
         ItemStack stack = player.getMainHandStack();
-        if (!stack.isOf(McdgItems.TRAINING_DISC)) {
-            source.sendError(Text.literal("You must hold a Training Disc in your main hand."));
+        if (!McdgItems.isDisc(stack)) {
+            source.sendError(Text.literal("You must hold an MCDG disc in your main hand."));
             return 0;
         }
 
@@ -104,8 +104,8 @@ public final class DiscEnchantmentCommands {
         }
 
         ItemStack stack = player.getMainHandStack();
-        if (!stack.isOf(McdgItems.TRAINING_DISC)) {
-            source.sendError(Text.literal("You must hold a Training Disc in your main hand."));
+        if (!McdgItems.isDisc(stack)) {
+            source.sendError(Text.literal("You must hold an MCDG disc in your main hand."));
             return 0;
         }
 

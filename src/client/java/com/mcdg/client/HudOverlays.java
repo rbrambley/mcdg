@@ -97,7 +97,7 @@ public final class HudOverlays {
         }
 
         ItemStack activeItem = client.player.getActiveItem();
-        boolean isDiscItem = activeItem.isOf(McdgItems.TRAINING_DISC);
+        boolean isDiscItem = McdgItems.isDisc(activeItem);
         if (!client.player.isUsingItem() || !isDiscItem) {
             return;
         }

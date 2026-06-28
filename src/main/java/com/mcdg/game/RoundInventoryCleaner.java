@@ -26,7 +26,7 @@ public final class RoundInventoryCleaner {
         purge(player, true);
         boolean hasDisc = false;
         for (int i = 0; i < player.getInventory().size(); i++) {
-            if (player.getInventory().getStack(i).isOf(McdgItems.TRAINING_DISC)) {
+            if (McdgItems.isDisc(player.getInventory().getStack(i))) {
                 hasDisc = true;
                 break;
             }

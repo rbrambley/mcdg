@@ -226,11 +226,11 @@ public final class HazardManager {
         if (behavior.destroysDisc()) {
             // Destroy the disc held by the player (main hand preferred, then off hand).
             ItemStack mainHand = player.getMainHandStack();
-            if (mainHand.isOf(McdgItems.TRAINING_DISC)) {
+            if (McdgItems.isDisc(mainHand)) {
                 player.setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
             } else {
                 ItemStack offHand = player.getOffHandStack();
-                if (offHand.isOf(McdgItems.TRAINING_DISC)) {
+                if (McdgItems.isDisc(offHand)) {
                     player.setStackInHand(Hand.OFF_HAND, ItemStack.EMPTY);
                 }
             }

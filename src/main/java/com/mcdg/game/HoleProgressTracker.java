@@ -124,7 +124,7 @@ public final class HoleProgressTracker {
                     RoundInventoryCleaner.purgeJunkItems(player);
                 }
 
-                boolean suppressHud = player.isUsingItem() && player.getActiveItem().isOf(McdgItems.TRAINING_DISC);
+                boolean suppressHud = player.isUsingItem() && McdgItems.isDisc(player.getActiveItem());
 
                 PlayerRoundState state = entry.getValue();
                 Hole currentHole = course.holes().get(state.currentHole() - 1);
