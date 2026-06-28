@@ -76,28 +76,6 @@ public final class RoundAdminCommands {
     private RoundAdminCommands() {
     }
 
-    public static int executeGotoLie(ServerCommandSource source, RoundStateManager roundStateManager) {
-        try {
-            ServerPlayerEntity player = source.getPlayerOrThrow();
-            Optional<BlockPos> relocated = HoleProgressTracker.relocatePlayerToSafeLie(player, roundStateManager);
-            if (relocated.isEmpty()) {
-                player.sendMessage(Text.literal("No active lie found to teleport to."), true);
-                return 0;
-            }
-
-            BlockPos lie = relocated.get();
-            player.sendMessage(
-                    Text.literal("Teleported to lie: " + lie.getX() + ", " + lie.getY() + ", " + lie.getZ())
-                            .formatted(Formatting.GREEN),
-                    true
-            );
-            return 1;
-        } catch (Exception ex) {
-            source.sendError(Text.literal("This command must be run by a player."));
-            return 0;
-        }
-    }
-
     public static int executeEndRound(
             ServerCommandSource source,
             ActiveCourseManager courseManager,

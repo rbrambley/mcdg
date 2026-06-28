@@ -5,13 +5,11 @@ import static net.minecraft.server.command.CommandManager.literal;
 
 import com.mojang.brigadier.arguments.BoolArgumentType;
 
-import com.mcdg.McdgMod;
 import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import com.mcdg.data.SignatureHoleType;
 import com.mcdg.game.ActiveCourseManager;
 import com.mcdg.game.HoleProgressTracker;
-import com.mcdg.game.McdgItems;
 import com.mcdg.game.PlacedCourseState;
 import java.util.UUID;
 import com.mcdg.game.PracticeCourseStorage;
@@ -25,20 +23,14 @@ import com.mcdg.game.AutoCourseService;
 import com.mcdg.game.BuildCourseSessionManager;
 import com.mcdg.game.PlayerRoundSessionStorage;
 import com.mcdg.game.RoundSessionStorage;
-import com.mcdg.game.ChallengeCourseManager;
-import com.mcdg.game.ChallengeCourseCatalog;
-import com.mcdg.game.ChallengeCourseBuilder;
-import com.mcdg.game.ChallengeCourseType;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.PlacementAutoTestService;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.CourseGenerator;
-import com.mcdg.world.ResortWaypointManager;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.context.CommandContext;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -49,7 +41,6 @@ import java.util.Set;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.ItemEntity;
-import net.minecraft.item.ItemStack;
 import net.minecraft.network.packet.s2c.play.ClearTitleS2CPacket;
 import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
 import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
@@ -61,12 +52,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
-import com.mcdg.game.OutOfBoundsClassifier;
-import com.mcdg.game.BotSimulator;
-import com.mcdg.game.BotSimulator.BotSkill;
-import com.mcdg.game.RoundWindMode;
 import com.mcdg.game.RoundWindService;
-import com.mcdg.game.WindManager;
 import com.mcdg.game.WindMode;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 
@@ -98,7 +84,7 @@ public final class McdgAdminCommands {
                         .then(literal("help").requires(CommandPermission::canUseAdminCommands)
                                 .executes(context -> executeHelp(context.getSource())))
                         .then(literal("gotolie").requires(CommandPermission::canUseAdminCommands)
-                                .executes(context -> executeGotoLie(context.getSource(), roundStateManager)))
+                                .executes(context -> TeleportCommands.executeGotoLie(context.getSource(), roundStateManager)))
                         .then(literal("menu")
                                 .then(literal("rules")
                                         .executes(context -> MenuCommands.executeMenuRules(context.getSource(), rulesetManager)))
@@ -106,7 +92,7 @@ public final class McdgAdminCommands {
                                         .executes(context -> MenuCommands.executeMenuChallenge(context.getSource()))))
                         .then(literal("startchallenge")
                                 .then(argument("courseId", StringArgumentType.string())
-                                        .executes(context -> executeStartChallenge(
+                                        .executes(context -> ChallengeCourseCommands.executeStartChallenge(
                                                 context.getSource(),
                                                 courseManager,
                                                 placementService,
@@ -117,7 +103,7 @@ public final class McdgAdminCommands {
                                                 StringArgumentType.getString(context, "courseId")
                                         ))))
                         .then(literal("resort")
-                                .executes(context -> executeResortTeleport(context.getSource())))
+                                .executes(context -> TeleportCommands.executeResortTeleport(context.getSource())))
                         .then(literal("createcourse").requires(CommandPermission::canUseAdminCommands)
                                 .then(argument("seed", LongArgumentType.longArg())
                                         .executes(context -> CourseAdminCommands.executeCreateCourse(
@@ -312,7 +298,7 @@ public final class McdgAdminCommands {
                                 .executes(context -> executeCleanupCourse(context.getSource(), courseManager, placementService, roundStateManager, practiceCourseStorage)))
                         .then(literal("gotocourse").requires(CommandPermission::canUseAdminCommands)
                                 .requires(CommandPermission::canUseAdvancedCommands)
-                                .executes(context -> executeGotoCourse(context.getSource(), courseManager)))
+                                .executes(context -> TeleportCommands.executeGotoCourse(context.getSource(), courseManager)))
                         .then(literal("endround").requires(CommandPermission::canUseAdminCommands)
                                 .executes(context -> executeEndRound(context.getSource(), courseManager, roundStateManager)))
                         .then(literal("joinround").requires(CommandPermission::canUseAdminCommands)
@@ -337,14 +323,14 @@ public final class McdgAdminCommands {
                                         roundStateManager
                                 )))
                         .then(literal("ruleset").requires(CommandPermission::canUseAdminCommands)
-                                .executes(context -> executeShowRuleset(context, rulesetManager))
+                                .executes(context -> RulesetCommands.executeShowRuleset(context, rulesetManager))
                                 .then(literal("casual")
-                                        .executes(context -> executeSetRuleset(context, rulesetManager, TournamentRulesetManager.Ruleset.CASUAL)))
+                                        .executes(context -> RulesetCommands.executeSetRuleset(context, rulesetManager, TournamentRulesetManager.Ruleset.CASUAL)))
                                 .then(literal("strict")
-                                        .executes(context -> executeSetRuleset(context, rulesetManager, TournamentRulesetManager.Ruleset.STRICT)))
+                                        .executes(context -> RulesetCommands.executeSetRuleset(context, rulesetManager, TournamentRulesetManager.Ruleset.STRICT)))
                                 .then(literal("surface")
                                         .requires(CommandPermission::canUseAdvancedCommands)
-                                        .executes(context -> executeShowStrictSurfacePreset(context, rulesetManager))
+                                        .executes(context -> RulesetCommands.executeShowStrictSurfacePreset(context, rulesetManager))
                                         .then(argument("preset", StringArgumentType.word())
                                                 .suggests((context, builder) -> {
                                                         builder.suggest("fast");
@@ -352,16 +338,16 @@ public final class McdgAdminCommands {
                                                         builder.suggest("tournament");
                                                         return builder.buildFuture();
                                                 })
-                                                .executes(context -> executeSetStrictSurfacePreset(context, rulesetManager, StringArgumentType.getString(context, "preset"))))))
+                                                .executes(context -> RulesetCommands.executeSetStrictSurfacePreset(context, rulesetManager, StringArgumentType.getString(context, "preset"))))))
                         .then(literal("debugperms").requires(CommandPermission::canUseAdminCommands)
                                 .requires(CommandPermission::canUseAdvancedCommands)
                                 .executes(context -> CommandPermission.sendDebugPermissions(context.getSource())))
                         .then(literal("debug").requires(CommandPermission::canUseAdminCommands)
                                 .requires(CommandPermission::canUseAdvancedCommands)
                                 .then(literal("obclassifier")
-                                        .executes(context -> executeDebugObClassifier(context.getSource()))
+                                        .executes(context -> DebugCommands.executeDebugObClassifier(context.getSource()))
                                         .then(argument("enabled", BoolArgumentType.bool())
-                                                .executes(context -> executeDebugObClassifierSet(context.getSource(), BoolArgumentType.getBool(context, "enabled")))))
+                                                .executes(context -> DebugCommands.executeDebugObClassifierSet(context.getSource(), BoolArgumentType.getBool(context, "enabled")))))
                                 .then(literal("hazard")
                                         .executes(context -> DebugCommands.executeDebugHazardInfo(context.getSource())))
                                 .then(literal("hazardlist")
@@ -478,33 +464,33 @@ public final class McdgAdminCommands {
                                 .then(literal("add")
                                         .then(argument("name", StringArgumentType.string())
                                                 .then(argument("skill", StringArgumentType.string())
-                                                        .executes(context -> executeBotAdd(
+                                                        .executes(context -> BotCommands.executeBotAdd(
                                                                 context.getSource(),
                                                                 StringArgumentType.getString(context, "name"),
                                                                 StringArgumentType.getString(context, "skill")
                                                         )))))
                                 .then(literal("remove")
                                         .then(argument("uuid", StringArgumentType.string())
-                                                .executes(context -> executeBotRemove(
+                                                .executes(context -> BotCommands.executeBotRemove(
                                                         context.getSource(),
                                                         roundStateManager,
                                                         StringArgumentType.getString(context, "uuid")
                                                 ))))
                                 .then(literal("list")
-                                        .executes(context -> executeBotList(context.getSource())))
+                                        .executes(context -> BotCommands.executeBotList(context.getSource())))
                                 .then(literal("clear")
-                                        .executes(context -> executeBotClear(
+                                        .executes(context -> BotCommands.executeBotClear(
                                                 context.getSource(),
                                                 roundStateManager
                                         )))
                                 .then(literal("joinround")
-                                        .executes(context -> executeBotJoinRound(
+                                        .executes(context -> BotCommands.executeBotJoinRound(
                                                 context.getSource(),
                                                 courseManager,
                                                 roundStateManager
                                         )))
                                 .then(literal("leaveround")
-                                        .executes(context -> executeBotLeaveRound(
+                                        .executes(context -> BotCommands.executeBotLeaveRound(
                                                 context.getSource(),
                                                 courseManager,
                                                 roundStateManager
@@ -513,30 +499,30 @@ public final class McdgAdminCommands {
                                 .then(literal("set")
                                         .then(argument("speed", DoubleArgumentType.doubleArg(0.0, 1.0))
                                                 .then(argument("direction", IntegerArgumentType.integer(0, 359))
-                                                        .executes(context -> executeWindSet(
+                                                        .executes(context -> WindCommands.executeWindSet(
                                                                 context.getSource(),
                                                                 DoubleArgumentType.getDouble(context, "speed"),
                                                                 IntegerArgumentType.getInteger(context, "direction")
                                                         )))))
                                 .then(literal("clear")
-                                        .executes(context -> executeWindClear(context.getSource())))
+                                        .executes(context -> WindCommands.executeWindClear(context.getSource())))
                                 .then(literal("calm")
-                                        .executes(context -> executeWindCalm(context.getSource())))
+                                        .executes(context -> WindCommands.executeWindCalm(context.getSource())))
                                 .then(literal("mode")
                                         .then(literal("calm")
-                                                .executes(context -> executeWindMode(context.getSource(), WindMode.CALM)))
+                                                .executes(context -> WindCommands.executeWindMode(context.getSource(), WindMode.CALM)))
                                         .then(literal("natural")
-                                                .executes(context -> executeWindMode(context.getSource(), WindMode.NATURAL)))
+                                                .executes(context -> WindCommands.executeWindMode(context.getSource(), WindMode.NATURAL)))
                                         .then(literal("fixed")
-                                                .executes(context -> executeWindMode(context.getSource(), WindMode.FIXED))))
+                                                .executes(context -> WindCommands.executeWindMode(context.getSource(), WindMode.FIXED))))
                                 .then(literal("show")
-                                        .executes(context -> executeWindShow(context.getSource())))
+                                        .executes(context -> WindCommands.executeWindShow(context.getSource())))
                                 .then(literal("random")
-                                        .executes(context -> executeWindRandom(context.getSource())))
+                                        .executes(context -> WindCommands.executeWindRandom(context.getSource())))
                                 .then(literal("gust")
-                                        .executes(context -> executeWindGust(context.getSource())))
+                                        .executes(context -> WindCommands.executeWindGust(context.getSource())))
                                 .then(literal("auto")
-                                        .executes(context -> executeWindAuto(context.getSource()))))
+                                        .executes(context -> WindCommands.executeWindAuto(context.getSource()))))
                         ));
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
@@ -741,114 +727,8 @@ public final class McdgAdminCommands {
                 );
         }
 
-        private static int executeStartChallenge(
-                        ServerCommandSource source,
-                        ActiveCourseManager courseManager,
-                        CoursePlacementService placementService,
-                        CoursePlacementValidator placementValidator,
-                        RoundStateManager roundStateManager,
-                        RoundPresentationService roundPresentationService,
-                        boolean skipRoundPresentation,
-                        String courseIdString
-        ) {
-                try {
-                        UUID courseId = UUID.fromString(courseIdString);
-                } catch (IllegalArgumentException e) {
-                        source.sendError(Text.literal("Invalid course ID: " + courseIdString));
-                        return 0;
-                }
 
-                var catalog = ChallengeCourseManager.getCatalog();
-                if (catalog.isEmpty()) {
-                        source.sendError(Text.literal("Challenge course catalog not available"));
-                        return 0;
-                }
-
-                var catalogEntry = catalog.get().getCourse(UUID.fromString(courseIdString));
-                if (catalogEntry.isEmpty()) {
-                        source.sendError(Text.literal("Challenge course not found: " + courseIdString));
-                        return 0;
-                }
-
-                if (!(source.getEntity() instanceof ServerPlayerEntity player)) {
-                        source.sendError(Text.literal("This command can only be run by a player"));
-                        return 0;
-                }
-
-                ServerWorld world = player.getServerWorld();
-                Course course = catalogEntry.get().generatedCourse();
-                BlockPos anchor = catalogEntry.get().courseAnchor();
-                ChallengeCourseType type = catalogEntry.get().type();
-
-                // Check if course is already placed
-                if (catalogEntry.get().isPlaced()) {
-                        source.sendFeedback(() -> Text.literal("Challenge course already built. Starting round...")
-                                .formatted(Formatting.YELLOW), false);
-                        
-                        // Set the active course
-                        courseManager.setActiveCourse(course);
-                        
-                        // Start the round directly
-                        return executeStartRound(
-                                source,
-                                courseManager,
-                                placementService,
-                                placementValidator,
-                                roundStateManager,
-                                roundPresentationService,
-                                skipRoundPresentation,
-                                null, // practiceCourseStorage
-                                false, // persistentCourse
-                                false, // allowReusableFallback
-                                List.of(player) // selectedPlayers
-                        );
-                }
-
-                source.sendFeedback(() -> Text.literal("Building challenge course: " + catalogEntry.get().name())
-                        .formatted(Formatting.LIGHT_PURPLE), false);
-
-                // Build the challenge course
-                var buildFuture = ChallengeCourseBuilder.buildChallengeCourse(world, anchor, course, type, progress -> {
-                        // Progress callback could be used for feedback
-                });
-
-                // For now, we'll make it synchronous for simplicity
-                try {
-                        PlacedCourseState placedState = buildFuture.get();
-                        if (placedState == null) {
-                                source.sendError(Text.literal("Failed to build challenge course"));
-                                return 0;
-                        }
-
-                        // Set the active course
-                        courseManager.setActiveCourse(course);
-                        courseManager.setPlacedCourseState(placedState);
-
-                        // Mark course as placed in catalog
-                        catalog.get().markCourseAsPlaced(UUID.fromString(courseIdString));
-
-                        // Start the round
-                        return executeStartRound(
-                                source,
-                                courseManager,
-                                placementService,
-                                placementValidator,
-                                roundStateManager,
-                                roundPresentationService,
-                                skipRoundPresentation,
-                                null, // practiceCourseStorage
-                                false, // persistentCourse
-                                false, // allowReusableFallback
-                                List.of(player) // selectedPlayers
-                        );
-                } catch (Exception e) {
-                        source.sendError(Text.literal("Error building challenge course: " + e.getMessage()));
-                        McdgMod.LOGGER.error("Error building challenge course", e);
-                        return 0;
-                }
-        }
-
-        private static int executeStartRound(
+        static int executeStartRound(
                         ServerCommandSource source,
                         ActiveCourseManager courseManager,
                         CoursePlacementService placementService,
@@ -1012,7 +892,7 @@ public final class McdgAdminCommands {
                         RoundWindService.onRoundStart(world, course.seed());
 
                         for (ServerPlayerEntity player : participants) {
-                                BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
+                                BlockPos safeTee = CommandUtils.resolveSafeFeetNear(world, firstTee);
                                 roundStateManager.startRoundForPlayer(player, safeTee);
                                 player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
                                 prepareRoundInventory(player);
@@ -1171,7 +1051,7 @@ public final class McdgAdminCommands {
                 RoundWindService.onRoundStart(world, course.seed());
 
                 for (ServerPlayerEntity player : participants) {
-                        BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
+                        BlockPos safeTee = CommandUtils.resolveSafeFeetNear(world, firstTee);
                         roundStateManager.startRoundForPlayer(player, safeTee);
                         player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
                         prepareRoundInventory(player);
@@ -1380,9 +1260,6 @@ public final class McdgAdminCommands {
                 }
 
                 return new SavedCourseIntegrity(true, "ok");
-        }
-
-        private record SavedCourseIntegrity(boolean valid, String reason) {
         }
 
         private static int executePruneCourses(
@@ -1604,8 +1481,8 @@ public final class McdgAdminCommands {
         private static void evacuatePlayersBeforeCleanup(ServerCommandSource source, ServerWorld world, PlacedCourseState placed) {
                 ServerPlayerEntity sourcePlayer = source.getPlayer();
                 BlockPos sourceAnchorSafeFeet = sourcePlayer != null && sourcePlayer.getWorld().getRegistryKey().equals(world.getRegistryKey())
-                        ? resolveSafeFeetNear(world, sourcePlayer.getBlockPos())
-                        : resolveSafeFeetNear(world, world.getSpawnPos());
+                        ? CommandUtils.resolveSafeFeetNear(world, sourcePlayer.getBlockPos())
+                        : CommandUtils.resolveSafeFeetNear(world, world.getSpawnPos());
                 if (isWithinPlacedCourseBuffer(placed, sourceAnchorSafeFeet, 28)) {
                         sourceAnchorSafeFeet = findNearestSafeOutsideCourse(world, placed, sourceAnchorSafeFeet, 28);
                 }
@@ -1615,7 +1492,7 @@ public final class McdgAdminCommands {
                                 continue;
                         }
 
-                        BlockPos targetFeet = resolveSafeFeetNear(world, player.getBlockPos());
+                        BlockPos targetFeet = CommandUtils.resolveSafeFeetNear(world, player.getBlockPos());
                         String relocationReason = "nearby";
 
                         if (isWithinPlacedCourseBuffer(placed, targetFeet, 28)) {
@@ -1637,7 +1514,7 @@ public final class McdgAdminCommands {
         }
 
         private static BlockPos findNearestSafeOutsideCourse(ServerWorld world, PlacedCourseState placed, BlockPos originFeet, int bufferBlocks) {
-                BlockPos safeOrigin = resolveSafeFeetNear(world, originFeet);
+                BlockPos safeOrigin = CommandUtils.resolveSafeFeetNear(world, originFeet);
                 if (!isWithinPlacedCourseBuffer(placed, safeOrigin, bufferBlocks)) {
                         return safeOrigin;
                 }
@@ -1648,7 +1525,7 @@ public final class McdgAdminCommands {
                                         if (Math.abs(dx) != radius && Math.abs(dz) != radius) {
                                                 continue;
                                         }
-                                        BlockPos candidate = resolveSafeFeetNear(world, safeOrigin.add(dx, 0, dz));
+                                        BlockPos candidate = CommandUtils.resolveSafeFeetNear(world, safeOrigin.add(dx, 0, dz));
                                         if (!isWithinPlacedCourseBuffer(placed, candidate, bufferBlocks)) {
                                                 return candidate;
                                         }
@@ -1718,7 +1595,7 @@ public final class McdgAdminCommands {
                         return;
                 }
 
-                BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
+                BlockPos safeTee = CommandUtils.resolveSafeFeetNear(world, firstTee);
 
                 ServerPlayerEntity sourcePlayer = source.getPlayer();
                 if (sourcePlayer == null) {
@@ -1734,79 +1611,6 @@ public final class McdgAdminCommands {
                 }
 
                 sourcePlayer.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
-        }
-
-        private static int executeGotoCourse(ServerCommandSource source, ActiveCourseManager courseManager) {
-                PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
-                if (placed == null) {
-                        source.sendError(Text.literal("No placed course found. Run /mcdg startround first."));
-                        return 0;
-                }
-
-                BlockPos firstTee = placed.holeTees().get(1);
-                if (firstTee == null) {
-                        source.sendError(Text.literal("Hole 1 tee location is unavailable."));
-                        return 0;
-                }
-
-                try {
-                        var player = source.getPlayerOrThrow();
-                        ServerWorld world = source.getServer().getWorld(placed.worldKey());
-                        BlockPos safeTee = world == null ? firstTee : resolveSafeFeetNear(world, firstTee);
-                        player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
-                        source.sendFeedback(() -> Text.literal("Teleported to Hole 1 tee."), false);
-                        return 1;
-                } catch (Exception ex) {
-                        source.sendError(Text.literal("This command must be run by a player."));
-                        return 0;
-                }
-        }
-
-        private static int executeGotoLie(ServerCommandSource source, RoundStateManager roundStateManager) {
-                try {
-                        ServerPlayerEntity player = source.getPlayerOrThrow();
-                        Optional<BlockPos> relocated = HoleProgressTracker.relocatePlayerToSafeLie(player, roundStateManager);
-                        if (relocated.isEmpty()) {
-                                player.sendMessage(Text.literal("No active lie found to teleport to."), true);
-                                return 0;
-                        }
-
-                        BlockPos lie = relocated.get();
-                        player.sendMessage(
-                                Text.literal("Teleported to lie: " + lie.getX() + ", " + lie.getY() + ", " + lie.getZ())
-                                        .formatted(Formatting.GREEN),
-                                true
-                        );
-                        return 1;
-                } catch (Exception ex) {
-                        source.sendError(Text.literal("This command must be run by a player."));
-                        return 0;
-                }
-        }
-
-        private static int executeResortTeleport(ServerCommandSource source) {
-                try {
-                        ServerPlayerEntity player = source.getPlayerOrThrow();
-                        var resort = ResortWaypointManager.getResortWaypoint().orElse(null);
-                        if (resort == null) {
-                                source.sendError(Text.literal("No resort has been built yet."));
-                                return 0;
-                        }
-                        String playerDimension = player.getWorld().getRegistryKey().getValue().toString();
-                        if (!playerDimension.equals(resort.dimensionId())) {
-                                source.sendError(Text.literal("Resort is in a different dimension. Use a portal to return."));
-                                return 0;
-                        }
-                        ServerWorld world = player.getServerWorld();
-                        BlockPos target = new BlockPos(resort.x(), resort.y(), resort.z()).south(4);
-                        BlockPos safe = resolveSafeFeetNear(world, target);
-                        player.teleport(world, safe.getX() + 0.5, safe.getY(), safe.getZ() + 0.5, Set.of(), player.getYaw(), player.getPitch());
-                        player.sendMessage(Text.literal("Teleported to MCDG Resort!").formatted(Formatting.GREEN), false);
-                        return 1;
-                } catch (Exception ex) {
-                        source.sendError(Text.literal("This command must be run by a player."));
-                        return 0;
-                }
         }
 
         private static int executeEndRound(
@@ -1880,7 +1684,7 @@ public final class McdgAdminCommands {
                                 continue;
                         }
 
-                        BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
+                        BlockPos safeTee = CommandUtils.resolveSafeFeetNear(world, firstTee);
                         roundStateManager.startRoundForPlayer(player, safeTee);
                         player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
                         RoundInventoryCleaner.prepareRoundInventory(player);
@@ -1966,60 +1770,6 @@ public final class McdgAdminCommands {
                         final int remaining = participantIds.size() - listed;
                         source.sendFeedback(() -> Text.literal(" - ... and " + remaining + " more participant(s)."), false);
                 }
-                return 1;
-        }
-
-        private static int executeShowRuleset(
-                        CommandContext<ServerCommandSource> context,
-                        TournamentRulesetManager rulesetManager
-        ) {
-                TournamentRulesetManager.Ruleset active = rulesetManager.getActiveRuleset();
-                TournamentRulesetManager.StrictSurfacePreset preset = rulesetManager.getStrictSurfacePreset();
-                context.getSource().sendFeedback(
-                        () -> Text.literal("Current ruleset: " + active.name().toLowerCase()
-                                + " | strict surface preset: " + preset.name().toLowerCase()),
-                        false
-                );
-                return 1;
-        }
-
-        private static int executeSetRuleset(
-                        CommandContext<ServerCommandSource> context,
-                        TournamentRulesetManager rulesetManager,
-                        TournamentRulesetManager.Ruleset ruleset
-        ) {
-                rulesetManager.setActiveRuleset(ruleset);
-                context.getSource().sendFeedback(() -> Text.literal("Ruleset set to " + ruleset.name().toLowerCase() + "."), true);
-                return 1;
-        }
-
-        private static int executeShowStrictSurfacePreset(
-                        CommandContext<ServerCommandSource> context,
-                        TournamentRulesetManager rulesetManager
-        ) {
-                TournamentRulesetManager.StrictSurfacePreset preset = rulesetManager.getStrictSurfacePreset();
-                context.getSource().sendFeedback(
-                        () -> Text.literal("Strict surface preset: " + preset.name().toLowerCase()),
-                        false
-                );
-                return 1;
-        }
-
-        private static int executeSetStrictSurfacePreset(
-                        CommandContext<ServerCommandSource> context,
-                        TournamentRulesetManager rulesetManager,
-                        String presetName
-        ) {
-                TournamentRulesetManager.StrictSurfacePreset preset;
-                try {
-                        preset = TournamentRulesetManager.StrictSurfacePreset.valueOf(presetName.toUpperCase());
-                } catch (IllegalArgumentException ex) {
-                        context.getSource().sendError(Text.literal("Unknown strict surface preset: " + presetName + ". Use fast, balanced, or tournament."));
-                        return 0;
-                }
-
-                rulesetManager.setStrictSurfacePreset(preset);
-                context.getSource().sendFeedback(() -> Text.literal("Strict surface preset set to " + preset.name().toLowerCase() + "."), true);
                 return 1;
         }
 
@@ -2315,73 +2065,6 @@ public final class McdgAdminCommands {
                 return 1;
         }
 
-        private static BlockPos resolveSafeFeetNear(ServerWorld world, BlockPos preferredFeet) {
-                if (isStandableFeet(world, preferredFeet)) {
-                        return preferredFeet;
-                }
-
-                for (int dy = 1; dy <= 6; dy++) {
-                        BlockPos up = preferredFeet.up(dy);
-                        if (isStandableFeet(world, up)) {
-                                return up;
-                        }
-                        BlockPos down = preferredFeet.down(dy);
-                        if (isStandableFeet(world, down)) {
-                                return down;
-                        }
-                }
-
-                for (int radius = 1; radius <= 6; radius++) {
-                        for (int dx = -radius; dx <= radius; dx++) {
-                                for (int dz = -radius; dz <= radius; dz++) {
-                                        if (Math.abs(dx) != radius && Math.abs(dz) != radius) {
-                                                continue;
-                                        }
-                                        BlockPos candidate = preferredFeet.add(dx, 0, dz);
-                                        if (isStandableFeet(world, candidate)) {
-                                                return candidate;
-                                        }
-                                        for (int dy = 1; dy <= 3; dy++) {
-                                                BlockPos candidateUp = candidate.up(dy);
-                                                if (isStandableFeet(world, candidateUp)) {
-                                                        return candidateUp;
-                                                }
-                                                BlockPos candidateDown = candidate.down(dy);
-                                                if (isStandableFeet(world, candidateDown)) {
-                                                        return candidateDown;
-                                                }
-                                        }
-                                }
-                        }
-                }
-
-                return preferredFeet;
-        }
-
-        private static boolean isStandableFeet(ServerWorld world, BlockPos feet) {
-                if (!world.getFluidState(feet).isEmpty()) {
-                        return false;
-                }
-                if (!world.getBlockState(feet).getCollisionShape(world, feet).isEmpty()) {
-                        return false;
-                }
-
-                BlockPos head = feet.up();
-                if (!world.getFluidState(head).isEmpty()) {
-                        return false;
-                }
-                if (!world.getBlockState(head).getCollisionShape(world, head).isEmpty()) {
-                        return false;
-                }
-
-                BlockPos ground = feet.down();
-                if (!world.getFluidState(ground).isEmpty()) {
-                        return false;
-                }
-
-                return !world.getBlockState(ground).getCollisionShape(world, ground).isEmpty();
-        }
-
     private static int executeGotoCourseByIndex(
             ServerCommandSource source,
             PracticeCourseStorage practiceCourseStorage,
@@ -2403,7 +2086,7 @@ public final class McdgAdminCommands {
         try {
             ServerPlayerEntity player = source.getPlayerOrThrow();
             ServerWorld world = source.getServer().getWorld(placed.worldKey());
-            BlockPos safeTee = world == null ? firstTee : resolveSafeFeetNear(world, firstTee);
+            BlockPos safeTee = world == null ? firstTee : CommandUtils.resolveSafeFeetNear(world, firstTee);
             player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
             source.sendFeedback(() -> Text.literal("Teleported to Hole 1 tee."), false);
             return 1;
@@ -2496,248 +2179,6 @@ public final class McdgAdminCommands {
         }
         source.sendFeedback(() -> Text.literal("Removed course #" + oneBasedIndex + " from both catalog and world."), true);
         return 1;
-    }
-
-    private static int executeDebugObClassifier(ServerCommandSource source) {
-        boolean current = OutOfBoundsClassifier.isDebugLoggingEnabled();
-        source.sendFeedback(() -> Text.literal("OB Classifier debug logging: " + (current ? "enabled" : "disabled")), false);
-        return current ? 1 : 0;
-    }
-
-    private static int executeDebugObClassifierSet(ServerCommandSource source, boolean enabled) {
-        OutOfBoundsClassifier.setDebugLogging(enabled);
-        source.sendFeedback(() -> Text.literal("OB Classifier debug logging " + (enabled ? "enabled" : "disabled")), true);
-        return enabled ? 1 : 0;
-    }
-
-    // Bot commands for multiplayer testing
-
-    private static int executeBotAdd(ServerCommandSource source, String name, String skillString) {
-        BotSkill skill;
-        try {
-            skill = BotSkill.valueOf(skillString.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            source.sendError(Text.literal("Invalid skill level. Use: BEGINNER, INTERMEDIATE, or PRO"));
-            return 0;
-        }
-
-        UUID botUuid = BotSimulator.addBot(name, skill);
-        source.sendFeedback(() -> Text.literal("Bot added: " + name + " (" + skill + ") - UUID: " + botUuid), true);
-        return 1;
-    }
-
-    private static int executeBotRemove(ServerCommandSource source, RoundStateManager roundStateManager, String uuidString) {
-        try {
-            UUID botUuid = UUID.fromString(uuidString);
-            if (BotSimulator.isBot(botUuid)) {
-                BotSimulator.removeBot(botUuid);
-                roundStateManager.clearPlayer(botUuid);
-                source.sendFeedback(() -> Text.literal("Bot removed: " + uuidString), true);
-                return 1;
-            } else {
-                source.sendError(Text.literal("Bot not found: " + uuidString));
-                return 0;
-            }
-        } catch (IllegalArgumentException e) {
-            source.sendError(Text.literal("Invalid UUID format: " + uuidString));
-            return 0;
-        }
-    }
-
-    private static int executeBotList(ServerCommandSource source) {
-        var bots = BotSimulator.getBots();
-        if (bots.isEmpty()) {
-            source.sendFeedback(() -> Text.literal("No bots registered."), false);
-            return 0;
-        }
-
-        source.sendFeedback(() -> Text.literal("Registered bots (" + bots.size() + "):"), false);
-        for (var entry : bots.entrySet()) {
-            BotSimulator.BotProfile bot = entry.getValue();
-            source.sendFeedback(() -> Text.literal("  - " + bot.name() + " (" + bot.skill() + "): " + bot.uuid()), false);
-        }
-        return 1;
-    }
-
-    private static int executeBotClear(ServerCommandSource source, RoundStateManager roundStateManager) {
-        for (UUID botUuid : BotSimulator.getBots().keySet()) {
-            roundStateManager.clearPlayer(botUuid);
-        }
-        BotSimulator.clearAllBots();
-        source.sendFeedback(() -> Text.literal("All bots cleared."), true);
-        return 1;
-    }
-
-    private static int executeBotJoinRound(
-            ServerCommandSource source,
-            ActiveCourseManager courseManager,
-            RoundStateManager roundStateManager
-    ) {
-        try {
-            if (!courseManager.isRoundActive()) {
-                source.sendError(Text.literal("No active round. Start a round first."));
-                return 0;
-            }
-
-            var bots = BotSimulator.getBots();
-            if (bots.isEmpty()) {
-                source.sendError(Text.literal("No bots registered. Add bots first with /mcdg bot add"));
-                return 0;
-            }
-
-            Optional<PlacedCourseState> placedOpt = courseManager.getPlacedCourseState();
-            if (placedOpt.isEmpty()) {
-                source.sendError(Text.literal("No placed course state found."));
-                return 0;
-            }
-
-            PlacedCourseState placed = placedOpt.get();
-            BlockPos firstTee = placed.holeTees().get(1);
-            if (firstTee == null) {
-                source.sendError(Text.literal("No tee position found for hole 1."));
-                return 0;
-            }
-
-            int joinedCount = 0;
-            for (UUID botUuid : bots.keySet()) {
-                try {
-                    // Add bot to active participants
-                    courseManager.addActiveParticipantId(botUuid);
-                    
-                    // Initialize bot's round state
-                    roundStateManager.startRoundForPlayer(botUuid, firstTee);
-                    joinedCount++;
-                } catch (Exception e) {
-                    McdgMod.LOGGER.error("Error adding bot {} to round: {}", botUuid, e.getMessage());
-                }
-            }
-
-            final int finalJoinedCount = joinedCount;
-            source.sendFeedback(() -> Text.literal("Added " + finalJoinedCount + " bots to the round."), true);
-            return 1;
-        } catch (Exception e) {
-            McdgMod.LOGGER.error("Error in bot join round: {}", e.getMessage(), e);
-            source.sendError(Text.literal("Error adding bots to round."));
-            return 0;
-        }
-    }
-
-    private static int executeBotLeaveRound(
-            ServerCommandSource source,
-            ActiveCourseManager courseManager,
-            RoundStateManager roundStateManager
-    ) {
-        try {
-            var bots = BotSimulator.getBots();
-            if (bots.isEmpty()) {
-                source.sendError(Text.literal("No bots registered."));
-                return 0;
-            }
-
-            int removedCount = 0;
-            for (UUID botUuid : bots.keySet()) {
-                try {
-                    // Remove bot from active participants
-                    courseManager.removeActiveParticipantId(botUuid);
-                    
-                    // Clear bot's round state
-                    roundStateManager.clearPlayer(botUuid);
-                    removedCount++;
-                } catch (Exception e) {
-                    McdgMod.LOGGER.error("Error removing bot {}: {}", botUuid, e.getMessage());
-                }
-            }
-
-            final int finalRemovedCount = removedCount;
-            source.sendFeedback(() -> Text.literal("Removed " + finalRemovedCount + " bots from the round."), true);
-            return 1;
-        } catch (Exception e) {
-            McdgMod.LOGGER.error("Error in bot leave round: {}", e.getMessage(), e);
-            source.sendError(Text.literal("Error removing bots from round."));
-            return 0;
-        }
-    }
-
-    private static int executeWindSet(ServerCommandSource source, double speed, int direction) {
-        ServerWorld world = source.getWorld();
-        WindManager.setManualWind(world, speed, direction);
-        source.sendFeedback(() -> Text.literal("Wind set to " + speed + " speed, " + direction + " degrees").formatted(Formatting.GREEN), true);
-        return 1;
-    }
-
-    private static int executeWindClear(ServerCommandSource source) {
-        ServerWorld world = source.getWorld();
-        WindManager.setWindMode(world, WindMode.CALM);
-        source.sendFeedback(() -> Text.literal("Wind cleared (calm conditions)").formatted(Formatting.GREEN), true);
-        return 1;
-    }
-
-    private static int executeWindCalm(ServerCommandSource source) {
-        ServerWorld world = source.getWorld();
-        WindManager.setWindMode(world, WindMode.CALM);
-        source.sendFeedback(() -> Text.literal("Wind set to calm (0 speed)").formatted(Formatting.GREEN), true);
-        return 1;
-    }
-
-    private static int executeWindMode(ServerCommandSource source, WindMode mode) {
-        ServerWorld world = source.getWorld();
-        WindManager.setWindMode(world, mode);
-        source.sendFeedback(() -> Text.literal("Wind mode set to " + mode).formatted(Formatting.GREEN), true);
-        return 1;
-    }
-
-    private static int executeWindShow(ServerCommandSource source) {
-        ServerWorld world = source.getWorld();
-        com.mcdg.game.WindState wind = WindManager.getWindState(world);
-        String compassDirection = getCompassDirection(wind.directionDegrees());
-        
-        net.minecraft.text.MutableText feedback = Text.empty()
-            .append(Text.literal("Current Wind: ").formatted(Formatting.AQUA))
-            .append(Text.literal(wind.speed() + " speed, " + wind.directionDegrees() + "° (" + compassDirection + ")").formatted(Formatting.WHITE))
-            .append(Text.literal(", mode: ").formatted(Formatting.GRAY))
-            .append(Text.literal(wind.mode().toString()).formatted(Formatting.YELLOW));
-        
-        if (wind.isGusting()) {
-            feedback.append(Text.literal(" [GUSTING]").formatted(Formatting.RED));
-        }
-        
-        source.sendFeedback(() -> feedback, false);
-        
-        // Add usage hint
-        source.sendFeedback(() -> Text.literal("Use /mcdg wind set <speed> <direction> to set manual wind").formatted(Formatting.DARK_GRAY), false);
-        source.sendFeedback(() -> Text.literal("Use /mcdg wind calm|random|gust for quick wind changes").formatted(Formatting.DARK_GRAY), false);
-        source.sendFeedback(() -> Text.literal("Use /mcdg wind mode <calm|natural|fixed> to change wind mode").formatted(Formatting.DARK_GRAY), false);
-        
-        return 1;
-    }
-
-    private static int executeWindRandom(ServerCommandSource source) {
-        ServerWorld world = source.getWorld();
-        WindManager.setWindMode(world, WindMode.NATURAL);
-        source.sendFeedback(() -> Text.literal("Wind set to random natural mode").formatted(Formatting.GREEN), true);
-        return 1;
-    }
-
-    private static int executeWindGust(ServerCommandSource source) {
-        ServerWorld world = source.getWorld();
-        WindManager.triggerGust(world);
-        source.sendFeedback(() -> Text.literal("Wind gust triggered").formatted(Formatting.GREEN), true);
-        return 1;
-    }
-
-    private static int executeWindAuto(ServerCommandSource source) {
-        ServerWorld world = source.getWorld();
-        RoundWindService.reEnableAutomation(world, 0L);
-        source.sendFeedback(() -> Text.literal(
-                "Round wind automation re-enabled | mode=" + RoundWindService.getRoundWindMode()
-        ).formatted(Formatting.GREEN), true);
-        return 1;
-    }
-
-    private static String getCompassDirection(float degrees) {
-        String[] directions = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
-        int index = Math.round(degrees / 45.0f) % 8;
-        return directions[index];
     }
 }
 

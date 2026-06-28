@@ -487,32 +487,6 @@ public final class RoundLifecycleCommands {
         return 1;
     }
 
-    public static int executeGotoCourse(ServerCommandSource source, ActiveCourseManager courseManager) {
-        PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
-        if (placed == null) {
-            source.sendError(Text.literal("No placed course found. Run /mcdg startround first."));
-            return 0;
-        }
-
-        BlockPos firstTee = placed.holeTees().get(1);
-        if (firstTee == null) {
-            source.sendError(Text.literal("Hole 1 tee location is unavailable."));
-            return 0;
-        }
-
-        try {
-            var player = source.getPlayerOrThrow();
-            ServerWorld world = source.getServer().getWorld(placed.worldKey());
-            BlockPos safeTee = world == null ? firstTee : SafePositionFinder.resolveSafeFeetNear(world, firstTee);
-            player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
-            source.sendFeedback(() -> Text.literal("Teleported to Hole 1 tee."), false);
-            return 1;
-        } catch (Exception ex) {
-            source.sendError(Text.literal("This command must be run by a player."));
-            return 0;
-        }
-    }
-
     public static int executeGotoCourseByIndex(ServerCommandSource source, PracticeCourseStorage practiceCourseStorage, int oneBasedIndex) {
         Optional<PracticeCourseStorage.LoadedPracticeCourse> loaded = practiceCourseStorage.loadReusableByIndex(source.getServer(), oneBasedIndex);
         if (loaded.isEmpty()) {

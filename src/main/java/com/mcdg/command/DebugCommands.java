@@ -12,6 +12,7 @@ import com.mcdg.game.ThrowAutoTestService;
 import com.mcdg.game.HazardManager;
 import com.mcdg.game.HazardType;
 import com.mcdg.game.HazardBehavior;
+import com.mcdg.game.OutOfBoundsClassifier;
 import com.mcdg.game.ChallengeCourseManager;
 import com.mcdg.game.ChallengeCourseDiscoveryHandler;
 import com.mcdg.game.LostCourse;
@@ -573,6 +574,18 @@ public final class DebugCommands {
                         com.mcdg.game.ChallengeCourseType.LOST_COURSE,
                         false
                 );
+        }
+
+        public static int executeDebugObClassifier(ServerCommandSource source) {
+                boolean current = OutOfBoundsClassifier.isDebugLoggingEnabled();
+                source.sendFeedback(() -> Text.literal("OB Classifier debug logging: " + (current ? "enabled" : "disabled")), false);
+                return current ? 1 : 0;
+        }
+
+        public static int executeDebugObClassifierSet(ServerCommandSource source, boolean enabled) {
+                OutOfBoundsClassifier.setDebugLogging(enabled);
+                source.sendFeedback(() -> Text.literal("OB Classifier debug logging " + (enabled ? "enabled" : "disabled")), true);
+                return enabled ? 1 : 0;
         }
 
 }
