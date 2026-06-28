@@ -202,7 +202,7 @@ public final class HazardManager {
      * Applies hazard effects to a player after disc landing.
      * This should be called from ThrowResolver when a hazard is detected.
      */
-    public static void applyHazardEffects(ServerPlayerEntity player, HazardBehavior behavior, HazardType hazardType) {
+    public static void applyHazardEffects(ServerPlayerEntity player, HazardBehavior behavior, HazardType hazardType, RoundStateManager roundStateManager) {
         if (behavior.damageAmount() > 0) {
             // Use appropriate damage source based on hazard type
             if (hazardType == HazardType.CACTUS) {
@@ -212,15 +212,10 @@ public final class HazardManager {
             }
         }
 
-        if (behavior.slowsRetrieval()) {
-            // Apply slowness effect for retrieval
-            // This could be enhanced with duration based on hazard type
-            player.addStatusEffect(new net.minecraft.entity.effect.StatusEffectInstance(
-                net.minecraft.entity.effect.StatusEffects.SLOWNESS,
-                100, // 5 seconds
-                1,   // Amplifier I
-                false, false, true
-            ));
+        if (behavior.nextThrowPowerMultiplier() < 1.0f) {
+            roundStateManager.setNextThrowPowerMultiplier(player.getUuid(), behavior.nextThrowPowerMultiplier());
+            roundStateManager.syncNextThrowPowerMultiplier(player);
+            GolfTitleMessenger.sendHazardPowerPenaltyTitle(player, behavior.nextThrowPowerMultiplier(), behavior.penaltyReason());
         }
 
         if (behavior.destroysDisc()) {

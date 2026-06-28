@@ -179,7 +179,7 @@ public final class DebugCommands {
                 source.sendFeedback(() -> Text.literal(
                         "Behavior: destroysDisc=" + behavior.destroysDisc()
                                 + ", penaltyStroke=" + behavior.addsPenaltyStroke()
-                                + ", slowsRetrieval=" + behavior.slowsRetrieval()
+                                + ", nextThrowPower=" + String.format("%.0f%%", behavior.nextThrowPowerMultiplier() * 100.0f)
                                 + ", bounceMod=" + behavior.bounceModifier()
                                 + ", damage=" + behavior.damageAmount()
                 ), false);

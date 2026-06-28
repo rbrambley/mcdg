@@ -6,6 +6,7 @@ import com.mcdg.net.AceCinematicSync;
 import com.mcdg.net.HoleMapSync;
 import com.mcdg.net.LeaderboardResponse;
 import com.mcdg.net.MenuScreenSync;
+import com.mcdg.net.NextThrowModifierSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
 import com.mcdg.net.SkillsScreenSync;
 import com.mcdg.net.SkillsStatusSync;
@@ -142,6 +143,9 @@ public final class ClientNetworking {
         );
         ClientPlayNetworking.registerGlobalReceiver(WindSync.ID, (payload, context) ->
             context.client().execute(() -> WindManagerClient.updateWindState(payload))
+        );
+        ClientPlayNetworking.registerGlobalReceiver(NextThrowModifierSync.ID, (payload, context) ->
+            context.client().execute(() -> McdgClientMod.setClientNextThrowPowerMultiplier(payload.nextThrowPowerMultiplier()))
         );
     }
 }

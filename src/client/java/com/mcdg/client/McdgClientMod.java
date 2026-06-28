@@ -33,6 +33,15 @@ public final class McdgClientMod implements ClientModInitializer {
     private static long hudHideSinceMs;
     private static boolean roundEnded = false;
     private static java.util.Set<String> unlockedSkills = new java.util.HashSet<>();
+    private static float clientNextThrowPowerMultiplier = 1.0f;
+
+    public static float getClientNextThrowPowerMultiplier() {
+        return clientNextThrowPowerMultiplier;
+    }
+
+    public static void setClientNextThrowPowerMultiplier(float multiplier) {
+        clientNextThrowPowerMultiplier = Math.max(0.0f, Math.min(1.0f, multiplier));
+    }
 
     // Cached left-side layout inputs — recomputed only when inputs change
     private static RunningRoundScoreState lastLayoutScoreState = null;
@@ -211,6 +220,7 @@ public final class McdgClientMod implements ClientModInitializer {
             DiscTrailRenderer.clearAllStats();
             ScorecardOverlay.setThrowStatsRenderedThisFrame(false);
             roundEnded = false;
+            clientNextThrowPowerMultiplier = 1.0f;
         });
         ClientNetworking.registerReceivers();
         HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {

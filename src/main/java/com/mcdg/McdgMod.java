@@ -44,6 +44,7 @@ import com.mcdg.net.LeaderboardRequest;
 import com.mcdg.net.LeaderboardResponse;
 import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.MenuScreenSync;
+import com.mcdg.net.NextThrowModifierSync;
 import com.mcdg.net.RoundCompleteCinematicSync;
 import com.mcdg.net.SkillsScreenRequest;
 import com.mcdg.net.SkillsScreenSync;
@@ -219,6 +220,7 @@ public final class McdgMod implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(RoundInviteResponse.ID, RoundInviteResponse.CODEC);
 
         PayloadTypeRegistry.playS2C().register(WindSync.ID, WindSync.CODEC);
+        PayloadTypeRegistry.playS2C().register(NextThrowModifierSync.ID, NextThrowModifierSync.CODEC);
 
         ResourceManagerHelper.registerBuiltinResourcePack(
                 new Identifier(MOD_ID, "mcdg-test-resources"),
@@ -898,7 +900,7 @@ public final class McdgMod implements ModInitializer {
             BlockPos firstTee = placed.holeTees().get(1);
             if (firstTee != null) {
                 targetLie = resolveSafeFeetNearWithin(world, firstTee, 2);
-                ROUND_STATE_MANAGER.startRoundForPlayer(player.getUuid(), targetLie);
+                ROUND_STATE_MANAGER.startRoundForPlayer(player, targetLie);
             }
         }
     }

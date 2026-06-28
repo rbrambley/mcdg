@@ -28,6 +28,17 @@ public final class GolfTitleMessenger {
         player.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal(subtitleText).formatted(Formatting.WHITE)));
     }
 
+    static void sendHazardPowerPenaltyTitle(ServerPlayerEntity player, float multiplier, String penaltyReason) {
+        int percent = Math.round(multiplier * 100.0f);
+        String titleText = penaltyReason != null && !penaltyReason.isBlank() ? penaltyReason : "Hazard";
+
+        player.networkHandler.sendPacket(new TitleFadeS2CPacket(5, 40, 12));
+        player.networkHandler.sendPacket(new TitleS2CPacket(Text.literal(titleText).formatted(Formatting.RED, Formatting.BOLD)));
+        player.networkHandler.sendPacket(new SubtitleS2CPacket(
+                Text.translatable("mcdg.title.hazard_power_penalty.subtitle", percent).formatted(Formatting.GOLD, Formatting.BOLD)
+        ));
+    }
+
     static void sendHoleFinishTitle(ServerPlayerEntity player, int holeScore, int holePar) {
         int holeDelta = holeScore - holePar;
         String resultName = golfResultName(holeScore, holeDelta);

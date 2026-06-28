@@ -182,7 +182,8 @@ public final class PlayerRoundSessionStorage {
                         holeStrokes,
                         totalStrokes,
                         lastThrowPenalty,
-                        aceCount
+                        aceCount,
+                        1.0f
                 );
             } catch (RuntimeException ex) {
                 return Optional.empty();

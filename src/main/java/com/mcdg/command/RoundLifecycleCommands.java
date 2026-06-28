@@ -201,7 +201,7 @@ public final class RoundLifecycleCommands {
 
             for (ServerPlayerEntity player : participants) {
                 BlockPos safeTee = SafePositionFinder.resolveSafeFeetNear(world, firstTee);
-                roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
+                roundStateManager.startRoundForPlayer(player, safeTee);
                 player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
                 CommandUtils.prepareRoundInventory(player);
                 ScorecardManager.initializeScorecard(player, course, placed);
@@ -343,7 +343,7 @@ public final class RoundLifecycleCommands {
         }
         for (ServerPlayerEntity player : participants) {
             BlockPos safeTee = SafePositionFinder.resolveSafeFeetNear(world, firstTee);
-            roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
+            roundStateManager.startRoundForPlayer(player, safeTee);
             player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
             CommandUtils.prepareRoundInventory(player);
             ScorecardManager.initializeScorecard(player, course, placed);
@@ -769,7 +769,7 @@ public final class RoundLifecycleCommands {
         }
 
         if (roundStateManager.getState(sourcePlayer.getUuid()).isEmpty()) {
-            roundStateManager.startRoundForPlayer(sourcePlayer.getUuid(), safeTee);
+            roundStateManager.startRoundForPlayer(sourcePlayer, safeTee);
         }
 
         sourcePlayer.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);

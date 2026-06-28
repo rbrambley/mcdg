@@ -48,5 +48,6 @@
   "key.mcdg.lock_power": "Lock Power",
   "key.mcdg.cycle_stance": "Cycle Throw Stance",
   "key.mcdg.angle_left": "Angle Left (Hyzer)",
-  "key.mcdg.angle_right": "Angle Right (Anhyzer)"
+  "key.mcdg.angle_right": "Angle Right (Anhyzer)",
+  "mcdg.title.hazard_power_penalty.subtitle": "Next throw power: %s%%"
 }

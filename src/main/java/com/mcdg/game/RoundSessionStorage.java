@@ -288,7 +288,8 @@ public final class RoundSessionStorage {
                         holeStrokes,
                         totalStrokes,
                         lastThrowPenalty,
-                        aceCount
+                        aceCount,
+                        1.0f
                 );
             } catch (RuntimeException ex) {
                 return null;

@@ -280,6 +280,18 @@ public class ChargedDiscItem extends Item {
         velocity *= (float) stats.throwSpeedMultiplier();
         velocity *= (1.0f + PlayerThrowStats.getPowerMultiplierBonus(serverPlayer));
 
+        // Apply hazard-induced next-throw power penalty (if any) and consume it
+        float hazardPowerMultiplier = roundStateManager.getNextThrowPowerMultiplier(playerUuid);
+        if (hazardPowerMultiplier < 1.0f) {
+            velocity *= hazardPowerMultiplier;
+            McdgMod.LOGGER.info(
+                "Hazard power penalty applied | player={} multiplier={} charge={}",
+                serverPlayer.getGameProfile().getName(),
+                String.format("%.2f", hazardPowerMultiplier),
+                String.format("%.3f", charge)
+            );
+        }
+
         // Calculate throw trajectory (predicted flight path, no pearl entity)
         // Get server-side stance (defaults to OVERHAND/FLAT if not set)
         ThrowStance stance = SERVER_PLAYER_STANCE.getOrDefault(playerUuid, ThrowStance.OVERHAND);
@@ -400,6 +412,7 @@ public class ChargedDiscItem extends Item {
 
         BlockPos recordedThrowLie = state == null ? serverPlayer.getBlockPos() : state.lie();
         roundStateManager.recordThrow(serverPlayer.getUuid(), recordedThrowLie);
+        roundStateManager.syncNextThrowPowerMultiplier(serverPlayer);
         StaminaXpService.consumeThrowStamina(serverPlayer, charge);
         DiscTier thrownTier = stack.getItem() instanceof TieredDiscItem tieredDisc ? tieredDisc.tier() : null;
         PlayerSkillManager.recordThrow(serverPlayer, thrownTier);

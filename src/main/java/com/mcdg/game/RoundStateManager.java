@@ -1,12 +1,15 @@
 package com.mcdg.game;
 
+import com.mcdg.net.NextThrowModifierSync;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.BlockPos;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 public final class RoundStateManager {
     private final ConcurrentMap<UUID, PlayerRoundState> stateByPlayer = new ConcurrentHashMap<>();
@@ -17,6 +20,11 @@ public final class RoundStateManager {
         completedTotalByPlayer.remove(playerId);
     }
 
+    public void startRoundForPlayer(ServerPlayerEntity player, BlockPos startLie) {
+        startRoundForPlayer(player.getUuid(), startLie);
+        syncNextThrowPowerMultiplier(player);
+    }
+
     public PlayerRoundState recordThrow(UUID playerId, BlockPos throwLie) {
         PlayerRoundState newState = stateByPlayer.compute(playerId, (id, existing) -> {
             if (existing == null) {
@@ -24,17 +32,38 @@ public final class RoundStateManager {
             }
             return existing.recordThrow(throwLie);
         });
-        
+
         // Notify TurnManager of the throw for turn rotation
         if (newState != null) {
             TurnManager.recordThrow(playerId, newState.currentHole());
         }
-        
+
         return newState;
     }
 
     public Optional<PlayerRoundState> getState(UUID playerId) {
         return Optional.ofNullable(stateByPlayer.get(playerId));
+    }
+
+    public float getNextThrowPowerMultiplier(UUID playerId) {
+        PlayerRoundState state = stateByPlayer.get(playerId);
+        return state != null ? state.nextThrowPowerMultiplier() : 1.0f;
+    }
+
+    public Optional<PlayerRoundState> setNextThrowPowerMultiplier(UUID playerId, float multiplier) {
+        if (multiplier <= 0.0f) {
+            return Optional.empty();
+        }
+        PlayerRoundState updated = stateByPlayer.computeIfPresent(playerId, (id, existing) -> {
+            float effective = Math.min(existing.nextThrowPowerMultiplier(), multiplier);
+            return existing.withNextThrowPowerMultiplier(effective);
+        });
+        return Optional.ofNullable(updated);
+    }
+
+    public void syncNextThrowPowerMultiplier(ServerPlayerEntity player) {
+        float multiplier = getNextThrowPowerMultiplier(player.getUuid());
+        ServerPlayNetworking.send(player, new NextThrowModifierSync.Payload(multiplier));
     }
 
     public Map<UUID, PlayerRoundState> snapshotStates() {

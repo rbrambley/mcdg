@@ -307,7 +307,7 @@ public final class ThrowResolver {
 
                 if (hazardType != HazardType.NONE) {
                     HazardBehavior behavior = HazardManager.getHazardBehavior(hazardType);
-                    HazardManager.applyHazardEffects(player, behavior, hazardType);
+                    HazardManager.applyHazardEffects(player, behavior, hazardType, roundStateManager);
                 }
 
                 // Find safe position before teleporting to avoid suffocation

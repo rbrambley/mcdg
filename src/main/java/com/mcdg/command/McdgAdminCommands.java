@@ -1000,7 +1000,7 @@ public final class McdgAdminCommands {
 
                         for (ServerPlayerEntity player : participants) {
                                 BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
-                                roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
+                                roundStateManager.startRoundForPlayer(player, safeTee);
                                 player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
                                 prepareRoundInventory(player);
                                 ScorecardManager.initializeScorecard(player, course, placed);
@@ -1159,7 +1159,7 @@ public final class McdgAdminCommands {
 
                 for (ServerPlayerEntity player : participants) {
                         BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
-                        roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
+                        roundStateManager.startRoundForPlayer(player, safeTee);
                         player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
                         prepareRoundInventory(player);
                         ScorecardManager.initializeScorecard(player, course, placed);
@@ -1717,7 +1717,7 @@ public final class McdgAdminCommands {
                 }
 
                 if (roundStateManager.getState(sourcePlayer.getUuid()).isEmpty()) {
-                        roundStateManager.startRoundForPlayer(sourcePlayer.getUuid(), safeTee);
+                        roundStateManager.startRoundForPlayer(sourcePlayer, safeTee);
                 }
 
                 sourcePlayer.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
@@ -1868,7 +1868,7 @@ public final class McdgAdminCommands {
                         }
 
                         BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
-                        roundStateManager.startRoundForPlayer(playerId, safeTee);
+                        roundStateManager.startRoundForPlayer(player, safeTee);
                         player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
                         RoundInventoryCleaner.prepareRoundInventory(player);
                         ScorecardManager.initializeScorecard(player, course, placed);

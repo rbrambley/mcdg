@@ -104,6 +104,7 @@ public final class HudOverlays {
 
         float scale = HudUtil.getScaleFactor(drawContext);
         float charge = ChargedDiscItem.getClientChargePercent();
+        float nextThrowMultiplier = McdgClientMod.getClientNextThrowPowerMultiplier();
         int width = drawContext.getScaledWindowWidth();
         int height = drawContext.getScaledWindowHeight();
 
@@ -141,13 +142,18 @@ public final class HudOverlays {
             HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(distanceText).formatted(Formatting.GRAY), textX, markY - textYOffset, 0xAAAAAA, scale);
         }
 
-        int filledPixels = Math.max(0, Math.min(scaledPowerBarHeight, Math.round(charge * scaledPowerBarHeight)));
+        // Cap the displayed power when a hazard penalty is active
+        float effectiveCharge = Math.min(charge, nextThrowMultiplier);
+        int filledPixels = Math.max(0, Math.min(scaledPowerBarHeight, Math.round(effectiveCharge * scaledPowerBarHeight)));
         if (filledPixels > 0) {
             int fillTop = barBottom - filledPixels;
 
             // Color changes: green below 50%, yellow 50-100%, red overcharge 100-125%
+            // Hazard penalty active: override with amber/orange so the reduced cap is obvious
             int color;
-            if (charge > 1.0f) {
+            if (nextThrowMultiplier < 1.0f) {
+                color = 0xFFFFA500; // Amber penalty color
+            } else if (charge > 1.0f) {
                 color = 0xFFFF3333; // Red overcharge zone
             } else if (charge < 0.5f) {
                 color = 0xFF3AC25B; // Green
@@ -161,6 +167,12 @@ public final class HudOverlays {
         int overchargeMarkY = barBottom - scaledPowerBarHeight;
         drawContext.fill(barX - 1, overchargeMarkY, barX + scaledPowerBarWidth + 1, overchargeMarkY + 1, 0xFFFF3333);
 
+        // Draw hazard penalty cap marker when active
+        if (nextThrowMultiplier < 1.0f) {
+            int capMarkY = barBottom - Math.round(nextThrowMultiplier * scaledPowerBarHeight);
+            drawContext.fill(barX - 2, capMarkY, barX + scaledPowerBarWidth + 2, capMarkY + 2, 0xFFFFA500);
+        }
+
         // Percentage text
         int percent = Math.round(charge * 100.0f);
         int percentTextXOffset = Math.round(8 * scale);
@@ -168,6 +180,14 @@ public final class HudOverlays {
         String percentText = Integer.toString(percent) + "%";
         int percentTextWidth = Math.round(client.textRenderer.getWidth(percentText) * scale);
         HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(percentText).formatted(Formatting.WHITE), barX - percentTextXOffset - percentTextWidth, barTop - percentTextYOffset, 0xFFFFFF, scale);
+
+        // Hazard penalty cap text
+        if (nextThrowMultiplier < 1.0f) {
+            int capTextYOffset = Math.round(48 * scale);
+            String capText = "CAP: " + Math.round(nextThrowMultiplier * 100.0f) + "%";
+            int capTextWidth = Math.round(client.textRenderer.getWidth(capText) * scale);
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(capText).formatted(Formatting.GOLD), barX - percentTextXOffset - capTextWidth, barTop - capTextYOffset, 0xFFA500, scale);
+        }
 
         // LOCKED indicator
         if (ChargedDiscItem.isPowerLocked()) {

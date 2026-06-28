@@ -170,7 +170,7 @@ public final class RoundAdminCommands {
             }
 
             BlockPos safeTee = SafePositionFinder.resolveSafeFeetNear(world, firstTee);
-            roundStateManager.startRoundForPlayer(playerId, safeTee);
+            roundStateManager.startRoundForPlayer(player, safeTee);
             player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
             RoundInventoryCleaner.prepareRoundInventory(player);
             ScorecardManager.initializeScorecard(player, course, placed);

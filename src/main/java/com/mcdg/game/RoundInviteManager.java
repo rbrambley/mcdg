@@ -300,7 +300,7 @@ public final class RoundInviteManager {
         List<UUID> participantIds = new ArrayList<>();
         for (ServerPlayerEntity player : participants) {
             BlockPos safeTee = resolveSafeFeetNear(world, firstTee);
-            roundStateManager.startRoundForPlayer(player.getUuid(), safeTee);
+            roundStateManager.startRoundForPlayer(player, safeTee);
             player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
             prepareRoundInventory(player);
             ScorecardManager.initializeScorecard(player, course, placed);
