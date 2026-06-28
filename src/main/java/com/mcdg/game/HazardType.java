@@ -12,18 +12,18 @@ public enum HazardType {
     NONE("None", "No hazard", GridCategory.NONE),
 
     // Surface hazards (GridCategory.SURFACE_HAZARD)
-    SAND("Sand Trap", "Slows retrieval, +1 penalty stroke, reduced bounce", GridCategory.SURFACE_HAZARD),
-    ICE("Ice Hazard", "Slippery surface, unpredictable bounces", GridCategory.SURFACE_HAZARD),
-    ROUGH("Rough", "Dense vegetation, +1 penalty stroke, slows retrieval", GridCategory.SURFACE_HAZARD),
-    SWAMP("Swamp", "Slows movement, difficult retrieval, +1 penalty stroke", GridCategory.SURFACE_HAZARD),
+    SAND("Sand Trap", "+1 penalty stroke, next throw power reduced, reduced bounce", GridCategory.SURFACE_HAZARD),
+    ICE("Ice Hazard", "Next throw power reduced, extra bouncy", GridCategory.SURFACE_HAZARD),
+    ROUGH("Rough", "+1 penalty stroke, next throw power reduced, reduced bounce", GridCategory.SURFACE_HAZARD),
+    SWAMP("Swamp", "+1 penalty stroke, next throw power reduced, reduced bounce", GridCategory.SURFACE_HAZARD),
 
     // Water hazard (GridCategory.WATER - separate for blue color)
-    WATER("Water Hazard", "Standard out-of-bounds water, +1 penalty stroke", GridCategory.WATER),
+    WATER("Water Hazard", "+1 penalty stroke", GridCategory.WATER),
 
     // Danger hazards (GridCategory.DANGER_HAZARD)
-    LAVA("Lava Hazard", "Dangerous lava, destroys disc, damages player", GridCategory.DANGER_HAZARD),
-    CACTUS("Cactus Field", "Damage hazard, destroys disc, damages player", GridCategory.DANGER_HAZARD),
-    CLIFF("Cliff Drop", "Elevation hazard, difficult recovery, +1 penalty stroke", GridCategory.DANGER_HAZARD);
+    LAVA("Lava Hazard", "Destroys disc, damages player", GridCategory.DANGER_HAZARD),
+    CACTUS("Cactus Field", "Destroys disc, damages player", GridCategory.DANGER_HAZARD),
+    CLIFF("Cliff Drop", "+1 penalty stroke, next throw power reduced", GridCategory.DANGER_HAZARD);
 
     private final String displayName;
     private final String description;

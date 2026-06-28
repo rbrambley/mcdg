@@ -22,6 +22,7 @@ import java.util.UUID;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
@@ -172,33 +173,68 @@ public final class DebugCommands {
                 HazardType hazard = HazardManager.getHazardType(world, feet);
                 HazardBehavior behavior = HazardManager.getHazardBehavior(hazard);
 
-                source.sendFeedback(() -> Text.literal(
-                        "Hazard at " + feet.getX() + "," + feet.getY() + "," + feet.getZ() + ": " + hazard.displayName()
-                                + " (" + hazard.description() + ")"
-                ), false);
-                source.sendFeedback(() -> Text.literal(
-                        "Behavior: destroysDisc=" + behavior.destroysDisc()
-                                + ", penaltyStroke=" + behavior.addsPenaltyStroke()
-                                + ", nextThrowPower=" + String.format("%.0f%%", behavior.nextThrowPowerMultiplier() * 100.0f)
-                                + ", bounceMod=" + behavior.bounceModifier()
-                                + ", damage=" + behavior.damageAmount()
-                ), false);
+                source.sendFeedback(() -> {
+                        MutableText header = Text.literal("Hazard at " + feet.getX() + "," + feet.getY() + "," + feet.getZ() + ": ")
+                                .formatted(Formatting.GRAY);
+                        header.append(Text.literal(hazard.displayName()).formatted(Formatting.YELLOW));
+                        header.append(Text.literal(" (" + hazard.description() + ")").formatted(Formatting.WHITE));
+                        return header;
+                }, false);
+
+                MutableText behaviorLine = Text.literal("Behavior: ").formatted(Formatting.GRAY);
+                if (behavior.addsPenaltyStroke()) {
+                        behaviorLine.append(Text.literal("+1 stroke ").formatted(Formatting.RED));
+                }
+                if (behavior.nextThrowPowerMultiplier() < 1.0f) {
+                        int percent = Math.round(behavior.nextThrowPowerMultiplier() * 100.0f);
+                        behaviorLine.append(Text.literal("next throw " + percent + "% ").formatted(Formatting.AQUA));
+                }
+                if (behavior.destroysDisc()) {
+                        behaviorLine.append(Text.literal("destroys disc ").formatted(Formatting.DARK_RED));
+                }
+                if (behavior.damageAmount() > 0) {
+                        behaviorLine.append(Text.literal(behavior.damageAmount() + " dmg ").formatted(Formatting.DARK_RED));
+                }
+                behaviorLine.append(Text.literal("bounce=" + String.format("%.1f", behavior.bounceModifier())).formatted(Formatting.WHITE));
+
+                final Text finalBehaviorLine = behaviorLine;
+                source.sendFeedback(() -> finalBehaviorLine, false);
 
                 return 1;
         }
 
         /**
-         * Debug command to list all hazard types.
+         * Debug command to list all hazard types with their behavior values.
          */
         public static int executeDebugHazardList(ServerCommandSource source) {
-                source.sendFeedback(() -> Text.literal("Available Hazard Types:"), false);
+                source.sendFeedback(() -> Text.literal("Available Hazard Types:").formatted(Formatting.GOLD, Formatting.BOLD), false);
                 for (HazardType type : HazardType.values()) {
                         HazardBehavior behavior = HazardManager.getHazardBehavior(type);
-                        source.sendFeedback(() -> Text.literal(
-                                " - " + type.displayName() + ": " + type.description()
-                        ), false);
+                        source.sendFeedback(() -> formatHazardListLine(type, behavior), false);
                 }
                 return 1;
+        }
+
+        private static Text formatHazardListLine(HazardType type, HazardBehavior behavior) {
+                MutableText line = Text.literal(" - ").formatted(Formatting.GRAY);
+                line.append(Text.literal(type.displayName()).formatted(Formatting.YELLOW));
+                line.append(Text.literal(": " + type.description()).formatted(Formatting.WHITE));
+
+                if (behavior.addsPenaltyStroke()) {
+                        line.append(Text.literal(" [+1 stroke]").formatted(Formatting.RED));
+                }
+                if (behavior.nextThrowPowerMultiplier() < 1.0f) {
+                        int percent = Math.round(behavior.nextThrowPowerMultiplier() * 100.0f);
+                        line.append(Text.literal(" [next throw " + percent + "%]").formatted(Formatting.AQUA));
+                }
+                if (behavior.destroysDisc()) {
+                        line.append(Text.literal(" [destroys disc]").formatted(Formatting.DARK_RED));
+                }
+                if (behavior.damageAmount() > 0) {
+                        line.append(Text.literal(" [" + behavior.damageAmount() + " dmg]").formatted(Formatting.DARK_RED));
+                }
+
+                return line;
         }
 
         public static int executeAutoTestShadowSet(
