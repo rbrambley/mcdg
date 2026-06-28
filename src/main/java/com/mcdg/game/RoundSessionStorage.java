@@ -260,7 +260,8 @@ public final class RoundSessionStorage {
             int holeStrokes,
             int totalStrokes,
             boolean lastThrowPenalty,
-            int aceCount
+            int aceCount,
+            Float nextThrowPowerMultiplier
     ) {
         private static PlayerStateSnapshot from(PlayerRoundState state) {
             BlockPos lie = state.lie();
@@ -272,7 +273,8 @@ public final class RoundSessionStorage {
                     state.holeStrokes(),
                     state.totalStrokes(),
                     state.lastThrowPenalty(),
-                    state.aceCount()
+                    state.aceCount(),
+                    state.nextThrowPowerMultiplier()
             );
         }
 
@@ -282,6 +284,7 @@ public final class RoundSessionStorage {
                 return null;
             }
             try {
+                float multiplier = nextThrowPowerMultiplier != null ? nextThrowPowerMultiplier : 1.0f;
                 return new PlayerRoundState(
                         activeOrdinal,
                         new BlockPos(lieX, lieY, lieZ),
@@ -289,7 +292,7 @@ public final class RoundSessionStorage {
                         totalStrokes,
                         lastThrowPenalty,
                         aceCount,
-                        1.0f
+                        multiplier
                 );
             } catch (RuntimeException ex) {
                 return null;

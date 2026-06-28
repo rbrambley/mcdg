@@ -68,7 +68,6 @@ import com.mcdg.game.RoundWindMode;
 import com.mcdg.game.RoundWindService;
 import com.mcdg.game.WindManager;
 import com.mcdg.game.WindMode;
-import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 
 public final class McdgAdminCommands {

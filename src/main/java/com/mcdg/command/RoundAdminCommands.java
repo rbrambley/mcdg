@@ -165,6 +165,7 @@ public final class RoundAdminCommands {
             boolean hasRoundState = roundStateManager.getState(playerId).isPresent();
             if (alreadyTracked && hasRoundState) {
                 RoundInventoryCleaner.prepareRoundInventory(player);
+                roundStateManager.syncNextThrowPowerMultiplier(player);
                 alreadyJoinedCount++;
                 continue;
             }

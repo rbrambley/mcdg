@@ -331,6 +331,7 @@ public final class HoleProgressTracker {
 
                 int completedHolePar = currentHole.par();
                 roundStateManager.advanceToNextHole(player.getUuid(), nextTee);
+                roundStateManager.syncNextThrowPowerMultiplier(player);
                 player.teleport(nextTee.getX() + 0.5, nextTee.getY() + 1.0, nextTee.getZ() + 0.5);
                 LieMarkerService.updateLieMarker(player, nextTee);
 

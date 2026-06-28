@@ -220,6 +220,7 @@ public final class SessionCommands {
             PlayerRoundState restoredState = chosenState.withLie(restoredFeet);
 
             roundStateManager.setState(playerId, restoredState);
+            roundStateManager.syncNextThrowPowerMultiplier(player);
             courseManager.addActiveParticipantId(playerId);
             courseManager.setRoundActive(true);
 
