@@ -367,6 +367,20 @@ public final class McdgAdminCommands {
                                         .executes(context -> DebugCommands.executeDebugHazardInfo(context.getSource())))
                                 .then(literal("hazardlist")
                                         .executes(context -> DebugCommands.executeDebugHazardList(context.getSource())))
+                                .then(literal("coursehazards")
+                                        .executes(context -> DebugCommands.executeDebugCourseHazards(
+                                                context.getSource(),
+                                                courseManager,
+                                                rulesetManager
+                                        )))
+                                .then(literal("holehazards")
+                                        .then(argument("hole", IntegerArgumentType.integer(1))
+                                                .executes(context -> DebugCommands.executeDebugHoleHazards(
+                                                        context.getSource(),
+                                                        courseManager,
+                                                        rulesetManager,
+                                                        IntegerArgumentType.getInteger(context, "hole")
+                                                ))))
                                 .then(literal("lostcourses")
                                         .executes(context -> DebugCommands.executeListLostCourses(context.getSource())))
                                 .then(literal("discovercourse")

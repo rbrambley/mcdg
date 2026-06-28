@@ -1,7 +1,9 @@
 package com.mcdg.command;
 
 import com.mcdg.data.Course;
+import com.mcdg.data.Hole;
 import com.mcdg.game.ActiveCourseManager;
+import com.mcdg.game.HoleHazardGridService;
 import com.mcdg.game.PlacedCourseState;
 import com.mcdg.game.PracticeCourseStorage;
 import com.mcdg.game.RoundPresentationService;
@@ -13,11 +15,13 @@ import com.mcdg.game.HazardBehavior;
 import com.mcdg.game.ChallengeCourseManager;
 import com.mcdg.game.ChallengeCourseDiscoveryHandler;
 import com.mcdg.game.LostCourse;
+import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.CourseGenerator;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
 import com.mcdg.world.PlacementAutoTestService;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -234,6 +238,178 @@ public final class DebugCommands {
                         line.append(Text.literal(" [" + behavior.damageAmount() + " dmg]").formatted(Formatting.DARK_RED));
                 }
 
+                return line;
+        }
+
+        /**
+         * Debug command to list all hazards on the active course.
+         */
+        public static int executeDebugCourseHazards(
+                        ServerCommandSource source,
+                        ActiveCourseManager courseManager,
+                        TournamentRulesetManager rulesetManager
+        ) {
+                Optional<ActivePlacedCourse> active = requireActivePlacedCourse(source, courseManager);
+                if (active.isEmpty()) {
+                        return 0;
+                }
+
+                Course course = active.get().course();
+                PlacedCourseState placed = active.get().placed();
+                ServerWorld world = active.get().world();
+                String courseKey = HoleHazardGridService.courseKey(course.name(), course.seed());
+
+                int totalNone = 0;
+                int totalSurface = 0;
+                int totalWater = 0;
+                int totalDanger = 0;
+                int totalCells = 0;
+
+                source.sendFeedback(() -> Text.literal("Hazard report for " + course.name()
+                                + " (" + course.holes().size() + " holes)").formatted(Formatting.GOLD, Formatting.BOLD), false);
+
+                for (Hole hole : course.holes()) {
+                        Optional<HoleHazardGridService.CachedHazardGrid> gridOpt = resolveCachedGrid(
+                                        world, placed, courseKey, hole, rulesetManager);
+                        if (gridOpt.isEmpty()) {
+                                source.sendError(Text.literal("H" + hole.index() + " is missing tee/basket placement data."));
+                                continue;
+                        }
+
+                        HoleHazardGridService.CachedHazardGrid grid = gridOpt.get();
+                        int[] counts = countHazardGrid(grid);
+                        totalNone += counts[0];
+                        totalSurface += counts[1];
+                        totalWater += counts[2];
+                        totalDanger += counts[3];
+                        totalCells += counts[0] + counts[1] + counts[2] + counts[3];
+
+                        source.sendFeedback(() -> formatHoleHazardLine(hole, counts), false);
+                }
+
+                final int finalNone = totalNone;
+                final int finalSurface = totalSurface;
+                final int finalWater = totalWater;
+                final int finalDanger = totalDanger;
+                final int finalCells = totalCells;
+                source.sendFeedback(() -> Text.literal("Total: " + finalCells + " cells | none=" + finalNone
+                                + " surface=" + finalSurface + " water=" + finalWater + " danger=" + finalDanger)
+                                .formatted(Formatting.GRAY), false);
+
+                return 1;
+        }
+
+        /**
+         * Debug command to list all hazards on a single hole of the active course.
+         */
+        public static int executeDebugHoleHazards(
+                        ServerCommandSource source,
+                        ActiveCourseManager courseManager,
+                        TournamentRulesetManager rulesetManager,
+                        int holeIndex
+        ) {
+                Optional<ActivePlacedCourse> active = requireActivePlacedCourse(source, courseManager);
+                if (active.isEmpty()) {
+                        return 0;
+                }
+
+                Course course = active.get().course();
+                PlacedCourseState placed = active.get().placed();
+                ServerWorld world = active.get().world();
+
+                if (holeIndex < 1 || holeIndex > course.holes().size()) {
+                        source.sendError(Text.literal("Hole index must be between 1 and " + course.holes().size() + "."));
+                        return 0;
+                }
+
+                Hole hole = course.holes().get(holeIndex - 1);
+                String courseKey = HoleHazardGridService.courseKey(course.name(), course.seed());
+                Optional<HoleHazardGridService.CachedHazardGrid> gridOpt = resolveCachedGrid(
+                                world, placed, courseKey, hole, rulesetManager);
+                if (gridOpt.isEmpty()) {
+                        source.sendError(Text.literal("H" + hole.index() + " is missing tee/basket placement data."));
+                        return 0;
+                }
+
+                HoleHazardGridService.CachedHazardGrid grid = gridOpt.get();
+                int[] counts = countHazardGrid(grid);
+
+                source.sendFeedback(() -> Text.literal("Hazard report for " + course.name() + " hole " + hole.index())
+                                .formatted(Formatting.GOLD, Formatting.BOLD), false);
+                source.sendFeedback(() -> Text.literal("Area: " + grid.width() + "x" + grid.height()
+                                + " @ " + grid.minX() + "," + grid.minZ()).formatted(Formatting.GRAY), false);
+                source.sendFeedback(() -> Text.literal("None: " + counts[0] + " | Surface: " + counts[1]
+                                + " | Water: " + counts[2] + " | Danger: " + counts[3]).formatted(Formatting.WHITE), false);
+
+                return 1;
+        }
+
+        private record ActivePlacedCourse(Course course, PlacedCourseState placed, ServerWorld world) {}
+
+        private static Optional<ActivePlacedCourse> requireActivePlacedCourse(
+                        ServerCommandSource source,
+                        ActiveCourseManager courseManager
+        ) {
+                Course course = courseManager.getActiveCourse().orElse(null);
+                if (course == null) {
+                        source.sendError(Text.literal("No active course. Run /mcdg createcourse <seed> first."));
+                        return Optional.empty();
+                }
+
+                PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
+                if (placed == null) {
+                        source.sendError(Text.literal("No placed course found. Run /mcdg startround first."));
+                        return Optional.empty();
+                }
+
+                ServerWorld world = source.getServer().getWorld(placed.worldKey());
+                if (world == null) {
+                        source.sendError(Text.literal("Placed course world is unavailable."));
+                        return Optional.empty();
+                }
+
+                return Optional.of(new ActivePlacedCourse(course, placed, world));
+        }
+
+        private static Optional<HoleHazardGridService.CachedHazardGrid> resolveCachedGrid(
+                        ServerWorld world,
+                        PlacedCourseState placed,
+                        String courseKey,
+                        Hole hole,
+                        TournamentRulesetManager rulesetManager
+        ) {
+                HoleHazardGridService.CachedHazardGrid grid = HoleHazardGridService.getCachedGrid(courseKey, hole.index());
+                if (grid != null) {
+                        return Optional.of(grid);
+                }
+
+                BlockPos tee = placed.holeTees().get(hole.index());
+                BlockPos basket = placed.holeBaskets().get(hole.index());
+                if (tee == null || basket == null) {
+                        return Optional.empty();
+                }
+
+                grid = HoleHazardGridService.computeGrid(world, hole, tee, basket, rulesetManager);
+                HoleHazardGridService.cacheGrid(courseKey, hole.index(), grid);
+                return Optional.of(grid);
+        }
+
+        private static int[] countHazardGrid(HoleHazardGridService.CachedHazardGrid grid) {
+                int[] counts = new int[4];
+                for (byte value : grid.gridData()) {
+                        int index = value & 0xFF;
+                        if (index >= 0 && index < counts.length) {
+                                counts[index]++;
+                        }
+                }
+                return counts;
+        }
+
+        private static Text formatHoleHazardLine(Hole hole, int[] counts) {
+                MutableText line = Text.literal("H" + hole.index() + " (par " + hole.par()
+                                + ", " + hole.distanceFeet() + "ft): ").formatted(Formatting.YELLOW);
+                line.append(Text.literal("none=" + counts[0] + " surface=" + counts[1]
+                                + " water=" + counts[2] + " danger=" + counts[3]).formatted(Formatting.WHITE));
                 return line;
         }
 
