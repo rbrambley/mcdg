@@ -8,7 +8,10 @@ import com.mcdg.net.LeaderboardResponse;
 import com.mcdg.net.RoundRunningScoresSync;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -28,27 +31,35 @@ public final class McdgClientMod implements ClientModInitializer {
 
     private static final Identifier TRAINING_DISC_CHARGED_PREDICATE = new Identifier("mcdg", "charged");
 
-    private static RunningRoundScoreState runningRoundScoreState;
-    private static HoleMapState holeMapState;
-    private static long holeMapStateReceivedAtMs;
-    private static long hudHideSinceMs;
-    private static boolean roundEnded = false;
-    private static java.util.Set<String> unlockedSkills = new java.util.HashSet<>();
-    private static float clientNextThrowPowerMultiplier = 1.0f;
+    private static final Map<UUID, RunningRoundScoreState> RUNNING_ROUND_SCORE_STATE = new ConcurrentHashMap<>();
+    private static final Map<UUID, HoleMapState> HOLE_MAP_STATE = new ConcurrentHashMap<>();
+    private static final Map<UUID, Long> HOLE_MAP_STATE_RECEIVED_AT_MS = new ConcurrentHashMap<>();
+    private static final Map<UUID, Long> HUD_HIDE_SINCE_MS = new ConcurrentHashMap<>();
+    private static final Map<UUID, Boolean> ROUND_ENDED = new ConcurrentHashMap<>();
+    private static final Map<UUID, Set<String>> UNLOCKED_SKILLS = new ConcurrentHashMap<>();
+    private static final Map<UUID, Float> CLIENT_NEXT_THROW_POWER_MULTIPLIER = new ConcurrentHashMap<>();
 
-    public static float getClientNextThrowPowerMultiplier() {
-        return clientNextThrowPowerMultiplier;
+    private static UUID localPlayerUuid() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        return client.player != null ? client.player.getUuid() : null;
     }
 
-    public static void setClientNextThrowPowerMultiplier(float multiplier) {
-        clientNextThrowPowerMultiplier = Math.max(0.0f, Math.min(1.0f, multiplier));
+    public static float getClientNextThrowPowerMultiplier() {
+        UUID uuid = localPlayerUuid();
+        return uuid == null ? 1.0f : CLIENT_NEXT_THROW_POWER_MULTIPLIER.getOrDefault(uuid, 1.0f);
+    }
+
+    public static void setClientNextThrowPowerMultiplier(UUID playerUuid, float multiplier) {
+        if (playerUuid != null) {
+            CLIENT_NEXT_THROW_POWER_MULTIPLIER.put(playerUuid, Math.max(0.0f, Math.min(1.0f, multiplier)));
+        }
     }
 
     // Cached left-side layout inputs — recomputed only when inputs change
-    private static RunningRoundScoreState lastLayoutScoreState = null;
-    private static int lastLayoutScreenHeight = -1;
-    private static float lastLayoutScale = -1f;
-    private static int cachedScoreboardRequired = 0;
+    private static final Map<UUID, RunningRoundScoreState> LAST_LAYOUT_SCORE_STATE = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> LAST_LAYOUT_SCREEN_HEIGHT = new ConcurrentHashMap<>();
+    private static final Map<UUID, Float> LAST_LAYOUT_SCALE = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> CACHED_SCOREBOARD_REQUIRED = new ConcurrentHashMap<>();
 
     private static void registerDiscChargePredicate(net.minecraft.item.Item item) {
         ModelPredicateProviderRegistry.register(
@@ -155,7 +166,7 @@ public final class McdgClientMod implements ClientModInitializer {
             handleHoleMapToggle(client);
             CinematicOverlay.tick(client);
             DiscTrailRenderer.tick();
-            RoundInfoOverlay.updateTweens(holeMapState);
+            RoundInfoOverlay.updateTweens(getHoleMapState());
 
             // If movement detected during round complete cinematic, clear cinematic immediately
             if (CinematicOverlay.isRoundCompleteActive() && CinematicOverlay.checkMovementSkip(client)) {
@@ -164,17 +175,21 @@ public final class McdgClientMod implements ClientModInitializer {
 
             // If HUDs are fading out after round end, keep state fresh so
             // the stale timeout doesn't cut the fade short. Once 30 seconds pass, clear state.
-            if (hudHideSinceMs > 0) {
-                long elapsed = System.currentTimeMillis() - hudHideSinceMs;
-                if (elapsed >= 30000L) {
-                    holeMapState = null;
-                    holeMapStateReceivedAtMs = 0L;
-                    hudHideSinceMs = 0L;
-                    DiscTrailRenderer.clearStats();
-                    runningRoundScoreState = null;
-                    roundEnded = false;
-                } else {
-                    holeMapStateReceivedAtMs = System.currentTimeMillis();
+            UUID localUuid = localPlayerUuid();
+            if (localUuid != null) {
+                Long hideSince = HUD_HIDE_SINCE_MS.get(localUuid);
+                if (hideSince != null && hideSince > 0L) {
+                    long elapsed = System.currentTimeMillis() - hideSince;
+                    if (elapsed >= 30000L) {
+                        HOLE_MAP_STATE.remove(localUuid);
+                        HOLE_MAP_STATE_RECEIVED_AT_MS.remove(localUuid);
+                        HUD_HIDE_SINCE_MS.remove(localUuid);
+                        DiscTrailRenderer.clearStats();
+                        RUNNING_ROUND_SCORE_STATE.remove(localUuid);
+                        ROUND_ENDED.remove(localUuid);
+                    } else {
+                        HOLE_MAP_STATE_RECEIVED_AT_MS.put(localUuid, System.currentTimeMillis());
+                    }
                 }
             }
         });
@@ -221,25 +236,41 @@ public final class McdgClientMod implements ClientModInitializer {
             }
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
-            holeMapState = null;
-            holeMapStateReceivedAtMs = 0L;
-            hudHideSinceMs = 0L;
+            UUID playerUuid = client.player != null ? client.player.getUuid() : localPlayerUuid();
+            if (playerUuid != null) {
+                HOLE_MAP_STATE.remove(playerUuid);
+                HOLE_MAP_STATE_RECEIVED_AT_MS.remove(playerUuid);
+                HUD_HIDE_SINCE_MS.remove(playerUuid);
+                RUNNING_ROUND_SCORE_STATE.remove(playerUuid);
+                ROUND_ENDED.remove(playerUuid);
+                UNLOCKED_SKILLS.remove(playerUuid);
+                CLIENT_NEXT_THROW_POWER_MULTIPLIER.remove(playerUuid);
+                LAST_LAYOUT_SCORE_STATE.remove(playerUuid);
+                LAST_LAYOUT_SCREEN_HEIGHT.remove(playerUuid);
+                LAST_LAYOUT_SCALE.remove(playerUuid);
+                CACHED_SCOREBOARD_REQUIRED.remove(playerUuid);
+                HudOverlays.clearPlayerState(playerUuid);
+                ChargedDiscItem.clearClientState(playerUuid);
+                ThrowPreferenceManager.reset(playerUuid);
+            }
             DiscTrailRenderer.clearAllStats();
             ScorecardOverlay.setThrowStatsRenderedThisFrame(false);
-            roundEnded = false;
-            clientNextThrowPowerMultiplier = 1.0f;
         });
         ClientNetworking.registerReceivers();
         HudRenderCallback.EVENT.register((drawContext, tickDelta) -> {
-            RoundInfoOverlay.updateTweens(holeMapState);
+            HoleMapState currentHoleMapState = getHoleMapState();
+            RunningRoundScoreState currentRunningScoreState = getRunningRoundScoreState();
+            UUID localUuid = localPlayerUuid();
+
+            RoundInfoOverlay.updateTweens(currentHoleMapState);
             float hudAlpha = hudFadeAlpha();
 
             // Right-side HUDs (all use same fade logic)
-            RoundInfoOverlay.render(drawContext, holeMapState, hudAlpha);
+            RoundInfoOverlay.render(drawContext, currentHoleMapState, hudAlpha);
             HudOverlays.renderThrowStats(drawContext, MinecraftClient.getInstance(), hudAlpha);
             ScorecardOverlay.setThrowStatsRenderedThisFrame(HudOverlays.isThrowStatsRenderedThisFrame());
             HudOverlays.renderStanceSettings(drawContext, MinecraftClient.getInstance(), hudAlpha);
-            ScorecardOverlay.render(drawContext, holeMapState, holeMapStateReceivedAtMs, hudAlpha);
+            ScorecardOverlay.render(drawContext, currentHoleMapState, getHoleMapStateReceivedAtMs(), hudAlpha);
             
             // Left-side HUDs - use shared layout manager for vertical coordination
             float scale = HudUtil.getScaleFactor(drawContext);
@@ -247,22 +278,29 @@ public final class McdgClientMod implements ClientModInitializer {
 
             // Recompute scoreboard height only when state or screen dimensions change.
             // State changes on server packet; screen changes on resize or GUI scale change.
-            if (runningRoundScoreState != lastLayoutScoreState
-                    || screenHeight != lastLayoutScreenHeight
-                    || scale != lastLayoutScale) {
-                lastLayoutScoreState = runningRoundScoreState;
-                lastLayoutScreenHeight = screenHeight;
-                lastLayoutScale = scale;
-                cachedScoreboardRequired = RunningScoreboardOverlay.computeRequiredHeight(runningRoundScoreState, scale);
+            RunningRoundScoreState lastScoreState = localUuid != null ? LAST_LAYOUT_SCORE_STATE.get(localUuid) : null;
+            Integer lastScreenHeight = localUuid != null ? LAST_LAYOUT_SCREEN_HEIGHT.get(localUuid) : null;
+            Float lastScale = localUuid != null ? LAST_LAYOUT_SCALE.get(localUuid) : null;
+            if (currentRunningScoreState != lastScoreState
+                    || screenHeight != (lastScreenHeight != null ? lastScreenHeight : -1)
+                    || scale != (lastScale != null ? lastScale : -1f)) {
+                if (localUuid != null) {
+                    LAST_LAYOUT_SCORE_STATE.put(localUuid, currentRunningScoreState);
+                    LAST_LAYOUT_SCREEN_HEIGHT.put(localUuid, screenHeight);
+                    LAST_LAYOUT_SCALE.put(localUuid, scale);
+                    CACHED_SCOREBOARD_REQUIRED.put(localUuid,
+                            RunningScoreboardOverlay.computeRequiredHeight(currentRunningScoreState, scale));
+                }
             }
 
             LeftSideHudLayout layout = LeftSideHudLayout.withXaeroOffset(screenHeight, scale);
+            int cachedScoreboardRequired = localUuid != null ? CACHED_SCOREBOARD_REQUIRED.getOrDefault(localUuid, 0) : 0;
             if (cachedScoreboardRequired > 0) {
                 layout.reserveBottom(cachedScoreboardRequired + Math.round(8 * scale)); // 8 = HUD_SPACING
             }
 
             HoleMapOverlay.render(drawContext, MinecraftClient.getInstance(), hudAlpha, layout);
-            RunningScoreboardOverlay.render(drawContext, runningRoundScoreState, hudAlpha, layout);
+            RunningScoreboardOverlay.render(drawContext, currentRunningScoreState, hudAlpha, layout);
             
             // Center HUDs
             HudOverlays.renderCompass(drawContext);
@@ -277,26 +315,36 @@ public final class McdgClientMod implements ClientModInitializer {
     }
 
     public static HoleMapState getHoleMapState() {
-        return holeMapState;
+        UUID uuid = localPlayerUuid();
+        return uuid != null ? HOLE_MAP_STATE.get(uuid) : null;
     }
 
     public static long getHoleMapStateReceivedAtMs() {
-        return holeMapStateReceivedAtMs;
+        UUID uuid = localPlayerUuid();
+        return uuid != null ? HOLE_MAP_STATE_RECEIVED_AT_MS.getOrDefault(uuid, 0L) : 0L;
+    }
+
+    public static RunningRoundScoreState getRunningRoundScoreState() {
+        UUID uuid = localPlayerUuid();
+        return uuid != null ? RUNNING_ROUND_SCORE_STATE.get(uuid) : null;
     }
 
     public static java.util.Set<String> getUnlockedSkills() {
-        return unlockedSkills;
+        UUID uuid = localPlayerUuid();
+        return uuid != null ? UNLOCKED_SKILLS.getOrDefault(uuid, java.util.Set.of()) : java.util.Set.of();
     }
 
-    public static void updateUnlockedSkills(java.util.Set<String> skills) {
-        unlockedSkills = skills;
+    public static void updateUnlockedSkills(UUID playerUuid, java.util.Set<String> skills) {
+        if (playerUuid != null) {
+            UNLOCKED_SKILLS.put(playerUuid, skills);
+        }
     }
-
-
 
     private static float hudFadeAlpha() {
-        if (hudHideSinceMs > 0L) {
-            long elapsed = System.currentTimeMillis() - hudHideSinceMs;
+        UUID uuid = localPlayerUuid();
+        Long hideSince = uuid != null ? HUD_HIDE_SINCE_MS.get(uuid) : null;
+        if (hideSince != null && hideSince > 0L) {
+            long elapsed = System.currentTimeMillis() - hideSince;
             if (elapsed >= 30000L) {
                 return 0.0f;
             }
@@ -306,8 +354,9 @@ public final class McdgClientMod implements ClientModInitializer {
     }
 
     private static void handleHoleMapToggle(MinecraftClient client) {
+        HoleMapState current = getHoleMapState();
         ClientKeybinds.forEachHoleMapTogglePress(() -> {
-            if (holeMapState == null || !holeMapState.isActive()) {
+            if (current == null || !current.isActive()) {
                 return;
             }
             HoleMapOverlay.toggle();
@@ -331,20 +380,26 @@ public final class McdgClientMod implements ClientModInitializer {
     }
 
     public static void onHoleMapSync(HoleMapSync.Payload payload, MinecraftClient client) {
+        UUID playerUuid = client.player != null ? client.player.getUuid() : null;
+        if (playerUuid == null) {
+            return;
+        }
+
         if (!payload.active()) {
             // Start 30-second fade timer immediately when round ends
-            hudHideSinceMs = System.currentTimeMillis();
-            roundEnded = true;
+            HUD_HIDE_SINCE_MS.put(playerUuid, System.currentTimeMillis());
+            ROUND_ENDED.put(playerUuid, true);
             // Clear throw stats when round ends
             DiscTrailRenderer.clearStats();
+            ChargedDiscItem.clearClientState(playerUuid);
             return;
         }
 
         // New round starting — cancel any pending hide and show immediately
-        hudHideSinceMs = 0L;
-        roundEnded = false;
-        holeMapState = new HoleMapState(payload);
-        holeMapStateReceivedAtMs = System.currentTimeMillis();
+        HUD_HIDE_SINCE_MS.remove(playerUuid);
+        ROUND_ENDED.remove(playerUuid);
+        HOLE_MAP_STATE.put(playerUuid, new HoleMapState(payload));
+        HOLE_MAP_STATE_RECEIVED_AT_MS.put(playerUuid, System.currentTimeMillis());
 
         // Recalculate all cached values when round starts/resumes
         HudUtil.recalculateAll();
@@ -372,12 +427,16 @@ public final class McdgClientMod implements ClientModInitializer {
         if (!payload.active()) {
             return;
         }
+        UUID playerUuid = client.player != null ? client.player.getUuid() : null;
+        if (playerUuid == null) {
+            return;
+        }
 
         List<RunningRoundScoreRow> rows = new ArrayList<>();
         for (RoundRunningScoresSync.PlayerRow row : payload.rows()) {
             rows.add(new RunningRoundScoreRow(row.playerName(), row.online(), row.holeScores(), row.runningTotal()));
         }
-        runningRoundScoreState = new RunningRoundScoreState(payload.totalHoles(), payload.focusHole(), payload.courseName(), rows);
+        RUNNING_ROUND_SCORE_STATE.put(playerUuid, new RunningRoundScoreState(payload.totalHoles(), payload.focusHole(), payload.courseName(), rows));
     }
 
     public static void onLeaderboardResponse(LeaderboardResponse.Payload payload, MinecraftClient client) {

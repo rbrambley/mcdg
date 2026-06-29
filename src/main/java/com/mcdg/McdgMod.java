@@ -437,9 +437,11 @@ public final class McdgMod implements ModInitializer {
         );
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
             server.execute(() -> {
-                HoleMapSyncService.onPlayerDisconnect(handler.player.getUuid());
-                handlePlayerDisconnectDuringWarmup(handler.player.getUuid(), server);
+                UUID playerUuid = handler.player.getUuid();
+                HoleMapSyncService.onPlayerDisconnect(playerUuid);
+                handlePlayerDisconnectDuringWarmup(playerUuid, server);
                 PlayerSkillManager.onPlayerDisconnect(handler.player);
+                ChargedDiscItem.clearServerState(playerUuid);
             })
         );
         HoleProgressTracker.register(

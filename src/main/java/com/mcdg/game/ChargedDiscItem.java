@@ -26,10 +26,10 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ChargedDiscItem extends Item {
     private static final int MAX_CHARGE_TICKS = 120;
@@ -38,20 +38,20 @@ public class ChargedDiscItem extends Item {
     private static final float VELOCITY_SPAN = 1.6f;
 
     // Client-side only fields (for visual feedback, keyed by player UUID)
-    private static final Map<UUID, Boolean> CLIENT_CHARGE_VISIBLE = new HashMap<>();
-    private static final Map<UUID, Float> CLIENT_CHARGE_PERCENT = new HashMap<>();
-    private static final Map<UUID, Boolean> POWER_LOCKED = new HashMap<>();
-    private static final Map<UUID, Float> LOCKED_CHARGE_PERCENT = new HashMap<>();
-    private static final Map<UUID, Integer> LOCKED_TICKS = new HashMap<>();
-    private static final Map<UUID, Integer> LAST_AUDIO_THRESHOLD = new HashMap<>();
+    private static final Map<UUID, Boolean> CLIENT_CHARGE_VISIBLE = new ConcurrentHashMap<>();
+    private static final Map<UUID, Float> CLIENT_CHARGE_PERCENT = new ConcurrentHashMap<>();
+    private static final Map<UUID, Boolean> POWER_LOCKED = new ConcurrentHashMap<>();
+    private static final Map<UUID, Float> LOCKED_CHARGE_PERCENT = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> LOCKED_TICKS = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> LAST_AUDIO_THRESHOLD = new ConcurrentHashMap<>();
 
     // Server-side power lock tracking (per player)
-    private static final Map<UUID, Boolean> SERVER_POWER_LOCKED = new HashMap<>();
-    private static final Map<UUID, Float> SERVER_LOCKED_CHARGE = new HashMap<>();
-    private static final Map<UUID, Integer> SERVER_LOCKED_TICKS = new HashMap<>();
+    private static final Map<UUID, Boolean> SERVER_POWER_LOCKED = new ConcurrentHashMap<>();
+    private static final Map<UUID, Float> SERVER_LOCKED_CHARGE = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> SERVER_LOCKED_TICKS = new ConcurrentHashMap<>();
     // Server-side stance tracking (per player)
-    private static final Map<UUID, ThrowStance> SERVER_PLAYER_STANCE = new HashMap<>();
-    private static final Map<UUID, ReleaseAngle> SERVER_PLAYER_ANGLE = new HashMap<>();
+    private static final Map<UUID, ThrowStance> SERVER_PLAYER_STANCE = new ConcurrentHashMap<>();
+    private static final Map<UUID, ReleaseAngle> SERVER_PLAYER_ANGLE = new ConcurrentHashMap<>();
 
     private final ActiveCourseManager courseManager;
     private final RoundStateManager roundStateManager;
@@ -521,6 +521,27 @@ public class ChargedDiscItem extends Item {
         POWER_LOCKED.put(playerUuid, false);
         LOCKED_CHARGE_PERCENT.put(playerUuid, 0.0f);
         LOCKED_TICKS.put(playerUuid, 0);
+    }
+
+    public static void clearClientState(UUID playerUuid) {
+        if (playerUuid != null) {
+            CLIENT_CHARGE_VISIBLE.remove(playerUuid);
+            CLIENT_CHARGE_PERCENT.remove(playerUuid);
+            POWER_LOCKED.remove(playerUuid);
+            LOCKED_CHARGE_PERCENT.remove(playerUuid);
+            LOCKED_TICKS.remove(playerUuid);
+            LAST_AUDIO_THRESHOLD.remove(playerUuid);
+        }
+    }
+
+    public static void clearServerState(UUID playerUuid) {
+        if (playerUuid != null) {
+            SERVER_POWER_LOCKED.remove(playerUuid);
+            SERVER_LOCKED_CHARGE.remove(playerUuid);
+            SERVER_LOCKED_TICKS.remove(playerUuid);
+            SERVER_PLAYER_STANCE.remove(playerUuid);
+            SERVER_PLAYER_ANGLE.remove(playerUuid);
+        }
     }
 
     public static void setPowerLocked(UUID playerUuid, boolean locked) {

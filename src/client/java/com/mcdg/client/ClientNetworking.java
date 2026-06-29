@@ -72,7 +72,11 @@ public final class ClientNetworking {
             })
         );
         ClientPlayNetworking.registerGlobalReceiver(SkillsStatusSync.ID, (payload, context) ->
-            context.client().execute(() -> McdgClientMod.updateUnlockedSkills(payload.unlockedSkills()))
+            context.client().execute(() -> {
+                if (context.player() != null) {
+                    McdgClientMod.updateUnlockedSkills(context.player().getUuid(), payload.unlockedSkills());
+                }
+            })
         );
         ClientPlayNetworking.registerGlobalReceiver(RoundRunningScoresSync.ID, (payload, context) ->
             context.client().execute(() -> McdgClientMod.onRoundRunningScoresSync(payload, context.client()))
@@ -149,7 +153,7 @@ public final class ClientNetworking {
         ClientPlayNetworking.registerGlobalReceiver(NextThrowModifierSync.ID, (payload, context) ->
             context.client().execute(() -> {
                 if (context.player() != null) {
-                    McdgClientMod.setClientNextThrowPowerMultiplier(payload.nextThrowPowerMultiplier());
+                    McdgClientMod.setClientNextThrowPowerMultiplier(context.player().getUuid(), payload.nextThrowPowerMultiplier());
                 }
             })
         );

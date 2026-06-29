@@ -206,7 +206,7 @@ public final class McdgAdminCommands {
                                                 )))))
                         .then(literal("resumecourse").requires(CommandPermission::canUseAdminCommands)
                                 .requires(CommandPermission::canUseAdvancedCommands)
-                                .executes(context -> CourseManagementCommand.executeResumeCourse(
+                                .executes(context -> RoundLifecycleCommands.executeResumeCourse(
                                         context.getSource(),
                                         courseManager,
                                         roundStateManager,
@@ -215,7 +215,7 @@ public final class McdgAdminCommands {
                                         null
                                 ))
                                 .then(argument("players", EntityArgumentType.players())
-                                        .executes(context -> CourseManagementCommand.executeResumeCourse(
+                                        .executes(context -> RoundLifecycleCommands.executeResumeCourse(
                                                 context.getSource(),
                                                 courseManager,
                                                 roundStateManager,
@@ -231,7 +231,7 @@ public final class McdgAdminCommands {
                         .then(literal("usecourse").requires(CommandPermission::canUseAdminCommands)
                                 .requires(CommandPermission::canUseAdvancedCommands)
                                 .then(argument("index", IntegerArgumentType.integer(1))
-                                        .executes(context -> CourseManagementCommand.executeUseCourse(
+                                        .executes(context -> CourseAdminCommands.executeUseCourse(
                                                 context.getSource(),
                                                 courseManager,
                                                 roundStateManager,
@@ -630,54 +630,10 @@ public final class McdgAdminCommands {
                                             practiceCourseStorage, playerRoundSessionStorage, placementService,
                                             IntegerArgumentType.getInteger(context, "index"))))));
 
-            // usecourse
-            dispatcher.register(literal("mcdg")
-                    .then(literal("usecourse").requires(CommandPermission::canUseAdminCommands)
-                            .requires(CommandPermission::canUseAdvancedCommands)
-                            .then(argument("index", IntegerArgumentType.integer(1))
-                                    .executes(context -> CourseAdminCommands.executeUseCourse(
-                                            context.getSource(), courseManager, roundStateManager,
-                                            practiceCourseStorage,
-                                            IntegerArgumentType.getInteger(context, "index"))))));
-
-            // resumecourse
-            dispatcher.register(literal("mcdg")
-                    .then(literal("resumecourse").requires(CommandPermission::canUseAdminCommands)
-                            .requires(CommandPermission::canUseAdvancedCommands)
-                            .executes(context -> RoundLifecycleCommands.executeResumeCourse(
-                                    context.getSource(), courseManager, roundStateManager,
-                                    roundPresentationService, skipRoundPresentation, null))
-                            .then(argument("players", EntityArgumentType.players())
-                                    .executes(context -> RoundLifecycleCommands.executeResumeCourse(
-                                            context.getSource(), courseManager, roundStateManager,
-                                            roundPresentationService, skipRoundPresentation,
-                                            EntityArgumentType.getPlayers(context, "players"))))));
-
-            // roundstatus
-            dispatcher.register(literal("mcdg")
-                    .then(literal("roundstatus").requires(CommandPermission::canUseAdminCommands)
-                            .requires(CommandPermission::canUseAdvancedCommands)
-                            .executes(context -> RoundAdminCommands.executeRoundStatus(
-                                    context.getSource(), courseManager, roundStateManager))));
-
             dispatcher.register(literal("mcdg")
                     .then(DiscEnchantmentCommands.build()));
         });
     }
-
-
-
-
-
-
-
-
-
-
-
-        static int totalCoursePar(Course course) {
-                return CommandUtils.totalCoursePar(course);
-        }
 
         // Commented out due to missing CoursePlacementService.LodgingBuildResult and tryBuildPermanentLodgingSite
         //         private static int executeBuildCamp(
@@ -700,72 +656,6 @@ public final class McdgAdminCommands {
         //                 return 1;
         //         }
         // 
-
-
-        static void announceSignatureHole(ServerCommandSource source, Course course, List<java.util.UUID> participantIds) {
-                CommandUtils.announceSignatureHole(source, course, participantIds);
-        }
-
-        static Course ensureSingleSignatureHole(Course generated) {
-                return CommandUtils.ensureSingleSignatureHole(generated);
-        }
-
-
-
-
-
-
-
-        static void teleportSourcePlayerToHoleOne(
-                        ServerCommandSource source,
-                        ActiveCourseManager courseManager,
-                        RoundStateManager roundStateManager
-        ) {
-                CommandUtils.teleportSourcePlayerToHoleOne(source, courseManager, roundStateManager);
-        }
-
-
-
-
-        static void removeTemporaryRoundItemsFromCourseWorldPlayers(ServerCommandSource source, ActiveCourseManager courseManager) {
-                CommandUtils.removeTemporaryRoundItemsFromCourseWorldPlayers(source, courseManager);
-        }
-
-        static void removeTemporaryRoundItemsFromPlayers(Collection<ServerPlayerEntity> players) {
-                CommandUtils.removeTemporaryRoundItemsFromPlayers(players);
-        }
-
-        static void clearRoundStateForTrackedParticipants(ActiveCourseManager courseManager, RoundStateManager roundStateManager) {
-                CommandUtils.clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
-        }
-
-        static List<ServerPlayerEntity> resolveRoundParticipants(
-                        ServerCommandSource source,
-                        ServerWorld world,
-                        Collection<ServerPlayerEntity> selectedPlayers,
-                        String commandName
-        ) {
-                return CommandUtils.resolveRoundParticipants(source, world, selectedPlayers, commandName);
-        }
-
-        static void prepareRoundInventory(ServerPlayerEntity player) {
-                CommandUtils.prepareRoundInventory(player);
-        }
-
-        static void removeJunkDropsNearCourse(ServerWorld world, PlacedCourseState placed) {
-                CommandUtils.removeJunkDropsNearCourse(world, placed);
-        }
-
-
-
-
-
-
-
-
-
-
-
 
 }
 

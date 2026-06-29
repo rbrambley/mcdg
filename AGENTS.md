@@ -49,7 +49,7 @@
 - `CoursePlacementService` — world editing, block placement, validation, signs (~2648 lines, needs splitting)
 - `McdgAdminCommands` — legacy admin command dispatcher (~140 KB, partially split; domain commands extracted)
 - `CourseAdminCommands` — course build, cleanup, and management commands
-- `RoundAdminCommands` — round setup, start, and control commands
+- `RoundStartCommand` — round start and practice course commands
 - `RoundLifecycleCommands` — round completion, scoring, and session flow
 - `SessionCommands` — player session persistence and resume
 - `ResortAdminCommands` — resort build and relocation commands
@@ -87,14 +87,14 @@
 - `AceCinematicSync`, `RoundCompleteCinematicSync` — cinematic overlays
 
 ## Known Hotspots
-1. `McdgAdminCommands` (~140 KB) — remaining commands should migrate to domain classes (`CourseAdminCommands`, `RoundAdminCommands`, `DebugCommands`, etc.)
+1. `McdgAdminCommands` (~140 KB) — remaining commands should migrate to domain classes (`CourseAdminCommands`, `DebugCommands`, etc.)
 2. `BuildCourseSessionManager` (~50 KB) — could split UI helpers (`BuildCourseUIHelper`), preview logic (`BuildPreviewService`), and placement orchestration
 3. `HudOverlays` (~24 KB) — could split into `PowerMeterOverlay`, `StanceAngleOverlay`, `AfterThrowStatsOverlay`
 4. `HoleMapRenderer` (~19 KB) — could extract `TerrainSampler`, `HazardOverlayRenderer`
 
 ## Recent Refactors (Completed)
 - `HoleProgressTracker` — `ThrowResolver`, `TurnManager`, and `HoleMapSyncService` extracted
-- `McdgAdminCommands` — `CommandPermission`, `CourseAdminCommands`, `DebugCommands`, `DiscEnchantmentCommands`, `MenuCommands`, `ResortAdminCommands`, `RoundAdminCommands`, `RoundLifecycleCommands`, `RulesetCommands`, `SessionCommands` extracted
+- `McdgAdminCommands` — `CommandPermission`, `CourseAdminCommands`, `DebugCommands`, `DiscEnchantmentCommands`, `MenuCommands`, `ResortAdminCommands`, `RoundLifecycleCommands`, `RoundStartCommand`, `RulesetCommands`, `SessionCommands` extracted
 - `CoursePlacementService` — significantly slimmed; `TickIncrementalCoursePlacer` and `BuildCourseSessionManager` handle most placement orchestration
 
 ## Completed Integrations

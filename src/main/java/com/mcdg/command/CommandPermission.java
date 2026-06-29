@@ -9,7 +9,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 public final class CommandPermission {
     private static final String ADVANCED_COMMANDS_ENV = "MCDG_SHOW_ADVANCED_COMMANDS";
     private static final String ADVANCED_COMMANDS_PROPERTY = "mcdg.showAdvancedCommands";
-    private static final boolean SHOW_ADVANCED_COMMANDS = readAdvancedCommandVisibility();
+    public static final boolean SHOW_ADVANCED_COMMANDS = readAdvancedCommandVisibility();
 
     private CommandPermission() {}
 

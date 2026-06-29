@@ -13,8 +13,10 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Arm;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.RotationAxis;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Standalone HUD overlays that don't depend on round or minimap state.
@@ -418,10 +420,72 @@ public final class HudOverlays {
 
     private static final int THROW_ROW_SPACING = 10;
     private static final int HUD_CARD_SPACING = 10;
-    private static int lastThrowStatsPanelHeight = 38;
-    private static int lastThrowStatsPanelWidth = 120;
-    private static int lastStanceSettingsPanelHeight = 0;
-    private static boolean throwStatsRenderedThisFrame = false;
+    private static final Map<UUID, Integer> LAST_THROW_STATS_PANEL_HEIGHT = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> LAST_THROW_STATS_PANEL_WIDTH = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> LAST_STANCE_SETTINGS_PANEL_HEIGHT = new ConcurrentHashMap<>();
+    private static final Map<UUID, Boolean> THROW_STATS_RENDERED_THIS_FRAME = new ConcurrentHashMap<>();
+
+    private static UUID localPlayerUuid() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        return client.player != null ? client.player.getUuid() : null;
+    }
+
+    private static boolean throwStatsRenderedThisFrame() {
+        UUID uuid = localPlayerUuid();
+        return uuid != null && THROW_STATS_RENDERED_THIS_FRAME.getOrDefault(uuid, false);
+    }
+
+    private static void setThrowStatsRenderedThisFrame(boolean rendered) {
+        UUID uuid = localPlayerUuid();
+        if (uuid != null) {
+            THROW_STATS_RENDERED_THIS_FRAME.put(uuid, rendered);
+        }
+    }
+
+    private static int lastThrowStatsPanelHeight() {
+        UUID uuid = localPlayerUuid();
+        return uuid != null ? LAST_THROW_STATS_PANEL_HEIGHT.getOrDefault(uuid, 38) : 38;
+    }
+
+    private static void setLastThrowStatsPanelHeight(int height) {
+        UUID uuid = localPlayerUuid();
+        if (uuid != null) {
+            LAST_THROW_STATS_PANEL_HEIGHT.put(uuid, height);
+        }
+    }
+
+    private static int lastThrowStatsPanelWidth() {
+        UUID uuid = localPlayerUuid();
+        return uuid != null ? LAST_THROW_STATS_PANEL_WIDTH.getOrDefault(uuid, 120) : 120;
+    }
+
+    private static void setLastThrowStatsPanelWidth(int width) {
+        UUID uuid = localPlayerUuid();
+        if (uuid != null) {
+            LAST_THROW_STATS_PANEL_WIDTH.put(uuid, width);
+        }
+    }
+
+    private static int lastStanceSettingsPanelHeight() {
+        UUID uuid = localPlayerUuid();
+        return uuid != null ? LAST_STANCE_SETTINGS_PANEL_HEIGHT.getOrDefault(uuid, 0) : 0;
+    }
+
+    private static void setLastStanceSettingsPanelHeight(int height) {
+        UUID uuid = localPlayerUuid();
+        if (uuid != null) {
+            LAST_STANCE_SETTINGS_PANEL_HEIGHT.put(uuid, height);
+        }
+    }
+
+    public static void clearPlayerState(UUID playerUuid) {
+        if (playerUuid != null) {
+            LAST_THROW_STATS_PANEL_HEIGHT.remove(playerUuid);
+            LAST_THROW_STATS_PANEL_WIDTH.remove(playerUuid);
+            LAST_STANCE_SETTINGS_PANEL_HEIGHT.remove(playerUuid);
+            THROW_STATS_RENDERED_THIS_FRAME.remove(playerUuid);
+        }
+    }
 
     /**
      * Render after-throw statistics display.
@@ -429,13 +493,13 @@ public final class HudOverlays {
      * Panel width is shared with Round HUD so both boxes stay aligned.
      */
     public static void renderThrowStats(DrawContext drawContext, MinecraftClient client, float hudAlpha) {
-        throwStatsRenderedThisFrame = true;
+        setThrowStatsRenderedThisFrame(true);
         
         // Only render if a round is active
         if (McdgClientMod.getHoleMapState() == null) {
-            throwStatsRenderedThisFrame = false;
-            lastThrowStatsPanelHeight = 0;
-            lastStanceSettingsPanelHeight = 0;
+            setThrowStatsRenderedThisFrame(false);
+            setLastThrowStatsPanelHeight(0);
+            setLastStanceSettingsPanelHeight(0);
             return;
         }
         
@@ -458,7 +522,7 @@ public final class HudOverlays {
         int contentRows = hasPenalty ? 3 : 3; // always 3 content rows, penalty merges into row 3
         int scaledRowSpacing = Math.round(THROW_ROW_SPACING * scale);
         int panelH = Math.round(16 * scale) + (contentRows * scaledRowSpacing) + Math.round(6 * scale);
-        lastThrowStatsPanelHeight = panelH;
+        setLastThrowStatsPanelHeight(panelH);
 
         // Compute throw text width (scaled) and share with Round HUD
         int row1W = Math.round(client.textRenderer.getWidth(row1) * scale);
@@ -474,7 +538,7 @@ public final class HudOverlays {
         int throwPanelW = maxThrowTextW + Math.round(16 * scale);
         int panelW = Math.max(RoundInfoOverlay.getSharedPanelWidth(), throwPanelW);
         RoundInfoOverlay.setSharedPanelWidth(panelW);
-        lastThrowStatsPanelWidth = panelW;
+        setLastThrowStatsPanelWidth(panelW);
 
         int x = width - panelW - Math.round(8 * scale);
         int roundHudBaseHeight = RoundInfoOverlay.getLastPanelHeight();
@@ -511,8 +575,8 @@ public final class HudOverlays {
         
         int panelW = Math.max(RoundInfoOverlay.getSharedPanelWidth(), Math.round(100 * scale));
         int panelH = Math.round(22 * scale) + Math.round(12 * scale);
-        lastThrowStatsPanelHeight = panelH;
-        lastThrowStatsPanelWidth = panelW;
+        setLastThrowStatsPanelHeight(panelH);
+        setLastThrowStatsPanelWidth(panelW);
         
         int x = width - panelW - Math.round(8 * scale);
         int roundHudBaseHeight = RoundInfoOverlay.getLastPanelHeight();
@@ -552,19 +616,19 @@ public final class HudOverlays {
     }
 
     public static int getLastThrowStatsPanelHeight() {
-        return lastThrowStatsPanelHeight;
+        return lastThrowStatsPanelHeight();
     }
 
     public static int getLastThrowStatsPanelWidth() {
-        return lastThrowStatsPanelWidth;
+        return lastThrowStatsPanelWidth();
     }
 
     public static boolean isThrowStatsRenderedThisFrame() {
-        return throwStatsRenderedThisFrame;
+        return throwStatsRenderedThisFrame();
     }
 
     public static int getLastStanceSettingsPanelHeight() {
-        return lastStanceSettingsPanelHeight;
+        return lastStanceSettingsPanelHeight();
     }
 
     /**
@@ -629,8 +693,8 @@ public final class HudOverlays {
         int x = drawContext.getScaledWindowWidth() - panelW - Math.round(8 * scale);
         int roundHudBottom = Math.round(8 * scale) + RoundInfoOverlay.getLastPanelHeight();
         int scaledCardSpacing = Math.round(HUD_CARD_SPACING * scale);
-        int y = throwStatsRenderedThisFrame
-                ? (roundHudBottom + scaledCardSpacing + getLastThrowStatsPanelHeight() + scaledCardSpacing)
+        int y = throwStatsRenderedThisFrame()
+                ? (roundHudBottom + scaledCardSpacing + lastThrowStatsPanelHeight() + scaledCardSpacing)
                 : (roundHudBottom + scaledCardSpacing);
 
         HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, "Setup", hudAlpha);
@@ -654,14 +718,14 @@ public final class HudOverlays {
         renderSkillIcons(drawContext, client, x, row, panelW, scale, hudAlpha);
 
         // Track panel height for scorecard positioning
-        lastStanceSettingsPanelHeight = panelH;
+        setLastStanceSettingsPanelHeight(panelH);
     }
 
     private static void renderSkillIcons(DrawContext drawContext, MinecraftClient client, int x, int y, int panelW, float scale, float hudAlpha) {
         Set<String> unlockedSkills = McdgClientMod.getUnlockedSkills();
         if (unlockedSkills.isEmpty()) {
             // Adjust panel height if no skills unlocked
-            lastStanceSettingsPanelHeight = Math.round(16 * scale) + (2 * Math.round(THROW_ROW_SPACING * scale)) + Math.round(4 * scale);
+            setLastStanceSettingsPanelHeight(Math.round(16 * scale) + (2 * Math.round(THROW_ROW_SPACING * scale)) + Math.round(4 * scale));
             return;
         }
 

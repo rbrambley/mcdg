@@ -3,9 +3,9 @@ package com.mcdg.client;
 import com.mcdg.game.ReleaseAngle;
 import com.mcdg.game.ThrowStance;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Client-side manager for throw preferences (stance and release angle).
@@ -19,8 +19,8 @@ import java.util.UUID;
  */
 public final class ThrowPreferenceManager {
 
-    private static final Map<UUID, ThrowStance> SELECTED_STANCE = new HashMap<>();
-    private static final Map<UUID, ReleaseAngle> SELECTED_ANGLE = new HashMap<>();
+    private static final Map<UUID, ThrowStance> SELECTED_STANCE = new ConcurrentHashMap<>();
+    private static final Map<UUID, ReleaseAngle> SELECTED_ANGLE = new ConcurrentHashMap<>();
 
     private ThrowPreferenceManager() {
         // Utility class
