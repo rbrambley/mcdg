@@ -1,0 +1,4 @@
+# MCDG waypoint store
+nextIndex=4
+labelsVisible=true
+wp=MCDG Resort	-48	64	-48	003399FF	minecraft:overworld

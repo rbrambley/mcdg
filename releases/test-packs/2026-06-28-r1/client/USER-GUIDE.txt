@@ -1,0 +1,79 @@
+MCDG Multiplayer Tester User Guide
+
+Release: {{RELEASE_ID}}
+Generated: {{GENERATED_AT}}
+Source instance: {{INSTANCE_PATH}}
+
+Requirements
+- Minecraft {{MINECRAFT_VERSION}}
+- Fabric Loader {{FABRIC_LOADER_VERSION}}
+- Java {{JAVA_VERSION}}
+
+Install Summary
+- Client: merge pack files into your test client instance.
+- Server host: merge server pack files into server folder while server is stopped.
+- All testers must use the same release ID and matching mod files.
+
+Resource Pack
+- If included, enable resourcepacks/MCDG-Test-Resources in-game:
+  Options -> Resource Packs -> Selected.
+- Keep the same resource-pack state across all testers for consistent visuals.
+
+Opening the Menu
+- Press G (default) to open the MCDG menu from anywhere in-game.
+- Or type /mcdg in chat (clickable link shown on join).
+- All actions are available via the menu — no need to memorize commands.
+- Keybind can be rebound in Options -> Controls -> MCDG.
+
+Other Keybinds (all rebindable)
+- M  — Add waypoint at current position (opens name/color screen)
+- N  — Remove nearest waypoint
+- L  — Toggle waypoint labels
+- +/-  — Minimap size up/down
+
+Admin Tester Flow
+1. Join the world/server — press G to open the menu.
+2. Build a course:
+   Menu -> Auto Build Course -> type a name and press Enter.
+   (or: Menu -> Manual Build Course for seed-based generation)
+3. Start a round:
+   Menu -> Admin -> Start Round
+4. Other players join:
+   Menu -> Join Round  (or admin uses Menu -> Admin -> Join Round for all)
+5. During play, if a player desyncs from lie marker:
+   Menu -> Go to Lie  (or /mcdg gotolie)
+6. View scores at any time:
+   Menu -> Leaderboard
+7. End and clean up after test cycle:
+   Menu -> End Round -> Menu -> Admin -> Cleanup Course
+
+Rules / Surface Preset
+- Menu -> Rules to view and change ruleset (Casual / Strict).
+- Strict surface presets: Fast (forgiving), Balanced (default), Tournament (hardest).
+
+Player Tester Flow
+1. Join the world/server — press G to open the menu.
+2. Join an active round: Menu -> Join Round.
+3. Play holes normally — throw your disc, walk to it, repeat.
+4. Use Menu -> Go to Lie if you need to teleport to your lie.
+5. Save progress if leaving early: Menu -> Save & Leave Round.
+
+Advanced Commands
+- Some commands are intentionally hidden unless advanced mode is enabled.
+- Enable advanced commands by setting:
+  - env var: MCDG_SHOW_ADVANCED_COMMANDS=true
+  - or JVM property: -Dmcdg.showAdvancedCommands=true
+- Typical advanced commands include: practicecourse, resumecourse, usecourse,
+  prunecourses, gotocourse, roundstatus, validateplacement, buildcamp, autotests.
+
+Troubleshooting Quick Checks
+- Confirm release ID and VERSION.txt match across all participants.
+- Confirm Fabric loader version and Java version match requirements.
+- If resource pack visuals differ, re-enable MCDG-Test-Resources and relaunch.
+- If command permission fails on dedicated server, ensure OP level >= 2.
+- If G keybind conflicts with another mod, rebind in Options -> Controls -> MCDG.
+
+Bug Reports
+- Use BUG-REPORT-TEMPLATE.txt.
+- Include exact steps (menu path or command), seed, hole number, expected vs
+  actual behavior, and log snippets/screenshots where possible.
