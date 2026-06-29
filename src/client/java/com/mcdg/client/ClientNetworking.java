@@ -82,7 +82,9 @@ public final class ClientNetworking {
         );
         ClientPlayNetworking.registerGlobalReceiver(ThrowPowerLockSync.ID, (payload, context) ->
             context.client().execute(() -> {
-                ChargedDiscItem.setPowerLocked(payload.locked());
+                if (context.player() != null) {
+                    ChargedDiscItem.setPowerLocked(context.player().getUuid(), payload.locked());
+                }
             })
         );
         ClientPlayNetworking.registerGlobalReceiver(ThrowTrailSync.ID, (payload, context) ->
@@ -145,7 +147,11 @@ public final class ClientNetworking {
             context.client().execute(() -> WindManagerClient.updateWindState(payload))
         );
         ClientPlayNetworking.registerGlobalReceiver(NextThrowModifierSync.ID, (payload, context) ->
-            context.client().execute(() -> McdgClientMod.setClientNextThrowPowerMultiplier(payload.nextThrowPowerMultiplier()))
+            context.client().execute(() -> {
+                if (context.player() != null) {
+                    McdgClientMod.setClientNextThrowPowerMultiplier(payload.nextThrowPowerMultiplier());
+                }
+            })
         );
     }
 }

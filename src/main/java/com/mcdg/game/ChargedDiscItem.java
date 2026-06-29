@@ -37,13 +37,13 @@ public class ChargedDiscItem extends Item {
     private static final float MIN_VELOCITY = 0.7f;
     private static final float VELOCITY_SPAN = 1.6f;
 
-    // Client-side only fields (for visual feedback)
-    private static boolean clientChargeVisible;
-    private static float clientChargePercent;
-    private static boolean powerLocked;
-    private static float lockedChargePercent;
-    private static int lockedTicks;  // Track ticks at lock time
-    private static int lastAudioThreshold;
+    // Client-side only fields (for visual feedback, keyed by player UUID)
+    private static final Map<UUID, Boolean> CLIENT_CHARGE_VISIBLE = new HashMap<>();
+    private static final Map<UUID, Float> CLIENT_CHARGE_PERCENT = new HashMap<>();
+    private static final Map<UUID, Boolean> POWER_LOCKED = new HashMap<>();
+    private static final Map<UUID, Float> LOCKED_CHARGE_PERCENT = new HashMap<>();
+    private static final Map<UUID, Integer> LOCKED_TICKS = new HashMap<>();
+    private static final Map<UUID, Integer> LAST_AUDIO_THRESHOLD = new HashMap<>();
 
     // Server-side power lock tracking (per player)
     private static final Map<UUID, Boolean> SERVER_POWER_LOCKED = new HashMap<>();
@@ -92,12 +92,13 @@ public class ChargedDiscItem extends Item {
         }
 
         if (world.isClient()) {
-            clientChargeVisible = true;
-            clientChargePercent = 0.0f;
-            powerLocked = false;
-            lockedChargePercent = 0.0f;
-            lockedTicks = 0;
-            lastAudioThreshold = 0;
+            UUID playerUuid = user.getUuid();
+            CLIENT_CHARGE_VISIBLE.put(playerUuid, true);
+            CLIENT_CHARGE_PERCENT.put(playerUuid, 0.0f);
+            POWER_LOCKED.put(playerUuid, false);
+            LOCKED_CHARGE_PERCENT.put(playerUuid, 0.0f);
+            LOCKED_TICKS.put(playerUuid, 0);
+            LAST_AUDIO_THRESHOLD.put(playerUuid, 0);
         } else {
             // Reset server-side power lock state on new charge
             SERVER_POWER_LOCKED.remove(user.getUuid());
@@ -119,23 +120,25 @@ public class ChargedDiscItem extends Item {
         float charge = computeChargePercent(usedTicks);
 
         if (world.isClient()) {
-            clientChargeVisible = true;
+            UUID playerUuid = user.getUuid();
+            CLIENT_CHARGE_VISIBLE.put(playerUuid, true);
 
             // Handle power lock - once locked, stop calculating from remainingUseTicks
-            if (powerLocked) {
+            if (Boolean.TRUE.equals(POWER_LOCKED.get(playerUuid))) {
                 // Use the locked tick count, don't continue accumulating
-                charge = computeChargePercent(lockedTicks);
-                clientChargePercent = charge;
+                charge = computeChargePercent(LOCKED_TICKS.getOrDefault(playerUuid, 0));
+                CLIENT_CHARGE_PERCENT.put(playerUuid, charge);
             } else {
-                clientChargePercent = charge;
+                CLIENT_CHARGE_PERCENT.put(playerUuid, charge);
             }
 
             // Handle audio thresholds - check all thresholds that may have been crossed
             int[] thresholds = {25, 50, 75, 100};
-            int chargePercent = (int) (clientChargePercent * 100);
+            int chargePercent = (int) (CLIENT_CHARGE_PERCENT.getOrDefault(playerUuid, 0.0f) * 100);
+            int lastAudio = LAST_AUDIO_THRESHOLD.getOrDefault(playerUuid, 0);
             for (int threshold : thresholds) {
-                if (chargePercent >= threshold && lastAudioThreshold < threshold) {
-                    lastAudioThreshold = threshold;
+                if (chargePercent >= threshold && lastAudio < threshold) {
+                    LAST_AUDIO_THRESHOLD.put(playerUuid, threshold);
                     float pitch = 0.8f + (threshold / 100.0f) * 0.4f;
                     // Play sound through the player entity for client-side audio
                     if (user instanceof PlayerEntity player) {
@@ -156,12 +159,13 @@ public class ChargedDiscItem extends Item {
     @Override
     public void onStoppedUsing(ItemStack stack, World world, LivingEntity user, int remainingUseTicks) {
         if (world.isClient()) {
-            clientChargeVisible = false;
-            clientChargePercent = 0.0f;
-            powerLocked = false;
-            lockedChargePercent = 0.0f;
-            lockedTicks = 0;
-            lastAudioThreshold = 0;
+            UUID playerUuid = user.getUuid();
+            CLIENT_CHARGE_VISIBLE.put(playerUuid, false);
+            CLIENT_CHARGE_PERCENT.put(playerUuid, 0.0f);
+            POWER_LOCKED.put(playerUuid, false);
+            LOCKED_CHARGE_PERCENT.put(playerUuid, 0.0f);
+            LOCKED_TICKS.put(playerUuid, 0);
+            LAST_AUDIO_THRESHOLD.put(playerUuid, 0);
             return;
         }
 
@@ -467,71 +471,72 @@ public class ChargedDiscItem extends Item {
         return Math.max(0.0f, Math.min(MAX_POWER_MULTIPLIER, charge));
     }
 
-    // Client-side accessors
-    public static boolean isClientChargeVisible() {
-        return clientChargeVisible;
+    // Client-side accessors (per player)
+    public static boolean isClientChargeVisible(UUID playerUuid) {
+        return Boolean.TRUE.equals(CLIENT_CHARGE_VISIBLE.get(playerUuid));
     }
 
-    public static float getClientChargePercent() {
-        return clientChargePercent;
+    public static float getClientChargePercent(UUID playerUuid) {
+        return CLIENT_CHARGE_PERCENT.getOrDefault(playerUuid, 0.0f);
     }
 
-    public static boolean isPowerLocked() {
-        return powerLocked;
+    public static boolean isPowerLocked(UUID playerUuid) {
+        return Boolean.TRUE.equals(POWER_LOCKED.get(playerUuid));
     }
 
-    public static float getLockedChargePercent() {
-        return lockedChargePercent;
+    public static float getLockedChargePercent(UUID playerUuid) {
+        return LOCKED_CHARGE_PERCENT.getOrDefault(playerUuid, 0.0f);
     }
 
-    public static int getLockedTicks() {
-        return lockedTicks;
+    public static int getLockedTicks(UUID playerUuid) {
+        return LOCKED_TICKS.getOrDefault(playerUuid, 0);
     }
 
-    // Client-side setters used by throwable disc items to share charge state
-    public static void setClientChargeVisible(boolean visible) {
-        clientChargeVisible = visible;
+    // Client-side setters used by throwable disc items to share charge state (per player)
+    public static void setClientChargeVisible(UUID playerUuid, boolean visible) {
+        CLIENT_CHARGE_VISIBLE.put(playerUuid, visible);
     }
 
-    public static void setClientChargePercent(float percent) {
-        clientChargePercent = percent;
+    public static void setClientChargePercent(UUID playerUuid, float percent) {
+        CLIENT_CHARGE_PERCENT.put(playerUuid, percent);
     }
 
-    public static void setLockedChargePercent(float percent) {
-        lockedChargePercent = percent;
+    public static void setLockedChargePercent(UUID playerUuid, float percent) {
+        LOCKED_CHARGE_PERCENT.put(playerUuid, percent);
     }
 
-    public static void setLockedTicks(int ticks) {
-        lockedTicks = ticks;
+    public static void setLockedTicks(UUID playerUuid, int ticks) {
+        LOCKED_TICKS.put(playerUuid, ticks);
     }
 
-    public static void setLastAudioThreshold(int threshold) {
-        lastAudioThreshold = threshold;
+    public static void setLastAudioThreshold(UUID playerUuid, int threshold) {
+        LAST_AUDIO_THRESHOLD.put(playerUuid, threshold);
     }
 
-    public static int getLastAudioThreshold() {
-        return lastAudioThreshold;
+    public static int getLastAudioThreshold(UUID playerUuid) {
+        return LAST_AUDIO_THRESHOLD.getOrDefault(playerUuid, 0);
     }
 
-    public static void resetPowerLock() {
-        powerLocked = false;
-        lockedChargePercent = 0.0f;
-        lockedTicks = 0;
+    public static void resetPowerLock(UUID playerUuid) {
+        POWER_LOCKED.put(playerUuid, false);
+        LOCKED_CHARGE_PERCENT.put(playerUuid, 0.0f);
+        LOCKED_TICKS.put(playerUuid, 0);
     }
 
-    public static void setPowerLocked(boolean locked) {
+    public static void setPowerLocked(UUID playerUuid, boolean locked) {
         // Final lock - no unlock allowed
         if (!locked) {
             return;  // Ignore unlock commands
         }
         // Only lock if not already locked
-        if (powerLocked) {
+        if (Boolean.TRUE.equals(POWER_LOCKED.get(playerUuid))) {
             return;  // Already locked, ignore re-lock attempts
         }
-        powerLocked = true;
-        lockedChargePercent = clientChargePercent;
+        POWER_LOCKED.put(playerUuid, true);
+        float currentCharge = CLIENT_CHARGE_PERCENT.getOrDefault(playerUuid, 0.0f);
+        LOCKED_CHARGE_PERCENT.put(playerUuid, currentCharge);
         // Calculate and store the tick count at lock time
-        lockedTicks = Math.round(lockedChargePercent * MAX_CHARGE_TICKS);
+        LOCKED_TICKS.put(playerUuid, Math.round(currentCharge * MAX_CHARGE_TICKS));
     }
 
     // Server-side power lock state management - FINAL LOCK, no unlock

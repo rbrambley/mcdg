@@ -14,6 +14,7 @@ import net.minecraft.util.Arm;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.RotationAxis;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Standalone HUD overlays that don't depend on round or minimap state.
@@ -92,7 +93,7 @@ public final class HudOverlays {
             return;
         }
 
-        if (!ChargedDiscItem.isClientChargeVisible()) {
+        if (!ChargedDiscItem.isClientChargeVisible(client.player.getUuid())) {
             return;
         }
 
@@ -103,7 +104,7 @@ public final class HudOverlays {
         }
 
         float scale = HudUtil.getScaleFactor(drawContext);
-        float charge = ChargedDiscItem.getClientChargePercent();
+        float charge = ChargedDiscItem.getClientChargePercent(client.player.getUuid());
         float nextThrowMultiplier = McdgClientMod.getClientNextThrowPowerMultiplier();
         int width = drawContext.getScaledWindowWidth();
         int height = drawContext.getScaledWindowHeight();
@@ -132,7 +133,7 @@ public final class HudOverlays {
             drawContext.fill(barX - 1, markY, barX + scaledPowerBarWidth + 1, markY + 1, 0xFFFFFFFF);
 
             // Distance estimation using DiscFlightSimulator with current stance
-            ThrowStance stance = ThrowPreferenceManager.getSelectedStance();
+            ThrowStance stance = ThrowPreferenceManager.getSelectedStance(client.player.getUuid());
             int estimatedDistance = com.mcdg.game.DiscFlightSimulator.estimateDistance(thresholdCharge, stance, client.player.getPitch());
             String distanceText = estimatedDistance + "ft";
             int textOffset = Math.round(4 * scale);
@@ -190,7 +191,7 @@ public final class HudOverlays {
         }
 
         // LOCKED indicator
-        if (ChargedDiscItem.isPowerLocked()) {
+        if (ChargedDiscItem.isPowerLocked(client.player.getUuid())) {
             int lockedTextYOffset = Math.round(24 * scale);
             String lockedText = "LOCKED";
             int lockedTextWidth = Math.round(client.textRenderer.getWidth(lockedText) * scale);
@@ -209,8 +210,12 @@ public final class HudOverlays {
      * Shows stance name (Overhand/Backhand/Forehand) and angle arrow.
      */
     private static void renderStanceIndicator(DrawContext drawContext, MinecraftClient client, int barX, int barTop, boolean rightHandThrow, float scale) {
-        ThrowStance stance = ThrowPreferenceManager.getSelectedStance();
-        ReleaseAngle angle = ThrowPreferenceManager.getSelectedAngle();
+        if (client.player == null) {
+            return;
+        }
+        UUID playerUuid = client.player.getUuid();
+        ThrowStance stance = ThrowPreferenceManager.getSelectedStance(playerUuid);
+        ReleaseAngle angle = ThrowPreferenceManager.getSelectedAngle(playerUuid);
 
         // Stance name with appropriate formatting
         Formatting stanceColor = switch (stance) {
@@ -284,7 +289,7 @@ public final class HudOverlays {
      * Shows wind direction as a large graphical arrow with speed and direction text.
      */
     private static void renderWindIndicator(DrawContext drawContext, MinecraftClient client, int barX, int barTop, boolean rightHandThrow, float scale) {
-        if (!ChargedDiscItem.isClientChargeVisible()) {
+        if (client.player == null || !ChargedDiscItem.isClientChargeVisible(client.player.getUuid())) {
             return;
         }
         
@@ -576,8 +581,9 @@ public final class HudOverlays {
         }
 
         float scale = HudUtil.getScaleFactor(drawContext);
-        ThrowStance stance = ThrowPreferenceManager.getSelectedStance();
-        ReleaseAngle angle = ThrowPreferenceManager.getSelectedAngle();
+        UUID playerUuid = client.player.getUuid();
+        ThrowStance stance = ThrowPreferenceManager.getSelectedStance(playerUuid);
+        ReleaseAngle angle = ThrowPreferenceManager.getSelectedAngle(playerUuid);
 
         String stanceName = switch (stance) {
             case OVERHAND -> "Overhand";

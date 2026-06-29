@@ -8,6 +8,7 @@ import com.mcdg.net.LeaderboardResponse;
 import com.mcdg.net.RoundRunningScoresSync;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -54,10 +55,13 @@ public final class McdgClientMod implements ClientModInitializer {
                 item,
                 TRAINING_DISC_CHARGED_PREDICATE,
                 (stack, world, entity, seed) -> {
-                    if (!ChargedDiscItem.isClientChargeVisible()) {
+                    if (entity == null) {
                         return 0.0f;
                     }
-                    return ChargedDiscItem.getClientChargePercent() >= 0.15f ? 1.0f : 0.0f;
+                    if (!ChargedDiscItem.isClientChargeVisible(entity.getUuid())) {
+                        return 0.0f;
+                    }
+                    return ChargedDiscItem.getClientChargePercent(entity.getUuid()) >= 0.15f ? 1.0f : 0.0f;
                 }
         );
     }
@@ -90,27 +94,28 @@ public final class McdgClientMod implements ClientModInitializer {
                 }
             });
             ClientKeybinds.forEachLockPowerPress(() -> {
-                if (client.player != null && ChargedDiscItem.isClientChargeVisible()) {
+                if (client.player != null && ChargedDiscItem.isClientChargeVisible(client.player.getUuid())) {
                     // Only allow locking if not already locked (final lock - no toggle)
-                    if (!ChargedDiscItem.isPowerLocked()) {
-                        ChargedDiscItem.setPowerLocked(true);
-                        ClientPlayNetworking.send(new com.mcdg.net.ThrowPowerLockSync.Payload(true, ChargedDiscItem.getClientChargePercent()));
+                    if (!ChargedDiscItem.isPowerLocked(client.player.getUuid())) {
+                        ChargedDiscItem.setPowerLocked(client.player.getUuid(), true);
+                        ClientPlayNetworking.send(new com.mcdg.net.ThrowPowerLockSync.Payload(true, ChargedDiscItem.getClientChargePercent(client.player.getUuid())));
                     }
                 }
             });
             // Phase 2: Stance cycling with R key
             ClientKeybinds.forEachStanceCyclePress(() -> {
                 if (client.player != null) {
-                    ThrowPreferenceManager.cycleStance();
+                    UUID playerUuid = client.player.getUuid();
+                    ThrowPreferenceManager.cycleStance(playerUuid);
                     // Send to server so it's available at throw time
                     ClientPlayNetworking.send(new ThrowStanceSync.Payload(
-                        ThrowPreferenceManager.getSelectedStance(),
-                        ThrowPreferenceManager.getSelectedAngle()
+                        ThrowPreferenceManager.getSelectedStance(playerUuid),
+                        ThrowPreferenceManager.getSelectedAngle(playerUuid)
                     ));
                     // Show feedback to player
                     client.player.sendMessage(
                         net.minecraft.text.Text.literal("Stance: ")
-                            .append(net.minecraft.text.Text.literal(ThrowPreferenceManager.getSelectedStance().toString())
+                            .append(net.minecraft.text.Text.literal(ThrowPreferenceManager.getSelectedStance(playerUuid).toString())
                                 .formatted(net.minecraft.util.Formatting.AQUA)),
                         true
                     );
@@ -119,27 +124,29 @@ public final class McdgClientMod implements ClientModInitializer {
             // Phase 3: Release angle adjustment with Left/Right arrow keys
             ClientKeybinds.forEachAngleLeftPress(() -> {
                 if (client.player != null) {
+                    UUID playerUuid = client.player.getUuid();
                     // Left arrow = cycle backwards through angles
                     // Since next() goes Hyzer -> Flat -> Anhyzer -> Hyzer,
                     // calling next() twice moves backwards
-                    ThrowPreferenceManager.cycleAngle();
-                    ThrowPreferenceManager.cycleAngle();
+                    ThrowPreferenceManager.cycleAngle(playerUuid);
+                    ThrowPreferenceManager.cycleAngle(playerUuid);
                     // Send updated stance/angle to server
                     ClientPlayNetworking.send(new ThrowStanceSync.Payload(
-                        ThrowPreferenceManager.getSelectedStance(),
-                        ThrowPreferenceManager.getSelectedAngle()
+                        ThrowPreferenceManager.getSelectedStance(playerUuid),
+                        ThrowPreferenceManager.getSelectedAngle(playerUuid)
                     ));
                     showAngleFeedback(client);
                 }
             });
             ClientKeybinds.forEachAngleRightPress(() -> {
                 if (client.player != null) {
+                    UUID playerUuid = client.player.getUuid();
                     // Right arrow = cycle forward through angles
-                    ThrowPreferenceManager.cycleAngle();
+                    ThrowPreferenceManager.cycleAngle(playerUuid);
                     // Send updated stance/angle to server
                     ClientPlayNetworking.send(new ThrowStanceSync.Payload(
-                        ThrowPreferenceManager.getSelectedStance(),
-                        ThrowPreferenceManager.getSelectedAngle()
+                        ThrowPreferenceManager.getSelectedStance(playerUuid),
+                        ThrowPreferenceManager.getSelectedAngle(playerUuid)
                     ));
                     showAngleFeedback(client);
                 }
@@ -387,7 +394,8 @@ public final class McdgClientMod implements ClientModInitializer {
     private static void showAngleFeedback(MinecraftClient client) {
         if (client.player == null) return;
 
-        String angleSymbol = switch (ThrowPreferenceManager.getSelectedAngle()) {
+        UUID playerUuid = client.player.getUuid();
+        String angleSymbol = switch (ThrowPreferenceManager.getSelectedAngle(playerUuid)) {
             case HYZER -> "^ Hyzer";
             case FLAT -> "- Flat";
             case ANHYZER -> "v Anhyzer";
