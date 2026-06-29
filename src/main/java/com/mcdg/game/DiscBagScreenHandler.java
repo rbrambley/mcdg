@@ -25,23 +25,23 @@ public class DiscBagScreenHandler extends ScreenHandler {
     }
 
     private void initSlots(PlayerInventory playerInventory) {
-        // Disc bag inventory (2 rows of 6 slots)
+        // Disc bag inventory (2 rows of 6 slots, left-aligned to match vanilla container grid)
         for (int row = 0; row < 2; row++) {
             for (int col = 0; col < 6; col++) {
-                this.addSlot(new DiscSlot(bagInventory, col + row * 6, 8 + col * 18, 18 + row * 18));
+                this.addSlot(new DiscSlot(bagInventory, col + row * 6, 8 + col * 18, 17 + row * 18));
             }
         }
 
         // Player inventory
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                this.addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, 58 + row * 18));
+                this.addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, 67 + row * 18));
             }
         }
 
         // Player hotbar
         for (int col = 0; col < 9; col++) {
-            this.addSlot(new Slot(playerInventory, col, 8 + col * 18, 116));
+            this.addSlot(new Slot(playerInventory, col, 8 + col * 18, 125));
         }
     }
 

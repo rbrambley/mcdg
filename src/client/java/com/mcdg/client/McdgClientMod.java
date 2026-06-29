@@ -284,7 +284,7 @@ public final class McdgClientMod implements ClientModInitializer {
             if (currentRunningScoreState != lastScoreState
                     || screenHeight != (lastScreenHeight != null ? lastScreenHeight : -1)
                     || scale != (lastScale != null ? lastScale : -1f)) {
-                if (localUuid != null) {
+                if (localUuid != null && currentRunningScoreState != null) {
                     LAST_LAYOUT_SCORE_STATE.put(localUuid, currentRunningScoreState);
                     LAST_LAYOUT_SCREEN_HEIGHT.put(localUuid, screenHeight);
                     LAST_LAYOUT_SCALE.put(localUuid, scale);

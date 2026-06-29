@@ -59,6 +59,47 @@ public final class TurnManager {
         LAST_THROWER_BY_HOLE.entrySet().removeIf(entry -> entry.getValue().equals(playerId));
     }
 
+    public static boolean isActiveTurnPlayer(UUID playerId, int hole) {
+        if (playerId == null || hole < 1) {
+            return false;
+        }
+        UUID activeTurnPlayerId = ACTIVE_TURN_PLAYER_BY_HOLE.get(hole);
+        return playerId.equals(activeTurnPlayerId);
+    }
+
+    public static UUID getActiveTurnPlayer(int hole) {
+        if (hole < 1) {
+            return null;
+        }
+        return ACTIVE_TURN_PLAYER_BY_HOLE.get(hole);
+    }
+
+    public static boolean isAllPlayersOnHoleCompleted(
+            RoundStateManager roundStateManager,
+            ActiveCourseManager courseManager,
+            PlacedCourseState placed,
+            int hole,
+            double completionDistanceMeters
+    ) {
+        BlockPos basket = placed.holeBaskets().get(hole);
+        if (basket == null) {
+            return false;
+        }
+
+        Map<UUID, PlayerRoundState> snapshot = roundStateManager.snapshotStates();
+        for (UUID participantId : courseManager.getActiveParticipantIds()) {
+            PlayerRoundState state = snapshot.get(participantId);
+            if (state == null || state.currentHole() != hole) {
+                continue;
+            }
+            double distanceToBasket = DistanceUtils.distanceMeters(state.lie(), basket);
+            if (distanceToBasket >= completionDistanceMeters) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static void sendTurnActionBar(MinecraftServer server, ServerPlayerEntity viewer, int hole) {
         UUID activeTurnPlayerId = ACTIVE_TURN_PLAYER_BY_HOLE.get(hole);
         if (activeTurnPlayerId == null) {

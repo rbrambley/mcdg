@@ -320,9 +320,9 @@ public final class HudOverlays {
             arrowColor = 0xFF55FF55; // Green for light wind
         }
         
-        // Position wind indicator centered on screen, just above the crosshair
+        // Position wind indicator centered on screen, above the crosshair
         int centerX = drawContext.getScaledWindowWidth() / 2;
-        int indicatorY = drawContext.getScaledWindowHeight() / 2 - Math.round(24 * scale);
+        int indicatorY = drawContext.getScaledWindowHeight() / 2 - Math.round(40 * scale);
         
         // Draw background box for emphasis
         int boxWidth = Math.round(72 * scale);

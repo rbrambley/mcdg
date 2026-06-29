@@ -24,6 +24,9 @@ import net.minecraft.util.UseAction;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+import net.minecraft.network.packet.s2c.play.TitleS2CPacket;
+import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket;
+import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 import java.util.List;
@@ -178,7 +181,14 @@ public class ChargedDiscItem extends Item {
         if (state != null) {
             HoleProgressTracker.ThrowTurnGate turnGate = HoleProgressTracker.evaluateThrowGate(serverPlayer, courseManager, roundStateManager);
             if (!turnGate.isAllowed()) {
-                serverPlayer.sendMessage(Text.literal(turnGate.message()).formatted(Formatting.YELLOW), true);
+                if (turnGate.isPersistent()) {
+                    // Use title/subtitle for 5-second display (in ticks: 20 ticks = 1 second)
+                    serverPlayer.networkHandler.sendPacket(new TitleS2CPacket(Text.literal("")));
+                    serverPlayer.networkHandler.sendPacket(new SubtitleS2CPacket(Text.literal(turnGate.getMessage()).formatted(Formatting.YELLOW)));
+                    serverPlayer.networkHandler.sendPacket(new TitleFadeS2CPacket(10, 80, 10)); // 0.5s fade in, 4s stay, 0.5s fade out = 5s total
+                } else {
+                    serverPlayer.sendMessage(Text.literal(turnGate.getMessage()).formatted(Formatting.YELLOW), true);
+                }
                 return;
             }
 
