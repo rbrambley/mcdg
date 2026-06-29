@@ -72,7 +72,7 @@ public final class ChallengeCourseCommands {
             courseManager.setActiveCourse(course);
             
             // Start the round directly
-            return McdgAdminCommands.executeStartRound(
+            return RoundStartCommand.executeStartRound(
                     source,
                     courseManager,
                     placementService,
@@ -111,7 +111,7 @@ public final class ChallengeCourseCommands {
             catalog.get().markCourseAsPlaced(UUID.fromString(courseIdString));
 
             // Start the round
-            return McdgAdminCommands.executeStartRound(
+            return RoundStartCommand.executeStartRound(
                     source,
                     courseManager,
                     placementService,
