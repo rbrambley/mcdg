@@ -26,10 +26,10 @@ public class DiscBagScreenHandlerFactory implements NamedScreenHandlerFactory {
         this.bagStack = bagStack;
         this.registryLookup = registryLookup;
         this.bagUuid = DiscBagItem.ensureBagUuid(bagStack);
-        this.inventory = new SimpleInventory(12) {
+        this.inventory = new SimpleInventory(DiscBagItem.BAG_SLOTS) {
             @Override
             public boolean isValid(int slot, ItemStack stack) {
-                return McdgItems.isDisc(stack);
+                return DiscBagItem.canStore(stack);
             }
 
             @Override

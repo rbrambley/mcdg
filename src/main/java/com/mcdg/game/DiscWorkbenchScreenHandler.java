@@ -21,13 +21,12 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
     // Client-side constructor (called by ScreenHandlerType factory)
     public DiscWorkbenchScreenHandler(int syncId, PlayerInventory playerInventory) {
         super(McdgScreenHandlers.DISC_WORKBENCH, syncId);
-        this.inventory = new SimpleInventory(2);
+        this.inventory = new SimpleInventory(3);
         initSlots(playerInventory);
     }
 
     private void initSlots(PlayerInventory playerInventory) {
-
-        // Disc slot (left)
+        // Disc input slot (left)
         this.addSlot(new Slot(inventory, 0, 44, 35) {
             @Override
             public boolean canInsert(ItemStack stack) {
@@ -35,11 +34,19 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
             }
         });
 
-        // Book slot (right)
-        this.addSlot(new Slot(inventory, 1, 116, 35) {
+        // Disc enchanted book slot (middle)
+        this.addSlot(new Slot(inventory, 1, 80, 35) {
             @Override
             public boolean canInsert(ItemStack stack) {
                 return stack.isOf(McdgItems.DISC_ENCHANTED_BOOK);
+            }
+        });
+
+        // Result slot (right) - output only
+        this.addSlot(new Slot(inventory, 2, 116, 35) {
+            @Override
+            public boolean canInsert(ItemStack stack) {
+                return false;
             }
         });
 
@@ -64,9 +71,9 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
         ItemStack originalStack = slot.getStack();
         ItemStack stack = originalStack.copy();
 
-        if (slotIndex < 2) {
+        if (slotIndex < 3) {
             // Move from workbench to player inventory
-            if (!this.insertItem(originalStack, 2, this.slots.size(), true)) {
+            if (!this.insertItem(originalStack, 3, this.slots.size(), true)) {
                 return ItemStack.EMPTY;
             }
         } else {
@@ -93,28 +100,48 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
         return stack;
     }
 
+    /**
+     * Returns true when the workbench has a valid disc + book combination and the
+     * output slot is empty, meaning the Apply button can be pressed.
+     */
+    public boolean canApply() {
+        ItemStack disc = inventory.getStack(0);
+        ItemStack book = inventory.getStack(1);
+        if (!McdgItems.isDisc(disc) || !book.isOf(McdgItems.DISC_ENCHANTED_BOOK)) {
+            return false;
+        }
+        if (!inventory.getStack(2).isEmpty()) {
+            return false;
+        }
+        DiscEnchantment enchant = DiscEnchantedBook.getEnchantment(book);
+        int level = DiscEnchantedBook.getLevel(book);
+        if (enchant == null || level <= 0) {
+            return false;
+        }
+        int currentLevel = DiscEnchantmentHelper.getLevel(disc, enchant);
+        return currentLevel < level;
+    }
+
     @Override
     public boolean onButtonClick(PlayerEntity player, int id) {
-        if (id == 0) {
-            // Apply enchantment from book to disc
+        if (id == 0 && canApply()) {
             ItemStack disc = inventory.getStack(0);
             ItemStack book = inventory.getStack(1);
-            if (!McdgItems.isDisc(disc) || !book.isOf(McdgItems.DISC_ENCHANTED_BOOK)) {
-                return true;
-            }
             DiscEnchantment enchant = DiscEnchantedBook.getEnchantment(book);
             int level = DiscEnchantedBook.getLevel(book);
-            if (enchant == null || level <= 0) {
-                return true;
-            }
-            int currentLevel = DiscEnchantmentHelper.getLevel(disc, enchant);
-            if (currentLevel >= level) {
-                return true;
-            }
-            DiscEnchantmentHelper.setLevel(disc, enchant, level);
+
+            ItemStack result = disc.copy();
+            result.setCount(1);
+            DiscEnchantmentHelper.setLevel(result, enchant, level);
+            inventory.setStack(2, result);
+
             book.decrement(1);
             if (book.isEmpty()) {
                 inventory.setStack(1, ItemStack.EMPTY);
+            }
+            disc.decrement(1);
+            if (disc.isEmpty()) {
+                inventory.setStack(0, ItemStack.EMPTY);
             }
             return true;
         }

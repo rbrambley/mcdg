@@ -18,8 +18,8 @@ public class DiscBagScreen extends HandledScreen<DiscBagScreenHandler> {
 
     public DiscBagScreen(DiscBagScreenHandler handler, PlayerInventory inventory, Text title) {
         super(handler, inventory, title);
-        this.backgroundHeight = 150;
-        this.playerInventoryTitleY = this.backgroundHeight - 94;
+        this.backgroundHeight = 166;
+        this.playerInventoryTitleY = 72;
     }
 
     @Override
