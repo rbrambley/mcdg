@@ -144,7 +144,7 @@ public final class DiscEnchantedBook extends Item {
         };
     }
 
-    private static String roman(int level) {
+    public static String roman(int level) {
         return switch (level) {
             case 1 -> "I";
             case 2 -> "II";

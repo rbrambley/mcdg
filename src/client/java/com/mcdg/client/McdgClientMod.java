@@ -38,6 +38,16 @@ public final class McdgClientMod implements ClientModInitializer {
     private static final Map<UUID, Boolean> ROUND_ENDED = new ConcurrentHashMap<>();
     private static final Map<UUID, Set<String>> UNLOCKED_SKILLS = new ConcurrentHashMap<>();
     private static final Map<UUID, Float> CLIENT_NEXT_THROW_POWER_MULTIPLIER = new ConcurrentHashMap<>();
+    private static final Map<UUID, ThrowSetupMultipliers> THROW_SETUP_MULTIPLIERS = new ConcurrentHashMap<>();
+
+    public record ThrowSetupMultipliers(
+            float powerMultiplier,
+            float distanceMultiplier,
+            float glideMultiplier,
+            float stabilityMultiplier
+    ) {
+        public static final ThrowSetupMultipliers DEFAULT = new ThrowSetupMultipliers(1.0f, 1.0f, 1.0f, 1.0f);
+    }
 
     private static UUID localPlayerUuid() {
         MinecraftClient client = MinecraftClient.getInstance();
@@ -52,6 +62,17 @@ public final class McdgClientMod implements ClientModInitializer {
     public static void setClientNextThrowPowerMultiplier(UUID playerUuid, float multiplier) {
         if (playerUuid != null) {
             CLIENT_NEXT_THROW_POWER_MULTIPLIER.put(playerUuid, Math.max(0.0f, Math.min(1.0f, multiplier)));
+        }
+    }
+
+    public static ThrowSetupMultipliers getThrowSetupMultipliers() {
+        UUID uuid = localPlayerUuid();
+        return uuid == null ? ThrowSetupMultipliers.DEFAULT : THROW_SETUP_MULTIPLIERS.getOrDefault(uuid, ThrowSetupMultipliers.DEFAULT);
+    }
+
+    public static void setThrowSetupMultipliers(UUID playerUuid, float powerMultiplier, float distanceMultiplier, float glideMultiplier, float stabilityMultiplier) {
+        if (playerUuid != null) {
+            THROW_SETUP_MULTIPLIERS.put(playerUuid, new ThrowSetupMultipliers(powerMultiplier, distanceMultiplier, glideMultiplier, stabilityMultiplier));
         }
     }
 
@@ -245,6 +266,7 @@ public final class McdgClientMod implements ClientModInitializer {
                 ROUND_ENDED.remove(playerUuid);
                 UNLOCKED_SKILLS.remove(playerUuid);
                 CLIENT_NEXT_THROW_POWER_MULTIPLIER.remove(playerUuid);
+                THROW_SETUP_MULTIPLIERS.remove(playerUuid);
                 LAST_LAYOUT_SCORE_STATE.remove(playerUuid);
                 LAST_LAYOUT_SCREEN_HEIGHT.remove(playerUuid);
                 LAST_LAYOUT_SCALE.remove(playerUuid);
@@ -411,6 +433,7 @@ public final class McdgClientMod implements ClientModInitializer {
             DiscTrailRenderer.setStats(
                     payload.lastThrowTotalDistanceFt(),
                     payload.lastThrowLateralDriftFt(),
+                    payload.lastThrowApexHeightFt(),
                     payload.lastThrowStance(),
                     payload.lastThrowAngle(),
                     payload.lastThrowFlightTicks(),

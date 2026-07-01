@@ -34,6 +34,7 @@ import com.mcdg.game.RoundSessionStorage;
 import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.RoundWindService;
 import com.mcdg.game.ScorecardManager;
+import com.mcdg.game.ThrowSetupSyncHelper;
 import com.mcdg.game.PlayerSkillManager;
 import com.mcdg.game.ThrowAutoTestService;
 import com.mcdg.game.RoundInviteManager;
@@ -50,8 +51,8 @@ import com.mcdg.net.SkillsScreenRequest;
 import com.mcdg.net.SkillsScreenSync;
 import com.mcdg.net.SkillsStatusSync;
 import com.mcdg.net.ThrowPowerLockSync;
+import com.mcdg.net.ThrowSetupSync;
 import com.mcdg.net.ThrowStanceSync;
-import com.mcdg.net.ThrowTrailSync;
 import com.mcdg.net.ThrowTrailStartSync;
 import com.mcdg.net.ThrowTrailCompleteSync;
 import com.mcdg.net.RoundInviteRequest;
@@ -155,6 +156,10 @@ public final class McdgMod implements ModInitializer {
     public static TournamentRulesetManager getRulesetManager() {
         return TOURNAMENT_RULESET_MANAGER;
     }
+
+    public static RoundStateManager getRoundStateManager() {
+        return ROUND_STATE_MANAGER;
+    }
     private static final RoundPresentationService ROUND_PRESENTATION_SERVICE = new RoundPresentationService();
     private static final PracticeCourseStorage PRACTICE_COURSE_STORAGE = new PracticeCourseStorage();
     private static final RoundSessionStorage ROUND_SESSION_STORAGE = new RoundSessionStorage();
@@ -211,7 +216,7 @@ public final class McdgMod implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(SkillsStatusSync.ID, SkillsStatusSync.CODEC);
 
         PayloadTypeRegistry.playS2C().register(ThrowPowerLockSync.ID, ThrowPowerLockSync.CODEC);
-        PayloadTypeRegistry.playS2C().register(ThrowTrailSync.ID, ThrowTrailSync.CODEC);
+        PayloadTypeRegistry.playS2C().register(ThrowSetupSync.ID, ThrowSetupSync.CODEC);
         PayloadTypeRegistry.playS2C().register(ThrowTrailStartSync.ID, ThrowTrailStartSync.CODEC);
         PayloadTypeRegistry.playS2C().register(ThrowTrailCompleteSync.ID, ThrowTrailCompleteSync.CODEC);
 
@@ -401,6 +406,22 @@ public final class McdgMod implements ModInitializer {
                 LOGGER.warn("WindManager tick took {}ms", elapsedMs);
             }
         });
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long start = System.nanoTime();
+            // Sync effective throw multipliers every 20 ticks for active players
+            if (server.getTicks() % 20 == 0) {
+                Set<UUID> activeParticipants = ACTIVE_COURSE_MANAGER.getActiveParticipantIds();
+                for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                    if (activeParticipants.contains(player.getUuid())) {
+                        ThrowSetupSyncHelper.syncSetupMultipliers(player);
+                    }
+                }
+            }
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
+                LOGGER.warn("ThrowSetupSyncHelper tick took {}ms", elapsedMs);
+            }
+        });
         ServerLifecycleEvents.SERVER_STARTED.register(ElytraDiscMigration::run);
         ServerLifecycleEvents.SERVER_STARTED.register(server -> ResortWaypointManager.clearResortWaypoint());
         ServerLifecycleEvents.SERVER_STARTED.register(McdgMod::loadPersistedPracticeCourse);
@@ -442,6 +463,7 @@ public final class McdgMod implements ModInitializer {
                 handlePlayerDisconnectDuringWarmup(playerUuid, server);
                 PlayerSkillManager.onPlayerDisconnect(handler.player);
                 ChargedDiscItem.clearServerState(playerUuid);
+                ThrowSetupSyncHelper.clearPlayerState(playerUuid);
             })
         );
         HoleProgressTracker.register(

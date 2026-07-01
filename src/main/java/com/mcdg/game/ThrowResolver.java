@@ -52,6 +52,7 @@ public final class ThrowResolver {
             Vec3d[] pathPoints,
             double totalDistanceFt,
             double lateralDriftFt,
+            double apexHeightFt,
             ThrowStance stance,
             ReleaseAngle angle
     ) {}
@@ -59,6 +60,7 @@ public final class ThrowResolver {
     public record LastThrowStats(
             double totalDistanceFt,
             double lateralDriftFt,
+            double apexHeightFt,
             ThrowStance stance,
             ReleaseAngle angle,
             int flightTicks,
@@ -375,6 +377,7 @@ public final class ThrowResolver {
                     player.getUuid(),
                     calc.totalDistanceFt(),
                     calc.lateralDriftFt(),
+                    calc.apexHeightFt(),
                     landingPenalty,
                     penaltyStrokes,
                     penaltyReason,
@@ -391,6 +394,7 @@ public final class ThrowResolver {
         LAST_THROW_STATS.put(player.getUuid(), new LastThrowStats(
                 calc != null ? calc.totalDistanceFt() : lastThrowDistance,
                 calc != null ? calc.lateralDriftFt() : 0.0,
+                calc != null ? calc.apexHeightFt() : 0.0,
                 calc != null ? calc.stance() : ThrowStance.OVERHAND,
                 calc != null ? calc.angle() : ReleaseAngle.FLAT,
                 calc != null ? calc.flightTicks() : 0,
@@ -432,8 +436,8 @@ public final class ThrowResolver {
      * Register a calculated throw (trajectory-based, no pearl entity).
      * Used by the new trajectory calculation system.
      */
-    static void registerCalculatedThrow(UUID playerId, long worldTime, Vec3d landingPos, int flightTicks, Vec3d[] pathPoints, double totalDistanceFt, double lateralDriftFt, ThrowStance stance, ReleaseAngle angle) {
-        CALCULATED_THROWS.put(playerId, new CalculatedThrowData(landingPos, flightTicks, worldTime, pathPoints, totalDistanceFt, lateralDriftFt, stance, angle));
+    static void registerCalculatedThrow(UUID playerId, long worldTime, Vec3d landingPos, int flightTicks, Vec3d[] pathPoints, double totalDistanceFt, double lateralDriftFt, double apexHeightFt, ThrowStance stance, ReleaseAngle angle) {
+        CALCULATED_THROWS.put(playerId, new CalculatedThrowData(landingPos, flightTicks, worldTime, pathPoints, totalDistanceFt, lateralDriftFt, apexHeightFt, stance, angle));
         LAST_THROW_RELEASE_TICK.put(playerId, worldTime);
         LAST_THROW_PENDING_TICKS.remove(playerId);
         // No pearl UUID for calculated throws

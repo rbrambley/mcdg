@@ -79,6 +79,7 @@ public final class HoleMapSyncService {
         if (payload.hasLastThrowStats()) {
             hash = 31 * hash + Double.hashCode(payload.lastThrowTotalDistanceFt());
             hash = 31 * hash + Double.hashCode(payload.lastThrowLateralDriftFt());
+            hash = 31 * hash + Double.hashCode(payload.lastThrowApexHeightFt());
             hash = 31 * hash + payload.lastThrowStance().hashCode();
             hash = 31 * hash + payload.lastThrowAngle().hashCode();
             hash = 31 * hash + payload.lastThrowFlightTicks();
@@ -389,6 +390,7 @@ public final class HoleMapSyncService {
                 lastThrowStats != null,
                 lastThrowStats != null ? lastThrowStats.totalDistanceFt() : 0.0,
                 lastThrowStats != null ? lastThrowStats.lateralDriftFt() : 0.0,
+                lastThrowStats != null ? lastThrowStats.apexHeightFt() : 0.0,
                 lastThrowStats != null ? lastThrowStats.stance() : ThrowStance.OVERHAND,
                 lastThrowStats != null ? lastThrowStats.angle() : ReleaseAngle.FLAT,
                 lastThrowStats != null ? lastThrowStats.flightTicks() : 0,

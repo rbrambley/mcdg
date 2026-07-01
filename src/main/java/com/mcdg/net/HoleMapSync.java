@@ -75,6 +75,7 @@ public final class HoleMapSync {
             boolean hasLastThrowStats,
             double lastThrowTotalDistanceFt,
             double lastThrowLateralDriftFt,
+            double lastThrowApexHeightFt,
             ThrowStance lastThrowStance,
             ReleaseAngle lastThrowAngle,
             int lastThrowFlightTicks,
@@ -145,6 +146,7 @@ public final class HoleMapSync {
             boolean hasLastThrowStats = buf.readBoolean();
             double lastThrowTotalDistanceFt = 0.0;
             double lastThrowLateralDriftFt = 0.0;
+            double lastThrowApexHeightFt = 0.0;
             ThrowStance lastThrowStance = ThrowStance.OVERHAND;
             ReleaseAngle lastThrowAngle = ReleaseAngle.FLAT;
             int lastThrowFlightTicks = 0;
@@ -156,6 +158,7 @@ public final class HoleMapSync {
             if (hasLastThrowStats) {
                 lastThrowTotalDistanceFt = buf.readDouble();
                 lastThrowLateralDriftFt = buf.readDouble();
+                lastThrowApexHeightFt = buf.readDouble();
                 int stanceOrd = buf.readVarInt();
                 if (stanceOrd >= 0 && stanceOrd < ThrowStance.values().length) {
                     lastThrowStance = ThrowStance.values()[stanceOrd];
@@ -191,7 +194,7 @@ public final class HoleMapSync {
                     waterGapStartFeet, waterGapEndFeet, hasWaterGap,
                     courseWaypointName, courseWaypointX, courseWaypointZ,
                     hasLastThrowStats,
-                    lastThrowTotalDistanceFt, lastThrowLateralDriftFt,
+                    lastThrowTotalDistanceFt, lastThrowLateralDriftFt, lastThrowApexHeightFt,
                     lastThrowStance, lastThrowAngle, lastThrowFlightTicks,
                     lastThrowPenaltyType, lastThrowPenaltyStrokes, lastThrowPenaltyReason,
                     lastThrowObCrossingFeet, lastThrowReturnedToFeet,
@@ -259,6 +262,7 @@ public final class HoleMapSync {
             if (hasLastThrowStats) {
                 buf.writeDouble(lastThrowTotalDistanceFt);
                 buf.writeDouble(lastThrowLateralDriftFt);
+                buf.writeDouble(lastThrowApexHeightFt);
                 buf.writeVarInt(clampOrdinal(lastThrowStance.ordinal(), ThrowStance.values().length));
                 buf.writeVarInt(clampOrdinal(lastThrowAngle.ordinal(), ReleaseAngle.values().length));
                 buf.writeVarInt(lastThrowFlightTicks);
@@ -292,7 +296,7 @@ public final class HoleMapSync {
                     0, 0, false,
                     "", 0, 0,
                     false,
-                    0.0, 0.0,
+                    0.0, 0.0, 0.0,
                     ThrowStance.OVERHAND, ReleaseAngle.FLAT, 0,
                     StrictPenaltyType.NONE, 0, "",
                     0, 0,

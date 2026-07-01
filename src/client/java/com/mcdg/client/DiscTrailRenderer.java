@@ -40,6 +40,7 @@ public final class DiscTrailRenderer {
         // Stats (filled when complete packet arrives or legacy startTrail)
         Double totalDistanceFt;
         Double lateralDriftFt;
+        Double apexHeightFt;
         StrictPenaltyType penaltyType;
         Integer penaltyStrokes;
         String penaltyReason;
@@ -71,6 +72,7 @@ public final class DiscTrailRenderer {
             Vec3d[] pathPoints,
             double totalDistanceFt,
             double lateralDriftFt,
+            double apexHeightFt,
             ThrowStance stance,
             ReleaseAngle angle,
             int flightTicks,
@@ -85,6 +87,7 @@ public final class DiscTrailRenderer {
         trail.pathPoints = pathPoints;
         trail.totalDistanceFt = totalDistanceFt;
         trail.lateralDriftFt = lateralDriftFt;
+        trail.apexHeightFt = apexHeightFt;
         trail.stance = stance;
         trail.angle = angle;
         trail.flightTicks = flightTicks;
@@ -141,6 +144,7 @@ public final class DiscTrailRenderer {
             UUID throwerId,
             double totalDistanceFt,
             double lateralDriftFt,
+            double apexHeightFt,
             StrictPenaltyType penaltyType,
             int penaltyStrokes,
             String penaltyReason,
@@ -151,6 +155,7 @@ public final class DiscTrailRenderer {
         if (trail != null) {
             trail.totalDistanceFt = totalDistanceFt;
             trail.lateralDriftFt = lateralDriftFt;
+            trail.apexHeightFt = apexHeightFt;
             trail.penaltyType = penaltyType;
             trail.penaltyStrokes = penaltyStrokes;
             trail.penaltyReason = penaltyReason;
@@ -340,6 +345,7 @@ public final class DiscTrailRenderer {
     public static void setStats(
             double totalDistanceFt,
             double lateralDriftFt,
+            double apexHeightFt,
             ThrowStance stance,
             ReleaseAngle angle,
             int flightTicks,
@@ -353,7 +359,7 @@ public final class DiscTrailRenderer {
         if (localId == null) {
             return;
         }
-        setStats(localId, totalDistanceFt, lateralDriftFt, stance, angle, flightTicks,
+        setStats(localId, totalDistanceFt, lateralDriftFt, apexHeightFt, stance, angle, flightTicks,
                 penaltyType, penaltyStrokes, penaltyReason, obCrossingFeet, returnedToFeet);
     }
 
@@ -361,6 +367,7 @@ public final class DiscTrailRenderer {
             UUID playerId,
             double totalDistanceFt,
             double lateralDriftFt,
+            double apexHeightFt,
             ThrowStance stance,
             ReleaseAngle angle,
             int flightTicks,
@@ -374,6 +381,7 @@ public final class DiscTrailRenderer {
         ThrowStats stats = new ThrowStats(
                 totalDistanceFt,
                 lateralDriftFt,
+                apexHeightFt,
                 stance,
                 angle,
                 flightTicks,
@@ -389,6 +397,7 @@ public final class DiscTrailRenderer {
         TrailData trail = TRAILS.computeIfAbsent(playerId, k -> new TrailData());
         trail.totalDistanceFt = totalDistanceFt;
         trail.lateralDriftFt = lateralDriftFt;
+        trail.apexHeightFt = apexHeightFt;
         trail.stance = stance;
         trail.angle = angle;
         trail.flightTicks = flightTicks;
@@ -431,6 +440,7 @@ public final class DiscTrailRenderer {
     public record ThrowStats(
             double totalDistanceFt,
             double lateralDriftFt,
+            double apexHeightFt,
             ThrowStance stance,
             ReleaseAngle angle,
             int flightTicks,

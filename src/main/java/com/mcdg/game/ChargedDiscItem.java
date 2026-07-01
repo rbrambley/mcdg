@@ -107,6 +107,10 @@ public class ChargedDiscItem extends Item {
             SERVER_POWER_LOCKED.remove(user.getUuid());
             SERVER_LOCKED_CHARGE.remove(user.getUuid());
             SERVER_LOCKED_TICKS.remove(user.getUuid());
+            // Sync effective multipliers to the client so the Setup HUD is current
+            if (user instanceof ServerPlayerEntity serverPlayer) {
+                ThrowSetupSyncHelper.syncSetupMultipliers(serverPlayer);
+            }
         }
 
         user.setCurrentHand(hand);
@@ -396,6 +400,7 @@ public class ChargedDiscItem extends Item {
                 trajectory.pathPoints(),
                 trajectory.totalDistanceFt(),
                 trajectory.lateralDriftFt(),
+                trajectory.apexHeightFt(),
                 stance,
                 angle
         );
