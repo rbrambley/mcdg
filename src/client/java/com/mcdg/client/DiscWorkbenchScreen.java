@@ -25,7 +25,6 @@ public class DiscWorkbenchScreen extends HandledScreen<DiscWorkbenchScreenHandle
     private static final int OUTSET_DARK = 0xFF373737;
     private static final int INSET_LIGHT = 0xFFFFFFFF;
     private static final int INSET_DARK = 0xFF555555;
-    private static final int LABEL_BG = 0xAA000000;
     private static final int LABEL_TEXT = 0xFFFFFF;
     private static final int ARROW_COLOR = 0xFF404040;
     private static final int WARNING_COLOR = 0xFFFF5555;
@@ -44,14 +43,14 @@ public class DiscWorkbenchScreen extends HandledScreen<DiscWorkbenchScreenHandle
     protected void init() {
         super.init();
         this.titleX = (this.backgroundWidth - this.textRenderer.getWidth(this.title)) / 2;
-        this.titleY = 8;
-        this.playerInventoryTitleY = 78;
+        this.titleY = 6;
+        this.playerInventoryTitleY = 76;
 
-        int buttonX = this.x + 116 + 9 - 27;
-        int buttonY = this.y + 66;
+        int buttonX = this.x + 135;
+        int buttonY = this.y + 34;
         applyButton = this.addDrawableChild(ButtonWidget.builder(Text.translatable("gui.mcdg.disc_workbench.apply"), btn -> {
             this.client.interactionManager.clickButton(this.handler.syncId, 0);
-        }).dimensions(buttonX, buttonY, 54, 18).build());
+        }).dimensions(buttonX, buttonY, 34, 14).build());
     }
 
     @Override
@@ -65,9 +64,9 @@ public class DiscWorkbenchScreen extends HandledScreen<DiscWorkbenchScreenHandle
 
         // Crafting area inset
         int craftX = x + 7;
-        int craftY = y + 22;
+        int craftY = y + 16;
         int craftW = this.backgroundWidth - 14;
-        int craftH = 56;
+        int craftH = 54;
         context.fill(craftX, craftY, craftX + craftW, craftY + craftH, CRAFT_BG);
         drawInsetBorder(context, craftX, craftY, craftW, craftH);
 
@@ -77,18 +76,18 @@ public class DiscWorkbenchScreen extends HandledScreen<DiscWorkbenchScreenHandle
         }
 
         // Slot labels
-        drawSlotLabel(context, Text.translatable("gui.mcdg.disc_workbench.disc"), x + 44 + 9, y + 55);
-        drawSlotLabel(context, Text.translatable("gui.mcdg.disc_workbench.book"), x + 80 + 9, y + 55);
-        drawSlotLabel(context, Text.translatable("gui.mcdg.disc_workbench.result"), x + 116 + 9, y + 55);
+        drawSlotLabel(context, Text.translatable("gui.mcdg.disc_workbench.disc"), x + 44 + 9, y + 56);
+        drawSlotLabel(context, Text.translatable("gui.mcdg.disc_workbench.book"), x + 80 + 9, y + 56);
+        drawSlotLabel(context, Text.translatable("gui.mcdg.disc_workbench.result"), x + 116 + 9, y + 56);
 
-        // Flow symbols
-        int symbolY = y + 42;
-        drawCenteredText(context, Text.literal("+"), x + 62, symbolY, ARROW_COLOR);
-        drawCenteredText(context, Text.literal("→"), x + 98, symbolY, ARROW_COLOR);
+        // Flow symbols (centered between slot frames)
+        int symbolY = y + 37;
+        drawCenteredText(context, Text.literal("+"), x + 71, symbolY, ARROW_COLOR);
+        drawCenteredText(context, Text.literal("→"), x + 107, symbolY, ARROW_COLOR);
 
         // Preview line (above the slots)
         if (!previewName.getString().isEmpty() || !previewEffect.getString().isEmpty()) {
-            int previewY = y + 25;
+            int previewY = y + 20;
             int combinedWidth = this.textRenderer.getWidth(previewName) + this.textRenderer.getWidth(previewEffect) + 4;
             int startX = x + (this.backgroundWidth - combinedWidth) / 2;
             context.drawTextWithShadow(this.textRenderer, previewName, startX, previewY, LABEL_TEXT);
@@ -97,7 +96,7 @@ public class DiscWorkbenchScreen extends HandledScreen<DiscWorkbenchScreenHandle
 
         // Warning line (above the slots, below the preview)
         if (!warningText.getString().isEmpty()) {
-            int warningY = y + 34;
+            int warningY = y + 29;
             int warningWidth = this.textRenderer.getWidth(warningText);
             context.drawTextWithShadow(this.textRenderer, warningText, x + (this.backgroundWidth - warningWidth) / 2, warningY, WARNING_COLOR);
         }
@@ -119,8 +118,7 @@ public class DiscWorkbenchScreen extends HandledScreen<DiscWorkbenchScreenHandle
 
     private void drawSlotLabel(DrawContext context, Text label, int centerX, int y) {
         int width = this.textRenderer.getWidth(label);
-        context.fill(centerX - width / 2 - 2, y - 1, centerX + width / 2 + 2, y + 9, LABEL_BG);
-        context.drawTextWithShadow(this.textRenderer, label, centerX - width / 2, y, LABEL_TEXT);
+        context.drawText(this.textRenderer, label, centerX - width / 2, y, 0x404040, false);
     }
 
     private void drawCenteredText(DrawContext context, Text text, int centerX, int y, int color) {

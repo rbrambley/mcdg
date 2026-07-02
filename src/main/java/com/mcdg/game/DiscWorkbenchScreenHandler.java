@@ -27,7 +27,7 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
 
     private void initSlots(PlayerInventory playerInventory) {
         // Disc input slot (left)
-        this.addSlot(new Slot(inventory, 0, 44, 35) {
+        this.addSlot(new Slot(inventory, 0, 44, 32) {
             @Override
             public boolean canInsert(ItemStack stack) {
                 return McdgItems.isDisc(stack);
@@ -35,7 +35,7 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
         });
 
         // Disc enchanted book slot (middle)
-        this.addSlot(new Slot(inventory, 1, 80, 35) {
+        this.addSlot(new Slot(inventory, 1, 80, 32) {
             @Override
             public boolean canInsert(ItemStack stack) {
                 return stack.isOf(McdgItems.DISC_ENCHANTED_BOOK);
@@ -43,7 +43,7 @@ public class DiscWorkbenchScreenHandler extends ScreenHandler {
         });
 
         // Result slot (right) - output only
-        this.addSlot(new Slot(inventory, 2, 116, 35) {
+        this.addSlot(new Slot(inventory, 2, 116, 32) {
             @Override
             public boolean canInsert(ItemStack stack) {
                 return false;
