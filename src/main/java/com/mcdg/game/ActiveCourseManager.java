@@ -18,6 +18,7 @@ public final class ActiveCourseManager {
     private volatile boolean persistentPlacedCourse;
     private volatile boolean legacyPracticeSnapshot;
     private volatile Integer activeCourseCatalogIndex;
+    private volatile UUID activeChallengeCourseId;
     private final Set<UUID> activeParticipantIds = ConcurrentHashMap.newKeySet();
 
     public void setActiveCourse(Course course) {
@@ -36,6 +37,14 @@ public final class ActiveCourseManager {
         this.activeCourseCatalogIndex = activeCourseCatalogIndex;
     }
 
+    public void setActiveChallengeCourseId(UUID activeChallengeCourseId) {
+        this.activeChallengeCourseId = activeChallengeCourseId;
+    }
+
+    public Optional<UUID> getActiveChallengeCourseId() {
+        return Optional.ofNullable(activeChallengeCourseId);
+    }
+
     public void setPlacedCourseState(PlacedCourseState placedCourseState) {
         this.placedCourseState = placedCourseState;
     }
@@ -48,6 +57,7 @@ public final class ActiveCourseManager {
         this.placedCourseState = null;
         this.persistentPlacedCourse = false;
         this.legacyPracticeSnapshot = false;
+        this.activeChallengeCourseId = null;
     }
 
     public boolean isPersistentPlacedCourse() {
@@ -162,6 +172,7 @@ public final class ActiveCourseManager {
         this.persistentPlacedCourse = false;
         this.legacyPracticeSnapshot = false;
         this.activeCourseCatalogIndex = null;
+        this.activeChallengeCourseId = null;
         this.activeParticipantIds.clear();
     }
 }

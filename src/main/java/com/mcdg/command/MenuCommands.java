@@ -315,6 +315,23 @@ public final class MenuCommands {
             courses.add(new MenuScreenSync.CourseEntry(entry.index(), entry.name(), entry.holeCount(), entry.sourceTag()));
         }
 
+        List<MenuScreenSync.ChallengeCourseEntry> challengeCourses = new ArrayList<>();
+        var catalog = ChallengeCourseManager.getCatalog();
+        if (catalog.isPresent()) {
+            for (ChallengeCourseCatalog.CatalogEntry entry : catalog.get().getAllCourses()) {
+                int bestScore = catalog.get().getBestScore(entry.courseId()).orElse(0);
+                int completions = catalog.get().getPlayersWhoCompleted(entry.courseId()).size();
+                challengeCourses.add(new MenuScreenSync.ChallengeCourseEntry(
+                        entry.courseId().toString(),
+                        entry.name(),
+                        entry.type().getDisplayName(),
+                        entry.isPlaced(),
+                        bestScore,
+                        completions
+                ));
+            }
+        }
+
         if (hasSavedSession) {
             boolean courseStillExists = false;
             for (MenuScreenSync.CourseEntry entry : courses) {
@@ -339,7 +356,8 @@ public final class MenuCommands {
                 ruleset.name().toLowerCase(),
                 preset.name().toLowerCase(),
                 courses,
-                caveMode
+                caveMode,
+                challengeCourses
         );
         ServerPlayNetworking.send(player, payload);
         return 1;

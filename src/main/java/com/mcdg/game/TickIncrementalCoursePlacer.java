@@ -277,4 +277,16 @@ public final class TickIncrementalCoursePlacer {
     public String getFailureMessage() { return failureMessage; }
     public float getProgress() { return (float) nextHoleIndex / course.holes().size(); }
     public Map<BlockPos, BlockState> getMergedOriginals() { return java.util.Collections.unmodifiableMap(mergedOriginals); }
+
+    /**
+     * Cancels a pending build and restores any blocks placed so far.
+     */
+    public void cancel() {
+        if (done || failed) {
+            return;
+        }
+        rollbackPartial();
+        failed = true;
+        failureMessage = "Cancelled";
+    }
 }

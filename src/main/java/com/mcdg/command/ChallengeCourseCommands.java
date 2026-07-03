@@ -1,17 +1,17 @@
 package com.mcdg.command;
 
-import com.mcdg.McdgMod;
 import com.mcdg.data.Course;
 import com.mcdg.game.ActiveCourseManager;
-import com.mcdg.game.ChallengeCourseBuilder;
+import com.mcdg.game.ChallengeCourseBuildTracker;
 import com.mcdg.game.ChallengeCourseManager;
-import com.mcdg.game.ChallengeCourseType;
+import com.mcdg.game.LostCourseStorage;
 import com.mcdg.game.PlacedCourseState;
 import com.mcdg.game.RoundPresentationService;
 import com.mcdg.game.RoundStateManager;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -61,73 +61,42 @@ public final class ChallengeCourseCommands {
         ServerWorld world = player.getServerWorld();
         Course course = catalogEntry.get().generatedCourse();
         BlockPos anchor = catalogEntry.get().courseAnchor();
-        ChallengeCourseType type = catalogEntry.get().type();
 
-        // Check if course is already placed
+        // If the course is already placed, load its persisted placed state and resume it.
         if (catalogEntry.get().isPlaced()) {
-            source.sendFeedback(() -> Text.literal("Challenge course already built. Starting round...")
-                    .formatted(Formatting.YELLOW), false);
-            
-            // Set the active course
-            courseManager.setActiveCourse(course);
-            
-            // Start the round directly
-            return RoundStartCommand.executeStartRound(
-                    source,
-                    courseManager,
-                    placementService,
-                    placementValidator,
-                    roundStateManager,
-                    roundPresentationService,
-                    skipRoundPresentation,
-                    null, // practiceCourseStorage
-                    false, // persistentCourse
-                    false, // allowReusableFallback
-                    List.of(player) // selectedPlayers
-            );
-        }
+            Optional<PlacedCourseState> storedPlaced = LostCourseStorage.loadPlacedState(source.getServer(), UUID.fromString(courseIdString));
+            if (storedPlaced.isPresent()) {
+                source.sendFeedback(() -> Text.literal("Challenge course already built. Starting round...")
+                        .formatted(Formatting.YELLOW), false);
 
-        source.sendFeedback(() -> Text.literal("Building challenge course: " + catalogEntry.get().name())
-                .formatted(Formatting.LIGHT_PURPLE), false);
-
-        // Build the challenge course
-        var buildFuture = ChallengeCourseBuilder.buildChallengeCourse(world, anchor, course, type, progress -> {
-                // Progress callback could be used for feedback
-        });
-
-        // For now, we'll make it synchronous for simplicity
-        try {
-            PlacedCourseState placedState = buildFuture.get();
-            if (placedState == null) {
-                source.sendError(Text.literal("Failed to build challenge course"));
-                return 0;
+                courseManager.setActiveCourse(course);
+                courseManager.setPlacedCourseState(storedPlaced.get());
+                courseManager.setActiveChallengeCourseId(UUID.fromString(courseIdString));
+                return RoundLifecycleCommands.executeResumeCourse(
+                        source,
+                        courseManager,
+                        roundStateManager,
+                        roundPresentationService,
+                        skipRoundPresentation,
+                        List.of(player)
+                );
             }
-
-            // Set the active course
-            courseManager.setActiveCourse(course);
-            courseManager.setPlacedCourseState(placedState);
-
-            // Mark course as placed in catalog
-            catalog.get().markCourseAsPlaced(UUID.fromString(courseIdString));
-
-            // Start the round
-            return RoundStartCommand.executeStartRound(
-                    source,
-                    courseManager,
-                    placementService,
-                    placementValidator,
-                    roundStateManager,
-                    roundPresentationService,
-                    skipRoundPresentation,
-                    null, // practiceCourseStorage
-                    false, // persistentCourse
-                    false, // allowReusableFallback
-                    List.of(player) // selectedPlayers
-            );
-        } catch (Exception e) {
-            source.sendError(Text.literal("Error building challenge course: " + e.getMessage()));
-            McdgMod.LOGGER.error("Error building challenge course", e);
-            return 0;
         }
+
+        // Queue an incremental, non-blocking build for this challenge course.
+        // One hole is placed per server tick so the server thread never freezes.
+        ChallengeCourseBuildTracker.startBuild(
+                UUID.fromString(courseIdString),
+                world,
+                anchor,
+                course,
+                player,
+                source,
+                courseManager,
+                roundStateManager,
+                roundPresentationService,
+                skipRoundPresentation
+        );
+        return 1;
     }
 }

@@ -54,7 +54,7 @@ public final class McdgMenuScreen extends Screen {
     private static final int SKILL_CONTENT_TOP = 44;
     private static final int SKILL_CONTENT_BOTTOM_PAD = 8;
 
-    private enum Page { DASHBOARD, COURSES, BUILD, RULES, ADMIN, COURSE_MAINTENANCE, SKILLS }
+    private enum Page { DASHBOARD, COURSES, CHALLENGE, BUILD, RULES, ADMIN, COURSE_MAINTENANCE, SKILLS }
 
     private final MenuScreenSync.Payload state;
     private SkillsScreenSync.Payload skillsData;
@@ -91,7 +91,7 @@ public final class McdgMenuScreen extends Screen {
         if (client != null) {
             client.execute(() -> {
                 MenuScreenSync.Payload dummyState = new MenuScreenSync.Payload(
-                    false, false, "", 0, 0, false, "", 0, 0, false, "", "", List.of(), false
+                    false, false, "", 0, 0, false, "", 0, 0, false, "", "", List.of(), false, List.of()
                 );
                 client.setScreen(new McdgMenuScreen(dummyState, skillsData));
             });
@@ -137,6 +137,7 @@ public final class McdgMenuScreen extends Screen {
 
         addNavButton("Dashboard", Page.DASHBOARD, navX, navStartY + (slot++ * 26), btnW);
         addNavButton("Courses",   Page.COURSES,   navX, navStartY + (slot++ * 26), btnW);
+        addNavButton("Challenge", Page.CHALLENGE, navX, navStartY + (slot++ * 26), btnW);
         if (state.isAdmin()) {
             addNavButton("Build", Page.BUILD, navX, navStartY + (slot++ * 26), btnW);
         }
@@ -167,6 +168,7 @@ public final class McdgMenuScreen extends Screen {
         switch (currentPage) {
             case DASHBOARD -> buildDashboardPage(cx, cy, bw);
             case COURSES   -> buildCoursesPage(cx, cy, bw, panelX, panelY);
+            case CHALLENGE -> buildChallengePage(cx, cy, bw, panelX, panelY);
             case BUILD     -> buildBuildPage(cx, cy, bw);
             case RULES     -> buildRulesPage(cx, cy, bw);
             case SKILLS    -> buildSkillsPage(cx, cy, bw, panelX, panelY);
@@ -198,7 +200,8 @@ public final class McdgMenuScreen extends Screen {
                 addBtn("▶ Resume: " + state.savedCourseName() + "  H" + state.savedHole() + "  (" + state.savedStrokes() + " strokes)",
                         "/mcdg resumesession", cx, y, bw, TEXT_GREEN, BTN_TINT_GREEN); y += BTN_H + BTN_GAP;
             }
-            addPageSwitchBtn("Manage Courses →", Page.COURSES, cx, y, bw, TEXT_MUTED, BTN_TINT_NONE);
+            addPageSwitchBtn("Manage Courses →", Page.COURSES, cx, y, bw, TEXT_MUTED, BTN_TINT_NONE); y += BTN_H + BTN_GAP;
+            addPageSwitchBtn("Challenge Courses →", Page.CHALLENGE, cx, y, bw, TEXT_GOLD, BTN_TINT_NONE);
 
         } else {
             // ── Nothing loaded ──
@@ -210,7 +213,8 @@ public final class McdgMenuScreen extends Screen {
             if (state.isAdmin()) {
                 addAutoCourseBtn("Build New Course", cx, y, bw, TEXT_GOLD, BTN_TINT_GOLD); y += BTN_H + BTN_GAP;
             }
-            addPageSwitchBtn("Browse Saved Courses →", Page.COURSES, cx, y, bw, TEXT_WHITE, BTN_TINT_NONE);
+            addPageSwitchBtn("Browse Saved Courses →", Page.COURSES, cx, y, bw, TEXT_WHITE, BTN_TINT_NONE); y += BTN_H + BTN_GAP;
+            addPageSwitchBtn("Challenge Courses →", Page.CHALLENGE, cx, y, bw, TEXT_GOLD, BTN_TINT_NONE);
         }
     }
 
@@ -313,6 +317,54 @@ public final class McdgMenuScreen extends Screen {
             int scrollBarX = panelX + PANEL_W - 12;
             int scrollAreaY = panelY + 44;
             int scrollAreaH = visibleRows * (BTN_H + BTN_GAP);
+            addDrawableChild(ButtonWidget.builder(Text.literal("▲"), b -> {
+                playScrollOffset = Math.max(0, playScrollOffset - 1);
+                rebuild();
+            }).dimensions(scrollBarX, scrollAreaY, 10, 12).build());
+            addDrawableChild(ButtonWidget.builder(Text.literal("▼"), b -> {
+                playScrollOffset = Math.min(maxOffset, playScrollOffset + 1);
+                rebuild();
+            }).dimensions(scrollBarX, scrollAreaY + scrollAreaH - 12, 10, 12).build());
+        }
+    }
+
+    private void buildChallengePage(int cx, int cy, int bw, int panelX, int panelY) {
+        List<MenuScreenSync.ChallengeCourseEntry> challengeCourses = state.challengeCourses();
+
+        if (challengeCourses.isEmpty()) {
+            addBtn("No challenge courses discovered", null, cx, cy, bw, TEXT_MUTED, BTN_TINT_MUTED);
+            cy += BTN_H + BTN_GAP;
+            addBtn("Find entrances in the world or use /mcdg debug placetestlostcourse", null, cx, cy, bw, TEXT_MUTED, BTN_TINT_NONE);
+            return;
+        }
+
+        int startW = 40;
+        int gap = 3;
+        int rowH = BTN_H + BTN_GAP;
+        int visibleRows = Math.min(ROWS_VISIBLE, challengeCourses.size());
+        int maxOffset = Math.max(0, challengeCourses.size() - visibleRows);
+        playScrollOffset = Math.max(0, Math.min(playScrollOffset, maxOffset));
+
+        int y = cy;
+        for (int i = playScrollOffset; i < playScrollOffset + visibleRows && i < challengeCourses.size(); i++) {
+            MenuScreenSync.ChallengeCourseEntry entry = challengeCourses.get(i);
+            String label = entry.name() + "  [" + entry.type() + "]";
+            int labelW = bw - startW - gap;
+            addBtn(label, null, cx, y, labelW, TEXT_WHITE, BTN_TINT_NONE);
+            addBtn("Start", "/mcdg startchallenge " + entry.courseId(), cx + labelW + gap, y, startW, TEXT_GOLD, BTN_TINT_GOLD);
+            y += BTN_H;
+            String detail = "Best: " + entry.bestScore() + "  Completed: " + entry.completions();
+            if (entry.placed()) {
+                detail += "  (built)";
+            }
+            addBtn(detail, null, cx, y, bw, TEXT_MUTED, BTN_TINT_NONE);
+            y += BTN_H + BTN_GAP;
+        }
+
+        if (challengeCourses.size() > visibleRows) {
+            int scrollBarX = panelX + PANEL_W - 12;
+            int scrollAreaY = panelY + 44;
+            int scrollAreaH = visibleRows * (2 * BTN_H + BTN_GAP);
             addDrawableChild(ButtonWidget.builder(Text.literal("▲"), b -> {
                 playScrollOffset = Math.max(0, playScrollOffset - 1);
                 rebuild();
@@ -620,6 +672,12 @@ public final class McdgMenuScreen extends Screen {
             rebuild();
             return true;
         }
+        if (currentPage == Page.CHALLENGE && !confirmPending) {
+            int maxOffset = Math.max(0, state.challengeCourses().size() - ROWS_VISIBLE);
+            playScrollOffset = Math.max(0, Math.min(maxOffset, playScrollOffset - (int) Math.signum(verticalAmount)));
+            rebuild();
+            return true;
+        }
         if (currentPage == Page.SKILLS && !confirmPending && skillsData != null) {
             int skillsAreaH = PANEL_H - SKILL_CONTENT_TOP - SKILL_CONTENT_BOTTOM_PAD;
             int visibleSkills = Math.max(1, skillsAreaH / (SKILL_CARD_H + SKILL_CARD_GAP));
@@ -783,6 +841,7 @@ public final class McdgMenuScreen extends Screen {
     private Page navPageFor(String label) {
         return switch (label) {
             case "Courses"   -> Page.COURSES;
+            case "Challenge" -> Page.CHALLENGE;
             case "Build"     -> Page.BUILD;
             case "Rules"     -> Page.RULES;
             case "Skills"    -> Page.SKILLS;

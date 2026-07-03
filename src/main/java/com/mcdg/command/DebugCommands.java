@@ -6,6 +6,7 @@ import com.mcdg.game.ActiveCourseManager;
 import com.mcdg.game.ChallengeCourseDiscoveryHandler;
 import com.mcdg.game.ChallengeCourseManager;
 import com.mcdg.game.HazardBehavior;
+import com.mcdg.game.LostCourseStorage;
 import com.mcdg.game.HazardManager;
 import com.mcdg.game.HazardType;
 import com.mcdg.game.HoleHazardGridService;
@@ -331,6 +332,9 @@ public final class DebugCommands {
         public static int executeClearLostCourses(ServerCommandSource source) {
                 int count = ChallengeCourseManager.getAllLostCourses().size();
                 ChallengeCourseManager.clearAllLostCourses();
+                if (source.getServer() != null) {
+                    LostCourseStorage.save(source.getServer(), List.of());
+                }
                 source.sendFeedback(() -> Text.literal("Cleared " + count + " lost courses."), true);
                 return 1;
         }
@@ -349,6 +353,7 @@ public final class DebugCommands {
                 
                 ChallengeCourseManager.registerLostCourse(testCourse);
                 ChallengeCourseManager.placeLostCourseEntrance(player.getServerWorld(), playerPos, testCourse);
+                LostCourseStorage.save(player.getServer(), ChallengeCourseManager.getAllLostCourses());
                 
                 source.sendFeedback(() -> Text.literal("Placed test lost course: " + testCourse.name() + " at your position"), true);
                 return 1;

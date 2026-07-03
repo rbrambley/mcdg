@@ -286,39 +286,54 @@
 
 ## 3.3 Challenge Courses
 
+**Status:** Partially implemented - discovery-based system with debug/admin commands.
+
+**Discovery flow:**
+- Challenge course entrances are generated in the world as a mossy cobblestone marker with a hidden chest containing a `Map Fragment`.
+- Interact with the chest or break the marker to discover the course.
+- Entrances are placed 500–2000 blocks from world spawn.
+- On server restart, lost course entrance data is persisted so undiscovered courses can still be discovered.
+
+**Player commands:**
+- `/mcdg menu challenge` - View discovered challenge courses.
+- `/mcdg startchallenge <courseId>` - Build and start a discovered challenge course.
+
+**Admin/debug commands (for testing):**
+- `/mcdg debug placetestlostcourse` - Place a lost course entrance at your position.
+- `/mcdg debug lostcourses` - List all placed lost course entrances.
+- `/mcdg debug discovercourse <courseId>` - Discover a specific course by ID.
+
 ### 3.3.1 Challenge Course Generation
-- [ ] Use `/mcdg challenge` or equivalent command to generate challenge course
-- [ ] Verify challenge course has parameter-based generation (distance, hazard density, etc.)
-- [ ] Check challenge course catalog system works
-- [ ] Test different challenge parameters (easy, medium, hard)
-- [ ] Verify challenge courses are more difficult than standard courses
+- [ ] Use `/mcdg debug placetestlostcourse` to create a test lost course entrance
+- [ ] Verify the generated course has parameter-based characteristics (distance, hazard density, etc.) via its type
+- [ ] Check challenge course catalog updates when a course is discovered
+- [ ] Verify different challenge types exist (Lost Course, Boss Hole, Time Trial, Accuracy Challenge, Distance Challenge)
+- [ ] Verify challenge courses use stricter parameters than standard courses
 
 ### 3.3.2 Challenge Course Features
-- [ ] Verify challenge courses have unique visual theming
-- [ ] Check challenge courses have special hazards or obstacles
-- [ ] Test challenge course difficulty scaling
 - [ ] Verify challenge courses are playable and fair
-- [ ] Confirm challenge courses integrate with scoring system
+- [ ] Confirm challenge courses integrate with the scoring system
+- [ ] Verify a placed challenge course can be started and completed
+- [ ] (Future) Unique visual theming and special hazards are not yet implemented
 
 ### 3.3.3 Challenge Course Rewards
-- [ ] Complete a challenge course - verify special rewards
-- [ ] Check if challenge courses have unique souvenirs
-- [ ] Test reward scaling with difficulty
-- [ ] Verify rewards don't break game balance
+- [ ] Complete a challenge course and verify rewards are given
+- [ ] Verify under-par performance grants bonus diamonds
+- [ ] Verify a single-hole ace can grant an enchanted disc reward
+- [ ] (Future) Unique souvenirs and reward scaling by difficulty are not yet implemented
 
 ### 3.3.4 Challenge Course Catalog
-- [ ] Use `/mcdg challenges` or equivalent to view catalog
+- [ ] Use `/mcdg menu challenge` to view the catalog of discovered courses
 - [ ] Verify catalog shows available challenge courses
-- [ ] Check catalog displays difficulty ratings
-- [ ] Test catalog filtering/sorting if available
-- [ ] Verify catalog updates when new challenges added
+- [ ] Verify catalog updates when a new course is discovered
+- [ ] (Future) Catalog difficulty ratings and filtering/sorting are not yet implemented
 
 ### 3.3.5 Challenge Course Regression
 - [ ] Play multiple challenge courses in sequence
 - [ ] Verify no performance issues with challenge generation
 - [ ] Test challenge courses in multiplayer
 - [ ] Confirm challenge courses don't interfere with standard courses
-- [ ] Check challenge course persistence across server restarts
+- [ ] Check challenge course persistence across server restarts (catalog and lost course data)
 
 ---
 

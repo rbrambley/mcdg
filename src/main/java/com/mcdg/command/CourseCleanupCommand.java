@@ -1,6 +1,8 @@
 package com.mcdg.command;
 
 import com.mcdg.game.ActiveCourseManager;
+import com.mcdg.game.ChallengeCourseManager;
+import com.mcdg.game.LostCourseStorage;
 import com.mcdg.game.PlacedCourseState;
 import com.mcdg.game.PracticeCourseStorage;
 import com.mcdg.game.RoundChunkLoader;
@@ -10,6 +12,7 @@ import com.mcdg.world.CoursePlacementService;
 import com.mcdg.game.PlayerRoundSessionStorage;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -41,6 +44,7 @@ public final class CourseCleanupCommand {
 
         evacuatePlayersBeforeCleanup(source, world, placed);
         RoundChunkLoader.unloadAll(world);
+        Optional<UUID> challengeCourseId = courseManager.getActiveChallengeCourseId();
         placementService.resetPlacedCourse(world, placed);
         CommandUtils.removeJunkDropsNearCourse(world, placed);
         CommandUtils.removeTemporaryRoundItemsFromCourseWorldPlayers(source, courseManager);
@@ -49,6 +53,17 @@ public final class CourseCleanupCommand {
         courseManager.setRoundActive(false);
         CommandUtils.clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
         practiceCourseStorage.clear(source.getServer());
+
+        if (challengeCourseId.isPresent()) {
+            UUID courseId = challengeCourseId.get();
+            LostCourseStorage.clearPlacedState(source.getServer(), courseId);
+            ChallengeCourseManager.getCatalog().ifPresent(catalog -> {
+                if (catalog.getCourse(courseId).isPresent()) {
+                    catalog.getCourse(courseId).get().setPlaced(false);
+                    catalog.save(source.getServer());
+                }
+            });
+        }
 
         source.sendFeedback(() -> Text.literal("Course cleanup complete. Original blocks restored."), true);
         return 1;

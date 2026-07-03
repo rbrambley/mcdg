@@ -29,6 +29,28 @@ public final class MenuScreenSync {
         }
     }
 
+    public record ChallengeCourseEntry(String courseId, String name, String type, boolean placed, int bestScore, int completions) {
+        static ChallengeCourseEntry read(RegistryByteBuf buf) {
+            return new ChallengeCourseEntry(
+                    buf.readString(),
+                    buf.readString(),
+                    buf.readString(),
+                    buf.readBoolean(),
+                    buf.readVarInt(),
+                    buf.readVarInt()
+            );
+        }
+
+        void write(RegistryByteBuf buf) {
+            buf.writeString(courseId != null ? courseId : "");
+            buf.writeString(name != null ? name : "");
+            buf.writeString(type != null ? type : "");
+            buf.writeBoolean(placed);
+            buf.writeVarInt(bestScore);
+            buf.writeVarInt(completions);
+        }
+    }
+
     public record Payload(
             boolean roundActive,
             boolean courseLoaded,
@@ -43,7 +65,8 @@ public final class MenuScreenSync {
             String rulesetName,
             String presetName,
             List<CourseEntry> courses,
-            boolean caveMode
+            boolean caveMode,
+            List<ChallengeCourseEntry> challengeCourses
     ) implements CustomPayload {
 
         public static Payload read(RegistryByteBuf buf) {
@@ -65,9 +88,14 @@ public final class MenuScreenSync {
                 courses.add(CourseEntry.read(buf));
             }
             boolean caveMode = buf.readBoolean();
+            int challengeCount = buf.readVarInt();
+            List<ChallengeCourseEntry> challengeCourses = new ArrayList<>();
+            for (int i = 0; i < challengeCount; i++) {
+                challengeCourses.add(ChallengeCourseEntry.read(buf));
+            }
             return new Payload(roundActive, courseLoaded, courseName, activeCatalogIndex,
                     activeHoleCount, hasSavedSession, savedCourseName, savedHole, savedStrokes,
-                    isAdmin, rulesetName, presetName, List.copyOf(courses), caveMode);
+                    isAdmin, rulesetName, presetName, List.copyOf(courses), caveMode, List.copyOf(challengeCourses));
         }
 
         public void write(RegistryByteBuf buf) {
@@ -88,6 +116,10 @@ public final class MenuScreenSync {
                 entry.write(buf);
             }
             buf.writeBoolean(caveMode);
+            buf.writeVarInt(challengeCourses.size());
+            for (ChallengeCourseEntry entry : challengeCourses) {
+                entry.write(buf);
+            }
         }
 
         @Override

@@ -27,6 +27,7 @@ import com.mcdg.game.PracticeCourseStorage;
 import com.mcdg.game.ChallengeCourseDiscoveryHandler;
 import com.mcdg.game.ChallengeCourseManager;
 import com.mcdg.game.ChallengeCourseCatalog;
+import com.mcdg.game.ChallengeCourseBuildTracker;
 import com.mcdg.game.RoundInventoryCleaner;
 import com.mcdg.game.RoundPresentationService;
 import com.mcdg.game.RoundRespawnHandler;
@@ -380,6 +381,14 @@ public final class McdgMod implements ModInitializer {
             long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
             if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
                 LOGGER.warn("ResortCourseBuilder tick took {}ms", elapsedMs);
+            }
+        });
+		ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long start = System.nanoTime();
+            ChallengeCourseBuildTracker.tick(server);
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
+                LOGGER.warn("ChallengeCourseBuildTracker tick took {}ms", elapsedMs);
             }
         });
 		ServerTickEvents.END_SERVER_TICK.register(server -> {

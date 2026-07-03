@@ -4,14 +4,16 @@ import com.mcdg.McdgMod;
 import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import com.mcdg.world.SeededCourseGenerator;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.block.Blocks;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
@@ -120,11 +122,24 @@ public final class ChallengeCourseManager {
         LostCourse discoveredCourse = course.markDiscovered();
         LOST_COURSES.put(courseId, discoveredCourse);
 
+        // Persist the updated discovery state and catalog
+        LostCourseStorage.save(player.getServer(), getAllLostCourses());
+        catalog.save(player.getServer());
+
         // Notify player
         player.sendMessage(Text.literal("Discovered " + course.name() + "!")
             .formatted(Formatting.GOLD));
         player.sendMessage(Text.literal(course.type().getDescription())
             .formatted(Formatting.YELLOW));
+        player.sendMessage(Text.literal("It has been added to your Challenge Courses catalog.")
+            .formatted(Formatting.GRAY));
+
+        Text startButton = Text.literal("[Start " + course.name() + "]").styled(style -> style
+                .withColor(Formatting.GREEN)
+                .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/mcdg startchallenge " + courseId))
+                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                        Text.literal("Build and start this challenge course"))));
+        player.sendMessage(startButton);
 
         // Give discovery reward
         player.giveItemStack(new ItemStack(Items.EXPERIENCE_BOTTLE, 5));

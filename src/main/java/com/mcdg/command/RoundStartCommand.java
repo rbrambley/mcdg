@@ -65,7 +65,7 @@ public final class RoundStartCommand {
         );
     }
 
-    static int executeStartRound(
+    public static int executeStartRound(
             ServerCommandSource source,
             ActiveCourseManager courseManager,
             CoursePlacementService placementService,
