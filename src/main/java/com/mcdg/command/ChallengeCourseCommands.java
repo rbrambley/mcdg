@@ -24,6 +24,50 @@ public final class ChallengeCourseCommands {
     private ChallengeCourseCommands() {
     }
 
+    public static int executeGotoChallenge(
+            ServerCommandSource source,
+            String courseIdString
+    ) {
+        UUID courseId;
+        try {
+            courseId = UUID.fromString(courseIdString);
+        } catch (IllegalArgumentException e) {
+            source.sendError(Text.literal("Invalid course ID: " + courseIdString));
+            return 0;
+        }
+
+        if (!(source.getEntity() instanceof ServerPlayerEntity player)) {
+            source.sendError(Text.literal("This command can only be run by a player"));
+            return 0;
+        }
+
+        var catalog = ChallengeCourseManager.getCatalog();
+        if (catalog.isEmpty()) {
+            source.sendError(Text.literal("Challenge course catalog not available"));
+            return 0;
+        }
+
+        var catalogEntry = catalog.get().getCourse(courseId);
+        if (catalogEntry.isEmpty()) {
+            source.sendError(Text.literal("Challenge course not found: " + courseIdString));
+            return 0;
+        }
+
+        if (!catalogEntry.get().isPlaced()) {
+            source.sendError(Text.literal("Challenge course is not built yet. Use /mcdg startchallenge " + courseIdString + " to build and start it."));
+            return 0;
+        }
+
+        BlockPos anchor = catalogEntry.get().courseAnchor();
+
+        // Teleport player to the course anchor
+        player.teleport(anchor.getX() + 0.5, anchor.getY(), anchor.getZ() + 0.5);
+        source.sendFeedback(() -> Text.literal("Teleported to challenge course: " + catalogEntry.get().name())
+                .formatted(Formatting.GREEN), false);
+
+        return 1;
+    }
+
     public static int executeStartChallenge(
             ServerCommandSource source,
             ActiveCourseManager courseManager,

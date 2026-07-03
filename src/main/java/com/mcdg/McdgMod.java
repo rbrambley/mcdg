@@ -258,7 +258,9 @@ public final class McdgMod implements ModInitializer {
                         context.server(),
                         context.player(),
                         payload.targetPlayerIds(),
-                        payload.catalogIndex()
+                        payload.catalogIndex(),
+                        payload.courseId(),
+                        payload.isChallengeCourse()
                 ))
         );
         ServerPlayNetworking.registerGlobalReceiver(RoundInviteResponse.ID, (payload, context) ->

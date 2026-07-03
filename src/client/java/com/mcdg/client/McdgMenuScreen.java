@@ -338,9 +338,12 @@ public final class McdgMenuScreen extends Screen {
             return;
         }
 
-        int startW = 40;
+        int tpW = 28;
+        int startW = 34;
+        int inviteW = 34;
         int gap = 3;
-        int rowH = BTN_H + BTN_GAP;
+        int scoresW = 18;
+        int totalBtnsW = tpW + scoresW + startW + inviteW + (gap * 3);
         int visibleRows = Math.min(ROWS_VISIBLE, challengeCourses.size());
         int maxOffset = Math.max(0, challengeCourses.size() - visibleRows);
         playScrollOffset = Math.max(0, Math.min(playScrollOffset, maxOffset));
@@ -349,22 +352,44 @@ public final class McdgMenuScreen extends Screen {
         for (int i = playScrollOffset; i < playScrollOffset + visibleRows && i < challengeCourses.size(); i++) {
             MenuScreenSync.ChallengeCourseEntry entry = challengeCourses.get(i);
             String label = entry.name() + "  [" + entry.type() + "]";
-            int labelW = bw - startW - gap;
-            addBtn(label, null, cx, y, labelW, TEXT_WHITE, BTN_TINT_NONE);
-            addBtn("Start", "/mcdg startchallenge " + entry.courseId(), cx + labelW + gap, y, startW, TEXT_GOLD, BTN_TINT_GOLD);
-            y += BTN_H;
-            String detail = "Best: " + entry.bestScore() + "  Completed: " + entry.completions();
-            if (entry.placed()) {
-                detail += "  (built)";
+            int labelW = bw - totalBtnsW;
+            int x = cx;
+            addBtn(label, null, x, y, labelW, TEXT_WHITE, BTN_TINT_NONE);
+            x += labelW + gap;
+            addBtn("[TP]", "/mcdg gotochallenge " + entry.courseId(), x, y, tpW, TEXT_WHITE, BTN_TINT_NONE);
+            x += tpW + gap;
+            String scoresCourseName = entry.name();
+            String scoresLabel = "[S]";
+            if (entry.bestScore() > 0 || entry.completions() > 0) {
+                scoresLabel = entry.bestScore() + "/" + entry.completions();
             }
-            addBtn(detail, null, cx, y, bw, TEXT_MUTED, BTN_TINT_NONE);
+            ButtonWidget scoresBtn = ButtonWidget.builder(Text.literal(scoresLabel), b -> {
+                close();
+                ClientPlayNetworking.send(new LeaderboardRequest.Payload(scoresCourseName));
+            }).dimensions(x, y, scoresW, BTN_H).build();
+            contentButtons.add(scoresBtn);
+            buttonTints.add(new int[]{x, y, scoresW, BTN_H, BTN_TINT_NONE});
+            addDrawableChild(scoresBtn);
+            x += scoresW + gap;
+            addBtn("[START]", "/mcdg startchallenge " + entry.courseId(), x, y, startW, TEXT_GOLD, BTN_TINT_GOLD);
+            x += startW + gap;
+            String finalCourseName = entry.name();
+            String finalCourseId = entry.courseId();
+            ButtonWidget inviteBtn = ButtonWidget.builder(Text.literal("[INV]"), b -> {
+                if (client != null) {
+                    client.setScreen(new PlayerPickerScreen(this, finalCourseId, finalCourseName, true));
+                }
+            }).dimensions(x, y, inviteW, BTN_H).build();
+            contentButtons.add(inviteBtn);
+            buttonTints.add(new int[]{x, y, inviteW, BTN_H, BTN_TINT_GOLD});
+            addDrawableChild(inviteBtn);
             y += BTN_H + BTN_GAP;
         }
 
         if (challengeCourses.size() > visibleRows) {
             int scrollBarX = panelX + PANEL_W - 12;
             int scrollAreaY = panelY + 44;
-            int scrollAreaH = visibleRows * (2 * BTN_H + BTN_GAP);
+            int scrollAreaH = visibleRows * (BTN_H + BTN_GAP);
             addDrawableChild(ButtonWidget.builder(Text.literal("▲"), b -> {
                 playScrollOffset = Math.max(0, playScrollOffset - 1);
                 rebuild();

@@ -50,7 +50,9 @@ public final class RoundInviteManager {
             MinecraftServer server,
             ServerPlayerEntity initiator,
             List<UUID> targetPlayerIds,
-            int catalogIndex
+            int catalogIndex,
+            String courseId,
+            boolean isChallengeCourse
     ) {
         if (initiator == null || targetPlayerIds == null || targetPlayerIds.isEmpty()) {
             return;
@@ -60,17 +62,59 @@ public final class RoundInviteManager {
             return;
         }
 
-        Optional<PracticeCourseStorage.LoadedPracticeCourse> selected =
-                practiceCourseStorage.loadReusableByIndex(server, catalogIndex);
-        if (selected.isEmpty()) {
-            initiator.sendMessage(Text.literal("Course not found."), true);
-            return;
+        Course course = null;
+        PlacedCourseState placed = null;
+        ServerWorld world = null;
+
+        if (isChallengeCourse) {
+            // Handle challenge course
+            if (courseId == null) {
+                initiator.sendMessage(Text.literal("Challenge course ID is required."), true);
+                return;
+            }
+            var catalog = ChallengeCourseManager.getCatalog();
+            if (catalog.isEmpty()) {
+                initiator.sendMessage(Text.literal("Challenge course catalog not available."), true);
+                return;
+            }
+            try {
+                UUID courseUuid = UUID.fromString(courseId);
+                var catalogEntry = catalog.get().getCourse(courseUuid);
+                if (catalogEntry.isEmpty()) {
+                    initiator.sendMessage(Text.literal("Challenge course not found."), true);
+                    return;
+                }
+                if (!catalogEntry.get().isPlaced()) {
+                    initiator.sendMessage(Text.literal("Challenge course is not built yet. Use /mcdg startchallenge " + courseId + " to build and start it."), true);
+                    return;
+                }
+                course = catalogEntry.get().generatedCourse();
+                Optional<PlacedCourseState> storedPlaced = LostCourseStorage.loadPlacedState(server, courseUuid);
+                if (storedPlaced.isEmpty()) {
+                    initiator.sendMessage(Text.literal("Challenge course placed state not found."), true);
+                    return;
+                }
+                placed = storedPlaced.get();
+                world = server.getWorld(placed.worldKey());
+            } catch (IllegalArgumentException e) {
+                initiator.sendMessage(Text.literal("Invalid course ID: " + courseId), true);
+                return;
+            }
+        } else {
+            // Handle regular course
+            Optional<PracticeCourseStorage.LoadedPracticeCourse> selected =
+                    practiceCourseStorage.loadReusableByIndex(server, catalogIndex);
+            if (selected.isEmpty()) {
+                initiator.sendMessage(Text.literal("Course not found."), true);
+                return;
+            }
+
+            PracticeCourseStorage.LoadedPracticeCourse loaded = selected.get();
+            course = loaded.course();
+            placed = loaded.placedCourseState();
+            world = server.getWorld(placed.worldKey());
         }
 
-        PracticeCourseStorage.LoadedPracticeCourse loaded = selected.get();
-        Course course = loaded.course();
-        PlacedCourseState placed = loaded.placedCourseState();
-        ServerWorld world = server.getWorld(placed.worldKey());
         if (world == null) {
             initiator.sendMessage(Text.literal("Course world is unavailable."), true);
             return;
@@ -88,6 +132,8 @@ public final class RoundInviteManager {
         PendingInvite invite = new PendingInvite(
                 initiator.getUuid(),
                 catalogIndex,
+                courseId,
+                isChallengeCourse,
                 course.name(),
                 targets,
                 System.currentTimeMillis()
@@ -242,17 +288,53 @@ public final class RoundInviteManager {
             return;
         }
 
-        Optional<PracticeCourseStorage.LoadedPracticeCourse> selected =
-                practiceCourseStorage.loadReusableByIndex(server, invite.catalogIndex);
-        if (selected.isEmpty()) {
-            initiator.sendMessage(Text.literal("Course no longer available. Round not started."), true);
-            return;
+        Course course = null;
+        PlacedCourseState placed = null;
+        ServerWorld world = null;
+        boolean legacyFormat = false;
+
+        if (invite.isChallengeCourse) {
+            // Handle challenge course
+            var catalog = ChallengeCourseManager.getCatalog();
+            if (catalog.isEmpty()) {
+                initiator.sendMessage(Text.literal("Challenge course catalog not available. Round not started."), true);
+                return;
+            }
+            try {
+                UUID courseUuid = UUID.fromString(invite.courseId);
+                var catalogEntry = catalog.get().getCourse(courseUuid);
+                if (catalogEntry.isEmpty()) {
+                    initiator.sendMessage(Text.literal("Challenge course no longer available. Round not started."), true);
+                    return;
+                }
+                course = catalogEntry.get().generatedCourse();
+                Optional<PlacedCourseState> storedPlaced = LostCourseStorage.loadPlacedState(server, courseUuid);
+                if (storedPlaced.isEmpty()) {
+                    initiator.sendMessage(Text.literal("Challenge course placed state not found. Round not started."), true);
+                    return;
+                }
+                placed = storedPlaced.get();
+                world = server.getWorld(placed.worldKey());
+            } catch (IllegalArgumentException e) {
+                initiator.sendMessage(Text.literal("Invalid course ID. Round not started."), true);
+                return;
+            }
+        } else {
+            // Handle regular course
+            Optional<PracticeCourseStorage.LoadedPracticeCourse> selected =
+                    practiceCourseStorage.loadReusableByIndex(server, invite.catalogIndex);
+            if (selected.isEmpty()) {
+                initiator.sendMessage(Text.literal("Course no longer available. Round not started."), true);
+                return;
+            }
+
+            PracticeCourseStorage.LoadedPracticeCourse loaded = selected.get();
+            course = loaded.course();
+            placed = loaded.placedCourseState();
+            world = server.getWorld(placed.worldKey());
+            legacyFormat = loaded.legacyFormat();
         }
 
-        PracticeCourseStorage.LoadedPracticeCourse loaded = selected.get();
-        Course course = loaded.course();
-        PlacedCourseState placed = loaded.placedCourseState();
-        ServerWorld world = server.getWorld(placed.worldKey());
         if (world == null) {
             initiator.sendMessage(Text.literal("Course world is unavailable. Round not started."), true);
             return;
@@ -272,8 +354,10 @@ public final class RoundInviteManager {
             return;
         }
 
-        courseManager.setLegacyPracticeSnapshot(loaded.legacyFormat());
-        startRoundForParticipants(server, course, placed, world, participants);
+        if (!invite.isChallengeCourse) {
+            courseManager.setLegacyPracticeSnapshot(legacyFormat);
+        }
+        startRoundForParticipants(server, course, placed, world, participants, invite.isChallengeCourse, invite.courseId);
         initiator.sendMessage(Text.literal(
                 "Round started with " + participants.size() + " player(s)."
         ), true);
@@ -284,7 +368,9 @@ public final class RoundInviteManager {
             Course course,
             PlacedCourseState placed,
             ServerWorld world,
-            List<ServerPlayerEntity> participants
+            List<ServerPlayerEntity> participants,
+            boolean isChallengeCourse,
+            String courseId
     ) {
         clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
 
@@ -313,6 +399,14 @@ public final class RoundInviteManager {
         courseManager.setPlacedCourseState(placed);
         courseManager.setPersistentPlacedCourse(true);
         courseManager.setWarmupActive(true);
+
+        if (isChallengeCourse && courseId != null) {
+            try {
+                courseManager.setActiveChallengeCourseId(UUID.fromString(courseId));
+            } catch (IllegalArgumentException e) {
+                McdgMod.LOGGER.warn("RoundInviteManager: invalid challenge course ID '{}'", courseId);
+            }
+        }
 
         // Send running scoreboard to all participants
         for (ServerPlayerEntity player : participants) {
@@ -394,15 +488,19 @@ public final class RoundInviteManager {
     private static final class PendingInvite {
         final UUID initiatorId;
         final int catalogIndex;
+        final String courseId;
+        final boolean isChallengeCourse;
         final String courseName;
         final Set<UUID> pendingTargets;
         final Set<UUID> acceptedTargets = new HashSet<>();
         final Set<UUID> rejectedTargets = new HashSet<>();
         final long createdAtMs;
 
-        PendingInvite(UUID initiatorId, int catalogIndex, String courseName, Set<UUID> pendingTargets, long createdAtMs) {
+        PendingInvite(UUID initiatorId, int catalogIndex, String courseId, boolean isChallengeCourse, String courseName, Set<UUID> pendingTargets, long createdAtMs) {
             this.initiatorId = initiatorId;
             this.catalogIndex = catalogIndex;
+            this.courseId = courseId;
+            this.isChallengeCourse = isChallengeCourse;
             this.courseName = courseName;
             this.pendingTargets = new HashSet<>(pendingTargets);
             this.createdAtMs = createdAtMs;

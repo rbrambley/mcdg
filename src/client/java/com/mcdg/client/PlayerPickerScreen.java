@@ -28,6 +28,8 @@ public final class PlayerPickerScreen extends Screen {
 
     private final Screen parent;
     private final int catalogIndex;
+    private final String courseId;
+    private final boolean isChallengeCourse;
     private final String courseName;
     private final List<PlayerEntry> entries = new ArrayList<>();
     private int scrollOffset = 0;
@@ -37,6 +39,17 @@ public final class PlayerPickerScreen extends Screen {
         super(Text.literal("Invite Players"));
         this.parent = parent;
         this.catalogIndex = catalogIndex;
+        this.courseId = null;
+        this.isChallengeCourse = false;
+        this.courseName = courseName;
+    }
+
+    public PlayerPickerScreen(Screen parent, String courseId, String courseName, boolean isChallengeCourse) {
+        super(Text.literal("Invite Players"));
+        this.parent = parent;
+        this.catalogIndex = 0;
+        this.courseId = courseId;
+        this.isChallengeCourse = isChallengeCourse;
         this.courseName = courseName;
     }
 
@@ -185,7 +198,7 @@ public final class PlayerPickerScreen extends Screen {
             }
             return;
         }
-        ClientPlayNetworking.send(new RoundInviteRequest.Payload(selected, catalogIndex));
+        ClientPlayNetworking.send(new RoundInviteRequest.Payload(selected, catalogIndex, courseId, isChallengeCourse));
         if (this.client != null) {
             this.client.setScreen(parent);
         }

@@ -83,6 +83,12 @@ public final class McdgAdminCommands {
                                                 skipRoundPresentation,
                                                 StringArgumentType.getString(context, "courseId")
                                         ))))
+                        .then(literal("gotochallenge")
+                                .then(argument("courseId", StringArgumentType.string())
+                                        .executes(context -> ChallengeCourseCommands.executeGotoChallenge(
+                                                context.getSource(),
+                                                StringArgumentType.getString(context, "courseId")
+                                        ))))
                         .then(literal("resort")
                                 .executes(context -> TeleportCommands.executeResortTeleport(context.getSource())))
                         .then(literal("createcourse").requires(CommandPermission::canUseAdminCommands)
