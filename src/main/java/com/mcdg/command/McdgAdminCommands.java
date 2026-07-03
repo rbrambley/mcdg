@@ -13,7 +13,6 @@ import java.util.UUID;
 import com.mcdg.game.PracticeCourseStorage;
 import com.mcdg.game.RoundPresentationService;
 import com.mcdg.game.RoundStateManager;
-import com.mcdg.game.ThrowAutoTestService;
 import com.mcdg.game.AutoCourseService;
 import com.mcdg.game.BuildCourseSessionManager;
 import com.mcdg.game.PlayerRoundSessionStorage;
@@ -55,7 +54,6 @@ public final class McdgAdminCommands {
             boolean skipRoundPresentation,
             TournamentRulesetManager rulesetManager,
             PracticeCourseStorage practiceCourseStorage,
-            ThrowAutoTestService throwAutoTestService,
             RoundSessionStorage roundSessionStorage,
             PlayerRoundSessionStorage playerRoundSessionStorage,
             BuildCourseSessionManager buildCourseSessionManager,
@@ -105,7 +103,6 @@ public final class McdgAdminCommands {
                                         roundPresentationService,
                                         skipRoundPresentation,
                                         practiceCourseStorage,
-                                        false,
                                         true,
                                         null
                                 ))
@@ -119,91 +116,9 @@ public final class McdgAdminCommands {
                                                 roundPresentationService,
                                                 skipRoundPresentation,
                                                 practiceCourseStorage,
-                                                false,
                                                 true,
                                                 EntityArgumentType.getPlayers(context, "players")
-                                        )))
-                                .then(literal("strict")
-                                        .executes(context -> RoundStartCommand.executeStartRound(
-                                                context.getSource(),
-                                                courseManager,
-                                                placementService,
-                                                placementValidator,
-                                                roundStateManager,
-                                                roundPresentationService,
-                                                skipRoundPresentation,
-                                                practiceCourseStorage,
-                                                false,
-                                                true,
-                                                null
-                                        ))
-                                        .then(argument("players", EntityArgumentType.players())
-                                                .executes(context -> RoundStartCommand.executeStartRound(
-                                                        context.getSource(),
-                                                        courseManager,
-                                                        placementService,
-                                                        placementValidator,
-                                                        roundStateManager,
-                                                        roundPresentationService,
-                                                        skipRoundPresentation,
-                                                        practiceCourseStorage,
-                                                        false,
-                                                        true,
-                                                        EntityArgumentType.getPlayers(context, "players")
-                                                )))))
-                        .then(literal("practicecourse").requires(CommandPermission::canUseAdminCommands)
-                                .requires(CommandPermission::canUseAdvancedCommands)
-                                .executes(context -> RoundStartCommand.executePracticeCourseDeprecated(
-                                        context.getSource(),
-                                        courseManager,
-                                        placementService,
-                                        placementValidator,
-                                        roundStateManager,
-                                        roundPresentationService,
-                                        skipRoundPresentation,
-                                        practiceCourseStorage,
-                                        true,
-                                        null
-                                ))
-                                .then(argument("players", EntityArgumentType.players())
-                                        .executes(context -> RoundStartCommand.executePracticeCourseDeprecated(
-                                                context.getSource(),
-                                                courseManager,
-                                                placementService,
-                                                placementValidator,
-                                                roundStateManager,
-                                                roundPresentationService,
-                                                skipRoundPresentation,
-                                                practiceCourseStorage,
-                                                true,
-                                                EntityArgumentType.getPlayers(context, "players")
-                                        )))
-                                .then(literal("strict")
-                                        .executes(context -> RoundStartCommand.executePracticeCourseDeprecated(
-                                                context.getSource(),
-                                                courseManager,
-                                                placementService,
-                                                placementValidator,
-                                                roundStateManager,
-                                                roundPresentationService,
-                                                skipRoundPresentation,
-                                                practiceCourseStorage,
-                                                true,
-                                                null
-                                        ))
-                                        .then(argument("players", EntityArgumentType.players())
-                                                .executes(context -> RoundStartCommand.executePracticeCourseDeprecated(
-                                                        context.getSource(),
-                                                        courseManager,
-                                                        placementService,
-                                                        placementValidator,
-                                                        roundStateManager,
-                                                        roundPresentationService,
-                                                        skipRoundPresentation,
-                                                        practiceCourseStorage,
-                                                        true,
-                                                        EntityArgumentType.getPlayers(context, "players")
-                                                )))))
+                                        ))))
                         .then(literal("resumecourse").requires(CommandPermission::canUseAdminCommands)
                                 .requires(CommandPermission::canUseAdvancedCommands)
                                 .executes(context -> RoundLifecycleCommands.executeResumeCourse(
@@ -365,13 +280,6 @@ public final class McdgAdminCommands {
                                         courseManager,
                                         placementValidator
                                 )))
-                        // Commented out due to missing CoursePlacementService.LodgingBuildResult and tryBuildPermanentLodgingSite
-                        //                         .then(literal("buildcamp").requires(CommandPermission::canUseAdminCommands)
-                        //                                 .requires(CommandPermission::canUseAdvancedCommands)
-                        //                                 .executes(context -> executeBuildCamp(
-                        //                                         context.getSource(),
-                        //                                         placementService
-                        //                                 )))
                         .then(literal("autotestplacement").requires(CommandPermission::canUseAdminCommands)
                                 .requires(CommandPermission::canUseAdvancedCommands)
                                 .then(argument("runs", IntegerArgumentType.integer(1, 200))
@@ -406,42 +314,6 @@ public final class McdgAdminCommands {
                         .then(literal("cancelautotest").requires(CommandPermission::canUseAdminCommands)
                                 .requires(CommandPermission::canUseAdvancedCommands)
                                 .executes(context -> AutoTestPlacementCommand.executeCancelAutoTest(context.getSource(), autoTestService)))
-                        .then(literal("autotestthrows").requires(CommandPermission::canUseAdminCommands)
-                                .requires(CommandPermission::canUseAdvancedCommands)
-                                .then(argument("count", IntegerArgumentType.integer(1, 200))
-                                        .executes(context -> AutoTestThrowCommand.executeAutoTestThrows(
-                                                context.getSource(),
-                                                throwAutoTestService,
-                                                roundSessionStorage,
-                                                playerRoundSessionStorage,
-                                                buildCourseSessionManager,
-                                                autoCourseService,
-                                                IntegerArgumentType.getInteger(context, "count")
-                                        ))))
-                        .then(literal("quickthrowtest").requires(CommandPermission::canUseAdminCommands)
-                                .requires(CommandPermission::canUseAdvancedCommands)
-                                .then(argument("seed", LongArgumentType.longArg())
-                                        .then(argument("count", IntegerArgumentType.integer(1, 200))
-                                                .executes(context -> AutoTestThrowCommand.executeQuickThrowTest(
-                                                        context.getSource(),
-                                                        generator,
-                                                        courseManager,
-                                                        placementService,
-                                                        placementValidator,
-                                                        roundStateManager,
-                                                        roundPresentationService,
-                                                        practiceCourseStorage,
-                                                        throwAutoTestService,
-                                                        roundSessionStorage,
-                                                        playerRoundSessionStorage,
-                                                        buildCourseSessionManager,
-                                                        autoCourseService,
-                                                        LongArgumentType.getLong(context, "seed"),
-                                                        IntegerArgumentType.getInteger(context, "count")
-                                                )))))
-                        .then(literal("cancelthrowtest").requires(CommandPermission::canUseAdminCommands)
-                                .requires(CommandPermission::canUseAdvancedCommands)
-                                .executes(context -> AutoTestThrowCommand.executeCancelThrowTest(context.getSource(), throwAutoTestService, roundSessionStorage, playerRoundSessionStorage, buildCourseSessionManager, autoCourseService)))
                         .then(buildCourseSessionManager.registerNode().requires(CommandPermission::canUseAdminCommands))
                         .then(literal("bot").requires(CommandPermission::canUseAdminCommands)
                                 .then(literal("add")
@@ -634,28 +506,6 @@ public final class McdgAdminCommands {
                     .then(DiscEnchantmentCommands.build()));
         });
     }
-
-        // Commented out due to missing CoursePlacementService.LodgingBuildResult and tryBuildPermanentLodgingSite
-        //         private static int executeBuildCamp(
-        //                         ServerCommandSource source,
-        //                         CoursePlacementService placementService
-        //         ) {
-        //                 ServerWorld world = source.getWorld();
-        //                 BlockPos requestedOrigin = BlockPos.ofFloored(source.getPosition());
-        //                 CoursePlacementService.LodgingBuildResult result = placementService.tryBuildPermanentLodgingSite(world, requestedOrigin);
-        //                 if (!result.success()) {
-        //                         source.sendError(Text.literal(result.message()));
-        //                         return 0;
-        //                 }
-        // 
-        //                 BlockPos center = result.center();
-        //                 source.sendFeedback(() -> Text.literal(
-        //                                 "Permanent lodging site built at X=" + center.getX() + " Y=" + center.getY() + " Z=" + center.getZ()
-        //                                         + ". This camp is separate from course central and created only on command."
-        //                 ), true);
-        //                 return 1;
-        //         }
-        // 
 
 }
 

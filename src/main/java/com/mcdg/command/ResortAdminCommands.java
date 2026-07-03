@@ -17,7 +17,6 @@ import com.mcdg.game.RoundPresentationService;
 import com.mcdg.game.RoundSessionStorage;
 import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.ScorecardManager;
-import com.mcdg.game.ThrowAutoTestService;
 import com.mcdg.McdgMod;
 import com.mcdg.game.AutoCourseService;
 import com.mcdg.game.BuildCourseSessionManager;

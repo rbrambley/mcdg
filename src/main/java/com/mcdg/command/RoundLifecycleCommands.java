@@ -40,7 +40,7 @@ public final class RoundLifecycleCommands {
         Course course = courseManager.getActiveCourse().orElse(null);
         PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
         if (course == null || placed == null) {
-            source.sendError(Text.literal("No stale placed course found. Use /mcdg startround or /mcdg practicecourse first."));
+            source.sendError(Text.literal("No stale placed course found. Use /mcdg startround first."));
             return 0;
         }
         Course normalizedCourse = CommandUtils.ensureSingleSignatureHole(course);
@@ -62,7 +62,7 @@ public final class RoundLifecycleCommands {
 
         if (courseManager.isLegacyPracticeSnapshot()) {
             source.sendFeedback(() -> Text.literal(
-                    "Warning: this practice course came from a legacy snapshot format. If anything looks off, run /mcdg cleanupcourse then rebuild with /mcdg practicecourse."
+                    "Warning: this practice course came from a legacy snapshot format. If anything looks off, run /mcdg cleanupcourse then rebuild with /mcdg startround."
             ), false);
         }
 

@@ -11,7 +11,7 @@ public final class HelpCommand {
 
     static int executeHelp(ServerCommandSource source) {
         source.sendFeedback(() -> Text.literal("MCDG quick help:"), false);
-        source.sendFeedback(() -> Text.literal("- New course: /mcdg createcourse <seed> -> /mcdg startround (or /mcdg startround strict)."), false);
+        source.sendFeedback(() -> Text.literal("- New course: /mcdg createcourse <seed> -> /mcdg startround."), false);
         source.sendFeedback(() -> Text.literal("- Generation model is unified across modes: land-first routing with water-carry cap <= 91 blocks (~300 ft)."), false);
         source.sendFeedback(() -> Text.literal("- Saved course: /mcdg listcourses -> /mcdg playcourse <index>."), false);
         source.sendFeedback(() -> Text.literal("- In-round basics: /mcdg joinround, /mcdg endround, /mcdg cleanupcourse."), false);

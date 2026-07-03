@@ -34,37 +34,6 @@ public final class RoundStartCommand {
     private RoundStartCommand() {
     }
 
-    static int executePracticeCourseDeprecated(
-            ServerCommandSource source,
-            ActiveCourseManager courseManager,
-            CoursePlacementService placementService,
-            CoursePlacementValidator placementValidator,
-            RoundStateManager roundStateManager,
-            RoundPresentationService roundPresentationService,
-            boolean skipRoundPresentation,
-            PracticeCourseStorage practiceCourseStorage,
-            boolean allowReusableFallback,
-            Collection<ServerPlayerEntity> selectedPlayers
-    ) {
-        source.sendFeedback(() -> Text.literal(
-                "practicecourse is deprecated. Use /mcdg startround for new generation or /mcdg playcourse <index> for saved courses."
-        ), false);
-
-        return executeStartRound(
-                source,
-                courseManager,
-                placementService,
-                placementValidator,
-                roundStateManager,
-                roundPresentationService,
-                skipRoundPresentation,
-                practiceCourseStorage,
-                true,
-                allowReusableFallback,
-                selectedPlayers
-        );
-    }
-
     public static int executeStartRound(
             ServerCommandSource source,
             ActiveCourseManager courseManager,
@@ -74,7 +43,6 @@ public final class RoundStartCommand {
             RoundPresentationService roundPresentationService,
             boolean skipRoundPresentation,
             PracticeCourseStorage practiceCourseStorage,
-            boolean persistentCourse,
             boolean allowReusableFallback,
             Collection<ServerPlayerEntity> selectedPlayers
     ) {
@@ -208,7 +176,7 @@ public final class RoundStartCommand {
                     source,
                     world,
                     selectedPlayers,
-                    persistentCourse ? "practicecourse" : "startround"
+                    "startround"
             );
             if (participants.isEmpty()) {
                 source.sendError(Text.literal("No eligible participants selected for this world."));
@@ -246,18 +214,15 @@ public final class RoundStartCommand {
 
             courseManager.setActiveCourse(course);
             courseManager.setPlacedCourseState(placed);
-            courseManager.setPersistentPlacedCourse(persistentCourse);
+            courseManager.setPersistentPlacedCourse(false);
             courseManager.setLegacyPracticeSnapshot(false);
-            if (persistentCourse) {
-                practiceCourseStorage.save(source.getServer(), course, placed);
-            }
             if (!startedFromFallback) {
                 // Compact is the default placement target; persist successful placements for reuse/recovery.
                 practiceCourseStorage.saveReusable(
                         source.getServer(),
                         course,
                         placed,
-                        persistentCourse ? "practicecourse" : "startround",
+                        "startround",
                         true
                 );
             }
@@ -274,8 +239,7 @@ public final class RoundStartCommand {
                 // LAN safety: force source-player teleport using the same path as /mcdg gotocourse.
                 CommandUtils.teleportSourcePlayerToHoleOne(source, courseManager, roundStateManager);
                 source.sendFeedback(() -> Text.literal(
-                                (persistentCourse ? "Practice course started" : "Round started")
-                                        + ". Players=" + trackedPlayers + ". Use /mcdg gotocourse if needed."
+                                "Round started. Players=" + trackedPlayers + ". Use /mcdg gotocourse if needed."
                 ), true);
                 // Send running scoreboard to all participants after round is active
                 for (ServerPlayerEntity player : participants) {
@@ -295,8 +259,7 @@ public final class RoundStartCommand {
                         courseManager.setRoundActive(true);
                         CommandUtils.teleportSourcePlayerToHoleOne(source, courseManager, roundStateManager);
                         source.sendFeedback(() -> Text.literal(
-                                (persistentCourse ? "Practice course live" : "Round live")
-                                        + ". Players=" + trackedPlayers + "."
+                                "Round live. Players=" + trackedPlayers + "."
                         ), true);
                         // Send running scoreboard to all participants after round is active
                         for (ServerPlayerEntity player : participants) {
@@ -306,8 +269,7 @@ public final class RoundStartCommand {
             );
 
             source.sendFeedback(() -> Text.literal(
-                            (persistentCourse ? "Practice course presentation started" : "Round presentation started")
-                                    + ". Players=" + trackedPlayers + "."
+                            "Round presentation started. Players=" + trackedPlayers + "."
             ), true);
             return 1;
         } catch (RuntimeException ex) {

@@ -112,7 +112,6 @@ Some commands are intentionally hidden unless advanced mode is enabled.
 - Or JVM property: `-Dmcdg.showAdvancedCommands=true`
 
 **Typical advanced commands:**
-- `practicecourse`
 - `resumecourse`
 - `usecourse`
 - `prunecourses`

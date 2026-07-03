@@ -44,7 +44,7 @@ public final class CourseAdminCommands {
                     : " Signature: H" + signatureHole.index() + " (" + signatureHole.signatureType().displayName() + ").";
 
             source.sendFeedback(() -> Text.literal(
-                    "Created active course '" + course.name() + "' with " + course.holes().size() + " holes (seed=" + seed + "). Use /mcdg startround or /mcdg practicecourse to place it near you on the surface."
+                    "Created active course '" + course.name() + "' with " + course.holes().size() + " holes (seed=" + seed + "). Use /mcdg startround to place it near you on the surface."
                             + signatureSuffix
             ), false);
             return 1;

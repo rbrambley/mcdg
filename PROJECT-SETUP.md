@@ -63,7 +63,7 @@
     - `/mcdg listcourses`
     - `/mcdg usecourse <index>`
     - `/mcdg prunecourses [keep]`
-  - `startround`/`practicecourse` placement retry window expanded to 9 anchor attempts.
+  - `startround` placement retry window expanded to 9 anchor attempts.
   - If all placement retries fail for retryable enclosure/route issues, server now attempts fallback to most recent recoverable course in same world before hard-failing.
   - Successful placements are persisted into reusable catalog for future reuse/recovery.
 - Validation at checkpoint:
@@ -153,7 +153,7 @@
 
 - Code checkpoint commit: 6496c83.
 - Added updates:
-  - `startround`, `practicecourse`, and `resumecourse` now use explicit participant enrollment instead of auto-enrolling everyone in the world.
+  - `startround` and `resumecourse` now use explicit participant enrollment instead of auto-enrolling everyone in the world.
   - Added optional `<players>` targets for those commands.
   - Added `/mcdg joinround [players]` for safe late-join enrollment into a live round.
   - Core command lifecycle now clears round state for tracked participants only instead of global round-state wipes.
@@ -504,13 +504,11 @@ Default visible commands (simple flow):
 - `/mcdg ruleset <casual|strict>`
 
 Advanced commands (hidden by default):
-- `practicecourse`, `practicecourse strict` (deprecated compatibility alias)
 - `resumecourse`, `usecourse <index>`, `prunecourses [keep]`
 - `resetcourse`, `gotocourse`, `roundstatus`
 - `ruleset surface <preset>`
 - `debugperms`, `validateplacement`
 - `autotestplacement`, `autotestplacementseed`, `autotestshadow`, `cancelautotest`
-- `autotestthrows`, `quickthrowtest`, `cancelthrowtest`
 
 Advanced command visibility toggle:
 - Set JVM property `-Dmcdg.showAdvancedCommands=true`, or
@@ -522,7 +520,6 @@ Behavior notes:
 - `startround` and `startround strict` use the same unified generation model.
 - Unified generation policy: land-first placement with max water carry capped at `91` blocks (~300 ft) across hole types.
 - `playcourse <index>` is the one-step saved-course flow (select + resume).
-- `practicecourse` and `practicecourse strict` are deprecated and now intended only for compatibility during transition.
 - Default `startround` can fall back to the most recent reusable course in-world when retries are exhausted, and reports both fallback and requested seeds.
 - `endround` ends round state but keeps placed structures until cleanup/reset.
 - `resetcourse` and `cleanupcourse` both restore original blocks from tracked edit history and clear any persisted practice-course snapshot.
@@ -565,11 +562,8 @@ Intentionally deferred:
 Recommended next-session checklist:
 1. Fix strict dev session launch ordering so client startup does not depend on player-joined completion.
 2. Run one clean manual strict 9-hole round in `balanced` and confirm no throw-gate regressions.
-3. Re-validate `practicecourse` -> restart -> `resumecourse` in a fresh session.
+3. Re-validate `startround` -> restart -> `resumecourse` in a fresh session.
 4. Add regression coverage for strict penalty flow and resume safety checks.
-- `autotestthrows` runs server-driven throw launches for the command player during an active round and logs throw/lie transitions.
-- `quickthrowtest` is a one-command in-game path: create course -> start round (skip presentation) -> start throw autotest.
-- `cancelautotest` and `cancelthrowtest` stop active automation sessions.
 - `ruleset strict` enables tighter throw-from-lie tolerance and applies respawn penalty strokes on in-round death.
 - `ruleset casual` restores lenient lie tolerance and disables strict respawn penalty behavior.
 - Strict mode now also applies OB/hazard penalties during play:
@@ -583,7 +577,7 @@ Recovery note:
 - If the snapshot file is deleted or corrupted, automatic stale-course resume is no longer available.
 
 Practice course note:
-- A persistent practice course can now be resumed across server restarts via `/mcdg practicecourse` and `/mcdg resumecourse`.
+- A persistent course can now be resumed across server restarts via `/mcdg resumecourse`.
 
 Strict respawn penalty tuning:
 - Set `MCDG_RESPAWN_PENALTY_STROKES` (default `1`, clamped `0..5`).
@@ -718,12 +712,9 @@ Recommended in-game flow for throw debugging:
 - `/mcdg startround`
 - Reproduce the throw issue manually (especially second throw after strict penalty teleport).
 - `/mcdg autotestthrows 25`
-- Optional baseline: `/mcdg quickthrowtest <seed> 25`
-
 Primary artifacts to share when a run reproduces the issue:
 - `run/logs/latest.log`
 - `run/logs/debug.log`
-- `run/logs/mcdg-throw-autotest-latest.txt`
 - `run/logs/strict-manual-debug-<timestamp>/server.out.log`
 - `run/logs/strict-manual-debug-<timestamp>/server.err.log`
 - `run/logs/strict-manual-debug-<timestamp>/client.out.log`

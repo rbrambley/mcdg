@@ -37,7 +37,6 @@ import com.mcdg.game.RoundWindService;
 import com.mcdg.game.ScorecardManager;
 import com.mcdg.game.ThrowSetupSyncHelper;
 import com.mcdg.game.PlayerSkillManager;
-import com.mcdg.game.ThrowAutoTestService;
 import com.mcdg.game.RoundInviteManager;
 import com.mcdg.net.AceCinematicSync;
 
@@ -177,10 +176,6 @@ public final class McdgMod implements ModInitializer {
             PRACTICE_COURSE_STORAGE,
             ACTIVE_COURSE_MANAGER
     );
-        private static final ThrowAutoTestService THROW_AUTO_TEST_SERVICE = new ThrowAutoTestService(
-            ACTIVE_COURSE_MANAGER,
-            ROUND_STATE_MANAGER
-        );
     private static final PlacementAutoTestService PLACEMENT_AUTO_TEST_SERVICE = new PlacementAutoTestService(
             COURSE_GENERATOR,
             COURSE_PLACEMENT_SERVICE,
@@ -296,7 +291,6 @@ public final class McdgMod implements ModInitializer {
             config.skipRoundPresentation(),
             TOURNAMENT_RULESET_MANAGER,
             PRACTICE_COURSE_STORAGE,
-            THROW_AUTO_TEST_SERVICE,
             ROUND_SESSION_STORAGE,
             PLAYER_ROUND_SESSION_STORAGE,
             BUILD_COURSE_SESSION_MANAGER,
@@ -309,14 +303,6 @@ public final class McdgMod implements ModInitializer {
             long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
             if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
                 LOGGER.warn("PLACEMENT_AUTO_TEST_SERVICE tick took {}ms", elapsedMs);
-            }
-        });
-        ServerTickEvents.END_SERVER_TICK.register(server -> {
-            long start = System.nanoTime();
-            THROW_AUTO_TEST_SERVICE.tick(server);
-            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
-            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
-                LOGGER.warn("THROW_AUTO_TEST_SERVICE tick took {}ms", elapsedMs);
             }
         });
         ServerTickEvents.END_SERVER_TICK.register(server -> {
