@@ -108,7 +108,7 @@ The following mod integrations were investigated and are now included as soft de
 - **Veinminer** — Mining convenience (no special integration needed)
 
 ## Future Work
-- Phase 3: Tiered disc crafting progression (wooden→netherite), disc bags, accessories, skill unlocks (completed), custom disc flight ratings, challenge courses
+- Phase 3: Tiered disc crafting progression (wooden→netherite), disc bags, accessories, skill unlocks (completed), challenge courses (completed), custom disc flight ratings
 - Phase 4: Quest system core and content, survival mode rounds
 - Phase 5: System integration pass, UI/UX polish, performance optimization, balance & tuning
 - Phase 6: Tournament system, advanced customization
@@ -116,6 +116,7 @@ The following mod integrations were investigated and are now included as soft de
 - Server-only feasibility analysis for LAN play without client mod
 - Async file I/O for round session saves
 - Configurable minimap quality settings (Low/Medium/High)
+- Range finder caddie feature: right-click during a round to show recommended disc, stance, angle, elevation, and power for the current basket; optional auto-throw variant at an XP cost
 
 ## Website Implementation Plan
 

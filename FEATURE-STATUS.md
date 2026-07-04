@@ -1,7 +1,7 @@
 # MCDG Feature Status Truth Table
 
 **Purpose:** Single source of truth mapping every planned feature to its actual code status.
-**Last Updated:** 2026-06-26  
+**Last Updated:** 2026-07-04  
 **How to read:**
 - **Plan Status** — what the design documents claim
 - **Code Status** — what actually exists in `src/main/java` and `src/client/java`
@@ -53,7 +53,7 @@
 | Disc crafting progression (core) | ✅ Complete | Wooden→Netherite tiered discs, recipes, durability, tier physics, flight stats integration, scorecard souvenirs implemented | Accurate | Low |
 | Disc crafting progression (follow-up) | ✅ Complete | Disc bag (`DiscBagItem`, `DiscBagScreenHandler`), accessories (`AccessoryItem`, `AccessoryManager` with glove/towel/range finder), skill unlocks (`SkillUnlock`, `PlayerSkillManager`, `/mcdg skills`) | Accurate | Low |
 | Custom disc stats | 📋 Planning | No `DiscFlightRatings`, `DiscCharacteristics`, or disc builder | Accurate | Low |
-| Challenge courses | 📋 Planning | No challenge course generation or special rewards | Accurate | Low |
+| Challenge courses | ✅ Complete | `ChallengeCourseManager`, `LostCoursePlacement`, `ChallengeCourseCommands`; lost course discovery/generation/rewards tested; boss hole mob system implemented but not tested | Accurate | Low |
 
 ---
 
@@ -74,6 +74,7 @@
 | Monolithic class split | � Partial | `HoleProgressTracker` split into `ThrowResolver`, `TurnManager`, `HoleMapSyncService`; `McdgAdminCommands` split into domain command classes; `CoursePlacementService` slimmed to ~39 KB with `BuildCourseSessionManager` and `TickIncrementalCoursePlacer` extracted; `MiniMapRenderer` still intact | Accurate | Low |
 | Async file I/O | 📋 Pending | Round session saves still synchronous | Accurate | Low |
 | Configurable minimap quality | 📋 Pending | No quality settings (Low/Medium/High) | Accurate | Low |
+| Range finder caddie | 📋 Planning | Right-click range finder to recommend disc/stance/angle/elevation/power for current basket; optional auto-throw at XP cost | Accurate | Low |
 
 ---
 

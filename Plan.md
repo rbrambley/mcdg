@@ -18,6 +18,7 @@
 - ✅ DiscEnchantedBook - Enchanted book item integrated with round rewards and resort merch barrels
 - ✅ Disc Workbench - Custom block with GUI for applying disc enchantments
 - ✅ Resort Merch Barrels - Starter discs and enchanted books auto-populated in resort
+- ✅ Challenge Courses (Phase 3.3) - Lost course discovery, generation, rewards; boss hole mob system implemented
 - ❌ Grappling Disc - Removed June 2024 due to reliability issues (entity type infrastructure preserved for future retry)
 - ❌ Boomerang Disc - Removed June 2024 due to reliability issues (entity type infrastructure preserved for future retry)
 - ✅ CommandPermission refactor - Extracted utility from McdgAdminCommands
@@ -27,10 +28,10 @@
 - ⏸️ Custom Throw Animations (Phase 2.3) - UseAction placeholder complete; full event-based animations deferred
 
 **Current Focus:**
-- 📋 Phase 3: Progression Systems (Disc Crafting Progression, Custom Disc Stats, Challenge Courses)
+- 📋 Phase 3: Progression Systems — Disc Crafting Progression complete, Challenge Courses complete; Custom Disc Stats in planning
 
 **Upcoming Phases:**
-- Phase 3: Progression Systems (Disc Crafting, Custom Disc Stats, Challenge Courses)
+- Phase 3.2: Custom Disc Stats
 - Phase 4: Advanced Features (Quest System)
 - Phase 5: Polish & Integration
 - Phase 6: Launch Preparation
