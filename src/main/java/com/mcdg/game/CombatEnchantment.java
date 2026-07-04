@@ -1,9 +1,7 @@
 package com.mcdg.game;
 
+import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.Enchantments;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.util.Identifier;
 
 import java.util.List;
 
@@ -21,19 +19,19 @@ public enum CombatEnchantment {
     PUNCH(Enchantments.PUNCH, 1, 2, "Punch"),
     FLAME(Enchantments.FLAME, 1, 1, "Flame");
 
-    private final RegistryEntry<?> enchantment;
+    private final Enchantment enchantment;
     private final int minLevel;
     private final int maxLevel;
     private final String displayName;
 
-    CombatEnchantment(RegistryEntry<?> enchantment, int minLevel, int maxLevel, String displayName) {
+    CombatEnchantment(Enchantment enchantment, int minLevel, int maxLevel, String displayName) {
         this.enchantment = enchantment;
         this.minLevel = minLevel;
         this.maxLevel = maxLevel;
         this.displayName = displayName;
     }
 
-    public RegistryEntry<?> enchantment() {
+    public Enchantment enchantment() {
         return enchantment;
     }
 

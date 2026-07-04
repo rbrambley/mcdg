@@ -151,8 +151,8 @@ public class PatrolFairwayGoal extends Goal {
         int intermediatePoints = 2 + (int) (Math.random() * 2); // 2-3 points
         for (int i = 1; i <= intermediatePoints; i++) {
             double t = (double) i / (intermediatePoints + 1);
-            int x = MathHelper.lerp(t, tee.getX(), basket.getX());
-            int z = MathHelper.lerp(t, tee.getZ(), basket.getZ());
+            int x = (int) MathHelper.lerp(t, tee.getX(), basket.getX());
+            int z = (int) MathHelper.lerp(t, tee.getZ(), basket.getZ());
 
             // Add some perpendicular offset for variety
             int perpendicularOffset = (int) (Math.random() * 6) - 3; // -3 to +3

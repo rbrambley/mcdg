@@ -144,7 +144,7 @@ public final class ChallengeCourseCommands {
 
                 // Start boss hole mob spawning if this is a boss hole
                 if (result == 1 && catalogEntry.get().type() == ChallengeCourseType.BOSS_HOLE) {
-                    UUID roundId = courseManager.getActiveChallengeCourseId();
+                    UUID roundId = courseManager.getActiveChallengeCourseId().orElse(null);
                     if (roundId != null) {
                         BossMobSpawner.startSpawning(roundId, player, storedPlaced.get());
                         player.sendMessage(Text.literal("§cBoss Hole: Mobs will spawn to guard the basket!")

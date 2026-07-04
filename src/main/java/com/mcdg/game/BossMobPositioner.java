@@ -52,8 +52,8 @@ public final class BossMobPositioner {
         for (int i = 0; i < count && attempts > 0; attempts--) {
             // Random position along line between tee and basket
             double t = RANDOM.nextDouble(); // 0.0 to 1.0
-            int x = MathHelper.lerp(t, teePos.getX(), basketPos.getX());
-            int z = MathHelper.lerp(t, teePos.getZ(), basketPos.getZ());
+            int x = (int) MathHelper.lerp(t, teePos.getX(), basketPos.getX());
+            int z = (int) MathHelper.lerp(t, teePos.getZ(), basketPos.getZ());
 
             // Add some perpendicular offset for variety
             int perpendicularOffset = (RANDOM.nextInt(6) - 3); // -3 to +3
