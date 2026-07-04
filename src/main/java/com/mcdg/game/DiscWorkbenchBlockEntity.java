@@ -16,7 +16,7 @@ import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.BlockPos;
 
 public class DiscWorkbenchBlockEntity extends BlockEntity implements NamedScreenHandlerFactory {
-    private final SimpleInventory inventory = new SimpleInventory(2) {
+    private final SimpleInventory inventory = new SimpleInventory(3) {
         @Override
         public boolean isValid(int slot, ItemStack stack) {
             if (slot == 0) {

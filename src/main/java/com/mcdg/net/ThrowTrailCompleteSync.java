@@ -25,6 +25,7 @@ public final class ThrowTrailCompleteSync {
             UUID throwerId,          // Player who threw the disc
             double totalDistanceFt,  // Total horizontal distance in feet
             double lateralDriftFt,   // Left/right drift from aim line in feet
+            double apexHeightFt,     // Maximum height reached during flight
             StrictPenaltyType penaltyType, // Penalty classification
             int penaltyStrokes,      // Stroke penalty applied
             String penaltyReason,    // Human-readable penalty reason
@@ -35,6 +36,7 @@ public final class ThrowTrailCompleteSync {
             UUID throwerId = buf.readUuid();
             double totalDistanceFt = buf.readDouble();
             double lateralDriftFt = buf.readDouble();
+            double apexHeightFt = buf.readDouble();
             int penaltyOrdinal = buf.readVarInt();
             if (penaltyOrdinal < 0 || penaltyOrdinal >= StrictPenaltyType.values().length) {
                 penaltyOrdinal = 0;
@@ -44,13 +46,14 @@ public final class ThrowTrailCompleteSync {
             String penaltyReason = buf.readString(64);
             int obCrossingFeet = buf.readVarInt();
             int returnedToFeet = buf.readVarInt();
-            return new Payload(throwerId, totalDistanceFt, lateralDriftFt, penaltyType, penaltyStrokes, penaltyReason, obCrossingFeet, returnedToFeet);
+            return new Payload(throwerId, totalDistanceFt, lateralDriftFt, apexHeightFt, penaltyType, penaltyStrokes, penaltyReason, obCrossingFeet, returnedToFeet);
         }
 
         public void write(RegistryByteBuf buf) {
             buf.writeUuid(throwerId);
             buf.writeDouble(totalDistanceFt);
             buf.writeDouble(lateralDriftFt);
+            buf.writeDouble(apexHeightFt);
             buf.writeVarInt(penaltyType.ordinal());
             buf.writeVarInt(penaltyStrokes);
             buf.writeString(penaltyReason);

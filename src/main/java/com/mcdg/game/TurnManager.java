@@ -4,6 +4,7 @@ import com.mcdg.McdgMod;
 import com.mcdg.data.Course;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -23,11 +24,11 @@ import net.minecraft.registry.RegistryKey;
  */
 public final class TurnManager {
     private static final int TURN_TIMEOUT_TICKS = 20 * 120;
-    private static final Map<Integer, UUID> ACTIVE_TURN_PLAYER_BY_HOLE = new HashMap<>();
-    private static final Map<Integer, Long> ACTIVE_TURN_STARTED_AT_BY_HOLE = new HashMap<>();
-    private static final Map<Integer, Integer> ACTIVE_TURN_TOTAL_STROKES_BY_HOLE = new HashMap<>();
-    private static final Map<Integer, UUID> TURN_SKIP_ONCE_BY_HOLE = new HashMap<>();
-    private static final Map<Integer, UUID> LAST_THROWER_BY_HOLE = new HashMap<>();
+    private static final Map<Integer, UUID> ACTIVE_TURN_PLAYER_BY_HOLE = new ConcurrentHashMap<>();
+    private static final Map<Integer, Long> ACTIVE_TURN_STARTED_AT_BY_HOLE = new ConcurrentHashMap<>();
+    private static final Map<Integer, Integer> ACTIVE_TURN_TOTAL_STROKES_BY_HOLE = new ConcurrentHashMap<>();
+    private static final Map<Integer, UUID> TURN_SKIP_ONCE_BY_HOLE = new ConcurrentHashMap<>();
+    private static final Map<Integer, UUID> LAST_THROWER_BY_HOLE = new ConcurrentHashMap<>();
 
     private TurnManager() {
     }
@@ -57,6 +58,47 @@ public final class TurnManager {
             return;
         }
         LAST_THROWER_BY_HOLE.entrySet().removeIf(entry -> entry.getValue().equals(playerId));
+    }
+
+    public static boolean isActiveTurnPlayer(UUID playerId, int hole) {
+        if (playerId == null || hole < 1) {
+            return false;
+        }
+        UUID activeTurnPlayerId = ACTIVE_TURN_PLAYER_BY_HOLE.get(hole);
+        return playerId.equals(activeTurnPlayerId);
+    }
+
+    public static UUID getActiveTurnPlayer(int hole) {
+        if (hole < 1) {
+            return null;
+        }
+        return ACTIVE_TURN_PLAYER_BY_HOLE.get(hole);
+    }
+
+    public static boolean isAllPlayersOnHoleCompleted(
+            RoundStateManager roundStateManager,
+            ActiveCourseManager courseManager,
+            PlacedCourseState placed,
+            int hole,
+            double completionDistanceMeters
+    ) {
+        BlockPos basket = placed.holeBaskets().get(hole);
+        if (basket == null) {
+            return false;
+        }
+
+        Map<UUID, PlayerRoundState> snapshot = roundStateManager.snapshotStates();
+        for (UUID participantId : courseManager.getActiveParticipantIds()) {
+            PlayerRoundState state = snapshot.get(participantId);
+            if (state == null || state.currentHole() != hole) {
+                continue;
+            }
+            double distanceToBasket = DistanceUtils.distanceMeters(state.lie(), basket);
+            if (distanceToBasket >= completionDistanceMeters) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static void sendTurnActionBar(MinecraftServer server, ServerPlayerEntity viewer, int hole) {

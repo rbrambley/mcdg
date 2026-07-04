@@ -13,7 +13,10 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Arm;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.RotationAxis;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Standalone HUD overlays that don't depend on round or minimap state.
@@ -92,7 +95,7 @@ public final class HudOverlays {
             return;
         }
 
-        if (!ChargedDiscItem.isClientChargeVisible()) {
+        if (!ChargedDiscItem.isClientChargeVisible(client.player.getUuid())) {
             return;
         }
 
@@ -103,7 +106,7 @@ public final class HudOverlays {
         }
 
         float scale = HudUtil.getScaleFactor(drawContext);
-        float charge = ChargedDiscItem.getClientChargePercent();
+        float charge = ChargedDiscItem.getClientChargePercent(client.player.getUuid());
         float nextThrowMultiplier = McdgClientMod.getClientNextThrowPowerMultiplier();
         int width = drawContext.getScaledWindowWidth();
         int height = drawContext.getScaledWindowHeight();
@@ -132,7 +135,7 @@ public final class HudOverlays {
             drawContext.fill(barX - 1, markY, barX + scaledPowerBarWidth + 1, markY + 1, 0xFFFFFFFF);
 
             // Distance estimation using DiscFlightSimulator with current stance
-            ThrowStance stance = ThrowPreferenceManager.getSelectedStance();
+            ThrowStance stance = ThrowPreferenceManager.getSelectedStance(client.player.getUuid());
             int estimatedDistance = com.mcdg.game.DiscFlightSimulator.estimateDistance(thresholdCharge, stance, client.player.getPitch());
             String distanceText = estimatedDistance + "ft";
             int textOffset = Math.round(4 * scale);
@@ -190,7 +193,7 @@ public final class HudOverlays {
         }
 
         // LOCKED indicator
-        if (ChargedDiscItem.isPowerLocked()) {
+        if (ChargedDiscItem.isPowerLocked(client.player.getUuid())) {
             int lockedTextYOffset = Math.round(24 * scale);
             String lockedText = "LOCKED";
             int lockedTextWidth = Math.round(client.textRenderer.getWidth(lockedText) * scale);
@@ -209,8 +212,12 @@ public final class HudOverlays {
      * Shows stance name (Overhand/Backhand/Forehand) and angle arrow.
      */
     private static void renderStanceIndicator(DrawContext drawContext, MinecraftClient client, int barX, int barTop, boolean rightHandThrow, float scale) {
-        ThrowStance stance = ThrowPreferenceManager.getSelectedStance();
-        ReleaseAngle angle = ThrowPreferenceManager.getSelectedAngle();
+        if (client.player == null) {
+            return;
+        }
+        UUID playerUuid = client.player.getUuid();
+        ThrowStance stance = ThrowPreferenceManager.getSelectedStance(playerUuid);
+        ReleaseAngle angle = ThrowPreferenceManager.getSelectedAngle(playerUuid);
 
         // Stance name with appropriate formatting
         Formatting stanceColor = switch (stance) {
@@ -284,7 +291,7 @@ public final class HudOverlays {
      * Shows wind direction as a large graphical arrow with speed and direction text.
      */
     private static void renderWindIndicator(DrawContext drawContext, MinecraftClient client, int barX, int barTop, boolean rightHandThrow, float scale) {
-        if (!ChargedDiscItem.isClientChargeVisible()) {
+        if (client.player == null || !ChargedDiscItem.isClientChargeVisible(client.player.getUuid())) {
             return;
         }
         
@@ -313,9 +320,9 @@ public final class HudOverlays {
             arrowColor = 0xFF55FF55; // Green for light wind
         }
         
-        // Position wind indicator centered on screen, just above the crosshair
+        // Position wind indicator centered on screen, above the crosshair
         int centerX = drawContext.getScaledWindowWidth() / 2;
-        int indicatorY = drawContext.getScaledWindowHeight() / 2 - Math.round(24 * scale);
+        int indicatorY = drawContext.getScaledWindowHeight() / 2 - Math.round(40 * scale);
         
         // Draw background box for emphasis
         int boxWidth = Math.round(72 * scale);
@@ -413,10 +420,72 @@ public final class HudOverlays {
 
     private static final int THROW_ROW_SPACING = 10;
     private static final int HUD_CARD_SPACING = 10;
-    private static int lastThrowStatsPanelHeight = 38;
-    private static int lastThrowStatsPanelWidth = 120;
-    private static int lastStanceSettingsPanelHeight = 0;
-    private static boolean throwStatsRenderedThisFrame = false;
+    private static final Map<UUID, Integer> LAST_THROW_STATS_PANEL_HEIGHT = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> LAST_THROW_STATS_PANEL_WIDTH = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> LAST_STANCE_SETTINGS_PANEL_HEIGHT = new ConcurrentHashMap<>();
+    private static final Map<UUID, Boolean> THROW_STATS_RENDERED_THIS_FRAME = new ConcurrentHashMap<>();
+
+    private static UUID localPlayerUuid() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        return client.player != null ? client.player.getUuid() : null;
+    }
+
+    private static boolean throwStatsRenderedThisFrame() {
+        UUID uuid = localPlayerUuid();
+        return uuid != null && THROW_STATS_RENDERED_THIS_FRAME.getOrDefault(uuid, false);
+    }
+
+    private static void setThrowStatsRenderedThisFrame(boolean rendered) {
+        UUID uuid = localPlayerUuid();
+        if (uuid != null) {
+            THROW_STATS_RENDERED_THIS_FRAME.put(uuid, rendered);
+        }
+    }
+
+    private static int lastThrowStatsPanelHeight() {
+        UUID uuid = localPlayerUuid();
+        return uuid != null ? LAST_THROW_STATS_PANEL_HEIGHT.getOrDefault(uuid, 38) : 38;
+    }
+
+    private static void setLastThrowStatsPanelHeight(int height) {
+        UUID uuid = localPlayerUuid();
+        if (uuid != null) {
+            LAST_THROW_STATS_PANEL_HEIGHT.put(uuid, height);
+        }
+    }
+
+    private static int lastThrowStatsPanelWidth() {
+        UUID uuid = localPlayerUuid();
+        return uuid != null ? LAST_THROW_STATS_PANEL_WIDTH.getOrDefault(uuid, 120) : 120;
+    }
+
+    private static void setLastThrowStatsPanelWidth(int width) {
+        UUID uuid = localPlayerUuid();
+        if (uuid != null) {
+            LAST_THROW_STATS_PANEL_WIDTH.put(uuid, width);
+        }
+    }
+
+    private static int lastStanceSettingsPanelHeight() {
+        UUID uuid = localPlayerUuid();
+        return uuid != null ? LAST_STANCE_SETTINGS_PANEL_HEIGHT.getOrDefault(uuid, 0) : 0;
+    }
+
+    private static void setLastStanceSettingsPanelHeight(int height) {
+        UUID uuid = localPlayerUuid();
+        if (uuid != null) {
+            LAST_STANCE_SETTINGS_PANEL_HEIGHT.put(uuid, height);
+        }
+    }
+
+    public static void clearPlayerState(UUID playerUuid) {
+        if (playerUuid != null) {
+            LAST_THROW_STATS_PANEL_HEIGHT.remove(playerUuid);
+            LAST_THROW_STATS_PANEL_WIDTH.remove(playerUuid);
+            LAST_STANCE_SETTINGS_PANEL_HEIGHT.remove(playerUuid);
+            THROW_STATS_RENDERED_THIS_FRAME.remove(playerUuid);
+        }
+    }
 
     /**
      * Render after-throw statistics display.
@@ -424,13 +493,13 @@ public final class HudOverlays {
      * Panel width is shared with Round HUD so both boxes stay aligned.
      */
     public static void renderThrowStats(DrawContext drawContext, MinecraftClient client, float hudAlpha) {
-        throwStatsRenderedThisFrame = true;
+        setThrowStatsRenderedThisFrame(true);
         
         // Only render if a round is active
         if (McdgClientMod.getHoleMapState() == null) {
-            throwStatsRenderedThisFrame = false;
-            lastThrowStatsPanelHeight = 0;
-            lastStanceSettingsPanelHeight = 0;
+            setThrowStatsRenderedThisFrame(false);
+            setLastThrowStatsPanelHeight(0);
+            setLastStanceSettingsPanelHeight(0);
             return;
         }
         
@@ -444,32 +513,48 @@ public final class HudOverlays {
         float scale = HudUtil.getScaleFactor(drawContext);
         int width = drawContext.getScaledWindowWidth();
 
-        // Compact abbreviations
-        String driftDir = stats.lateralDriftFt() > 0 ? "R" : "L";
-        String row1 = (int) stats.totalDistanceFt() + "ft " + driftDir + (int) Math.abs(stats.lateralDriftFt());
-        String row2 = stanceAbbrev(stats.stance()) + " " + angleAbbrev(stats.angle());
-
-        boolean hasPenalty = stats.penaltyType() != StrictPenaltyType.NONE;
-        int contentRows = hasPenalty ? 3 : 3; // always 3 content rows, penalty merges into row 3
+        // Use a slightly smaller text scale for the Throw HUD so two columns fit without widening
+        float textScale = scale * 0.85f;
         int scaledRowSpacing = Math.round(THROW_ROW_SPACING * scale);
-        int panelH = Math.round(16 * scale) + (contentRows * scaledRowSpacing) + Math.round(6 * scale);
-        lastThrowStatsPanelHeight = panelH;
 
-        // Compute throw text width (scaled) and share with Round HUD
-        int row1W = Math.round(client.textRenderer.getWidth(row1) * scale);
-        int row2W = Math.round(client.textRenderer.getWidth(row2) * scale);
-        int maxThrowTextW = Math.max(row1W, row2W);
+        String driftDir = stats.lateralDriftFt() > 0 ? "R" : "L";
+        String distValue = String.format("%.1fft", stats.totalDistanceFt());
+        String driftValue = String.format("%s%.1fft", driftDir, Math.abs(stats.lateralDriftFt()));
+        String ticksValue = String.valueOf(stats.flightTicks());
+        String apexValue = String.format("%.1fft", stats.apexHeightFt());
+
+        // Compact two-column layout
+        String row1Left = Text.translatable("hud.mcdg.throw_stats.dist_format", distValue).getString();
+        String row1Right = Text.translatable("hud.mcdg.throw_stats.drift_format", driftValue).getString();
+        String row2Left = Text.translatable("hud.mcdg.throw_stats.ticks_format", ticksValue).getString();
+        String row2Right = Text.translatable("hud.mcdg.throw_stats.apex_format", apexValue).getString();
+        String inBoundsText = Text.translatable("hud.mcdg.throw_stats.in_bounds").getString();
 
         String penaltyRow = buildPenaltyRow(stats);
-        if (penaltyRow != null) {
-            int penaltyW = Math.round(client.textRenderer.getWidth(penaltyRow) * scale);
-            maxThrowTextW = Math.max(maxThrowTextW, penaltyW);
-        }
+
+        // 2 rows of stats + 1 row for penalty/In Bounds
+        int contentRows = 3;
+        int panelH = Math.round(16 * scale) + (contentRows * scaledRowSpacing) + Math.round(6 * scale);
+        setLastThrowStatsPanelHeight(panelH);
+
+        // Compute required widths (smaller text scale) for two columns
+        int row1LeftW = Math.round(client.textRenderer.getWidth(row1Left) * textScale);
+        int row1RightW = Math.round(client.textRenderer.getWidth(row1Right) * textScale);
+        int row2LeftW = Math.round(client.textRenderer.getWidth(row2Left) * textScale);
+        int row2RightW = Math.round(client.textRenderer.getWidth(row2Right) * textScale);
+        int penaltyW = penaltyRow != null
+                ? Math.round(client.textRenderer.getWidth(penaltyRow) * textScale)
+                : Math.round(client.textRenderer.getWidth(inBoundsText) * textScale);
+        int leftColW = Math.max(row1LeftW, row2LeftW);
+        int rightColW = Math.max(row1RightW, row2RightW);
+        int colGap = Math.round(8 * scale);
+        int twoColW = leftColW + colGap + rightColW;
+        int maxThrowTextW = Math.max(twoColW, penaltyW);
 
         int throwPanelW = maxThrowTextW + Math.round(16 * scale);
         int panelW = Math.max(RoundInfoOverlay.getSharedPanelWidth(), throwPanelW);
         RoundInfoOverlay.setSharedPanelWidth(panelW);
-        lastThrowStatsPanelWidth = panelW;
+        setLastThrowStatsPanelWidth(panelW);
 
         int x = width - panelW - Math.round(8 * scale);
         int roundHudBaseHeight = RoundInfoOverlay.getLastPanelHeight();
@@ -477,26 +562,35 @@ public final class HudOverlays {
 
         HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, "Throw", hudAlpha);
 
-        int drawX = x + Math.round(6 * scale);
+        int leftX = x + Math.round(6 * scale);
+        int rightX = leftX + leftColW + colGap;
         int row = y + Math.round(16 * scale);
         int colorWhite = HudUtil.withAlpha(0xFFFFFF, hudAlpha);
         int colorGray = HudUtil.withAlpha(0xAAAAAA, hudAlpha);
+        int colorGreen = HudUtil.withAlpha(0x55FF55, hudAlpha);
+        int colorYellow = HudUtil.withAlpha(0xFFCC44, hudAlpha);
+        int colorRed = HudUtil.withAlpha(0xFF5555, hudAlpha);
 
-        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(row1).formatted(Formatting.WHITE), drawX, row, colorWhite, scale);
+        // Row 1: Distance / Lateral Drift
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(row1Left).formatted(Formatting.WHITE), leftX, row, colorWhite, textScale);
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(row1Right).formatted(Formatting.WHITE), rightX, row, colorWhite, textScale);
         row += scaledRowSpacing;
 
-        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(row2).formatted(Formatting.GRAY), drawX, row, colorGray, scale);
+        // Row 2: Flight Ticks / Apex Height
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(row2Left).formatted(Formatting.GRAY), leftX, row, colorGray, textScale);
+        HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(row2Right).formatted(Formatting.GRAY), rightX, row, colorGray, textScale);
         row += scaledRowSpacing;
 
+        // Row 3: Penalty / In Bounds
         if (penaltyRow != null) {
             int penaltyColor = switch (stats.penaltyType()) {
-                case OB -> HudUtil.withAlpha(0xFF5555, hudAlpha);
-                case HAZARD -> HudUtil.withAlpha(0xFFCC44, hudAlpha);
-                default -> HudUtil.withAlpha(0x55FF55, hudAlpha);
+                case OB -> colorRed;
+                case HAZARD -> colorYellow;
+                default -> colorGreen;
             };
-            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(penaltyRow).formatted(Formatting.BOLD), drawX, row, penaltyColor, scale);
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(penaltyRow).formatted(Formatting.BOLD), leftX, row, penaltyColor, textScale);
         } else {
-            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal("In Bounds").formatted(Formatting.BOLD), drawX, row, HudUtil.withAlpha(0x55FF55, hudAlpha), scale);
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(inBoundsText).formatted(Formatting.BOLD), leftX, row, colorGreen, textScale);
         }
     }
 
@@ -506,8 +600,8 @@ public final class HudOverlays {
         
         int panelW = Math.max(RoundInfoOverlay.getSharedPanelWidth(), Math.round(100 * scale));
         int panelH = Math.round(22 * scale) + Math.round(12 * scale);
-        lastThrowStatsPanelHeight = panelH;
-        lastThrowStatsPanelWidth = panelW;
+        setLastThrowStatsPanelHeight(panelH);
+        setLastThrowStatsPanelWidth(panelW);
         
         int x = width - panelW - Math.round(8 * scale);
         int roundHudBaseHeight = RoundInfoOverlay.getLastPanelHeight();
@@ -547,19 +641,19 @@ public final class HudOverlays {
     }
 
     public static int getLastThrowStatsPanelHeight() {
-        return lastThrowStatsPanelHeight;
+        return lastThrowStatsPanelHeight();
     }
 
     public static int getLastThrowStatsPanelWidth() {
-        return lastThrowStatsPanelWidth;
+        return lastThrowStatsPanelWidth();
     }
 
     public static boolean isThrowStatsRenderedThisFrame() {
-        return throwStatsRenderedThisFrame;
+        return throwStatsRenderedThisFrame();
     }
 
     public static int getLastStanceSettingsPanelHeight() {
-        return lastStanceSettingsPanelHeight;
+        return lastStanceSettingsPanelHeight();
     }
 
     /**
@@ -576,8 +670,11 @@ public final class HudOverlays {
         }
 
         float scale = HudUtil.getScaleFactor(drawContext);
-        ThrowStance stance = ThrowPreferenceManager.getSelectedStance();
-        ReleaseAngle angle = ThrowPreferenceManager.getSelectedAngle();
+        UUID playerUuid = client.player.getUuid();
+        boolean holdingDisc = McdgItems.isDisc(client.player.getMainHandStack())
+                || McdgItems.isDisc(client.player.getOffHandStack());
+        ThrowStance stance = ThrowPreferenceManager.getSelectedStance(playerUuid);
+        ReleaseAngle angle = ThrowPreferenceManager.getSelectedAngle(playerUuid);
 
         String stanceName = switch (stance) {
             case OVERHAND -> "Overhand";
@@ -604,58 +701,101 @@ public final class HudOverlays {
         };
 
         String stanceHint = "[" + ClientKeybinds.getCycleStanceKeyText().getString() + "]";
-        String angleHint = "[" + ClientKeybinds.getAngleLeftKeyText().getString() + " | " + ClientKeybinds.getAngleRightKeyText().getString() + "]";
+        String angleHint = "[" + shortenKeyHint(ClientKeybinds.getAngleLeftKeyText().getString()) + " | " + shortenKeyHint(ClientKeybinds.getAngleRightKeyText().getString()) + "]";
 
         int stanceW = Math.round(client.textRenderer.getWidth(stanceName) * scale);
         int angleW = Math.round(client.textRenderer.getWidth(angleName) * scale);
         int stanceHintW = Math.round(client.textRenderer.getWidth(stanceHint) * scale);
         int angleHintW = Math.round(client.textRenderer.getWidth(angleHint) * scale);
 
-        int maxTextW = Math.max(stanceW, angleW);
+        // Effective throw multipliers from server (only shown while holding a disc)
+        int leftColW = 0;
+        int rightColW = 0;
+        int colGap = 0;
+        int twoColW = 0;
+        int multiplierColor = 0;
+        if (holdingDisc) {
+            McdgClientMod.ThrowSetupMultipliers multipliers = McdgClientMod.getThrowSetupMultipliers();
+            String powerText = Text.translatable("hud.mcdg.setup.power_format", String.format("%.2fx", multipliers.powerMultiplier())).getString();
+            String distanceText = Text.translatable("hud.mcdg.setup.distance_format", String.format("%.2fx", multipliers.distanceMultiplier())).getString();
+            String glideText = Text.translatable("hud.mcdg.setup.glide_format", String.format("%.2fx", multipliers.glideMultiplier())).getString();
+            String fadeText = Text.translatable("hud.mcdg.setup.fade_format", String.format("%.2fx", multipliers.stabilityMultiplier())).getString();
+
+            int powerTextW = Math.round(client.textRenderer.getWidth(powerText) * scale);
+            int distanceTextW = Math.round(client.textRenderer.getWidth(distanceText) * scale);
+            int glideTextW = Math.round(client.textRenderer.getWidth(glideText) * scale);
+            int fadeTextW = Math.round(client.textRenderer.getWidth(fadeText) * scale);
+            leftColW = Math.max(powerTextW, glideTextW);
+            rightColW = Math.max(distanceTextW, fadeTextW);
+            colGap = Math.round(8 * scale);
+            twoColW = leftColW + colGap + rightColW;
+            multiplierColor = HudUtil.withAlpha(0xAAAAAA, hudAlpha);
+        }
+        int maxTextW = Math.max(Math.max(stanceW, angleW), twoColW);
 
         int panelW = Math.max(RoundInfoOverlay.getSharedPanelWidth(), maxTextW + Math.round(16 * scale));
         RoundInfoOverlay.setSharedPanelWidth(panelW);
 
-        int contentRows = 3; // stance, angle, skills
+        int contentRows = holdingDisc ? 5 : 3; // stance, angle, [2 multiplier rows,] skills
         int scaledRowSpacing = Math.round(THROW_ROW_SPACING * scale);
         int panelH = Math.round(16 * scale) + (contentRows * scaledRowSpacing) + Math.round(4 * scale);
 
         int x = drawContext.getScaledWindowWidth() - panelW - Math.round(8 * scale);
         int roundHudBottom = Math.round(8 * scale) + RoundInfoOverlay.getLastPanelHeight();
         int scaledCardSpacing = Math.round(HUD_CARD_SPACING * scale);
-        int y = throwStatsRenderedThisFrame
-                ? (roundHudBottom + scaledCardSpacing + getLastThrowStatsPanelHeight() + scaledCardSpacing)
+        int y = throwStatsRenderedThisFrame()
+                ? (roundHudBottom + scaledCardSpacing + lastThrowStatsPanelHeight() + scaledCardSpacing)
                 : (roundHudBottom + scaledCardSpacing);
 
         HudUtil.drawCard(drawContext, client, x, y, panelW, panelH, "Setup", hudAlpha);
 
         int drawX = x + Math.round(6 * scale);
+        int rightX = drawX + leftColW + colGap;
         int row = y + Math.round(16 * scale);
         int stanceTextColor = HudUtil.withAlpha(colorFromFormatting(stanceColor), hudAlpha);
         int angleTextColor = HudUtil.withAlpha(colorFromFormatting(angleColor), hudAlpha);
         int hintColor = HudUtil.withAlpha(0xAAAAAA, hudAlpha);
 
+        // Stance row
         HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(stanceName).formatted(stanceColor), drawX, row, stanceTextColor, scale);
         int stanceHintX = x + panelW - Math.round(6 * scale) - stanceHintW;
         HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(stanceHint).formatted(Formatting.DARK_GRAY), stanceHintX, row, hintColor, scale);
         row += scaledRowSpacing;
+
+        // Angle row
         HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(angleName).formatted(angleColor), drawX, row, angleTextColor, scale);
         int angleHintX = x + panelW - Math.round(6 * scale) - angleHintW;
         HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(angleHint).formatted(Formatting.DARK_GRAY), angleHintX, row, hintColor, scale);
+        row += scaledRowSpacing;
+
+        // Multiplier rows (two columns) — only when holding a disc
+        if (holdingDisc) {
+            McdgClientMod.ThrowSetupMultipliers multipliers = McdgClientMod.getThrowSetupMultipliers();
+            String powerText = Text.translatable("hud.mcdg.setup.power_format", String.format("%.2fx", multipliers.powerMultiplier())).getString();
+            String distanceText = Text.translatable("hud.mcdg.setup.distance_format", String.format("%.2fx", multipliers.distanceMultiplier())).getString();
+            String glideText = Text.translatable("hud.mcdg.setup.glide_format", String.format("%.2fx", multipliers.glideMultiplier())).getString();
+            String fadeText = Text.translatable("hud.mcdg.setup.fade_format", String.format("%.2fx", multipliers.stabilityMultiplier())).getString();
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(powerText).formatted(Formatting.GRAY), drawX, row, multiplierColor, scale);
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(distanceText).formatted(Formatting.GRAY), rightX, row, multiplierColor, scale);
+            row += scaledRowSpacing;
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(glideText).formatted(Formatting.GRAY), drawX, row, multiplierColor, scale);
+            HudUtil.drawScaledText(drawContext, client.textRenderer, Text.literal(fadeText).formatted(Formatting.GRAY), rightX, row, multiplierColor, scale);
+            row += scaledRowSpacing;
+        }
 
         // Render skill icons
-        row += scaledRowSpacing;
-        renderSkillIcons(drawContext, client, x, row, panelW, scale, hudAlpha);
+        renderSkillIcons(drawContext, client, x, row, panelW, scale, hudAlpha, holdingDisc);
 
         // Track panel height for scorecard positioning
-        lastStanceSettingsPanelHeight = panelH;
+        setLastStanceSettingsPanelHeight(panelH);
     }
 
-    private static void renderSkillIcons(DrawContext drawContext, MinecraftClient client, int x, int y, int panelW, float scale, float hudAlpha) {
+    private static void renderSkillIcons(DrawContext drawContext, MinecraftClient client, int x, int y, int panelW, float scale, float hudAlpha, boolean holdingDisc) {
         Set<String> unlockedSkills = McdgClientMod.getUnlockedSkills();
         if (unlockedSkills.isEmpty()) {
-            // Adjust panel height if no skills unlocked
-            lastStanceSettingsPanelHeight = Math.round(16 * scale) + (2 * Math.round(THROW_ROW_SPACING * scale)) + Math.round(4 * scale);
+            // Adjust panel height if no skills unlocked: stance, angle, optional 2 multiplier rows
+            int nonSkillRows = holdingDisc ? 4 : 2;
+            setLastStanceSettingsPanelHeight(Math.round(16 * scale) + (nonSkillRows * Math.round(THROW_ROW_SPACING * scale)) + Math.round(4 * scale));
             return;
         }
 
@@ -686,6 +826,19 @@ public final class HudOverlays {
             case YELLOW -> 0xFFFF55;
             case LIGHT_PURPLE -> 0xFF55FF;
             default -> 0xFFFFFF;
+        };
+    }
+
+    /**
+     * Shortens common key names for compact HUD hints.
+     */
+    private static String shortenKeyHint(String keyName) {
+        return switch (keyName) {
+            case "Left Arrow" -> "\u2190";
+            case "Right Arrow" -> "\u2192";
+            case "Up Arrow" -> "\u2191";
+            case "Down Arrow" -> "\u2193";
+            default -> keyName;
         };
     }
 }

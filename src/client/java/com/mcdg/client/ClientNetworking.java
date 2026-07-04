@@ -12,7 +12,7 @@ import com.mcdg.net.SkillsScreenSync;
 import com.mcdg.net.SkillsStatusSync;
 import com.mcdg.net.RoundRunningScoresSync;
 import com.mcdg.net.ThrowPowerLockSync;
-import com.mcdg.net.ThrowTrailSync;
+import com.mcdg.net.ThrowSetupSync;
 import com.mcdg.net.ThrowTrailStartSync;
 import com.mcdg.net.ThrowTrailCompleteSync;
 import com.mcdg.net.RoundInviteNotification;
@@ -72,7 +72,11 @@ public final class ClientNetworking {
             })
         );
         ClientPlayNetworking.registerGlobalReceiver(SkillsStatusSync.ID, (payload, context) ->
-            context.client().execute(() -> McdgClientMod.updateUnlockedSkills(payload.unlockedSkills()))
+            context.client().execute(() -> {
+                if (context.player() != null) {
+                    McdgClientMod.updateUnlockedSkills(context.player().getUuid(), payload.unlockedSkills());
+                }
+            })
         );
         ClientPlayNetworking.registerGlobalReceiver(RoundRunningScoresSync.ID, (payload, context) ->
             context.client().execute(() -> McdgClientMod.onRoundRunningScoresSync(payload, context.client()))
@@ -82,25 +86,9 @@ public final class ClientNetworking {
         );
         ClientPlayNetworking.registerGlobalReceiver(ThrowPowerLockSync.ID, (payload, context) ->
             context.client().execute(() -> {
-                ChargedDiscItem.setPowerLocked(payload.locked());
-            })
-        );
-        ClientPlayNetworking.registerGlobalReceiver(ThrowTrailSync.ID, (payload, context) ->
-            context.client().execute(() -> {
-                DiscTrailRenderer.startTrail(
-                        payload.throwerId(),
-                        payload.pathPoints(),
-                        payload.totalDistanceFt(),
-                        payload.lateralDriftFt(),
-                        payload.stance(),
-                        payload.angle(),
-                        payload.flightTicks(),
-                        payload.penaltyType(),
-                        payload.penaltyStrokes(),
-                        payload.penaltyReason(),
-                        payload.obCrossingFeet(),
-                        payload.returnedToFeet()
-                );
+                if (context.player() != null) {
+                    ChargedDiscItem.setPowerLocked(context.player().getUuid(), payload.locked());
+                }
             })
         );
         ClientPlayNetworking.registerGlobalReceiver(ThrowTrailStartSync.ID, (payload, context) ->
@@ -120,6 +108,7 @@ public final class ClientNetworking {
                         payload.throwerId(),
                         payload.totalDistanceFt(),
                         payload.lateralDriftFt(),
+                        payload.apexHeightFt(),
                         payload.penaltyType(),
                         payload.penaltyStrokes(),
                         payload.penaltyReason(),
@@ -145,7 +134,24 @@ public final class ClientNetworking {
             context.client().execute(() -> WindManagerClient.updateWindState(payload))
         );
         ClientPlayNetworking.registerGlobalReceiver(NextThrowModifierSync.ID, (payload, context) ->
-            context.client().execute(() -> McdgClientMod.setClientNextThrowPowerMultiplier(payload.nextThrowPowerMultiplier()))
+            context.client().execute(() -> {
+                if (context.player() != null) {
+                    McdgClientMod.setClientNextThrowPowerMultiplier(context.player().getUuid(), payload.nextThrowPowerMultiplier());
+                }
+            })
+        );
+        ClientPlayNetworking.registerGlobalReceiver(ThrowSetupSync.ID, (payload, context) ->
+            context.client().execute(() -> {
+                if (context.player() != null) {
+                    McdgClientMod.setThrowSetupMultipliers(
+                            context.player().getUuid(),
+                            payload.powerMultiplier(),
+                            payload.distanceMultiplier(),
+                            payload.glideMultiplier(),
+                            payload.stabilityMultiplier()
+                    );
+                }
+            })
         );
     }
 }

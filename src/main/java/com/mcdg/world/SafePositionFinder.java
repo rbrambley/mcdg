@@ -3,7 +3,6 @@ package com.mcdg.world;
 import net.minecraft.registry.tag.FluidTags;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.Heightmap;
 
 public final class SafePositionFinder {
     private SafePositionFinder() {
@@ -95,11 +94,25 @@ public final class SafePositionFinder {
             }
         }
 
-        if (world.isChunkLoaded(baseFeet.getX() >> 4, baseFeet.getZ() >> 4)) {
-            int fallbackY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, baseFeet.getX(), baseFeet.getZ());
-            BlockPos fallback = new BlockPos(baseFeet.getX(), fallbackY, baseFeet.getZ());
-            if (isStandableFeet(world, fallback)) {
-                return fallback;
+        // Fallback: scan downward from the requested position for the nearest standable
+        // position above solid ground. This keeps cave landings in the cave instead of
+        // snapping them to the world surface.
+        // STOP if we encounter water, lava, or a solid block so that underwater landings
+        // do not snap into caves below the sea floor.
+        BlockPos.Mutable probe = baseFeet.mutableCopy();
+        int minY = world.getBottomY() + 1;
+        int maxScanDown = Math.max(0, baseFeet.getY() - minY);
+        for (int dy = 0; dy <= maxScanDown; dy++) {
+            probe.setY(baseFeet.getY() - dy);
+            BlockPos current = probe.toImmutable();
+            if (isStandableFeet(world, current)) {
+                return current;
+            }
+            if (!world.getFluidState(current).isEmpty()) {
+                return baseFeet;
+            }
+            if (!world.getBlockState(current).getCollisionShape(world, current).isEmpty()) {
+                return baseFeet;
             }
         }
 

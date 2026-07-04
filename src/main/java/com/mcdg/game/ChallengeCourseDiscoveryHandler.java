@@ -68,23 +68,10 @@ public final class ChallengeCourseDiscoveryHandler {
             // Check if this is a map fragment (has custom name containing "Map Fragment")
             Text name = stack.get(DataComponentTypes.CUSTOM_NAME);
             if (name != null && name.getString().contains("Map Fragment")) {
-                if (!course.isDiscovered()) {
-                    // Discover the course
-                    ChallengeCourseManager.onCourseDiscovery(player, course.courseId());
-                    
-                    // Remove the map fragment from chest
-                    chest.setStack(i, ItemStack.EMPTY);
-                    
-                    // Notify player
-                    player.sendMessage(Text.literal("You found a map fragment!")
-                        .formatted(Formatting.GREEN));
-                } else {
-                    // Course already discovered, but player hasn't claimed rewards yet
-                    ChallengeCourseManager.onCourseDiscovery(player, course.courseId());
-                    chest.setStack(i, ItemStack.EMPTY);
-                    player.sendMessage(Text.literal("You found a map fragment!")
-                        .formatted(Formatting.GREEN));
-                }
+                ChallengeCourseManager.onCourseDiscovery(player, course.courseId());
+                chest.setStack(i, ItemStack.EMPTY);
+                player.sendMessage(Text.literal("The map fragment reveals the location of " + course.name() + "!")
+                    .formatted(Formatting.GREEN));
                 return;
             }
         }
@@ -133,19 +120,9 @@ public final class ChallengeCourseDiscoveryHandler {
             return;
         }
 
-        if (!course.isDiscovered()) {
-            // Discover the course
-            ChallengeCourseManager.onCourseDiscovery(player, course.courseId());
-            
-            // Notify player
-            player.sendMessage(Text.literal("You discovered an ancient marker!")
-                .formatted(Formatting.GREEN));
-        } else {
-            // Course already discovered, but player hasn't claimed rewards yet
-            ChallengeCourseManager.onCourseDiscovery(player, course.courseId());
-            player.sendMessage(Text.literal("You discovered an ancient marker!")
-                .formatted(Formatting.GREEN));
-        }
+        ChallengeCourseManager.onCourseDiscovery(player, course.courseId());
+        player.sendMessage(Text.literal("The ancient marker points to " + course.name() + "!")
+            .formatted(Formatting.GREEN));
     }
 
     /**

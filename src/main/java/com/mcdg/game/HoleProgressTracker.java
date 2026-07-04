@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,11 +53,11 @@ public final class HoleProgressTracker {
     // Proximity make radius: flat putts within this distance that hit the basket column count as makes
     // Temporary safety rollback: keep core throw/lie flow stable while strict landing penalties are reworked.
     private static final HudStateFormatter HUD_STATE_FORMATTER = new HudStateFormatter();
-    private static final Map<UUID, Map<Integer, Integer>> HOLE_SCORE_HISTORY = new HashMap<>();
-    static final Map<UUID, Integer> HOLE_ONE_RANDOM_ORDER = new HashMap<>();
-    private static final Map<UUID, Integer> CACHED_CORRIDOR_HALF_WIDTH = new HashMap<>();
-    private static final Map<UUID, BlockPos> LAST_LIE_POSITION = new HashMap<>();
-    private static final Map<UUID, BlockPos> LAST_BREADCRUMB_POSITION = new HashMap<>();
+    private static final Map<UUID, Map<Integer, Integer>> HOLE_SCORE_HISTORY = new ConcurrentHashMap<>();
+    static final Map<UUID, Integer> HOLE_ONE_RANDOM_ORDER = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> CACHED_CORRIDOR_HALF_WIDTH = new ConcurrentHashMap<>();
+    private static final Map<UUID, BlockPos> LAST_LIE_POSITION = new ConcurrentHashMap<>();
+    private static final Map<UUID, BlockPos> LAST_BREADCRUMB_POSITION = new ConcurrentHashMap<>();
     private static int LAST_RUNNING_SCOREBOARD_HASH = Integer.MIN_VALUE;
     private static boolean ROUND_WAS_ACTIVE = false;
 
@@ -137,7 +138,9 @@ public final class HoleProgressTracker {
 
                 BlockPos currentLie = state.lie();
                 BlockPos lastLie = LAST_LIE_POSITION.get(player.getUuid());
-                if (lastLie == null || !currentLie.equals(lastLie)) {
+                // Only update lie marker if the player has not yet completed the hole
+                // This prevents texture changes when waiting at the basket for other players
+                if ((lastLie == null || !currentLie.equals(lastLie)) && !isAtBasket(currentLie, basket)) {
                     LieMarkerService.updateLieMarker(player, currentLie);
                     LAST_LIE_POSITION.put(player.getUuid(), currentLie);
                 }
@@ -242,9 +245,18 @@ public final class HoleProgressTracker {
                     continue;
                 }
 
-                ScorecardManager.recordHoleScore(player, state.currentHole(), state.holeStrokes());
-                recordHoleScore(player.getUuid(), state.currentHole(), state.holeStrokes());
-                broadcastHoleCompletion(server, placed.worldKey(), player, state.currentHole(), state.holeStrokes(), state.totalStrokes(), course.holes().size());
+                boolean scoreAlreadyRecorded = hasHoleScore(player.getUuid(), state.currentHole());
+                // Record and broadcast hole completion once per player per hole
+                if (!scoreAlreadyRecorded) {
+                    ScorecardManager.recordHoleScore(player, state.currentHole(), state.holeStrokes());
+                    recordHoleScore(player.getUuid(), state.currentHole(), state.holeStrokes());
+                    broadcastHoleCompletion(server, placed.worldKey(), player, state.currentHole(), state.holeStrokes(), state.totalStrokes(), course.holes().size());
+                }
+
+                // Do not advance to the next hole or finish the round until all players have completed this hole
+                if (!TurnManager.isAllPlayersOnHoleCompleted(roundStateManager, courseManager, placed, state.currentHole(), 3.0)) {
+                    continue;
+                }
 
                 if (state.currentHole() >= course.holes().size()) {
                     int totalPar = totalCoursePar(course);
@@ -263,7 +275,19 @@ public final class HoleProgressTracker {
 
                     roundStateManager.recordCompletedRound(player.getUuid(), state.totalStrokes());
                     ScorecardManager.recordCompletionPlayer(player);
-                    if (leaderboardManager != null) {
+
+                    // Check if this is a challenge course completion
+                    int finalScore = state.totalStrokes();
+                    int finalTotalPar = totalPar;
+                    boolean isChallengeCourse = courseManager.getActiveChallengeCourseId().isPresent();
+
+                    if (isChallengeCourse) {
+                        // Challenge courses use their own leaderboard system via onChallengeCourseComplete
+                        courseManager.getActiveChallengeCourseId().ifPresent(courseId -> {
+                            ChallengeCourseManager.onChallengeCourseComplete(player, courseId, finalScore, finalTotalPar);
+                        });
+                    } else if (leaderboardManager != null) {
+                        // Regular courses use the standard leaderboard
                         leaderboardManager.recordScore(server, course.name(), player.getGameProfile().getName(), state.totalStrokes());
                     }
 
@@ -395,42 +419,27 @@ public final class HoleProgressTracker {
             return ThrowTurnGate.blocked("You are not enrolled in the active round.");
         }
 
-        Map<UUID, PlayerRoundState> snapshot = roundStateManager.snapshotStates();
-        ensureHoleOneRandomOrder(snapshot);
-        UUID expectedPlayer = TurnManager.determineExpectedTurnPlayer(
-                player.getServer(),
-                roundStateManager,
-                courseManager,
-                snapshot,
-                playerState.currentHole(),
-                placed,
-                null
-        );
-        if (expectedPlayer == null || expectedPlayer.equals(player.getUuid())) {
-            return ThrowTurnGate.allowed();
+        // Check if it is this player's turn on the current hole
+        if (!TurnManager.isActiveTurnPlayer(player.getUuid(), playerState.currentHole())) {
+            // Get the name of the active turn player
+            UUID activeTurnPlayerId = TurnManager.getActiveTurnPlayer(playerState.currentHole());
+            if (activeTurnPlayerId != null) {
+                if (BotSimulator.isBot(activeTurnPlayerId)) {
+                    String botName = BotSimulator.getBotProfile(activeTurnPlayerId)
+                            .map(BotSimulator.BotProfile::name)
+                            .orElse("Bot");
+                    return ThrowTurnGate.blocked("Wait your turn. " + botName + " throws first.", true);
+                } else {
+                    ServerPlayerEntity activeTurnPlayer = player.getServer().getPlayerManager().getPlayer(activeTurnPlayerId);
+                    if (activeTurnPlayer != null) {
+                        return ThrowTurnGate.blocked("Wait your turn. " + activeTurnPlayer.getGameProfile().getName() + " throws first.", true);
+                    }
+                }
+            }
+            return ThrowTurnGate.blocked("Wait your turn.", true);
         }
 
-        // Allow other players to throw when the expected player's previous throw is still resolving.
-        // This prevents deadlocks where the expected player is blocked waiting for their throw to land.
-        PlayerRoundState expectedState = snapshot.get(expectedPlayer);
-        if (expectedState != null && ThrowResolver.isThrowResolutionPending(expectedPlayer, expectedState.totalStrokes())) {
-            return ThrowTurnGate.allowed();
-        }
-
-        // Check if expected player is a bot
-        if (BotSimulator.isBot(expectedPlayer)) {
-            String botName = BotSimulator.getBotProfile(expectedPlayer)
-                    .map(BotSimulator.BotProfile::name)
-                    .orElse("Bot");
-            return ThrowTurnGate.blocked("Wait your turn. " + botName + " throws first.");
-        }
-
-        ServerPlayerEntity expected = player.getServer().getPlayerManager().getPlayer(expectedPlayer);
-        if (expected != null) {
-            return ThrowTurnGate.blocked("Wait your turn. " + expected.getGameProfile().getName() + " throws first.");
-        }
-
-        return ThrowTurnGate.blocked("Wait your turn. Another player throws first.");
+        return ThrowTurnGate.allowed();
     }
 
     public static Optional<BlockPos> relocatePlayerToSafeLie(ServerPlayerEntity player, RoundStateManager roundStateManager) {
@@ -683,6 +692,17 @@ public final class HoleProgressTracker {
         scores.put(holeIndex, score);
     }
 
+    /**
+     * Check if a bot has already recorded a score for a specific hole.
+     */
+    public static boolean hasHoleScoreForBot(UUID botUuid, int holeIndex) {
+        Map<Integer, Integer> scores = HOLE_SCORE_HISTORY.get(botUuid);
+        if (scores == null) {
+            return false;
+        }
+        return scores.containsKey(holeIndex);
+    }
+
     private static void sendRunningScoreboardInactive(MinecraftServer server) {
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             ServerPlayNetworking.send(player, RoundRunningScoresSync.Payload.inactive());
@@ -706,6 +726,14 @@ public final class HoleProgressTracker {
                 .put(holeIndex, score);
     }
 
+    private static boolean hasHoleScore(UUID playerId, int holeIndex) {
+        Map<Integer, Integer> scoreByHole = HOLE_SCORE_HISTORY.get(playerId);
+        if (scoreByHole == null) {
+            return false;
+        }
+        return scoreByHole.containsKey(holeIndex);
+    }
+
     private static void ensureHoleOneRandomOrder(Map<UUID, PlayerRoundState> snapshot) {
         if (!HOLE_ONE_RANDOM_ORDER.isEmpty() || snapshot.isEmpty()) {
             return;
@@ -721,22 +749,36 @@ public final class HoleProgressTracker {
     static final class ThrowTurnGate {
         private final boolean allowed;
         private final String message;
+        private final boolean persistent;
 
-        private ThrowTurnGate(boolean allowed, String message) {
+        private ThrowTurnGate(boolean allowed, String message, boolean persistent) {
             this.allowed = allowed;
             this.message = message;
+            this.persistent = persistent;
         }
 
         static ThrowTurnGate allowed() {
-            return new ThrowTurnGate(true, "");
+            return new ThrowTurnGate(true, "", false);
         }
 
         static ThrowTurnGate blocked(String message) {
-            return new ThrowTurnGate(false, message);
+            return new ThrowTurnGate(false, message, false);
+        }
+
+        static ThrowTurnGate blocked(String message, boolean persistent) {
+            return new ThrowTurnGate(false, message, persistent);
         }
 
         boolean isAllowed() {
             return allowed;
+        }
+
+        String getMessage() {
+            return message;
+        }
+
+        boolean isPersistent() {
+            return persistent;
         }
 
         String message() {

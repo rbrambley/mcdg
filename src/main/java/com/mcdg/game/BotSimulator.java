@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class BotSimulator {
     private static final Map<UUID, BotProfile> BOTS = new ConcurrentHashMap<>();
     private static final Map<UUID, Integer> BOT_THROW_TIMERS = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> BOT_MAX_STROKES_WARNED_HOLE = new ConcurrentHashMap<>();
     private static final Random RANDOM = new Random();
     
     // Bot skill levels affect throw accuracy and power
@@ -82,6 +83,7 @@ public final class BotSimulator {
         BotProfile removed = BOTS.remove(botUuid);
         if (removed != null) {
             BOT_THROW_TIMERS.remove(botUuid);
+            BOT_MAX_STROKES_WARNED_HOLE.remove(botUuid);
             McdgMod.LOGGER.info("Bot removed: {} ({})", removed.name(), botUuid);
         }
     }
@@ -114,6 +116,7 @@ public final class BotSimulator {
         int count = BOTS.size();
         BOTS.clear();
         BOT_THROW_TIMERS.clear();
+        BOT_MAX_STROKES_WARNED_HOLE.clear();
         McdgMod.LOGGER.info("Cleared {} bots", count);
     }
     
@@ -183,45 +186,64 @@ public final class BotSimulator {
                 // Check if bot already at basket (hole complete)
                 double distanceToBasket = DistanceUtils.distanceMeters(state.lie(), basket);
                 if (distanceToBasket < 3.0) { // Increased from 2.0 to 3.0 meters
-                    // Record hole score for scoreboard display
+                    // Record hole score for scoreboard display (only once per hole)
                     int holeScore = state.holeStrokes();
-                    HoleProgressTracker.recordHoleScoreForBot(botUuid, state.currentHole(), holeScore);
-                    
-                    // Bot completed the hole, advance to next
-                    BlockPos nextTee = placed.holeTees().get(state.currentHole() + 1);
-                    if (nextTee != null) {
-                        roundStateManager.advanceToNextHole(botUuid, nextTee);
-                        McdgMod.LOGGER.info("Bot {} completed hole {} in {} strokes (distance: {}m), advancing to hole {}", 
-                            bot.name(), state.currentHole(), holeScore, Math.round(distanceToBasket), state.currentHole() + 1);
+                    boolean scoreAlreadyRecorded = HoleProgressTracker.hasHoleScoreForBot(botUuid, state.currentHole());
+                    if (!scoreAlreadyRecorded) {
+                        HoleProgressTracker.recordHoleScoreForBot(botUuid, state.currentHole(), holeScore);
+                    }
+
+                    // Only advance if all players on this hole have completed it
+                    if (TurnManager.isAllPlayersOnHoleCompleted(roundStateManager, courseManager, placed, state.currentHole(), 3.0)) {
+                        BlockPos nextTee = placed.holeTees().get(state.currentHole() + 1);
+                        if (nextTee != null) {
+                            roundStateManager.advanceToNextHole(botUuid, nextTee);
+                            McdgMod.LOGGER.info("Bot {} completed hole {} in {} strokes (distance: {}m), advancing to hole {}",
+                                bot.name(), state.currentHole(), holeScore, Math.round(distanceToBasket), state.currentHole() + 1);
+                        } else {
+                            // No next hole, bot finished the round
+                            McdgMod.LOGGER.info("Bot {} completed final hole {} in {} strokes", bot.name(), state.currentHole(), holeScore);
+                            roundStateManager.recordCompletedRound(botUuid, state.totalStrokes());
+                            roundStateManager.clearPlayer(botUuid);
+                            BOT_MAX_STROKES_WARNED_HOLE.remove(botUuid);
+                        }
                     } else {
-                        // No next hole, bot finished the round
-                        McdgMod.LOGGER.info("Bot {} completed final hole {} in {} strokes", bot.name(), state.currentHole(), holeScore);
-                        roundStateManager.recordCompletedRound(botUuid, state.totalStrokes());
-                        roundStateManager.clearPlayer(botUuid);
+                        McdgMod.LOGGER.info("Bot {} finished hole {} but waiting for other players to complete before advancing",
+                            bot.name(), state.currentHole());
                     }
                     continue;
                 }
                 
                 // Safety: prevent infinite throwing on same hole
                 if (state.holeStrokes() > 15) {
-                    McdgMod.LOGGER.warn("Bot {} exceeded max strokes on hole {}, forcing completion", bot.name(), state.currentHole());
-                    // Force advance to next hole
-                    BlockPos nextTee = placed.holeTees().get(state.currentHole() + 1);
-                    if (nextTee != null) {
-                        roundStateManager.advanceToNextHole(botUuid, nextTee);
+                    int warnedHole = BOT_MAX_STROKES_WARNED_HOLE.getOrDefault(botUuid, -1);
+                    if (warnedHole != state.currentHole()) {
+                        McdgMod.LOGGER.warn("Bot {} exceeded max strokes on hole {}, forcing completion", bot.name(), state.currentHole());
+                        BOT_MAX_STROKES_WARNED_HOLE.put(botUuid, state.currentHole());
+                    }
+                    // Force advance to next hole only if all players on this hole have completed it
+                    if (TurnManager.isAllPlayersOnHoleCompleted(roundStateManager, courseManager, placed, state.currentHole(), 3.0)) {
+                        BlockPos nextTee = placed.holeTees().get(state.currentHole() + 1);
+                        if (nextTee != null) {
+                            roundStateManager.advanceToNextHole(botUuid, nextTee);
+                        }
                     }
                     continue;
                 }
                 
-                // Increment throw timer
-                int timer = BOT_THROW_TIMERS.getOrDefault(botUuid, 0);
-                timer++;
-                BOT_THROW_TIMERS.put(botUuid, timer);
-                
-                // Check if bot should throw
-                if (timer >= bot.skill().throwIntervalTicks()) {
+                // Only throw when it is this bot's turn on the current hole
+                if (TurnManager.isActiveTurnPlayer(botUuid, state.currentHole())) {
+                    int timer = BOT_THROW_TIMERS.getOrDefault(botUuid, 0);
+                    timer++;
+                    BOT_THROW_TIMERS.put(botUuid, timer);
+
+                    // Check if bot should throw
+                    if (timer >= bot.skill().throwIntervalTicks()) {
+                        BOT_THROW_TIMERS.put(botUuid, 0);
+                        simulateThrow(server, world, bot, state, currentHole, tee, basket, roundStateManager, distanceToBasket);
+                    }
+                } else {
                     BOT_THROW_TIMERS.put(botUuid, 0);
-                    simulateThrow(server, world, bot, state, currentHole, tee, basket, roundStateManager, distanceToBasket);
                 }
             } catch (Exception e) {
                 McdgMod.LOGGER.error("Error processing bot {}: {}", bot.name(), e.getMessage(), e);

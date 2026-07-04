@@ -27,6 +27,7 @@ import com.mcdg.game.PracticeCourseStorage;
 import com.mcdg.game.ChallengeCourseDiscoveryHandler;
 import com.mcdg.game.ChallengeCourseManager;
 import com.mcdg.game.ChallengeCourseCatalog;
+import com.mcdg.game.ChallengeCourseBuildTracker;
 import com.mcdg.game.RoundInventoryCleaner;
 import com.mcdg.game.RoundPresentationService;
 import com.mcdg.game.RoundRespawnHandler;
@@ -34,8 +35,8 @@ import com.mcdg.game.RoundSessionStorage;
 import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.RoundWindService;
 import com.mcdg.game.ScorecardManager;
+import com.mcdg.game.ThrowSetupSyncHelper;
 import com.mcdg.game.PlayerSkillManager;
-import com.mcdg.game.ThrowAutoTestService;
 import com.mcdg.game.RoundInviteManager;
 import com.mcdg.net.AceCinematicSync;
 
@@ -50,8 +51,8 @@ import com.mcdg.net.SkillsScreenRequest;
 import com.mcdg.net.SkillsScreenSync;
 import com.mcdg.net.SkillsStatusSync;
 import com.mcdg.net.ThrowPowerLockSync;
+import com.mcdg.net.ThrowSetupSync;
 import com.mcdg.net.ThrowStanceSync;
-import com.mcdg.net.ThrowTrailSync;
 import com.mcdg.net.ThrowTrailStartSync;
 import com.mcdg.net.ThrowTrailCompleteSync;
 import com.mcdg.net.RoundInviteRequest;
@@ -155,6 +156,10 @@ public final class McdgMod implements ModInitializer {
     public static TournamentRulesetManager getRulesetManager() {
         return TOURNAMENT_RULESET_MANAGER;
     }
+
+    public static RoundStateManager getRoundStateManager() {
+        return ROUND_STATE_MANAGER;
+    }
     private static final RoundPresentationService ROUND_PRESENTATION_SERVICE = new RoundPresentationService();
     private static final PracticeCourseStorage PRACTICE_COURSE_STORAGE = new PracticeCourseStorage();
     private static final RoundSessionStorage ROUND_SESSION_STORAGE = new RoundSessionStorage();
@@ -171,10 +176,6 @@ public final class McdgMod implements ModInitializer {
             PRACTICE_COURSE_STORAGE,
             ACTIVE_COURSE_MANAGER
     );
-        private static final ThrowAutoTestService THROW_AUTO_TEST_SERVICE = new ThrowAutoTestService(
-            ACTIVE_COURSE_MANAGER,
-            ROUND_STATE_MANAGER
-        );
     private static final PlacementAutoTestService PLACEMENT_AUTO_TEST_SERVICE = new PlacementAutoTestService(
             COURSE_GENERATOR,
             COURSE_PLACEMENT_SERVICE,
@@ -211,7 +212,7 @@ public final class McdgMod implements ModInitializer {
         PayloadTypeRegistry.playS2C().register(SkillsStatusSync.ID, SkillsStatusSync.CODEC);
 
         PayloadTypeRegistry.playS2C().register(ThrowPowerLockSync.ID, ThrowPowerLockSync.CODEC);
-        PayloadTypeRegistry.playS2C().register(ThrowTrailSync.ID, ThrowTrailSync.CODEC);
+        PayloadTypeRegistry.playS2C().register(ThrowSetupSync.ID, ThrowSetupSync.CODEC);
         PayloadTypeRegistry.playS2C().register(ThrowTrailStartSync.ID, ThrowTrailStartSync.CODEC);
         PayloadTypeRegistry.playS2C().register(ThrowTrailCompleteSync.ID, ThrowTrailCompleteSync.CODEC);
 
@@ -257,7 +258,9 @@ public final class McdgMod implements ModInitializer {
                         context.server(),
                         context.player(),
                         payload.targetPlayerIds(),
-                        payload.catalogIndex()
+                        payload.catalogIndex(),
+                        payload.courseId(),
+                        payload.isChallengeCourse()
                 ))
         );
         ServerPlayNetworking.registerGlobalReceiver(RoundInviteResponse.ID, (payload, context) ->
@@ -290,7 +293,6 @@ public final class McdgMod implements ModInitializer {
             config.skipRoundPresentation(),
             TOURNAMENT_RULESET_MANAGER,
             PRACTICE_COURSE_STORAGE,
-            THROW_AUTO_TEST_SERVICE,
             ROUND_SESSION_STORAGE,
             PLAYER_ROUND_SESSION_STORAGE,
             BUILD_COURSE_SESSION_MANAGER,
@@ -303,14 +305,6 @@ public final class McdgMod implements ModInitializer {
             long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
             if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
                 LOGGER.warn("PLACEMENT_AUTO_TEST_SERVICE tick took {}ms", elapsedMs);
-            }
-        });
-        ServerTickEvents.END_SERVER_TICK.register(server -> {
-            long start = System.nanoTime();
-            THROW_AUTO_TEST_SERVICE.tick(server);
-            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
-            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
-                LOGGER.warn("THROW_AUTO_TEST_SERVICE tick took {}ms", elapsedMs);
             }
         });
         ServerTickEvents.END_SERVER_TICK.register(server -> {
@@ -379,6 +373,14 @@ public final class McdgMod implements ModInitializer {
         });
 		ServerTickEvents.END_SERVER_TICK.register(server -> {
             long start = System.nanoTime();
+            ChallengeCourseBuildTracker.tick(server);
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
+                LOGGER.warn("ChallengeCourseBuildTracker tick took {}ms", elapsedMs);
+            }
+        });
+		ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long start = System.nanoTime();
             DiscFlightSimulator.tick(server);
             long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
             if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
@@ -399,6 +401,22 @@ public final class McdgMod implements ModInitializer {
             long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
             if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
                 LOGGER.warn("WindManager tick took {}ms", elapsedMs);
+            }
+        });
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long start = System.nanoTime();
+            // Sync effective throw multipliers every 20 ticks for active players
+            if (server.getTicks() % 20 == 0) {
+                Set<UUID> activeParticipants = ACTIVE_COURSE_MANAGER.getActiveParticipantIds();
+                for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+                    if (activeParticipants.contains(player.getUuid())) {
+                        ThrowSetupSyncHelper.syncSetupMultipliers(player);
+                    }
+                }
+            }
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
+                LOGGER.warn("ThrowSetupSyncHelper tick took {}ms", elapsedMs);
             }
         });
         ServerLifecycleEvents.SERVER_STARTED.register(ElytraDiscMigration::run);
@@ -437,9 +455,12 @@ public final class McdgMod implements ModInitializer {
         );
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
             server.execute(() -> {
-                HoleMapSyncService.onPlayerDisconnect(handler.player.getUuid());
-                handlePlayerDisconnectDuringWarmup(handler.player.getUuid(), server);
+                UUID playerUuid = handler.player.getUuid();
+                HoleMapSyncService.onPlayerDisconnect(playerUuid);
+                handlePlayerDisconnectDuringWarmup(playerUuid, server);
                 PlayerSkillManager.onPlayerDisconnect(handler.player);
+                ChargedDiscItem.clearServerState(playerUuid);
+                ThrowSetupSyncHelper.clearPlayerState(playerUuid);
             })
         );
         HoleProgressTracker.register(
@@ -940,21 +961,53 @@ public final class McdgMod implements ModInitializer {
         }
 
         int totalPar = 0;
+        List<LeaderboardResponse.Entry> responseEntries = new ArrayList<>();
+
+        // Check if this is a challenge course first
+        var challengeCatalog = ChallengeCourseManager.getCatalog();
+        if (challengeCatalog.isPresent()) {
+            var challengeEntry = challengeCatalog.get().getCourseByName(courseName);
+            if (challengeEntry.isPresent()) {
+                // Use challenge course completion data from ChallengeCourseCatalog
+                List<ChallengeCourseCatalog.CompletionEntry> completions =
+                    challengeCatalog.get().getCompletionEntries(challengeEntry.get().courseId());
+
+                for (ChallengeCourseCatalog.CompletionEntry entry : completions) {
+                    responseEntries.add(new LeaderboardResponse.Entry(entry.playerName(), entry.score()));
+                }
+
+                // Calculate total par from the generated course
+                if (challengeEntry.get().generatedCourse() != null) {
+                    for (Hole hole : challengeEntry.get().generatedCourse().holes()) {
+                        totalPar += hole.par();
+                    }
+                }
+                ServerPlayNetworking.send(player, LeaderboardResponse.Payload.active(courseName, totalPar, responseEntries));
+                return;
+            }
+        }
+
+        // Regular course: calculate par from active course if available
         Course activeCourse = ACTIVE_COURSE_MANAGER.getActiveCourse().orElse(null);
         if (activeCourse != null && activeCourse.name().equalsIgnoreCase(courseName)) {
-            totalPar = 0;
             for (Hole hole : activeCourse.holes()) {
                 totalPar += hole.par();
             }
         }
 
-        List<LeaderboardManager.LeaderboardEntry> topEntries = LEADERBOARD_MANAGER.getTopScores(courseName, 5);
-        List<LeaderboardResponse.Entry> responseEntries = new ArrayList<>();
-        for (LeaderboardManager.LeaderboardEntry entry : topEntries) {
-            responseEntries.add(new LeaderboardResponse.Entry(entry.playerName(), entry.score()));
-        }
+        // Use regular leaderboard data
+        responseEntries.addAll(getRegularLeaderboardEntries(courseName));
 
         ServerPlayNetworking.send(player, LeaderboardResponse.Payload.active(courseName, totalPar, responseEntries));
+    }
+
+    private static List<LeaderboardResponse.Entry> getRegularLeaderboardEntries(String courseName) {
+        List<LeaderboardResponse.Entry> entries = new ArrayList<>();
+        List<LeaderboardManager.LeaderboardEntry> topEntries = LEADERBOARD_MANAGER.getTopScores(courseName, 5);
+        for (LeaderboardManager.LeaderboardEntry entry : topEntries) {
+            entries.add(new LeaderboardResponse.Entry(entry.playerName(), entry.score()));
+        }
+        return entries;
     }
 
     private static BlockPos resolveSafeFeetNear(ServerWorld world, BlockPos preferredFeet) {

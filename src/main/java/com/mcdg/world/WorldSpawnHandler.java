@@ -4,6 +4,9 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.mcdg.McdgMod;
 import com.mcdg.game.AutoCourseService;
+import com.mcdg.game.ChallengeCourseManager;
+import com.mcdg.game.LostCourse;
+import com.mcdg.game.LostCourseStorage;
 import com.mcdg.game.PracticeCourseStorage;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.MinecraftServer;
@@ -38,6 +41,8 @@ public final class WorldSpawnHandler {
             return;
         }
 
+        BlockPos spawnPos = overworld.getSpawnPos();
+
         // Re-establish the starter-chest dispenser for resorts built on previous runs
         // (existing worlds never re-run placeResort, so chestPos would otherwise be null).
         ResortData existing = loadResortData(server);
@@ -54,47 +59,64 @@ public final class WorldSpawnHandler {
             if (!existing.coursesBuilt) {
                 McdgMod.LOGGER.info("Resort exists but courses not built. Queuing surround courses now.");
                 ResortCourseBuilder.queueSurroundCourses(overworld, center, autoCourseService, practiceCourseStorage, server);
-                return;
+            } else {
+                McdgMod.LOGGER.info("Resort and courses already built, skipping auto-build.");
             }
+        } else if (isFreshWorld(server)) {
+            File resortFile = getResortFile(server);
+            McdgMod.LOGGER.info("Auto-building resort at world spawn ({}, {}, {})",
+                    spawnPos.getX(), spawnPos.getY(), spawnPos.getZ());
 
-            McdgMod.LOGGER.info("Resort and courses already built, skipping auto-build.");
-            return;
-        }
+            HashMap<BlockPos, BlockState> originalBlocks = new HashMap<>();
+            HashSet<BlockPos> protectedPositions = new HashSet<>();
 
-        if (!isFreshWorld(server)) {
+            ResortBuilder.placeResort(overworld, spawnPos, originalBlocks, protectedPositions);
+
+            BlockPos surfaceCenter = SurfaceResolver.resolveSurfacePos(overworld, spawnPos.getX(), spawnPos.getZ());
+            int baseY = surfaceCenter.getY();
+
+            // Set spawn inside the lobby at floor level (baseY).
+            // SurfaceResolver cannot be used here because the building roof is now the
+            // highest solid block and resolveSurfacePos would return the roof position.
+            BlockPos lobbySpawn = new BlockPos(spawnPos.getX() + 23, baseY, spawnPos.getZ());
+            overworld.setSpawnPos(lobbySpawn, 0.0f);
+
+            saveResortData(resortFile, spawnPos, overworld.getRegistryKey().getValue().toString());
+
+            McdgMod.LOGGER.info("Resort auto-built. World spawn set to lobby at ({}, {}, {}).",
+                    lobbySpawn.getX(), lobbySpawn.getY(), lobbySpawn.getZ());
+
+            // Queue surround courses for background building (non-blocking)
+            ResortCourseBuilder.queueSurroundCourses(overworld, spawnPos, autoCourseService, practiceCourseStorage, server);
+        } else {
             McdgMod.LOGGER.info("World is not fresh, skipping resort auto-build.");
+        }
+
+        // Ensure lost course entrances are available in this world. If they have already
+        // been generated and saved, just register them so discovery continues to work
+        // across restarts. Otherwise, generate them only on fresh worlds to avoid
+        // conflicting with existing player builds on pre-existing worlds.
+        loadOrPlaceLostCourses(overworld, server, spawnPos);
+    }
+
+    private static void loadOrPlaceLostCourses(ServerWorld overworld, MinecraftServer server, BlockPos spawnPos) {
+        var loaded = LostCourseStorage.load(server);
+        if (loaded.isPresent()) {
+            for (LostCourse course : loaded.get()) {
+                ChallengeCourseManager.registerLostCourse(course);
+            }
             return;
         }
 
-        File resortFile = getResortFile(server);
-        BlockPos spawnPos = overworld.getSpawnPos();
-        McdgMod.LOGGER.info("Auto-building resort at world spawn ({}, {}, {})",
-                spawnPos.getX(), spawnPos.getY(), spawnPos.getZ());
-
-        HashMap<BlockPos, BlockState> originalBlocks = new HashMap<>();
-        HashSet<BlockPos> protectedPositions = new HashSet<>();
-
-        ResortBuilder.placeResort(overworld, spawnPos, originalBlocks, protectedPositions);
-
-        BlockPos surfaceCenter = SurfaceResolver.resolveSurfacePos(overworld, spawnPos.getX(), spawnPos.getZ());
-        int baseY = surfaceCenter.getY();
-
-        // Set spawn inside the lobby at floor level (baseY).
-        // SurfaceResolver cannot be used here because the building roof is now the
-        // highest solid block and resolveSurfacePos would return the roof position.
-        BlockPos lobbySpawn = new BlockPos(spawnPos.getX() + 23, baseY, spawnPos.getZ());
-        overworld.setSpawnPos(lobbySpawn, 0.0f);
-
-        saveResortData(resortFile, spawnPos, overworld.getRegistryKey().getValue().toString());
-
-        McdgMod.LOGGER.info("Resort auto-built. World spawn set to lobby at ({}, {}, {}).",
-                lobbySpawn.getX(), lobbySpawn.getY(), lobbySpawn.getZ());
-
-        // Queue surround courses for background building (non-blocking)
-        ResortCourseBuilder.queueSurroundCourses(overworld, spawnPos, autoCourseService, practiceCourseStorage, server);
-
-        // Place lost course entrances in the world
-        LostCoursePlacement.placeLostCourseEntrances(overworld, spawnPos);
+        // Only auto-generate lost-course entrances on fresh worlds. Pre-existing worlds may
+        // already have player builds, and placing entrances automatically could conflict with them.
+        if (isFreshWorld(server)) {
+            LostCoursePlacement.placeLostCourseEntrances(overworld, spawnPos);
+            LostCourseStorage.save(server, ChallengeCourseManager.getAllLostCourses());
+        } else {
+            McdgMod.LOGGER.info("Pre-existing world detected and no lost-course data found; "
+                    + "skipping automatic challenge-course placement to avoid conflicts with existing builds.");
+        }
     }
 
     private static boolean isFreshWorld(MinecraftServer server) {

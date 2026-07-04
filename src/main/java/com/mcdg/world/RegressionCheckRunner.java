@@ -19,8 +19,8 @@ public final class RegressionCheckRunner {
     private static final Path VALIDATOR_FILE = Paths.get(
         "src", "main", "java", "com", "mcdg", "world", "CoursePlacementValidator.java"
     );
-    private static final Path ROUND_LIFECYCLE_FILE = Paths.get(
-        "src", "main", "java", "com", "mcdg", "command", "RoundLifecycleCommands.java"
+    private static final Path ROUND_START_FILE = Paths.get(
+        "src", "main", "java", "com", "mcdg", "command", "RoundStartCommand.java"
     );
     private static final Path COURSE_PLACEMENT_FILE = Paths.get(
         "src", "main", "java", "com", "mcdg", "world", "CoursePlacementService.java"
@@ -40,8 +40,8 @@ public final class RegressionCheckRunner {
     private static final Path ROUND_RUNNING_SCORES_SYNC_FILE = Paths.get(
         "src", "main", "java", "com", "mcdg", "net", "RoundRunningScoresSync.java"
     );
-    private static final Path COMMAND_PERMISSIONS_FILE = Paths.get(
-        "src", "main", "java", "com", "mcdg", "command", "CommandPermissions.java"
+    private static final Path COMMAND_PERMISSION_FILE = Paths.get(
+        "src", "main", "java", "com", "mcdg", "command", "CommandPermission.java"
     );
     private static final Path SAFE_POSITION_FINDER_FILE = Paths.get(
         "src", "main", "java", "com", "mcdg", "world", "SafePositionFinder.java"
@@ -161,15 +161,15 @@ public final class RegressionCheckRunner {
         if (!Files.exists(VALIDATOR_FILE)) {
             throw new RuntimeException("Validator regression file missing: " + VALIDATOR_FILE);
         }
-        if (!Files.exists(ROUND_LIFECYCLE_FILE)) {
-            throw new RuntimeException("Admin command regression file missing: " + ROUND_LIFECYCLE_FILE);
+        if (!Files.exists(ROUND_START_FILE)) {
+            throw new RuntimeException("Round start command regression file missing: " + ROUND_START_FILE);
         }
 
         String validatorSource;
-        String adminSource;
+        String roundStartSource;
         try {
             validatorSource = Files.readString(VALIDATOR_FILE, StandardCharsets.UTF_8);
-            adminSource = Files.readString(ROUND_LIFECYCLE_FILE, StandardCharsets.UTF_8);
+            roundStartSource = Files.readString(ROUND_START_FILE, StandardCharsets.UTF_8);
         } catch (IOException ex) {
             throw new RuntimeException("Failed to read placement source files for regression checks", ex);
         }
@@ -189,7 +189,7 @@ public final class RegressionCheckRunner {
                     "Placement validator is missing expected issue code."
             );
             assertContains(
-                    adminSource,
+                    roundStartSource,
                     "\"" + issueCode + "\"",
                     "Start-round retry gate is missing expected issue code."
             );
@@ -381,25 +381,25 @@ public final class RegressionCheckRunner {
     }
 
     private static void runRefactoredClassChecks() {
-        // CommandPermissions: Security-critical authorization checks
-        if (!Files.exists(COMMAND_PERMISSIONS_FILE)) {
-            throw new RuntimeException("CommandPermissions regression file missing: " + COMMAND_PERMISSIONS_FILE);
+        // CommandPermission: Security-critical authorization checks
+        if (!Files.exists(COMMAND_PERMISSION_FILE)) {
+            throw new RuntimeException("CommandPermission regression file missing: " + COMMAND_PERMISSION_FILE);
         }
-        String commandPermissionsSource;
+        String commandPermissionSource;
         try {
-            commandPermissionsSource = Files.readString(COMMAND_PERMISSIONS_FILE, StandardCharsets.UTF_8);
+            commandPermissionSource = Files.readString(COMMAND_PERMISSION_FILE, StandardCharsets.UTF_8);
         } catch (IOException ex) {
-            throw new RuntimeException("Failed to read CommandPermissions source for regression checks", ex);
+            throw new RuntimeException("Failed to read CommandPermission source for regression checks", ex);
         }
         assertContains(
-            commandPermissionsSource,
+            commandPermissionSource,
             "public static boolean canUseAdminCommands",
-            "CommandPermissions regression: canUseAdminCommands method is missing (security-critical)."
+            "CommandPermission regression: canUseAdminCommands method is missing (security-critical)."
         );
         assertContains(
-            commandPermissionsSource,
+            commandPermissionSource,
             "public static boolean canUseAdvancedCommands",
-            "CommandPermissions regression: canUseAdvancedCommands method is missing (security-critical)."
+            "CommandPermission regression: canUseAdvancedCommands method is missing (security-critical)."
         );
 
         // SafePositionFinder: Safety-critical position validation

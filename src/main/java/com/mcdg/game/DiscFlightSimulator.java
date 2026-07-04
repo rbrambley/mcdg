@@ -122,9 +122,7 @@ public final class DiscFlightSimulator {
 
     /**
      * Register a new throw with the flight simulator.
-     * Called from ThrowAutoTestService for auto-test throws (pearl-based).
-     *
-     * Note: Player throws via ChargedDiscItem use calculated trajectory instead (no pearl).
+     * Legacy pearl-based throws are no longer used; player throws via ChargedDiscItem use calculated trajectory (no pearl).
      */
     public static void registerThrow(
             UUID pearlUuid,

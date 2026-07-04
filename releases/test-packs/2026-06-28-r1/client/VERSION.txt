@@ -1,0 +1,29 @@
+Release ID: 2026-06-28-r1
+Generated At: 2026-06-28 16:59:00 -04:00
+Minecraft: 1.20.6
+Fabric Loader: 0.19.3
+Java: 21
+
+Server mod snapshot:
+fabric-api-0.100.8+1.20.6.jar
+ferritecore-6.1.1-fabric.jar
+lithium-fabric-mc1.20.6-0.12.5.jar
+mcdg-0.1.0.jar
+BiomesOPlenty-fabric-1.20.6-18.4.0.8.jar
+TerraBlender-fabric-1.20.6-3.5.0.5.jar
+GlitchCore-fabric-1.20.6-1.1.0.10.jar
+SereneSeasons-fabric-1.20.6-9.4.0.6.jar
+spark-1.10.65-fabric.jar
+Veinminer-fabric-3.1.2+mc1.20.6.jar
+cloth-config-14.0.139-fabric.jar
+placeholder-api-2.4.0-pre.2+1.20.5.jar
+
+Client additional mods:
+ClientSort-Fabric-1.20.6-0.9.0.jar
+emi-1.1.22+1.20.6+fabric.jar
+modmenu-10.0.0.jar
+XaerosWorldMap_1.39.12_Fabric_1.20.6.jar
+Xaeros_Minimap_25.2.10_Fabric_1.20.6.jar
+
+Build commit: f8fa2c2ab9ba40d477347bc95b7d9c077b00f2a1
+Changes: f8fa2c2 refactor: extract command execution methods to specialized classes to fix architectural issues

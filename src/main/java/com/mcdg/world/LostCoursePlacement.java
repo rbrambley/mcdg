@@ -23,6 +23,28 @@ public final class LostCoursePlacement {
     private static final int MAX_DISTANCE_FROM_SPAWN = 2000;
     private static final int MIN_COURSE_SEPARATION = 300;
 
+    // Shared name arrays for course name generation
+    private static final String[] LOST_COURSE_NAMES = {
+        "Forgotten Grove", "Ancient Ruins", "Hidden Valley", "Mystic Clearing",
+        "Secret Sanctuary", "Lost Paradise", "Whispering Woods", "Shadow Hollow"
+    };
+
+    private static final String[] BOSS_HOLE_NAMES = {
+        "Guardian's Challenge", "The Beast's Lair", "Titan's Test", "Overlord's Arena"
+    };
+
+    private static final String[] TIME_TRIAL_NAMES = {
+        "Speed Run", "Time Attack", "Velocity Challenge", "Sprint Course"
+    };
+
+    private static final String[] ACCURACY_CHALLENGE_NAMES = {
+        "Precision Range", "Target Practice", "Sharpshooter's Haven", "Bullseye Valley"
+    };
+
+    private static final String[] DISTANCE_CHALLENGE_NAMES = {
+        "Long Drive", "Mega Distance", "Epic Throw", "Endurance Challenge"
+    };
+
     private LostCoursePlacement() {}
 
     /**
@@ -158,36 +180,33 @@ public final class LostCoursePlacement {
      * Generates a name for the course.
      */
     private static String generateCourseName(ChallengeCourseType type, int index, Random random) {
-        String[] lostNames = {
-            "Forgotten Grove", "Ancient Ruins", "Hidden Valley", "Mystic Clearing",
-            "Secret Sanctuary", "Lost Paradise", "Whispering Woods", "Shadow Hollow"
-        };
-        
-        String[] bossNames = {
-            "Guardian's Challenge", "The Beast's Lair", "Titan's Test", "Overlord's Arena"
-        };
-        
-        String[] timeTrialNames = {
-            "Speed Run", "Time Attack", "Velocity Challenge", "Sprint Course"
-        };
-        
-        String[] accuracyNames = {
-            "Precision Range", "Target Practice", "Sharpshooter's Haven", "Bullseye Valley"
-        };
-        
-        String[] distanceNames = {
-            "Long Drive", "Mega Distance", "Epic Throw", "Endurance Challenge"
-        };
-
         String[] names = switch (type) {
-            case LOST_COURSE -> lostNames;
-            case BOSS_HOLE -> bossNames;
-            case TIME_TRIAL -> timeTrialNames;
-            case ACCURACY_CHALLENGE -> accuracyNames;
-            case DISTANCE_CHALLENGE -> distanceNames;
+            case LOST_COURSE -> LOST_COURSE_NAMES;
+            case BOSS_HOLE -> BOSS_HOLE_NAMES;
+            case TIME_TRIAL -> TIME_TRIAL_NAMES;
+            case ACCURACY_CHALLENGE -> ACCURACY_CHALLENGE_NAMES;
+            case DISTANCE_CHALLENGE -> DISTANCE_CHALLENGE_NAMES;
         };
 
         String baseName = names[random.nextInt(names.length)];
+        return baseName + " #" + (index + 1);
+    }
+
+    /**
+     * Generates a course name for repair purposes (deterministic based on type and index).
+     * This is a public method used by the repair command to fix generic course names.
+     */
+    public static String generateCourseNameForRepair(ChallengeCourseType type, int index) {
+        String[] names = switch (type) {
+            case LOST_COURSE -> LOST_COURSE_NAMES;
+            case BOSS_HOLE -> BOSS_HOLE_NAMES;
+            case TIME_TRIAL -> TIME_TRIAL_NAMES;
+            case ACCURACY_CHALLENGE -> ACCURACY_CHALLENGE_NAMES;
+            case DISTANCE_CHALLENGE -> DISTANCE_CHALLENGE_NAMES;
+        };
+
+        // Use index modulo array length for deterministic selection
+        String baseName = names[index % names.length];
         return baseName + " #" + (index + 1);
     }
 

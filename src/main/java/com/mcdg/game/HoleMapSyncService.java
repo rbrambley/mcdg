@@ -8,7 +8,7 @@ import com.mcdg.data.SignatureHoleType;
 import com.mcdg.net.HoleMapSync;
 import com.mcdg.rules.TournamentRulesetManager;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -24,11 +24,11 @@ import net.minecraft.util.math.BlockPos;
  * no texture building, no map span calculation.
  */
 public final class HoleMapSyncService {
-    private static final Map<UUID, Integer> LAST_HOLE = new HashMap<>();
-    private static final Map<UUID, Integer> LAST_PAYLOAD_HASH = new HashMap<>();
+    private static final Map<UUID, Integer> LAST_HOLE = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> LAST_PAYLOAD_HASH = new ConcurrentHashMap<>();
     private static boolean ACTIVE_SENT = false;
 
-    private static final Map<UUID, CachedExtras> EXTRAS_CACHE = new HashMap<>();
+    private static final Map<UUID, CachedExtras> EXTRAS_CACHE = new ConcurrentHashMap<>();
 
     private record CachedExtras(
             BlockPos lie,
@@ -79,6 +79,7 @@ public final class HoleMapSyncService {
         if (payload.hasLastThrowStats()) {
             hash = 31 * hash + Double.hashCode(payload.lastThrowTotalDistanceFt());
             hash = 31 * hash + Double.hashCode(payload.lastThrowLateralDriftFt());
+            hash = 31 * hash + Double.hashCode(payload.lastThrowApexHeightFt());
             hash = 31 * hash + payload.lastThrowStance().hashCode();
             hash = 31 * hash + payload.lastThrowAngle().hashCode();
             hash = 31 * hash + payload.lastThrowFlightTicks();
@@ -389,6 +390,7 @@ public final class HoleMapSyncService {
                 lastThrowStats != null,
                 lastThrowStats != null ? lastThrowStats.totalDistanceFt() : 0.0,
                 lastThrowStats != null ? lastThrowStats.lateralDriftFt() : 0.0,
+                lastThrowStats != null ? lastThrowStats.apexHeightFt() : 0.0,
                 lastThrowStats != null ? lastThrowStats.stance() : ThrowStance.OVERHAND,
                 lastThrowStats != null ? lastThrowStats.angle() : ReleaseAngle.FLAT,
                 lastThrowStats != null ? lastThrowStats.flightTicks() : 0,

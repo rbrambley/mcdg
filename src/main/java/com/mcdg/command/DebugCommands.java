@@ -3,23 +3,17 @@ package com.mcdg.command;
 import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import com.mcdg.game.ActiveCourseManager;
-import com.mcdg.game.HoleHazardGridService;
-import com.mcdg.game.PlacedCourseState;
-import com.mcdg.game.PracticeCourseStorage;
-import com.mcdg.game.RoundPresentationService;
-import com.mcdg.game.RoundStateManager;
-import com.mcdg.game.ThrowAutoTestService;
+import com.mcdg.game.ChallengeCourseDiscoveryHandler;
+import com.mcdg.game.ChallengeCourseManager;
+import com.mcdg.game.HazardBehavior;
+import com.mcdg.game.LostCourseStorage;
 import com.mcdg.game.HazardManager;
 import com.mcdg.game.HazardType;
-import com.mcdg.game.HazardBehavior;
-import com.mcdg.game.ChallengeCourseManager;
-import com.mcdg.game.ChallengeCourseDiscoveryHandler;
+import com.mcdg.game.HoleHazardGridService;
 import com.mcdg.game.LostCourse;
+import com.mcdg.game.OutOfBoundsClassifier;
+import com.mcdg.game.PlacedCourseState;
 import com.mcdg.rules.TournamentRulesetManager;
-import com.mcdg.world.CourseGenerator;
-import com.mcdg.world.CoursePlacementService;
-import com.mcdg.world.CoursePlacementValidator;
-import com.mcdg.world.PlacementAutoTestService;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,135 +26,11 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 
 /**
- * Debug and autotest command handlers.
+ * Debug command handlers.
  */
 public final class DebugCommands {
     private DebugCommands() {
     }
-
-        public static int executeDebugPermissions(ServerCommandSource source) {
-                boolean hasPermissionLevelTwo = source.hasPermissionLevel(2);
-                boolean dedicated = source.getServer().isDedicated();
-                boolean allowedByGate = CommandPermissions.canUseAdminCommands(source);
-
-                String sourceType = "non-entity";
-                String sourceIdentity = source.getName();
-                if (source.getEntity() instanceof ServerPlayerEntity player) {
-                        sourceType = "player";
-                        sourceIdentity = player.getGameProfile().getName() + " (" + player.getUuid() + ")";
-                } else if (source.getEntity() != null) {
-                        sourceType = "entity";
-                        sourceIdentity = source.getEntity().getName().getString();
-                }
-
-                final String finalSourceType = sourceType;
-                final String finalSourceIdentity = sourceIdentity;
-
-                source.sendFeedback(() -> Text.literal(
-                        "mcdg debug perms -> hasPermissionLevel(2)=" + hasPermissionLevelTwo
-                                + ", dedicated=" + dedicated
-                                + ", canUseAdminCommands=" + allowedByGate
-                                + ", showAdvancedCommands=" + CommandPermissions.SHOW_ADVANCED_COMMANDS
-                                + ", sourceType=" + finalSourceType
-                                + ", source=" + finalSourceIdentity
-                ), false);
-                return 1;
-        }
-
-        public static int executeValidatePlacement(
-                        ServerCommandSource source,
-                        ActiveCourseManager courseManager,
-                        CoursePlacementValidator placementValidator
-        ) {
-                Course course = courseManager.getActiveCourse().orElse(null);
-                if (course == null) {
-                        source.sendError(Text.literal("No active course. Run /mcdg createcourse <seed> and /mcdg startround first."));
-                        return 0;
-                }
-
-                PlacedCourseState placed = courseManager.getPlacedCourseState().orElse(null);
-                if (placed == null) {
-                        source.sendError(Text.literal("No placed course found. Run /mcdg startround first."));
-                        return 0;
-                }
-
-                ServerWorld world = source.getServer().getWorld(placed.worldKey());
-                if (world == null) {
-                        source.sendError(Text.literal("Placed course world is unavailable for validation."));
-                        return 0;
-                }
-
-                CoursePlacementValidator.ValidationReport report = placementValidator.validatePlacedCourse(world, course, placed, "active-course");
-                int invalidHoles = report.metrics().getOrDefault("invalid_holes", 0);
-                int warningLandingGaps = report.metrics().getOrDefault("warning_landing_gaps", 0);
-                int maxLandingGap = report.metrics().getOrDefault("max_landing_gap", 0);
-                int landingGapWarningThreshold = report.metrics().getOrDefault("landing_gap_warning_threshold", 95);
-                int landingGapFailThreshold = report.metrics().getOrDefault("landing_gap_fail_threshold", 110);
-                source.sendFeedback(() -> Text.literal(
-                                "Validation " + (report.passed() ? "PASSED" : "FAILED")
-                                        + " | holes=" + report.metrics().getOrDefault("total_holes", 0)
-                                        + ", invalid=" + invalidHoles
-                                        + ", issues=" + report.issueCount()
-                                        + ", warningLandingGaps=" + warningLandingGaps
-                                        + ", maxLandingGap=" + maxLandingGap
-                                        + " (warn>" + landingGapWarningThreshold + ", fail>" + landingGapFailThreshold + ")"
-                                        + ", biome=" + report.biome()
-                ), true);
-
-                int maxIssueLines = 8;
-                List<CoursePlacementValidator.ValidationIssue> issues = report.issues();
-                for (int i = 0; i < issues.size() && i < maxIssueLines; i++) {
-                        CoursePlacementValidator.ValidationIssue issue = issues.get(i);
-                        String posText = issue.position() == null
-                                ? ""
-                                : (" @ " + issue.position().getX() + " " + issue.position().getY() + " " + issue.position().getZ());
-                        source.sendFeedback(() -> Text.literal(
-                                " - H" + issue.holeIndex() + " [" + issue.code() + "] " + issue.message() + posText
-                        ), false);
-                }
-
-                if (issues.size() > maxIssueLines) {
-                        int remaining = issues.size() - maxIssueLines;
-                        source.sendFeedback(() -> Text.literal(" - ... and " + remaining + " more issues."), false);
-                }
-
-                return report.passed() ? 1 : 0;
-        }
-
-        public static int executeAutoTestPlacement(
-                        ServerCommandSource source,
-                        PlacementAutoTestService autoTestService,
-                        int runs,
-                        int holes
-        ) {
-                return autoTestService.start(source, runs, holes);
-        }
-
-        public static int executeAutoTestPlacementSeeded(
-                        ServerCommandSource source,
-                        PlacementAutoTestService autoTestService,
-                        int runs,
-                        int holes,
-                        long seed
-        ) {
-                source.sendFeedback(() -> Text.literal(
-                        "Starting seeded autotest with baseSeed=" + seed + "."
-                ), false);
-                return autoTestService.start(source, runs, holes, seed);
-        }
-
-        public static int executeAutoTestShadowStatus(
-                        ServerCommandSource source,
-                        PlacementAutoTestService autoTestService
-        ) {
-                boolean enabled = autoTestService.isShadowSurfaceRuleEnabledNow();
-                boolean override = autoTestService.isShadowSurfaceRuleOverrideSet();
-                String mode = override ? "manual override" : "environment/default";
-                source.sendFeedback(() -> Text.literal(
-                        "Autotest shadow mode is " + (enabled ? "ON" : "OFF") + " (" + mode + ")."
-                ), false);
-                return 1;
-        }
 
         /**
          * Debug command to show hazard type at player position.
@@ -413,80 +283,6 @@ public final class DebugCommands {
                 return line;
         }
 
-        public static int executeAutoTestShadowSet(
-                        ServerCommandSource source,
-                        PlacementAutoTestService autoTestService,
-                        boolean enabled
-        ) {
-                autoTestService.setShadowSurfaceRuleOverride(enabled);
-                source.sendFeedback(() -> Text.literal(
-                        "Autotest shadow mode override set to " + (enabled ? "ON" : "OFF") + "."
-                ), true);
-                return 1;
-        }
-
-        public static int executeCancelAutoTest(ServerCommandSource source, PlacementAutoTestService autoTestService) {
-                return autoTestService.cancel(source);
-        }
-
-        public static int executeAutoTestThrows(
-                        ServerCommandSource source,
-                        ThrowAutoTestService throwAutoTestService,
-                        int count
-        ) {
-                return throwAutoTestService.start(source, count);
-        }
-
-        public static int executeCancelThrowTest(ServerCommandSource source, ThrowAutoTestService throwAutoTestService) {
-                return throwAutoTestService.cancel(source);
-        }
-
-        public static int executeQuickThrowTest(
-                        ServerCommandSource source,
-                        CourseGenerator generator,
-                        ActiveCourseManager courseManager,
-                        CoursePlacementService placementService,
-                        CoursePlacementValidator placementValidator,
-                        RoundStateManager roundStateManager,
-                        RoundPresentationService roundPresentationService,
-                        PracticeCourseStorage practiceCourseStorage,
-                        ThrowAutoTestService throwAutoTestService,
-                        long seed,
-                        int throwCount
-        ) {
-                int created = CourseAdminCommands.executeCreateCourse(source, generator, courseManager, seed);
-                if (created == 0) {
-                        return 0;
-                }
-
-                int started = RoundLifecycleCommands.executeStartRound(
-                        source,
-                        courseManager,
-                        placementService,
-                        placementValidator,
-                        roundStateManager,
-                        roundPresentationService,
-                        true,
-                        practiceCourseStorage,
-                        false,
-                        true,
-                        null
-                );
-                if (started == 0) {
-                        return 0;
-                }
-
-                int testStarted = executeAutoTestThrows(source, throwAutoTestService, throwCount);
-                if (testStarted == 0) {
-                        return 0;
-                }
-
-                source.sendFeedback(() -> Text.literal(
-                        "Quick throw test running: seed=" + seed + ", throws=" + throwCount + "."
-                ), true);
-                return 1;
-        }
-
         /**
          * Lists all lost courses in the world.
          */
@@ -536,6 +332,9 @@ public final class DebugCommands {
         public static int executeClearLostCourses(ServerCommandSource source) {
                 int count = ChallengeCourseManager.getAllLostCourses().size();
                 ChallengeCourseManager.clearAllLostCourses();
+                if (source.getServer() != null) {
+                    LostCourseStorage.save(source.getServer(), List.of());
+                }
                 source.sendFeedback(() -> Text.literal("Cleared " + count + " lost courses."), true);
                 return 1;
         }
@@ -554,6 +353,7 @@ public final class DebugCommands {
                 
                 ChallengeCourseManager.registerLostCourse(testCourse);
                 ChallengeCourseManager.placeLostCourseEntrance(player.getServerWorld(), playerPos, testCourse);
+                LostCourseStorage.save(player.getServer(), ChallengeCourseManager.getAllLostCourses());
                 
                 source.sendFeedback(() -> Text.literal("Placed test lost course: " + testCourse.name() + " at your position"), true);
                 return 1;
@@ -573,6 +373,93 @@ public final class DebugCommands {
                         com.mcdg.game.ChallengeCourseType.LOST_COURSE,
                         false
                 );
+        }
+
+        /**
+         * Repairs challenge course names that have generic names like "challenge_course_1".
+         */
+        public static int executeRepairChallengeNames(ServerCommandSource source) {
+                List<LostCourse> allCourses = ChallengeCourseManager.getAllLostCourses();
+                final int[] repairedCount = {0};
+
+                for (LostCourse course : allCourses) {
+                        if (course.name().matches("challenge_course_\\d+")) {
+                                // Generate a proper name using the LostCoursePlacement naming system
+                                // Use courseId hash for deterministic indexing across runs
+                                int stableIndex = Math.abs(course.courseId().hashCode());
+                                String newName = com.mcdg.world.LostCoursePlacement.generateCourseNameForRepair(
+                                        course.type(),
+                                        stableIndex
+                                );
+
+                                // Create updated LostCourse with new name
+                                LostCourse renamedCourse = new LostCourse(
+                                        course.courseId(),
+                                        newName,
+                                        course.entrancePosition(),
+                                        course.courseAnchor(),
+                                        course.rewards(),
+                                        course.type(),
+                                        course.isDiscovered()
+                                );
+
+                                // Update in ChallengeCourseManager
+                                ChallengeCourseManager.updateLostCourse(renamedCourse);
+
+                                // Update in ChallengeCourseCatalog if present
+                                ChallengeCourseManager.getCatalog().ifPresent(catalog -> {
+                                        catalog.getCourse(course.courseId()).ifPresent(entry -> {
+                                                // Create new entry with updated name
+                                                var newEntry = new com.mcdg.game.ChallengeCourseCatalog.CatalogEntry(
+                                                        entry.courseId(),
+                                                        newName,
+                                                        entry.type(),
+                                                        entry.entrancePosition(),
+                                                        entry.courseAnchor(),
+                                                        entry.generatedCourse(),
+                                                        entry.parameters(),
+                                                        entry.discoveredAt(),
+                                                        entry.playerRewards(),
+                                                        entry.playerCompletions(),
+                                                        entry.isPlaced()
+                                                );
+                                                catalog.removeCourse(course.courseId());
+                                                catalog.entries().put(course.courseId(), newEntry);
+                                        });
+                                });
+
+                                repairedCount[0]++;
+                                source.sendFeedback(() -> Text.literal(
+                                        "Renamed: " + course.name() + " -> " + newName
+                                ).formatted(Formatting.YELLOW), false);
+                        }
+                }
+
+                if (repairedCount[0] > 0) {
+                        LostCourseStorage.save(source.getServer(), ChallengeCourseManager.getAllLostCourses());
+                        ChallengeCourseManager.getCatalog().ifPresent(catalog -> catalog.save(source.getServer()));
+                        source.sendFeedback(() -> Text.literal(
+                                "Repaired " + repairedCount[0] + " challenge course name(s)."
+                        ).formatted(Formatting.GREEN), true);
+                } else {
+                        source.sendFeedback(() -> Text.literal(
+                                "No challenge courses with generic names found."
+                        ).formatted(Formatting.GRAY), false);
+                }
+
+                return 1;
+        }
+
+        public static int executeDebugObClassifier(ServerCommandSource source) {
+                boolean current = OutOfBoundsClassifier.isDebugLoggingEnabled();
+                source.sendFeedback(() -> Text.literal("OB Classifier debug logging: " + (current ? "enabled" : "disabled")), false);
+                return current ? 1 : 0;
+        }
+
+        public static int executeDebugObClassifierSet(ServerCommandSource source, boolean enabled) {
+                OutOfBoundsClassifier.setDebugLogging(enabled);
+                source.sendFeedback(() -> Text.literal("OB Classifier debug logging " + (enabled ? "enabled" : "disabled")), true);
+                return enabled ? 1 : 0;
         }
 
 }

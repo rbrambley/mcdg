@@ -21,7 +21,7 @@ public final class RoundInviteRequest {
     private RoundInviteRequest() {
     }
 
-    public record Payload(List<UUID> targetPlayerIds, int catalogIndex) implements CustomPayload {
+    public record Payload(List<UUID> targetPlayerIds, int catalogIndex, String courseId, boolean isChallengeCourse) implements CustomPayload {
         public static Payload read(RegistryByteBuf buf) {
             int count = Math.max(0, buf.readVarInt());
             List<UUID> targets = new ArrayList<>(count);
@@ -33,8 +33,18 @@ public final class RoundInviteRequest {
                     // Skip malformed UUIDs
                 }
             }
-            int catalogIndex = buf.readVarInt();
-            return new Payload(List.copyOf(targets), catalogIndex);
+            boolean isChallengeCourse = buf.readBoolean();
+            int catalogIndex = 0;
+            String courseId = null;
+            if (isChallengeCourse) {
+                courseId = buf.readString();
+                if (courseId.isEmpty()) {
+                    courseId = null;
+                }
+            } else {
+                catalogIndex = buf.readVarInt();
+            }
+            return new Payload(List.copyOf(targets), catalogIndex, courseId, isChallengeCourse);
         }
 
         public void write(RegistryByteBuf buf) {
@@ -43,7 +53,12 @@ public final class RoundInviteRequest {
             for (UUID id : safeTargets) {
                 buf.writeString(id != null ? id.toString() : new UUID(0L, 0L).toString());
             }
-            buf.writeVarInt(catalogIndex);
+            buf.writeBoolean(isChallengeCourse);
+            if (isChallengeCourse) {
+                buf.writeString(courseId != null ? courseId : "");
+            } else {
+                buf.writeVarInt(catalogIndex);
+            }
         }
 
         @Override

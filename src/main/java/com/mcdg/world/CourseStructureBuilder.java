@@ -1,11 +1,24 @@
 package com.mcdg.world;
 
+import com.mcdg.McdgMod;
+import com.mcdg.data.Course;
+import com.mcdg.data.Hole;
+import com.mcdg.game.ChallengeBlockPalette;
+import com.mcdg.game.ChallengeCourseType;
+import com.mcdg.game.PlacedCourseState;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.SignBlockEntity;
+import net.minecraft.block.entity.SignText;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.state.property.Properties;
+import net.minecraft.text.Text;
+import net.minecraft.util.DyeColor;
 import net.minecraft.util.math.BlockPos;
 
 public final class CourseStructureBuilder {
@@ -301,6 +314,111 @@ public final class CourseStructureBuilder {
             noteToShow,
             originalBlocks
         );
+    }
+
+    /**
+     * Replaces the normal course banner and sign at each tee with challenge-themed
+     * versions and auto-populated hole text.
+     */
+    public static void applyChallengeTheme(
+            ServerWorld world,
+            Course course,
+            PlacedCourseState placed,
+            ChallengeCourseType type
+    ) {
+        ChallengeBlockPalette.BlockPalette palette = ChallengeBlockPalette.forType(type);
+        Map<BlockPos, BlockState> originalBlocks = new HashMap<>(placed.originalBlocks());
+
+        Block teeMarker = palette.teeMarker();
+        Block holeSign = palette.holeSign();
+
+        int successCount = 0;
+        int failureCount = 0;
+
+        for (Hole hole : course.holes()) {
+            try {
+                BlockPos tee = placed.holeTees().get(hole.index());
+                BlockPos basket = placed.holeBaskets().get(hole.index());
+                if (tee == null || basket == null) {
+                    failureCount++;
+                    continue;
+                }
+
+                if (!world.isChunkLoaded(tee)) {
+                    world.getChunk(tee);
+                }
+                if (!world.isChunkLoaded(basket)) {
+                    world.getChunk(basket);
+                }
+
+                int[] forward = PlacementUtils.teeForwardUnit(tee, basket);
+                int fx = forward[0];
+                int fz = forward[1];
+                int lx = -fz;
+                int lz = fx;
+                int rx = -lx;
+                int rz = -lz;
+
+                BlockPos signGround = tee.add(fx + lx, 0, fz + lz);
+                BlockPos bannerGround = tee.add(fx + rx, 0, fz + rz);
+                int bannerRotation = SignTextGenerator.standingSignRotationForCardinal(-fx, -fz);
+
+                // Replace the themed banner and pole at the normal banner location
+                PlacementUtils.clearHeadroom(world, bannerGround, 0, 3, originalBlocks, null);
+                PlacementUtils.setTrackedBlock(world, bannerGround.up(1), defaultStateOf(teeMarker), originalBlocks);
+                BlockState bannerState = bannerBlockForColor(palette.bannerColor())
+                        .with(Properties.ROTATION, bannerRotation);
+                PlacementUtils.setTrackedBlock(world, bannerGround.up(2), bannerState, originalBlocks);
+
+                // Replace the normal sign with a challenge-themed sign and auto text
+                PlacementUtils.clearHeadroom(world, signGround, 0, 3, originalBlocks, null);
+                BlockState signState = defaultStateOf(holeSign)
+                        .with(Properties.ROTATION, bannerRotation);
+                PlacementUtils.setTrackedBlock(world, signGround.up(1), signState, originalBlocks);
+
+                if (world.getBlockEntity(signGround.up(1)) instanceof SignBlockEntity sign) {
+                    String hazard = PlacementCleanupHelper.teeHazardNote(world, tee, basket);
+                    int distance = PlacementUtils.placedDistanceFeet(tee, basket);
+                    SignText updated = sign.getFrontText()
+                            .withMessage(0, Text.literal(palette.bannerPatternName()))
+                            .withMessage(1, Text.literal("Hole " + hole.index() + " Par " + hole.par()))
+                            .withMessage(2, Text.literal(distance + " ft"))
+                            .withMessage(3, Text.literal(hazard));
+                    sign.setText(updated, true);
+                    sign.setText(updated, false);
+                    sign.markDirty();
+                }
+                successCount++;
+            } catch (Exception ex) {
+                failureCount++;
+                McdgMod.LOGGER.error("Failed to apply challenge theme to hole {} in course {}: {}",
+                    hole.index(), course.name(), ex.getMessage());
+            }
+        }
+
+        if (failureCount > 0) {
+            McdgMod.LOGGER.warn("Applied challenge course theme for type {} to course {} with {} successes and {} failures",
+                type, course.name(), successCount, failureCount);
+        } else {
+            McdgMod.LOGGER.info("Applied challenge course theme for type {} to course {} ({} holes)",
+                type, course.name(), successCount);
+        }
+    }
+
+    private static BlockState bannerBlockForColor(DyeColor color) {
+        Block banner = switch (color) {
+            case PURPLE -> Blocks.PURPLE_BANNER;
+            case RED -> Blocks.RED_BANNER;
+            case ORANGE -> Blocks.ORANGE_BANNER;
+            case CYAN -> Blocks.CYAN_BANNER;
+            case LIME -> Blocks.LIME_BANNER;
+            default -> Blocks.WHITE_BANNER;
+        };
+        return banner.getDefaultState();
+    }
+
+    private static BlockState defaultStateOf(Block block) {
+        return block.getDefaultState();
     }
 
     static void placeSignatureBasketAccents(

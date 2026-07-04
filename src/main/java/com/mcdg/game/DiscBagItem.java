@@ -20,7 +20,7 @@ import net.minecraft.world.World;
  * Right-click to open the bag inventory and manage disc collection.
  */
 public class DiscBagItem extends Item {
-    private static final int BAG_SLOTS = 12;
+    public static final int BAG_SLOTS = 18;
     private static final String KEY_UUID = "BagUuid";
 
     public DiscBagItem(Settings settings) {
@@ -42,6 +42,23 @@ public class DiscBagItem extends Item {
         super.appendTooltip(stack, context, tooltip, type);
         tooltip.add(Text.translatable("tooltip.mcdg.disc_bag.usage").formatted(Formatting.GRAY));
         tooltip.add(Text.translatable("tooltip.mcdg.disc_bag.capacity", BAG_SLOTS).formatted(Formatting.DARK_GRAY));
+    }
+
+    /**
+     * Returns true if the stack is a disc bag.
+     */
+    public static boolean isDiscBag(ItemStack stack) {
+        return stack != null && !stack.isEmpty() && stack.getItem() instanceof DiscBagItem;
+    }
+
+    /**
+     * Returns true if the stack can be stored inside a disc bag (discs or accessories).
+     */
+    public static boolean canStore(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        return McdgItems.isDisc(stack) || stack.getItem() instanceof AccessoryItem;
     }
 
     /**

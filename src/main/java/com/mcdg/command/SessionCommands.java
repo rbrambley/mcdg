@@ -8,14 +8,12 @@ import com.mcdg.game.PlayerRoundState;
 import com.mcdg.game.PlacedCourseState;
 import com.mcdg.game.PracticeCourseStorage;
 import com.mcdg.game.RoundChunkLoader;
-import com.mcdg.game.RoundInventoryCleaner;
 import com.mcdg.game.RoundSessionStorage;
 import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.RoundWindService;
 import com.mcdg.game.ScorecardManager;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -61,7 +59,7 @@ public final class SessionCommands {
             return 0;
         }
 
-        List<ServerPlayerEntity> players = resolveRoundParticipants(source, world, selectedPlayers, "savesession");
+        List<ServerPlayerEntity> players = CommandUtils.resolveRoundParticipants(source, world, selectedPlayers, "savesession");
         if (players.isEmpty()) {
             source.sendError(Text.literal("No eligible players selected for this world."));
             return 0;
@@ -99,7 +97,7 @@ public final class SessionCommands {
 
             roundStateManager.clearPlayer(playerId);
             removedIds.add(playerId);
-            removeTemporaryRoundItems(player);
+            CommandUtils.removeTemporaryRoundItemsFromPlayers(List.of(player));
             player.sendMessage(Text.literal(
                     "Session saved at hole " + state.currentHole() + " (strokes " + state.totalStrokes() + ")."
             ), true);
@@ -181,7 +179,7 @@ public final class SessionCommands {
             return 0;
         }
 
-        List<ServerPlayerEntity> players = resolveRoundParticipants(source, world, selectedPlayers, "resumesession");
+        List<ServerPlayerEntity> players = CommandUtils.resolveRoundParticipants(source, world, selectedPlayers, "resumesession");
         if (players.isEmpty()) {
             source.sendError(Text.literal("No eligible players selected for this world."));
             return 0;
@@ -224,7 +222,7 @@ public final class SessionCommands {
             courseManager.addActiveParticipantId(playerId);
             courseManager.setRoundActive(true);
 
-            RoundInventoryCleaner.prepareRoundInventory(player);
+            CommandUtils.prepareRoundInventory(player);
             ScorecardManager.ensureScorecardInInventory(player);
             player.teleport(restoredFeet.getX() + 0.5, restoredFeet.getY() + 1.0, restoredFeet.getZ() + 0.5);
 
@@ -360,50 +358,6 @@ public final class SessionCommands {
                 "Round state and session file cleared. The world should return to normal."
         ), true);
         return 1;
-    }
-
-    private static List<ServerPlayerEntity> resolveRoundParticipants(
-            ServerCommandSource source,
-            ServerWorld world,
-            Collection<ServerPlayerEntity> selectedPlayers,
-            String commandName
-    ) {
-        LinkedHashSet<ServerPlayerEntity> participants = new LinkedHashSet<>();
-        if (selectedPlayers != null && !selectedPlayers.isEmpty()) {
-            participants.addAll(selectedPlayers);
-        } else {
-            ServerPlayerEntity sourcePlayer = source.getPlayer();
-            if (sourcePlayer == null) {
-                source.sendError(Text.literal(
-                        "Console usage requires explicit players: /mcdg " + commandName + " <players>."
-                ));
-                return List.of();
-            }
-            participants.add(sourcePlayer);
-        }
-
-        List<ServerPlayerEntity> sameWorldParticipants = new ArrayList<>();
-        int skippedDifferentWorld = 0;
-        for (ServerPlayerEntity participant : participants) {
-            if (participant.getWorld().getRegistryKey().equals(world.getRegistryKey())) {
-                sameWorldParticipants.add(participant);
-            } else {
-                skippedDifferentWorld++;
-            }
-        }
-
-        final int skippedCount = skippedDifferentWorld;
-        if (skippedCount > 0) {
-            source.sendFeedback(() -> Text.literal(
-                    "Skipped " + skippedCount + " player(s) not in the current course world."
-            ), false);
-        }
-
-        return sameWorldParticipants;
-    }
-
-    private static void removeTemporaryRoundItems(ServerPlayerEntity player) {
-        RoundInventoryCleaner.purgeTemporaryRoundItemsAndJunk(player);
     }
 
     private static BlockPos resolveSafeFeetNearWithin(ServerWorld world, BlockPos preferredFeet, int maxRadius) {

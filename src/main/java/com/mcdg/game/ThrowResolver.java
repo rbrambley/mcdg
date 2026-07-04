@@ -5,11 +5,12 @@ import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.SafePositionFinder;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import net.minecraft.entity.projectile.thrown.EnderPearlEntity;
+import net.minecraft.registry.tag.FluidTags;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
@@ -31,18 +32,18 @@ public final class ThrowResolver {
     // Near-pin radius for skill progression: within ~10ft (3 blocks) horizontally of the basket.
     private static final int NEAR_PIN_RADIUS_BLOCKS = 3;
     private static final int NEAR_PIN_HEIGHT_TOLERANCE = 4;
-    private static final Map<UUID, Integer> LAST_PROCESSED_THROW_TOTAL = new HashMap<>();
-    private static final Map<UUID, Integer> LAST_THROW_PENDING_TICKS = new HashMap<>();
-    private static final Map<UUID, UUID> LAST_THROW_PEARL_UUID = new HashMap<>();
-    private static final Map<UUID, Long> LAST_THROW_RELEASE_TICK = new HashMap<>();
-    private static final Map<UUID, String> LAST_RESOLUTION_REASON = new HashMap<>();
-    private static final Map<UUID, Integer> LAST_THROW_DISTANCE_FEET = new HashMap<>();
+    private static final Map<UUID, Integer> LAST_PROCESSED_THROW_TOTAL = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> LAST_THROW_PENDING_TICKS = new ConcurrentHashMap<>();
+    private static final Map<UUID, UUID> LAST_THROW_PEARL_UUID = new ConcurrentHashMap<>();
+    private static final Map<UUID, Long> LAST_THROW_RELEASE_TICK = new ConcurrentHashMap<>();
+    private static final Map<UUID, String> LAST_RESOLUTION_REASON = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> LAST_THROW_DISTANCE_FEET = new ConcurrentHashMap<>();
 
     // New: Track calculated throws (trajectory-based, no pearl entity)
-    private static final Map<UUID, CalculatedThrowData> CALCULATED_THROWS = new HashMap<>();
+    private static final Map<UUID, CalculatedThrowData> CALCULATED_THROWS = new ConcurrentHashMap<>();
 
     // Cached last throw stats for HUD sync on round resume
-    private static final Map<UUID, LastThrowStats> LAST_THROW_STATS = new HashMap<>();
+    private static final Map<UUID, LastThrowStats> LAST_THROW_STATS = new ConcurrentHashMap<>();
 
     // Data class for calculated throws
     private static record CalculatedThrowData(
@@ -52,6 +53,7 @@ public final class ThrowResolver {
             Vec3d[] pathPoints,
             double totalDistanceFt,
             double lateralDriftFt,
+            double apexHeightFt,
             ThrowStance stance,
             ReleaseAngle angle
     ) {}
@@ -59,6 +61,7 @@ public final class ThrowResolver {
     public record LastThrowStats(
             double totalDistanceFt,
             double lateralDriftFt,
+            double apexHeightFt,
             ThrowStance stance,
             ReleaseAngle angle,
             int flightTicks,
@@ -205,33 +208,32 @@ public final class ThrowResolver {
         if (calcLanding != null) {
             rawCalcFeet = new BlockPos((int) Math.round(calcLanding.x), (int) Math.round(calcLanding.y), (int) Math.round(calcLanding.z));
 
-            // Teleport to calculated position (avoid solid blocks)
-            BlockPos safeCalcPos = rawCalcFeet;
-            if (!SafePositionFinder.isStandableFeet(world, rawCalcFeet)) {
-                safeCalcPos = SafePositionFinder.findNearestStandableFeet(world, rawCalcFeet);
-            }
-            player.teleport(safeCalcPos.getX() + 0.5, safeCalcPos.getY(), safeCalcPos.getZ() + 0.5);
-            currentFeet = safeCalcPos;
+            // Do NOT teleport here yet. We classify the raw landing first so water
+            // landings are resolved to the surface instead of being snapped to a cave.
+            currentFeet = rawCalcFeet;
 
             // Remove temporary landing ticket now that the player is here
             RoundChunkLoader.removeThrowLandingTicket(world, rawCalcFeet);
 
             McdgMod.LOGGER.info(
-                    "Player teleported to calculated landing | player={} pos={},{},{} distFromThrow={}ft source=CALCULATED_THROW",
+                    "Calculated landing resolved | player={} pos={},{},{} distFromThrow={}ft source=CALCULATED_THROW",
                     player.getGameProfile().getName(),
                     rawCalcFeet.getX(), rawCalcFeet.getY(), rawCalcFeet.getZ(),
                     String.format("%.1f", (double) DistanceUtils.distanceFeet(throwLie, rawCalcFeet))
             );
         }
 
-        BlockPos landingFeet = SafePositionFinder.findNearestStandableFeet(world, currentFeet);
+        // The raw landing position is the authoritative point for classification.
+        // For calculated throws this is the computed landing; for pearl throws it is
+        // the player's position after the pearl teleport.
+        BlockPos rawLandingFeet = rawCalcFeet != null ? rawCalcFeet : currentFeet;
 
         // Made shot detection: check BEFORE applying any penalties so a successful
         // basket shot is never penalized regardless of landing terrain.
         boolean madeShot = isDiscThroughBasket(pathPoints, throwLie, currentFeet, basket)
                 || isCloseProximityMake(throwLie, rawCalcFeet, currentFeet, basket);
 
-        BlockPos resultingLie = landingFeet;
+        BlockPos resultingLie;
         BlockPos firstOutCrossing = null;
         StrictPenaltyType landingPenalty = StrictPenaltyType.NONE;
         String penaltyReason = "In Bounds";
@@ -243,21 +245,74 @@ public final class ThrowResolver {
             player.teleport(resultingLie.getX() + 0.5, resultingLie.getY(), resultingLie.getZ() + 0.5);
             state = roundStateManager.markLastThrowPenalty(player.getUuid(), false).orElse(state);
             McdgMod.LOGGER.info("Made shot detected | player={} hole={}", player.getGameProfile().getName(), state.currentHole());
+        } else if (OutOfBoundsClassifier.isFluidPenaltyZone(world, rawLandingFeet)) {
+            // Water landing: resolve to the last in-bounds position on the surface.
+            resultingLie = resolveFluidLandingToSurface(
+                    world, throwLie, rawLandingFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
+            landingPenalty = rulesetManager.isStrict() ? StrictPenaltyType.OB : StrictPenaltyType.NONE;
+            penaltyReason = "Water";
+            penaltyStrokes = landingPenalty == StrictPenaltyType.OB
+                    ? rulesetManager.strictObPenaltyStrokes()
+                    : 0;
+            if (penaltyStrokes > 0) {
+                roundStateManager.applyPenaltyStrokes(player.getUuid(), penaltyStrokes);
+            }
+            state = roundStateManager.markLastThrowPenalty(
+                    player.getUuid(), landingPenalty != StrictPenaltyType.NONE).orElse(state);
+
+            // Apply hazard effects if the resolved surface lie is itself a hazard.
+            HazardType hazardType = HazardManager.getHazardType(world, resultingLie);
+            if (hazardType != HazardType.NONE) {
+                HazardBehavior behavior = HazardManager.getHazardBehavior(hazardType);
+                HazardManager.applyHazardEffects(player, behavior, hazardType, roundStateManager);
+            }
+
+            // Find safe position before teleporting to avoid suffocation
+            BlockPos safePos = SafePositionFinder.findNearestStandableFeet(world, resultingLie);
+            player.teleport(
+                    safePos.getX() + 0.5,
+                    safePos.getY(),
+                    safePos.getZ() + 0.5
+            );
+
+            if (strictFlowDebug) {
+                McdgMod.LOGGER.info(
+                        "Fluid landing resolved | player={} hole={} total={} throwLie={} rawLanding={} resultingLie={} penalty={} reason={}",
+                        player.getGameProfile().getName(),
+                        state.currentHole(),
+                        state.totalStrokes(),
+                        OutOfBoundsClassifier.formatPos(throwLie),
+                        OutOfBoundsClassifier.formatPos(rawLandingFeet),
+                        OutOfBoundsClassifier.formatPos(resultingLie),
+                        landingPenalty.name(),
+                        penaltyReason
+                );
+            }
+            if (hudScoringDebug) {
+                player.sendMessage(Text.literal(
+                        "Strict dbg | landing=" + landingPenalty.name()
+                                + " | firstOut=" + OutOfBoundsClassifier.formatPos(firstOutCrossing)
+                                + " | safeLie=" + OutOfBoundsClassifier.formatPos(resultingLie)
+                ), false);
+            }
         } else if (ENABLE_STRICT_LANDING_PENALTIES && rulesetManager.isStrict()) {
-            // Classify current position (same for both calculated throws and pearls)
-            OutOfBoundsClassifier.PenaltyDetail currentFeetDetail = OutOfBoundsClassifier.classifyWithDetail(world, currentFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
-            OutOfBoundsClassifier.PenaltyDetail standableFeetDetail = OutOfBoundsClassifier.classifyWithDetail(world, landingFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
+            // Classify the raw landing position (same for both calculated throws and pearls)
+            BlockPos landingFeet = SafePositionFinder.findNearestStandableFeet(world, rawLandingFeet);
+            OutOfBoundsClassifier.PenaltyDetail currentFeetDetail = OutOfBoundsClassifier.classifyWithDetail(
+                    world, rawLandingFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
+            OutOfBoundsClassifier.PenaltyDetail standableFeetDetail = OutOfBoundsClassifier.classifyWithDetail(
+                    world, landingFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
             landingPenalty = combinePenalty(currentFeetDetail.type(), standableFeetDetail.type());
             penaltyReason = currentFeetDetail.reason();
             if (landingPenalty != StrictPenaltyType.NONE) {
                 if (strictFlowDebug) {
                     McdgMod.LOGGER.info(
-                            "Strict landing classified | player={} hole={} total={} throwLie={} currentFeet={} landingFeet={} currentPenalty={} standablePenalty={} penalty={} reason={}",
+                            "Strict landing classified | player={} hole={} total={} throwLie={} rawLanding={} landingFeet={} currentPenalty={} standablePenalty={} penalty={} reason={}",
                             player.getGameProfile().getName(),
                             state.currentHole(),
                             state.totalStrokes(),
                             OutOfBoundsClassifier.formatPos(throwLie),
-                            OutOfBoundsClassifier.formatPos(currentFeet),
+                            OutOfBoundsClassifier.formatPos(rawLandingFeet),
                             OutOfBoundsClassifier.formatPos(landingFeet),
                             currentFeetDetail.type().name(),
                             standableFeetDetail.type().name(),
@@ -270,7 +325,7 @@ public final class ThrowResolver {
                     CrossingResolution crossing = findLastSolidBeforeOutCrossing(
                             world,
                             throwLie,
-                            currentFeet,
+                            rawLandingFeet,
                             currentHole,
                             tee,
                             basket,
@@ -280,7 +335,7 @@ public final class ThrowResolver {
                     resultingLie = crossing.safeLie();
                     firstOutCrossing = crossing.firstOutCrossing();
                 } else {
-                    resultingLie = currentFeet.toImmutable();
+                    resultingLie = rawLandingFeet.toImmutable();
                 }
 
                 penaltyStrokes = landingPenalty == StrictPenaltyType.OB
@@ -291,7 +346,7 @@ public final class ThrowResolver {
                 }
 
                 // Determine hazard type for effect application.
-                // For HAZARD penalty, resultingLie is currentFeet, so reuse the classification result.
+                // For HAZARD penalty, resultingLie is rawLandingFeet, so reuse the classification result.
                 // For OB penalty, resultingLie is the safe lie from crossing resolution, so scan it.
                 BlockPos finalResultingLie = resultingLie;
                 HazardType hazardType;
@@ -309,30 +364,45 @@ public final class ThrowResolver {
                     HazardBehavior behavior = HazardManager.getHazardBehavior(hazardType);
                     HazardManager.applyHazardEffects(player, behavior, hazardType, roundStateManager);
                 }
+            } else {
+                resultingLie = landingFeet;
+            }
 
-                // Find safe position before teleporting to avoid suffocation
-                BlockPos safePos = SafePositionFinder.findNearestStandableFeet(world, resultingLie);
-                player.teleport(
-                        safePos.getX() + 0.5,
-                        safePos.getY(),
-                        safePos.getZ() + 0.5
-                );
+            // Find safe position before teleporting to avoid suffocation
+            BlockPos safePos = SafePositionFinder.findNearestStandableFeet(world, resultingLie);
+            player.teleport(
+                    safePos.getX() + 0.5,
+                    safePos.getY(),
+                    safePos.getZ() + 0.5
+            );
 
-                state = roundStateManager.markLastThrowPenalty(player.getUuid(), true).orElse(state);
-                }
+            state = roundStateManager.markLastThrowPenalty(
+                    player.getUuid(), landingPenalty != StrictPenaltyType.NONE).orElse(state);
 
-                if (hudScoringDebug) {
+            if (hudScoringDebug) {
                 player.sendMessage(Text.literal(
                         "Strict dbg | landing=" + landingPenalty.name()
                                 + " | firstOut=" + OutOfBoundsClassifier.formatPos(firstOutCrossing)
                                 + " | safeLie=" + OutOfBoundsClassifier.formatPos(resultingLie)
                 ), false);
             }
-        }
-
-        if (landingPenalty == StrictPenaltyType.NONE && !madeShot) {
+        } else {
+            // Non-strict, non-fluid landing
+            landingPenalty = StrictPenaltyType.NONE;
+            penaltyReason = "In Bounds";
             state = roundStateManager.markLastThrowPenalty(player.getUuid(), false).orElse(state);
-            McdgMod.LOGGER.info("Made shot detected | player={} hole={}", player.getGameProfile().getName(), state.currentHole());
+            McdgMod.LOGGER.info("Non-strict landing resolved | player={} hole={}", player.getGameProfile().getName(), state.currentHole());
+            resultingLie = SafePositionFinder.findNearestStandableFeet(world, rawLandingFeet);
+
+            // Calculated throws need to be teleported to the resolved landing position.
+            if (rawCalcFeet != null) {
+                BlockPos safePos = SafePositionFinder.findNearestStandableFeet(world, resultingLie);
+                player.teleport(
+                        safePos.getX() + 0.5,
+                        safePos.getY(),
+                        safePos.getZ() + 0.5
+                );
+            }
         }
 
         // Basket make already handled above; this block removed as part of Option A refactor.
@@ -375,6 +445,7 @@ public final class ThrowResolver {
                     player.getUuid(),
                     calc.totalDistanceFt(),
                     calc.lateralDriftFt(),
+                    calc.apexHeightFt(),
                     landingPenalty,
                     penaltyStrokes,
                     penaltyReason,
@@ -391,6 +462,7 @@ public final class ThrowResolver {
         LAST_THROW_STATS.put(player.getUuid(), new LastThrowStats(
                 calc != null ? calc.totalDistanceFt() : lastThrowDistance,
                 calc != null ? calc.lateralDriftFt() : 0.0,
+                calc != null ? calc.apexHeightFt() : 0.0,
                 calc != null ? calc.stance() : ThrowStance.OVERHAND,
                 calc != null ? calc.angle() : ReleaseAngle.FLAT,
                 calc != null ? calc.flightTicks() : 0,
@@ -432,8 +504,8 @@ public final class ThrowResolver {
      * Register a calculated throw (trajectory-based, no pearl entity).
      * Used by the new trajectory calculation system.
      */
-    static void registerCalculatedThrow(UUID playerId, long worldTime, Vec3d landingPos, int flightTicks, Vec3d[] pathPoints, double totalDistanceFt, double lateralDriftFt, ThrowStance stance, ReleaseAngle angle) {
-        CALCULATED_THROWS.put(playerId, new CalculatedThrowData(landingPos, flightTicks, worldTime, pathPoints, totalDistanceFt, lateralDriftFt, stance, angle));
+    static void registerCalculatedThrow(UUID playerId, long worldTime, Vec3d landingPos, int flightTicks, Vec3d[] pathPoints, double totalDistanceFt, double lateralDriftFt, double apexHeightFt, ThrowStance stance, ReleaseAngle angle) {
+        CALCULATED_THROWS.put(playerId, new CalculatedThrowData(landingPos, flightTicks, worldTime, pathPoints, totalDistanceFt, lateralDriftFt, apexHeightFt, stance, angle));
         LAST_THROW_RELEASE_TICK.put(playerId, worldTime);
         LAST_THROW_PENDING_TICKS.remove(playerId);
         // No pearl UUID for calculated throws
@@ -577,6 +649,79 @@ public final class ThrowResolver {
         }
 
         return new CrossingResolution(lastInBoundsSolid.toImmutable(), firstOut);
+    }
+
+    /**
+     * Resolves a water/fluid landing to the nearest in-bounds land on the surface.
+     * Traces the flight path back toward the throw lie to find the last in-bounds
+     * position before the water, then snaps that position to a standable block.
+     */
+    private static BlockPos resolveFluidLandingToSurface(
+            ServerWorld world,
+            BlockPos throwLie,
+            BlockPos rawLandingFeet,
+            Hole currentHole,
+            BlockPos tee,
+            BlockPos basket,
+            BlockPos alternateAnchor,
+            TournamentRulesetManager rulesetManager
+    ) {
+        CrossingResolution crossing = findLastSolidBeforeOutCrossing(
+                world, throwLie, rawLandingFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
+        BlockPos surfaceLie = crossing.safeLie();
+
+        // If the throw started over water (throwLie itself was in water), pull to the nearest surface land.
+        if (OutOfBoundsClassifier.isFluidPenaltyZone(world, surfaceLie)) {
+            surfaceLie = findNearestSurfaceLand(world, surfaceLie, 6);
+        }
+
+        BlockPos standable = SafePositionFinder.findNearestStandableFeet(world, surfaceLie);
+        if (SafePositionFinder.isStandableFeet(world, standable)) {
+            return standable;
+        }
+
+        // Absolute fallback: return the throw lie if no surface land can be found.
+        return SafePositionFinder.findNearestStandableFeet(world, throwLie);
+    }
+
+    /**
+     * Finds the nearest standable land position at or above the given underwater position.
+     * Scans upward to the top of the fluid column, then searches outward horizontally.
+     */
+    private static BlockPos findNearestSurfaceLand(ServerWorld world, BlockPos underwaterPos, int maxRadius) {
+        BlockPos.Mutable probe = underwaterPos.mutableCopy();
+        int maxUp = world.getTopY() - underwaterPos.getY();
+        for (int dy = 0; dy <= maxUp; dy++) {
+            probe.setY(underwaterPos.getY() + dy);
+            if (!world.getFluidState(probe.toImmutable()).isIn(FluidTags.WATER)
+                    && !world.getFluidState(probe.toImmutable()).isIn(FluidTags.LAVA)) {
+                break;
+            }
+        }
+        BlockPos surfacePos = probe.toImmutable();
+
+        for (int radius = 0; radius <= maxRadius; radius++) {
+            for (int dx = -radius; dx <= radius; dx++) {
+                for (int dz = -radius; dz <= radius; dz++) {
+                    if (Math.abs(dx) != radius && Math.abs(dz) != radius) {
+                        continue;
+                    }
+                    BlockPos candidate = surfacePos.add(dx, 0, dz);
+                    if (SafePositionFinder.isStandableFeet(world, candidate)) {
+                        return candidate;
+                    }
+                }
+            }
+        }
+
+        for (int dy = 1; dy <= 6; dy++) {
+            BlockPos up = surfacePos.up(dy);
+            if (SafePositionFinder.isStandableFeet(world, up)) {
+                return up;
+            }
+        }
+
+        return surfacePos;
     }
 
     private static boolean isDiscThroughBasket(Vec3d[] pathPoints, BlockPos throwLie, BlockPos landingFeet, BlockPos basket) {

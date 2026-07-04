@@ -24,7 +24,7 @@ public final class McdgScreenHandlers {
         DISC_BAG = Registry.register(
                 Registries.SCREEN_HANDLER,
                 new Identifier(McdgMod.MOD_ID, "disc_bag"),
-                new ScreenHandlerType<>((syncId, playerInventory) -> new DiscBagScreenHandler(syncId, playerInventory, new SimpleInventory(12), null), FeatureSet.empty())
+                new ScreenHandlerType<>((syncId, playerInventory) -> new DiscBagScreenHandler(syncId, playerInventory, new SimpleInventory(DiscBagItem.BAG_SLOTS), null), FeatureSet.empty())
         );
     }
 }

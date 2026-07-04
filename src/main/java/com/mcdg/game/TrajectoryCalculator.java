@@ -43,6 +43,7 @@ public final class TrajectoryCalculator {
             int flightTicks,          // How many ticks until landing
             double totalDistanceFt,   // Total horizontal distance in feet
             double lateralDriftFt,    // Left/right drift from aim line in feet
+            double apexHeightFt,      // Maximum height reached during flight
             Vec3d[] pathPoints        // Points along trajectory for visual trail (Phase 4)
     ) {}
 
@@ -135,6 +136,7 @@ public final class TrajectoryCalculator {
         double vx = initialVelocity.x;
         double vy = initialVelocity.y;
         double vz = initialVelocity.z;
+        double apexY = py; // Track maximum height reached during flight
 
         // Glide duration based on charge (only for stances with glide)
         float normalizedCharge = Math.min(1.0f, charge);
@@ -253,6 +255,11 @@ public final class TrajectoryCalculator {
             py += vy;
             pz += vz;
 
+            // Track apex height
+            if (py > apexY) {
+                apexY = py;
+            }
+
             // Record path point every 5 ticks
             if (tick % 5 == 0) {
                 pathList.add(new Vec3d(px, py, pz));
@@ -306,7 +313,8 @@ public final class TrajectoryCalculator {
         // Convert path list to array
         Vec3d[] pathPoints = pathList.toArray(new Vec3d[0]);
 
-        return new TrajectoryResult(pos, tick, distanceFeet, lateralDrift, pathPoints);
+        double apexHeightFt = (apexY - startPos.y) * 3.28084;
+        return new TrajectoryResult(pos, tick, distanceFeet, lateralDrift, apexHeightFt, pathPoints);
     }
 
     /**
