@@ -49,6 +49,13 @@ public record LostCourse(
     }
 
     /**
+     * Creates a new LostCourse with the discovered flag set to false.
+     */
+    public LostCourse markUndiscovered() {
+        return new LostCourse(courseId, name, entrancePosition, courseAnchor, rewards, type, false);
+    }
+
+    /**
      * Creates a new LostCourse with updated rewards.
      */
     public LostCourse withRewards(List<ItemStack> newRewards) {

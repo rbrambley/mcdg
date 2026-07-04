@@ -89,6 +89,30 @@ public final class McdgAdminCommands {
                                                 context.getSource(),
                                                 StringArgumentType.getString(context, "courseId")
                                         ))))
+                        .then(literal("cleanupchallenge").requires(CommandPermission::canUseAdminCommands)
+                                .then(argument("courseId", StringArgumentType.string())
+                                        .executes(context -> CourseCleanupCommand.executeCleanupChallenge(
+                                                context.getSource(),
+                                                placementService,
+                                                roundStateManager,
+                                                courseManager,
+                                                StringArgumentType.getString(context, "courseId")
+                                        ))))
+                        .then(literal("removechallenge").requires(CommandPermission::canUseAdminCommands)
+                                .then(argument("courseId", StringArgumentType.string())
+                                        .executes(context -> CourseCleanupCommand.executeRemoveChallenge(
+                                                context.getSource(),
+                                                StringArgumentType.getString(context, "courseId")
+                                        ))))
+                        .then(literal("removechallengeboth").requires(CommandPermission::canUseAdminCommands)
+                                .then(argument("courseId", StringArgumentType.string())
+                                        .executes(context -> CourseCleanupCommand.executeRemoveChallengeBoth(
+                                                context.getSource(),
+                                                placementService,
+                                                roundStateManager,
+                                                courseManager,
+                                                StringArgumentType.getString(context, "courseId")
+                                        ))))
                         .then(literal("resort")
                                 .executes(context -> TeleportCommands.executeResortTeleport(context.getSource())))
                         .then(literal("createcourse").requires(CommandPermission::canUseAdminCommands)
@@ -278,7 +302,9 @@ public final class McdgAdminCommands {
                                 .then(literal("clearlostcourses")
                                         .executes(context -> DebugCommands.executeClearLostCourses(context.getSource())))
                                 .then(literal("placetestlostcourse")
-                                        .executes(context -> DebugCommands.executePlaceTestLostCourse(context.getSource()))))
+                                        .executes(context -> DebugCommands.executePlaceTestLostCourse(context.getSource())))
+                                .then(literal("repairchallengenames")
+                                        .executes(context -> DebugCommands.executeRepairChallengeNames(context.getSource()))))
                         .then(literal("validateplacement").requires(CommandPermission::canUseAdminCommands)
                                 .requires(CommandPermission::canUseAdvancedCommands)
                                 .executes(context -> PlacementValidationCommand.executeValidatePlacement(

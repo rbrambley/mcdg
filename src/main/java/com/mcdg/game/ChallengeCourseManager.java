@@ -57,8 +57,15 @@ public final class ChallengeCourseManager {
     public static void registerLostCourse(LostCourse course) {
         LOST_COURSES.put(course.courseId(), course);
         McdgMod.LOGGER.info("Registered lost course: {} at entrance ({}, {}, {})",
-            course.name(), course.entrancePosition().getX(), 
+            course.name(), course.entrancePosition().getX(),
             course.entrancePosition().getY(), course.entrancePosition().getZ());
+    }
+
+    /**
+     * Updates an existing lost course entry without logging discovery.
+     */
+    public static void updateLostCourse(LostCourse course) {
+        LOST_COURSES.put(course.courseId(), course);
     }
 
     /**
@@ -276,6 +283,35 @@ public final class ChallengeCourseManager {
         fragment.set(DataComponentTypes.CUSTOM_NAME, Text.literal("Map Fragment: " + course.name())
             .formatted(Formatting.GOLD));
         return fragment;
+    }
+
+    /**
+     * Respawns the map fragment in a lost course chest.
+     * This should be called when a course is removed from the catalog to allow rediscovery.
+     */
+    public static void respawnMapFragment(MinecraftServer server, UUID courseId) {
+        LostCourse course = LOST_COURSES.get(courseId);
+        if (course == null) {
+            McdgMod.LOGGER.warn("Cannot respawn map fragment: lost course {} not found", courseId);
+            return;
+        }
+
+        ServerWorld overworld = server.getWorld(World.OVERWORLD);
+        if (overworld == null) {
+            McdgMod.LOGGER.warn("Cannot respawn map fragment: overworld not available");
+            return;
+        }
+
+        BlockPos chestPos = course.entrancePosition().up();
+        if (overworld.getBlockEntity(chestPos) instanceof net.minecraft.block.entity.ChestBlockEntity chest) {
+            ItemStack mapFragment = createCourseMapFragment(course);
+            chest.setStack(0, mapFragment);
+            McdgMod.LOGGER.info("Respawned map fragment for course {} at chest ({}, {}, {})",
+                course.name(), chestPos.getX(), chestPos.getY(), chestPos.getZ());
+        } else {
+            McdgMod.LOGGER.warn("Cannot respawn map fragment: no chest found at ({}, {}, {})",
+                chestPos.getX(), chestPos.getY(), chestPos.getZ());
+        }
     }
 
     /**

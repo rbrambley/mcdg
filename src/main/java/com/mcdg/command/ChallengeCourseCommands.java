@@ -58,10 +58,24 @@ public final class ChallengeCourseCommands {
             return 0;
         }
 
-        BlockPos anchor = catalogEntry.get().courseAnchor();
+        // Load the placed course state to get the tee box 1 location
+        Optional<PlacedCourseState> storedPlaced = LostCourseStorage.loadPlacedState(source.getServer(), courseId);
+        if (storedPlaced.isEmpty()) {
+            source.sendError(Text.literal("Challenge course placed state not found. The course may need to be rebuilt."));
+            return 0;
+        }
 
-        // Teleport player to the course anchor
-        player.teleport(anchor.getX() + 0.5, anchor.getY(), anchor.getZ() + 0.5);
+        PlacedCourseState placed = storedPlaced.get();
+        BlockPos firstTee = placed.holeTees().get(1);
+        if (firstTee == null) {
+            source.sendError(Text.literal("Hole 1 tee location is unavailable for challenge course: " + catalogEntry.get().name()));
+            return 0;
+        }
+
+        // Teleport player to tee box 1
+        ServerWorld world = source.getServer().getWorld(placed.worldKey());
+        BlockPos safeTee = world == null ? firstTee : CommandUtils.resolveSafeFeetNear(world, firstTee);
+        player.teleport(safeTee.getX() + 0.5, safeTee.getY() + 1.0, safeTee.getZ() + 0.5);
         source.sendFeedback(() -> Text.literal("Teleported to challenge course: " + catalogEntry.get().name())
                 .formatted(Formatting.GREEN), false);
 

@@ -375,6 +375,81 @@ public final class DebugCommands {
                 );
         }
 
+        /**
+         * Repairs challenge course names that have generic names like "challenge_course_1".
+         */
+        public static int executeRepairChallengeNames(ServerCommandSource source) {
+                List<LostCourse> allCourses = ChallengeCourseManager.getAllLostCourses();
+                final int[] repairedCount = {0};
+
+                for (LostCourse course : allCourses) {
+                        if (course.name().matches("challenge_course_\\d+")) {
+                                // Generate a proper name using the LostCoursePlacement naming system
+                                // Use courseId hash for deterministic indexing across runs
+                                int stableIndex = Math.abs(course.courseId().hashCode());
+                                String newName = com.mcdg.world.LostCoursePlacement.generateCourseNameForRepair(
+                                        course.type(),
+                                        stableIndex
+                                );
+
+                                // Create updated LostCourse with new name
+                                LostCourse renamedCourse = new LostCourse(
+                                        course.courseId(),
+                                        newName,
+                                        course.entrancePosition(),
+                                        course.courseAnchor(),
+                                        course.rewards(),
+                                        course.type(),
+                                        course.isDiscovered()
+                                );
+
+                                // Update in ChallengeCourseManager
+                                ChallengeCourseManager.updateLostCourse(renamedCourse);
+
+                                // Update in ChallengeCourseCatalog if present
+                                ChallengeCourseManager.getCatalog().ifPresent(catalog -> {
+                                        catalog.getCourse(course.courseId()).ifPresent(entry -> {
+                                                // Create new entry with updated name
+                                                var newEntry = new com.mcdg.game.ChallengeCourseCatalog.CatalogEntry(
+                                                        entry.courseId(),
+                                                        newName,
+                                                        entry.type(),
+                                                        entry.entrancePosition(),
+                                                        entry.courseAnchor(),
+                                                        entry.generatedCourse(),
+                                                        entry.parameters(),
+                                                        entry.discoveredAt(),
+                                                        entry.playerRewards(),
+                                                        entry.playerCompletions()
+                                                );
+                                                newEntry.setPlaced(entry.isPlaced());
+                                                catalog.removeCourse(course.courseId());
+                                                catalog.entries().put(course.courseId(), newEntry);
+                                        });
+                                });
+
+                                repairedCount[0]++;
+                                source.sendFeedback(() -> Text.literal(
+                                        "Renamed: " + course.name() + " -> " + newName
+                                ).formatted(Formatting.YELLOW), false);
+                        }
+                }
+
+                if (repairedCount[0] > 0) {
+                        LostCourseStorage.save(source.getServer(), ChallengeCourseManager.getAllLostCourses());
+                        ChallengeCourseManager.getCatalog().ifPresent(catalog -> catalog.save(source.getServer()));
+                        source.sendFeedback(() -> Text.literal(
+                                "Repaired " + repairedCount[0] + " challenge course name(s)."
+                        ).formatted(Formatting.GREEN), true);
+                } else {
+                        source.sendFeedback(() -> Text.literal(
+                                "No challenge courses with generic names found."
+                        ).formatted(Formatting.GRAY), false);
+                }
+
+                return 1;
+        }
+
         public static int executeDebugObClassifier(ServerCommandSource source) {
                 boolean current = OutOfBoundsClassifier.isDebugLoggingEnabled();
                 source.sendFeedback(() -> Text.literal("OB Classifier debug logging: " + (current ? "enabled" : "disabled")), false);

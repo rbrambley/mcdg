@@ -1,7 +1,9 @@
 package com.mcdg.command;
 
 import com.mcdg.game.ActiveCourseManager;
+import com.mcdg.game.ChallengeCourseCatalog;
 import com.mcdg.game.ChallengeCourseManager;
+import com.mcdg.game.LostCourse;
 import com.mcdg.game.LostCourseStorage;
 import com.mcdg.game.PlacedCourseState;
 import com.mcdg.game.PracticeCourseStorage;
@@ -280,5 +282,150 @@ public final class CourseCleanupCommand {
         }
         source.sendFeedback(() -> Text.literal("Removed course #" + oneBasedIndex + " from both catalog and world."), true);
         return 1;
+    }
+
+    static int executeCleanupChallenge(
+            ServerCommandSource source,
+            CoursePlacementService placementService,
+            RoundStateManager roundStateManager,
+            ActiveCourseManager courseManager,
+            String courseIdString
+    ) {
+        Optional<UUID> courseId = parseChallengeCourseId(source, courseIdString);
+        if (courseId.isEmpty()) {
+            return 0;
+        }
+        if (!cleanupChallengeCourse(source, placementService, roundStateManager, courseManager, courseId.get())) {
+            return 0;
+        }
+        source.sendFeedback(() -> Text.literal("Challenge course world blocks cleaned up."), true);
+        return 1;
+    }
+
+    static int executeRemoveChallenge(
+            ServerCommandSource source,
+            String courseIdString
+    ) {
+        Optional<UUID> courseId = parseChallengeCourseId(source, courseIdString);
+        if (courseId.isEmpty()) {
+            return 0;
+        }
+        if (!removeChallengeCourse(source, courseId.get())) {
+            return 0;
+        }
+        source.sendFeedback(() -> Text.literal("Challenge course removed from catalog."), true);
+        return 1;
+    }
+
+    static int executeRemoveChallengeBoth(
+            ServerCommandSource source,
+            CoursePlacementService placementService,
+            RoundStateManager roundStateManager,
+            ActiveCourseManager courseManager,
+            String courseIdString
+    ) {
+        Optional<UUID> courseId = parseChallengeCourseId(source, courseIdString);
+        if (courseId.isEmpty()) {
+            return 0;
+        }
+        UUID id = courseId.get();
+        if (!cleanupChallengeCourse(source, placementService, roundStateManager, courseManager, id)) {
+            return 0;
+        }
+        if (!removeChallengeCourse(source, id)) {
+            return 0;
+        }
+        source.sendFeedback(() -> Text.literal("Challenge course removed from catalog and world."), true);
+        return 1;
+    }
+
+    private static Optional<UUID> parseChallengeCourseId(ServerCommandSource source, String courseIdString) {
+        try {
+            return Optional.of(UUID.fromString(courseIdString));
+        } catch (IllegalArgumentException e) {
+            source.sendError(Text.literal("Invalid course ID: " + courseIdString));
+            return Optional.empty();
+        }
+    }
+
+    private static Optional<ChallengeCourseCatalog> requireChallengeCatalog(ServerCommandSource source) {
+        Optional<ChallengeCourseCatalog> catalog = ChallengeCourseManager.getCatalog();
+        if (catalog.isEmpty()) {
+            source.sendError(Text.literal("Challenge course catalog not available."));
+        }
+        return catalog;
+    }
+
+    private static boolean cleanupChallengeCourse(
+            ServerCommandSource source,
+            CoursePlacementService placementService,
+            RoundStateManager roundStateManager,
+            ActiveCourseManager courseManager,
+            UUID courseId
+    ) {
+        Optional<ChallengeCourseCatalog> catalogOpt = requireChallengeCatalog(source);
+        if (catalogOpt.isEmpty()) {
+            return false;
+        }
+        ChallengeCourseCatalog catalog = catalogOpt.get();
+        Optional<ChallengeCourseCatalog.CatalogEntry> entryOpt = catalog.getCourse(courseId);
+        if (entryOpt.isEmpty()) {
+            source.sendError(Text.literal("Challenge course not found: " + courseId));
+            return false;
+        }
+
+        Optional<PlacedCourseState> storedPlaced = LostCourseStorage.loadPlacedState(source.getServer(), courseId);
+        if (storedPlaced.isPresent()) {
+            PlacedCourseState placed = storedPlaced.get();
+            ServerWorld world = source.getServer().getWorld(placed.worldKey());
+            if (world != null) {
+                evacuatePlayersBeforeCleanup(source, world, placed);
+                RoundChunkLoader.unloadAll(world);
+                placementService.resetPlacedCourse(world, placed);
+                CommandUtils.removeJunkDropsNearCourse(world, placed);
+            }
+        }
+
+        Optional<UUID> activeChallengeId = courseManager.getActiveChallengeCourseId();
+        if (activeChallengeId.isPresent() && activeChallengeId.get().equals(courseId)) {
+            if (storedPlaced.isPresent()) {
+                ServerWorld activeWorld = source.getServer().getWorld(storedPlaced.get().worldKey());
+                if (activeWorld != null) {
+                    CommandUtils.removeTemporaryRoundItemsFromCourseWorldPlayers(source, courseManager);
+                    RoundWindService.onRoundEnd(activeWorld);
+                }
+            }
+            courseManager.clearPlacedCourseState();
+            courseManager.setActiveCourse(null);
+            courseManager.setActiveChallengeCourseId(null);
+            courseManager.setRoundActive(false);
+            CommandUtils.clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
+        }
+
+        LostCourseStorage.clearPlacedState(source.getServer(), courseId);
+        entryOpt.get().setPlaced(false);
+        catalog.save(source.getServer());
+        return true;
+    }
+
+    private static boolean removeChallengeCourse(ServerCommandSource source, UUID courseId) {
+        Optional<ChallengeCourseCatalog> catalogOpt = requireChallengeCatalog(source);
+        if (catalogOpt.isEmpty()) {
+            return false;
+        }
+        ChallengeCourseCatalog catalog = catalogOpt.get();
+        if (catalog.getCourse(courseId).isEmpty()) {
+            source.sendError(Text.literal("Challenge course not found: " + courseId));
+            return false;
+        }
+        catalog.removeCourse(courseId);
+        catalog.save(source.getServer());
+
+        ChallengeCourseManager.getLostCourse(courseId).ifPresent(lostCourse -> {
+            ChallengeCourseManager.updateLostCourse(lostCourse.markUndiscovered());
+            LostCourseStorage.save(source.getServer(), ChallengeCourseManager.getAllLostCourses());
+            ChallengeCourseManager.respawnMapFragment(source.getServer(), courseId);
+        });
+        return true;
     }
 }

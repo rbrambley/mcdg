@@ -92,6 +92,20 @@ public final class ChallengeCourseCatalog {
     }
 
     /**
+     * Gets the entries map for direct access (needed for repair operations).
+     */
+    public Map<UUID, CatalogEntry> entries() {
+        return entries;
+    }
+
+    /**
+     * Removes a course entry from the catalog.
+     */
+    public void removeCourse(UUID courseId) {
+        entries.remove(courseId);
+    }
+
+    /**
      * Records that a player has received discovery rewards for a course.
      */
     public void markDiscoveryRewardClaimed(UUID courseId, UUID playerId) {
