@@ -381,6 +381,14 @@ public final class McdgMod implements ModInitializer {
         });
 		ServerTickEvents.END_SERVER_TICK.register(server -> {
             long start = System.nanoTime();
+            com.mcdg.game.BossMobSpawner.tick(server);
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
+            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
+                LOGGER.warn("BossMobSpawner tick took {}ms", elapsedMs);
+            }
+        });
+		ServerTickEvents.END_SERVER_TICK.register(server -> {
+            long start = System.nanoTime();
             DiscFlightSimulator.tick(server);
             long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
             if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {

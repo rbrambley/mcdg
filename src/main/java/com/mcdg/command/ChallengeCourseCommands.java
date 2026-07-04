@@ -2,8 +2,10 @@ package com.mcdg.command;
 
 import com.mcdg.data.Course;
 import com.mcdg.game.ActiveCourseManager;
+import com.mcdg.game.BossMobSpawner;
 import com.mcdg.game.ChallengeCourseBuildTracker;
 import com.mcdg.game.ChallengeCourseManager;
+import com.mcdg.game.ChallengeCourseType;
 import com.mcdg.game.LostCourseStorage;
 import com.mcdg.game.PlacedCourseState;
 import com.mcdg.game.RoundPresentationService;
@@ -130,7 +132,8 @@ public final class ChallengeCourseCommands {
                 courseManager.setActiveCourse(course);
                 courseManager.setPlacedCourseState(storedPlaced.get());
                 courseManager.setActiveChallengeCourseId(UUID.fromString(courseIdString));
-                return RoundLifecycleCommands.executeResumeCourse(
+
+                int result = RoundLifecycleCommands.executeResumeCourse(
                         source,
                         courseManager,
                         roundStateManager,
@@ -138,6 +141,18 @@ public final class ChallengeCourseCommands {
                         skipRoundPresentation,
                         List.of(player)
                 );
+
+                // Start boss hole mob spawning if this is a boss hole
+                if (result == 1 && catalogEntry.get().type() == ChallengeCourseType.BOSS_HOLE) {
+                    UUID roundId = courseManager.getActiveChallengeCourseId();
+                    if (roundId != null) {
+                        BossMobSpawner.startSpawning(roundId, player, storedPlaced.get());
+                        player.sendMessage(Text.literal("§cBoss Hole: Mobs will spawn to guard the basket!")
+                                .formatted(Formatting.RED));
+                    }
+                }
+
+                return result;
             }
         }
 

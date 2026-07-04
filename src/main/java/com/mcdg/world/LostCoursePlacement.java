@@ -229,9 +229,9 @@ public final class LostCoursePlacement {
                 }
             }
             case BOSS_HOLE -> {
-                // Combat rewards
-                rewards.add(new ItemStack(Items.IRON_INGOT, 3 + random.nextInt(5)));
-                rewards.add(new ItemStack(Items.GOLDEN_APPLE, 1));
+                // Combat rewards - placeholder for now, actual rewards generated dynamically on completion
+                rewards.add(new ItemStack(Items.IRON_SWORD, 1));
+                rewards.add(new ItemStack(Items.IRON_CHESTPLATE, 1));
             }
             case TIME_TRIAL -> {
                 // Speed rewards

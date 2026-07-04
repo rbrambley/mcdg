@@ -1,6 +1,7 @@
 package com.mcdg.command;
 
 import com.mcdg.game.ActiveCourseManager;
+import com.mcdg.game.BossMobSpawner;
 import com.mcdg.game.RoundStateManager;
 import com.mcdg.game.RoundWindService;
 import net.minecraft.server.command.ServerCommandSource;
@@ -29,6 +30,12 @@ public final class RoundEndCommand {
                 RoundWindService.onRoundEnd(world);
             }
         });
+
+        // Stop boss hole mob spawning if active
+        courseManager.getActiveChallengeCourseId().ifPresent(courseId -> {
+            BossMobSpawner.stopSpawning(courseId);
+        });
+
         courseManager.setRoundActive(false);
         CommandUtils.clearRoundStateForTrackedParticipants(courseManager, roundStateManager);
         source.sendFeedback(() -> Text.literal("Round ended. Use /mcdg resetcourse to restore terrain edits."), true);

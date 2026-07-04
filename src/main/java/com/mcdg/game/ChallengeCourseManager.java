@@ -201,29 +201,41 @@ public final class ChallengeCourseManager {
             return;
         }
 
-        // Base rewards
-        for (ItemStack reward : course.rewards()) {
-            player.giveItemStack(reward.copy());
-        }
+        // Boss holes use performance-tiered enchanted rewards
+        if (course.type() == ChallengeCourseType.BOSS_HOLE) {
+            BossRewardGenerator.PerformanceTier tier = BossRewardGenerator.calculateTier(score, totalPar);
+            List<ItemStack> tieredRewards = BossRewardGenerator.generateRewards(tier);
 
-        // Performance bonuses
-        if (score <= totalPar) {
-            int underPar = totalPar - score;
-            int diamondCount = underPar >= 3 ? 3 : underPar >= 1 ? 1 : 0;
-            if (diamondCount > 0) {
-                player.giveItemStack(new ItemStack(Items.DIAMOND, diamondCount));
-                player.sendMessage(Text.literal("Under-par bonus: +" + diamondCount + " Diamond(s)")
-                    .formatted(Formatting.AQUA));
+            for (ItemStack reward : tieredRewards) {
+                player.giveItemStack(reward);
             }
-        }
 
-        // Special disc rewards for exceptional performance (ace on single-hole courses)
-        boolean isSingleHoleCourse = course.type() == ChallengeCourseType.BOSS_HOLE ||
-                                    course.type() == ChallengeCourseType.DISTANCE_CHALLENGE;
-        if (score == 1 && isSingleHoleCourse) {
-            player.giveItemStack(createEnchantedDisc());
-            player.sendMessage(Text.literal("ACE! You received an enchanted disc!")
+            player.sendMessage(Text.literal("Boss Hole Rewards: " + tier.name() + " tier equipment!")
                 .formatted(Formatting.GOLD));
+        } else {
+            // Base rewards for other challenge types
+            for (ItemStack reward : course.rewards()) {
+                player.giveItemStack(reward.copy());
+            }
+
+            // Performance bonuses
+            if (score <= totalPar) {
+                int underPar = totalPar - score;
+                int diamondCount = underPar >= 3 ? 3 : underPar >= 1 ? 1 : 0;
+                if (diamondCount > 0) {
+                    player.giveItemStack(new ItemStack(Items.DIAMOND, diamondCount));
+                    player.sendMessage(Text.literal("Under-par bonus: +" + diamondCount + " Diamond(s)")
+                        .formatted(Formatting.AQUA));
+                }
+            }
+
+            // Special disc rewards for exceptional performance (ace on single-hole courses)
+            boolean isSingleHoleCourse = course.type() == ChallengeCourseType.DISTANCE_CHALLENGE;
+            if (score == 1 && isSingleHoleCourse) {
+                player.giveItemStack(createEnchantedDisc());
+                player.sendMessage(Text.literal("ACE! You received an enchanted disc!")
+                    .formatted(Formatting.GOLD));
+            }
         }
 
         // Record the completion
