@@ -58,7 +58,7 @@
 - `SeededCourseGenerator` — procedural course generation
 - `ResortBuilder` — resort structure placement (lobby, courtyard, housing, wall, lighting)
 - `ResortCoursePlacement` — computes 3 terrain-aware course anchors around a resort
-- `WorldSpawnHandler` — auto-builds resort on fresh world start
+- `WorldSpawnHandler` — auto-builds resort on fresh world start; auto-generates lost-course entrances only on fresh worlds (pre-existing worlds without `lost-courses.nbt` are skipped to avoid conflicts with existing builds)
 - `ResortWaypointManager` — resort waypoint broadcast to joining players
 - `ThrowResolver` — throw resolution, pearl tracking, strict landing (~31 KB, extracted from HoleProgressTracker)
 - `TurnManager` — turn order, timeout enforcement, player rotation (~16 KB, extracted from HoleProgressTracker)

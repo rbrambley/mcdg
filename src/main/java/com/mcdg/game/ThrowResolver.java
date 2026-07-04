@@ -5,7 +5,7 @@ import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import com.mcdg.rules.TournamentRulesetManager;
 import com.mcdg.world.SafePositionFinder;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,18 +32,18 @@ public final class ThrowResolver {
     // Near-pin radius for skill progression: within ~10ft (3 blocks) horizontally of the basket.
     private static final int NEAR_PIN_RADIUS_BLOCKS = 3;
     private static final int NEAR_PIN_HEIGHT_TOLERANCE = 4;
-    private static final Map<UUID, Integer> LAST_PROCESSED_THROW_TOTAL = new HashMap<>();
-    private static final Map<UUID, Integer> LAST_THROW_PENDING_TICKS = new HashMap<>();
-    private static final Map<UUID, UUID> LAST_THROW_PEARL_UUID = new HashMap<>();
-    private static final Map<UUID, Long> LAST_THROW_RELEASE_TICK = new HashMap<>();
-    private static final Map<UUID, String> LAST_RESOLUTION_REASON = new HashMap<>();
-    private static final Map<UUID, Integer> LAST_THROW_DISTANCE_FEET = new HashMap<>();
+    private static final Map<UUID, Integer> LAST_PROCESSED_THROW_TOTAL = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> LAST_THROW_PENDING_TICKS = new ConcurrentHashMap<>();
+    private static final Map<UUID, UUID> LAST_THROW_PEARL_UUID = new ConcurrentHashMap<>();
+    private static final Map<UUID, Long> LAST_THROW_RELEASE_TICK = new ConcurrentHashMap<>();
+    private static final Map<UUID, String> LAST_RESOLUTION_REASON = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> LAST_THROW_DISTANCE_FEET = new ConcurrentHashMap<>();
 
     // New: Track calculated throws (trajectory-based, no pearl entity)
-    private static final Map<UUID, CalculatedThrowData> CALCULATED_THROWS = new HashMap<>();
+    private static final Map<UUID, CalculatedThrowData> CALCULATED_THROWS = new ConcurrentHashMap<>();
 
     // Cached last throw stats for HUD sync on round resume
-    private static final Map<UUID, LastThrowStats> LAST_THROW_STATS = new HashMap<>();
+    private static final Map<UUID, LastThrowStats> LAST_THROW_STATS = new ConcurrentHashMap<>();
 
     // Data class for calculated throws
     private static record CalculatedThrowData(

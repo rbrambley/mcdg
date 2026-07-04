@@ -60,10 +60,10 @@ public final class CourseCleanupCommand {
             UUID courseId = challengeCourseId.get();
             LostCourseStorage.clearPlacedState(source.getServer(), courseId);
             ChallengeCourseManager.getCatalog().ifPresent(catalog -> {
-                if (catalog.getCourse(courseId).isPresent()) {
-                    catalog.getCourse(courseId).get().setPlaced(false);
+                catalog.getCourse(courseId).ifPresent(entry -> {
+                    catalog.entries().put(courseId, entry.withPlaced(false));
                     catalog.save(source.getServer());
-                }
+                });
             });
         }
 
@@ -403,7 +403,7 @@ public final class CourseCleanupCommand {
         }
 
         LostCourseStorage.clearPlacedState(source.getServer(), courseId);
-        entryOpt.get().setPlaced(false);
+        catalog.entries().put(courseId, entryOpt.get().withPlaced(false));
         catalog.save(source.getServer());
         return true;
     }

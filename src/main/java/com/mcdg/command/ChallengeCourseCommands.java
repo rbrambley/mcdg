@@ -157,4 +157,20 @@ public final class ChallengeCourseCommands {
         );
         return 1;
     }
+
+    public static int executeCancelChallenge(ServerCommandSource source, String courseIdString) {
+        try {
+            UUID courseId = UUID.fromString(courseIdString);
+            if (ChallengeCourseBuildTracker.cancelBuild(courseId)) {
+                source.sendFeedback(() -> Text.literal("Cancelled challenge course build: " + courseIdString)
+                        .formatted(Formatting.GREEN), false);
+                return 1;
+            }
+            source.sendError(Text.literal("No active build found for challenge course: " + courseIdString));
+            return 0;
+        } catch (IllegalArgumentException e) {
+            source.sendError(Text.literal("Invalid course ID: " + courseIdString));
+            return 0;
+        }
+    }
 }

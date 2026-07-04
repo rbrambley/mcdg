@@ -4,6 +4,7 @@ import com.mcdg.McdgMod;
 import com.mcdg.data.Course;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -23,11 +24,11 @@ import net.minecraft.registry.RegistryKey;
  */
 public final class TurnManager {
     private static final int TURN_TIMEOUT_TICKS = 20 * 120;
-    private static final Map<Integer, UUID> ACTIVE_TURN_PLAYER_BY_HOLE = new HashMap<>();
-    private static final Map<Integer, Long> ACTIVE_TURN_STARTED_AT_BY_HOLE = new HashMap<>();
-    private static final Map<Integer, Integer> ACTIVE_TURN_TOTAL_STROKES_BY_HOLE = new HashMap<>();
-    private static final Map<Integer, UUID> TURN_SKIP_ONCE_BY_HOLE = new HashMap<>();
-    private static final Map<Integer, UUID> LAST_THROWER_BY_HOLE = new HashMap<>();
+    private static final Map<Integer, UUID> ACTIVE_TURN_PLAYER_BY_HOLE = new ConcurrentHashMap<>();
+    private static final Map<Integer, Long> ACTIVE_TURN_STARTED_AT_BY_HOLE = new ConcurrentHashMap<>();
+    private static final Map<Integer, Integer> ACTIVE_TURN_TOTAL_STROKES_BY_HOLE = new ConcurrentHashMap<>();
+    private static final Map<Integer, UUID> TURN_SKIP_ONCE_BY_HOLE = new ConcurrentHashMap<>();
+    private static final Map<Integer, UUID> LAST_THROWER_BY_HOLE = new ConcurrentHashMap<>();
 
     private TurnManager() {
     }

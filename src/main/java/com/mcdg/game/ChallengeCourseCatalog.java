@@ -53,7 +53,8 @@ public final class ChallengeCourseCatalog {
             parameters,
             Instant.now(),
             new HashMap<>(), // playerRewards
-            new HashMap<>()  // playerCompletions
+            new HashMap<>(), // playerCompletions
+            false
         );
         entries.put(course.courseId(), entry);
     }
@@ -251,9 +252,9 @@ public final class ChallengeCourseCatalog {
                         oldEntry.parameters(),
                         oldEntry.discoveredAt(),
                         oldEntry.playerRewards(),
-                        oldEntry.playerCompletions()
+                        oldEntry.playerCompletions(),
+                        oldEntry.isPlaced()
                     );
-                    migratedEntry.setPlaced(oldEntry.isPlaced());
                     entry.setValue(migratedEntry);
                     McdgMod.LOGGER.info("Migrated challenge course {} generated course name from '{}' to '{}'",
                         oldEntry.courseId(), oldEntry.generatedCourse().name(), oldEntry.name());
@@ -302,13 +303,14 @@ public final class ChallengeCourseCatalog {
         private final Instant discoveredAt;
         private final Map<UUID, PlayerRewardData> playerRewards;
         private final Map<UUID, PlayerCompletionData> playerCompletions;
-        private boolean isPlaced;
+        private final boolean isPlaced;
 
-        public CatalogEntry(UUID courseId, String name, ChallengeCourseType type, 
+        public CatalogEntry(UUID courseId, String name, ChallengeCourseType type,
                           BlockPos entrancePosition, BlockPos courseAnchor, Course generatedCourse,
-                          ChallengeCourseParameters parameters, Instant discoveredAt, 
+                          ChallengeCourseParameters parameters, Instant discoveredAt,
                           Map<UUID, PlayerRewardData> playerRewards,
-                          Map<UUID, PlayerCompletionData> playerCompletions) {
+                          Map<UUID, PlayerCompletionData> playerCompletions,
+                          boolean isPlaced) {
             this.courseId = courseId;
             this.name = name;
             this.type = type;
@@ -319,7 +321,7 @@ public final class ChallengeCourseCatalog {
             this.discoveredAt = discoveredAt;
             this.playerRewards = playerRewards;
             this.playerCompletions = playerCompletions;
-            this.isPlaced = false;
+            this.isPlaced = isPlaced;
         }
 
         public UUID courseId() { return courseId; }
@@ -333,7 +335,22 @@ public final class ChallengeCourseCatalog {
         public Map<UUID, PlayerRewardData> playerRewards() { return playerRewards; }
         public Map<UUID, PlayerCompletionData> playerCompletions() { return playerCompletions; }
         public boolean isPlaced() { return isPlaced; }
-        public void setPlaced(boolean placed) { this.isPlaced = placed; }
+
+        public CatalogEntry withPlaced(boolean placed) {
+            return new CatalogEntry(
+                courseId,
+                name,
+                type,
+                entrancePosition,
+                courseAnchor,
+                generatedCourse,
+                parameters,
+                discoveredAt,
+                playerRewards,
+                playerCompletions,
+                placed
+            );
+        }
     }
 
     /**
@@ -368,20 +385,7 @@ public final class ChallengeCourseCatalog {
     public void markCourseAsPlaced(UUID courseId) {
         CatalogEntry entry = entries.get(courseId);
         if (entry != null) {
-            CatalogEntry updatedEntry = new CatalogEntry(
-                entry.courseId(),
-                entry.name(),
-                entry.type(),
-                entry.entrancePosition(),
-                entry.courseAnchor(),
-                entry.generatedCourse(),
-                entry.parameters(),
-                entry.discoveredAt(),
-                entry.playerRewards(),
-                entry.playerCompletions()
-            );
-            updatedEntry.setPlaced(true);
-            entries.put(courseId, updatedEntry);
+            entries.put(courseId, entry.withPlaced(true));
         }
     }
 

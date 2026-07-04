@@ -8,7 +8,7 @@ import com.mcdg.data.SignatureHoleType;
 import com.mcdg.net.HoleMapSync;
 import com.mcdg.rules.TournamentRulesetManager;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -24,11 +24,11 @@ import net.minecraft.util.math.BlockPos;
  * no texture building, no map span calculation.
  */
 public final class HoleMapSyncService {
-    private static final Map<UUID, Integer> LAST_HOLE = new HashMap<>();
-    private static final Map<UUID, Integer> LAST_PAYLOAD_HASH = new HashMap<>();
+    private static final Map<UUID, Integer> LAST_HOLE = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> LAST_PAYLOAD_HASH = new ConcurrentHashMap<>();
     private static boolean ACTIVE_SENT = false;
 
-    private static final Map<UUID, CachedExtras> EXTRAS_CACHE = new HashMap<>();
+    private static final Map<UUID, CachedExtras> EXTRAS_CACHE = new ConcurrentHashMap<>();
 
     private record CachedExtras(
             BlockPos lie,

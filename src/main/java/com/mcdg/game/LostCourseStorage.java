@@ -37,6 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class LostCourseStorage {
     private static final String FILE_NAME = "lost-courses.nbt";
     private static final Map<UUID, PlacedCourseState> PLACED_STATES = new ConcurrentHashMap<>();
+    private static boolean LOST_COURSES_LOADED = false;
 
     private LostCourseStorage() {
     }
@@ -73,6 +74,7 @@ public final class LostCourseStorage {
         Path path = resolvePath(server);
         if (!Files.exists(path)) {
             PLACED_STATES.clear();
+            LOST_COURSES_LOADED = true;
             return Optional.empty();
         }
         try (InputStream in = Files.newInputStream(path);
@@ -104,6 +106,7 @@ public final class LostCourseStorage {
             }
 
             McdgMod.LOGGER.info("Loaded {} lost course(s) and {} placed state(s) from {}", courses.size(), PLACED_STATES.size(), path);
+            LOST_COURSES_LOADED = true;
             return Optional.of(courses);
         } catch (IOException ex) {
             McdgMod.LOGGER.error("Failed to load lost course storage from {}", path, ex);
@@ -121,6 +124,7 @@ public final class LostCourseStorage {
         } else {
             PLACED_STATES.put(courseId, placedState);
         }
+        ensureLostCoursesLoaded(server);
         save(server, ChallengeCourseManager.getAllLostCourses(), PLACED_STATES);
     }
 
@@ -139,8 +143,20 @@ public final class LostCourseStorage {
      */
     public static void clearPlacedState(MinecraftServer server, UUID courseId) {
         if (PLACED_STATES.remove(courseId) != null) {
+            ensureLostCoursesLoaded(server);
             save(server, ChallengeCourseManager.getAllLostCourses(), PLACED_STATES);
         }
+    }
+
+    private static void ensureLostCoursesLoaded(MinecraftServer server) {
+        if (LOST_COURSES_LOADED) {
+            return;
+        }
+        // Preserve any placed-state modifications already made this tick before loading.
+        Map<UUID, PlacedCourseState> pendingPlacedStates = new HashMap<>(PLACED_STATES);
+        Optional<List<LostCourse>> loaded = load(server);
+        loaded.ifPresent(courses -> courses.forEach(ChallengeCourseManager::registerLostCourse));
+        PLACED_STATES.putAll(pendingPlacedStates);
     }
 
     public static boolean exists(MinecraftServer server) {

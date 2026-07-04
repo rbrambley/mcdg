@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,11 +53,11 @@ public final class HoleProgressTracker {
     // Proximity make radius: flat putts within this distance that hit the basket column count as makes
     // Temporary safety rollback: keep core throw/lie flow stable while strict landing penalties are reworked.
     private static final HudStateFormatter HUD_STATE_FORMATTER = new HudStateFormatter();
-    private static final Map<UUID, Map<Integer, Integer>> HOLE_SCORE_HISTORY = new HashMap<>();
-    static final Map<UUID, Integer> HOLE_ONE_RANDOM_ORDER = new HashMap<>();
-    private static final Map<UUID, Integer> CACHED_CORRIDOR_HALF_WIDTH = new HashMap<>();
-    private static final Map<UUID, BlockPos> LAST_LIE_POSITION = new HashMap<>();
-    private static final Map<UUID, BlockPos> LAST_BREADCRUMB_POSITION = new HashMap<>();
+    private static final Map<UUID, Map<Integer, Integer>> HOLE_SCORE_HISTORY = new ConcurrentHashMap<>();
+    static final Map<UUID, Integer> HOLE_ONE_RANDOM_ORDER = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> CACHED_CORRIDOR_HALF_WIDTH = new ConcurrentHashMap<>();
+    private static final Map<UUID, BlockPos> LAST_LIE_POSITION = new ConcurrentHashMap<>();
+    private static final Map<UUID, BlockPos> LAST_BREADCRUMB_POSITION = new ConcurrentHashMap<>();
     private static int LAST_RUNNING_SCOREBOARD_HASH = Integer.MIN_VALUE;
     private static boolean ROUND_WAS_ACTIVE = false;
 

@@ -420,9 +420,9 @@ public final class DebugCommands {
                                                         entry.parameters(),
                                                         entry.discoveredAt(),
                                                         entry.playerRewards(),
-                                                        entry.playerCompletions()
+                                                        entry.playerCompletions(),
+                                                        entry.isPlaced()
                                                 );
-                                                newEntry.setPlaced(entry.isPlaced());
                                                 catalog.removeCourse(course.courseId());
                                                 catalog.entries().put(course.courseId(), newEntry);
                                         });

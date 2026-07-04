@@ -113,6 +113,12 @@ public final class McdgAdminCommands {
                                                 courseManager,
                                                 StringArgumentType.getString(context, "courseId")
                                         ))))
+                        .then(literal("cancelchallenge").requires(CommandPermission::canUseAdminCommands)
+                                .then(argument("courseId", StringArgumentType.string())
+                                        .executes(context -> ChallengeCourseCommands.executeCancelChallenge(
+                                                context.getSource(),
+                                                StringArgumentType.getString(context, "courseId")
+                                        ))))
                         .then(literal("resort")
                                 .executes(context -> TeleportCommands.executeResortTeleport(context.getSource())))
                         .then(literal("createcourse").requires(CommandPermission::canUseAdminCommands)

@@ -94,7 +94,8 @@ public final class WorldSpawnHandler {
 
         // Ensure lost course entrances are available in this world. If they have already
         // been generated and saved, just register them so discovery continues to work
-        // across restarts. Otherwise, generate them now (including for pre-existing worlds).
+        // across restarts. Otherwise, generate them only on fresh worlds to avoid
+        // conflicting with existing player builds on pre-existing worlds.
         loadOrPlaceLostCourses(overworld, server, spawnPos);
     }
 
@@ -104,9 +105,17 @@ public final class WorldSpawnHandler {
             for (LostCourse course : loaded.get()) {
                 ChallengeCourseManager.registerLostCourse(course);
             }
-        } else {
+            return;
+        }
+
+        // Only auto-generate lost-course entrances on fresh worlds. Pre-existing worlds may
+        // already have player builds, and placing entrances automatically could conflict with them.
+        if (isFreshWorld(server)) {
             LostCoursePlacement.placeLostCourseEntrances(overworld, spawnPos);
             LostCourseStorage.save(server, ChallengeCourseManager.getAllLostCourses());
+        } else {
+            McdgMod.LOGGER.info("Pre-existing world detected and no lost-course data found; "
+                    + "skipping automatic challenge-course placement to avoid conflicts with existing builds.");
         }
     }
 

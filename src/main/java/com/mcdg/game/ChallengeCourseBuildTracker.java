@@ -87,6 +87,19 @@ public final class ChallengeCourseBuildTracker {
                 courseId, player.getName().getString());
     }
 
+    /**
+     * Cancels an in-progress challenge course build and rolls back any partial placement.
+     */
+    public static boolean cancelBuild(UUID courseId) {
+        PendingBuild build = PENDING_BUILDS.remove(courseId);
+        if (build == null) {
+            return false;
+        }
+        build.placer().cancel();
+        McdgMod.LOGGER.info("Cancelled challenge course build for {}", courseId);
+        return true;
+    }
+
     public static void tick(MinecraftServer server) {
         PENDING_BUILDS.values().removeIf(build -> {
             ServerPlayerEntity player = build.player();
