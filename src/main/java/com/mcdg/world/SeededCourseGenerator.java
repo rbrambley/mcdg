@@ -87,6 +87,14 @@ public final class SeededCourseGenerator implements CourseGenerator {
      * Generates a course with custom challenge-specific parameters.
      */
     public Course generateWithParameters(long seed, ChallengeCourseParameters params, float facingYaw) {
+        return generateWithParameters(seed, params, facingYaw, null);
+    }
+
+    /**
+     * Generates a course with custom challenge-specific parameters and an optional course name.
+     * If courseName is null or empty, a random name will be generated.
+     */
+    public Course generateWithParameters(long seed, ChallengeCourseParameters params, float facingYaw, String courseName) {
         if (params.holeCount() < 1) {
             throw new IllegalArgumentException("holeCount must be >= 1");
         }
@@ -107,7 +115,7 @@ public final class SeededCourseGenerator implements CourseGenerator {
         }
 
         // Challenge courses don't get signature holes by default
-        String name = generateChallengeCourseName(random, params);
+        String name = (courseName != null && !courseName.isBlank()) ? courseName : generateChallengeCourseName(random, params);
         return new Course(seed, name, holes);
     }
 

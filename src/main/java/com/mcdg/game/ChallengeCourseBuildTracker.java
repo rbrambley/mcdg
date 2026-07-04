@@ -4,6 +4,7 @@ import com.mcdg.McdgMod;
 import com.mcdg.command.RoundLifecycleCommands;
 import com.mcdg.data.Course;
 import com.mcdg.world.CoursePlacementService;
+import com.mcdg.world.CourseStructureBuilder;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -39,6 +40,14 @@ public final class ChallengeCourseBuildTracker {
             RoundPresentationService roundPresentationService,
             boolean skipRoundPresentation
     ) {
+    }
+
+    /**
+     * Replaces the normal course banner and sign at each tee with challenge-themed
+     * versions and auto-populated hole text.
+     */
+    private static void placeChallengeCourseTheme(ServerWorld world, Course course, PlacedCourseState placed, ChallengeCourseType type) {
+        CourseStructureBuilder.applyChallengeTheme(world, course, placed, type);
     }
 
     public static void startBuild(
@@ -111,6 +120,11 @@ public final class ChallengeCourseBuildTracker {
                 ChallengeCourseManager.getCatalog().ifPresent(catalog -> {
                     catalog.markCourseAsPlaced(build.courseId());
                     catalog.save(server);
+                });
+
+                // Apply challenge course visual theme
+                ChallengeCourseManager.getLostCourse(build.courseId()).ifPresent(lostCourse -> {
+                    placeChallengeCourseTheme(build.world(), builtCourse, placedState, lostCourse.type());
                 });
 
                 player.sendMessage(Text.literal("Challenge course built. Starting round...")

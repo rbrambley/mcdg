@@ -27,9 +27,10 @@ public final class ChallengeCourseCatalog {
     private static final Gson GSON = new GsonBuilder()
         .setPrettyPrinting()
         .registerTypeAdapter(Instant.class, new InstantTypeAdapter())
+        .registerTypeAdapter(PlayerCompletionData.class, new PlayerCompletionDataTypeAdapter())
         .create();
     private static final String FILE_NAME = "mcdg-challenge-course-catalog.json";
-    private static final int CURRENT_VERSION = 1;
+    private static final int CURRENT_VERSION = 2;
 
     private final Map<UUID, CatalogEntry> entries = new HashMap<>();
 
@@ -40,13 +41,15 @@ public final class ChallengeCourseCatalog {
      * Adds or updates a course in the catalog.
      */
     public void addOrUpdateCourse(LostCourse course, Course generatedCourse, ChallengeCourseParameters parameters) {
+        // Ensure the generated course uses the lost course name so scorecards and UI match
+        Course namedCourse = ensureCourseName(generatedCourse, course.name());
         CatalogEntry entry = new CatalogEntry(
             course.courseId(),
             course.name(),
             course.type(),
             course.entrancePosition(),
             course.courseAnchor(),
-            generatedCourse,
+            namedCourse,
             parameters,
             Instant.now(),
             new HashMap<>(), // playerRewards
@@ -55,11 +58,30 @@ public final class ChallengeCourseCatalog {
         entries.put(course.courseId(), entry);
     }
 
+    private static Course ensureCourseName(Course course, String name) {
+        if (course == null || course.name().equals(name)) {
+            return course;
+        }
+        return new Course(course.seed(), name, course.holes());
+    }
+
     /**
      * Gets a course entry by ID.
      */
     public Optional<CatalogEntry> getCourse(UUID courseId) {
         return Optional.ofNullable(entries.get(courseId));
+    }
+
+    /**
+     * Gets a course entry by name.
+     */
+    public Optional<CatalogEntry> getCourseByName(String courseName) {
+        if (courseName == null || courseName.isBlank()) {
+            return Optional.empty();
+        }
+        return entries.values().stream()
+            .filter(entry -> entry.name().equalsIgnoreCase(courseName))
+            .findFirst();
     }
 
     /**
@@ -89,11 +111,20 @@ public final class ChallengeCourseCatalog {
 
     /**
      * Records a player's completion of a course with their score.
+     * @deprecated Use {@link #recordCourseCompletion(UUID, UUID, int, String)} instead.
      */
+    @Deprecated
     public void recordCourseCompletion(UUID courseId, UUID playerId, int score) {
+        recordCourseCompletion(courseId, playerId, score, null);
+    }
+
+    /**
+     * Records a player's completion of a course with their score and player name.
+     */
+    public void recordCourseCompletion(UUID courseId, UUID playerId, int score, String playerName) {
         CatalogEntry entry = entries.get(courseId);
         if (entry != null) {
-            PlayerCompletionData completionData = new PlayerCompletionData(Instant.now(), score);
+            PlayerCompletionData completionData = new PlayerCompletionData(Instant.now(), score, playerName);
             entry.playerCompletions().put(playerId, completionData);
         }
     }
@@ -124,6 +155,27 @@ public final class ChallengeCourseCatalog {
     }
 
     /**
+     * Gets completion entries for a course with player names.
+     */
+    public List<CompletionEntry> getCompletionEntries(UUID courseId) {
+        CatalogEntry entry = entries.get(courseId);
+        if (entry == null || entry.playerCompletions().isEmpty()) {
+            return List.of();
+        }
+
+        List<CompletionEntry> completions = new ArrayList<>();
+        for (Map.Entry<UUID, PlayerCompletionData> entryData : entry.playerCompletions().entrySet()) {
+            PlayerCompletionData data = entryData.getValue();
+            String playerName = data.playerName() != null ? data.playerName() : "Unknown Player";
+            completions.add(new CompletionEntry(playerName, data.score(), data.completedAt()));
+        }
+        
+        // Sort by score (ascending)
+        completions.sort(Comparator.comparingInt(CompletionEntry::score));
+        return completions;
+    }
+
+    /**
      * Saves the catalog to disk.
      */
     public void save(MinecraftServer server) {
@@ -151,15 +203,58 @@ public final class ChallengeCourseCatalog {
             String json = Files.readString(path);
             JsonElement root = JsonParser.parseString(json);
             CatalogSnapshot snapshot = GSON.fromJson(root, CatalogSnapshot.class);
-            
-            if (snapshot == null || snapshot.version() != CURRENT_VERSION) {
-                McdgMod.LOGGER.warn("Challenge course catalog version mismatch, creating new catalog");
+
+            if (snapshot == null) {
+                McdgMod.LOGGER.warn("Challenge course catalog snapshot is null, creating new catalog");
                 return Optional.of(new ChallengeCourseCatalog());
             }
 
+            // Handle version migration
+            if (snapshot.version() > CURRENT_VERSION) {
+                McdgMod.LOGGER.warn("Challenge course catalog version {} is newer than current version {}. Attempting to load with current version - data may be partially incompatible.",
+                    snapshot.version(), CURRENT_VERSION);
+                // Continue with load attempt rather than losing data
+            }
+
+            // Version 1 or earlier: The custom TypeAdapter will handle backward compatibility
+            // for PlayerCompletionData by treating missing playerName as null
             ChallengeCourseCatalog catalog = new ChallengeCourseCatalog();
             catalog.entries.putAll(snapshot.entries());
-            McdgMod.LOGGER.info("Loaded challenge course catalog with {} entries", catalog.entries.size());
+
+            // Migrate existing entries whose generated course name does not match the lost course name
+            boolean migrated = false;
+            for (Map.Entry<UUID, CatalogEntry> entry : catalog.entries.entrySet()) {
+                CatalogEntry oldEntry = entry.getValue();
+                Course fixedCourse = ensureCourseName(oldEntry.generatedCourse(), oldEntry.name());
+                if (fixedCourse != oldEntry.generatedCourse()) {
+                    CatalogEntry migratedEntry = new CatalogEntry(
+                        oldEntry.courseId(),
+                        oldEntry.name(),
+                        oldEntry.type(),
+                        oldEntry.entrancePosition(),
+                        oldEntry.courseAnchor(),
+                        fixedCourse,
+                        oldEntry.parameters(),
+                        oldEntry.discoveredAt(),
+                        oldEntry.playerRewards(),
+                        oldEntry.playerCompletions()
+                    );
+                    migratedEntry.setPlaced(oldEntry.isPlaced());
+                    entry.setValue(migratedEntry);
+                    McdgMod.LOGGER.info("Migrated challenge course {} generated course name from '{}' to '{}'",
+                        oldEntry.courseId(), oldEntry.generatedCourse().name(), oldEntry.name());
+                    migrated = true;
+                }
+
+                // Note: PlayerCompletionData entries with null playerName will display as "Unknown Player"
+                // These will be automatically populated with actual player names on the next completion
+            }
+            if (migrated) {
+                catalog.save(server);
+            }
+
+            McdgMod.LOGGER.info("Loaded challenge course catalog (version {}) with {} entries",
+                snapshot.version(), catalog.entries.size());
             return Optional.of(catalog);
         } catch (IOException | RuntimeException ex) {
             McdgMod.LOGGER.error("Failed to load challenge course catalog from {}", path, ex);
@@ -240,7 +335,17 @@ public final class ChallengeCourseCatalog {
      */
     private record PlayerCompletionData(
         Instant completedAt,
-        int score
+        int score,
+        String playerName
+    ) {}
+
+    /**
+     * Public completion entry with player name resolved.
+     */
+    public record CompletionEntry(
+        String playerName,
+        int score,
+        Instant completedAt
     ) {}
 
     /**
@@ -287,6 +392,60 @@ public final class ChallengeCourseCatalog {
                 return null;
             }
             return Instant.parse(value);
+        }
+    }
+
+    /**
+     * Custom TypeAdapter for PlayerCompletionData to handle backward compatibility.
+     * Handles both old format (without playerName) and new format (with playerName).
+     */
+    private static class PlayerCompletionDataTypeAdapter extends TypeAdapter<PlayerCompletionData> {
+        @Override
+        public void write(JsonWriter out, PlayerCompletionData value) throws IOException {
+            if (value == null) {
+                out.nullValue();
+                return;
+            }
+            out.beginObject();
+            out.name("completedAt").value(value.completedAt().toString());
+            out.name("score").value(value.score());
+            out.name("playerName").value(value.playerName());
+            out.endObject();
+        }
+
+        @Override
+        public PlayerCompletionData read(JsonReader in) throws IOException {
+            if (in.peek() == com.google.gson.stream.JsonToken.NULL) {
+                in.nextNull();
+                return null;
+            }
+
+            Instant completedAt = null;
+            int score = 0;
+            String playerName = null;
+
+            in.beginObject();
+            while (in.hasNext()) {
+                String name = in.nextName();
+                switch (name) {
+                    case "completedAt":
+                        String timeStr = in.nextString();
+                        completedAt = timeStr != null ? Instant.parse(timeStr) : null;
+                        break;
+                    case "score":
+                        score = in.nextInt();
+                        break;
+                    case "playerName":
+                        playerName = in.nextString();
+                        break;
+                    default:
+                        in.skipValue();
+                        break;
+                }
+            }
+            in.endObject();
+
+            return new PlayerCompletionData(completedAt, score, playerName);
         }
     }
 }

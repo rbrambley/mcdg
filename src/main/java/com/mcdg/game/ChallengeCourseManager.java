@@ -158,7 +158,7 @@ public final class ChallengeCourseManager {
         ChallengeCourseParameters params = ChallengeCourseParameters.forType(lostCourse.type());
         Random random = new Random(lostCourse.courseId().getLeastSignificantBits());
         
-        return COURSE_GENERATOR.generateWithParameters(random.nextLong(), params, 0.0f);
+        return COURSE_GENERATOR.generateWithParameters(random.nextLong(), params, 0.0f, lostCourse.name());
     }
 
 
@@ -190,7 +190,7 @@ public final class ChallengeCourseManager {
             player.sendMessage(Text.literal("You have already completed this course. No additional rewards.")
                 .formatted(Formatting.GRAY));
             // Still record the score if it's better
-            catalog.recordCourseCompletion(courseId, player.getUuid(), score);
+            catalog.recordCourseCompletion(courseId, player.getUuid(), score, player.getGameProfile().getName());
             return;
         }
 
@@ -220,7 +220,7 @@ public final class ChallengeCourseManager {
         }
 
         // Record the completion
-        catalog.recordCourseCompletion(courseId, player.getUuid(), score);
+        catalog.recordCourseCompletion(courseId, player.getUuid(), score, player.getGameProfile().getName());
 
         // Show best score info
         catalog.getBestScore(courseId).ifPresent(bestScore -> {

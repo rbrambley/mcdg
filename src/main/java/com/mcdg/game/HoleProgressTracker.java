@@ -274,7 +274,19 @@ public final class HoleProgressTracker {
 
                     roundStateManager.recordCompletedRound(player.getUuid(), state.totalStrokes());
                     ScorecardManager.recordCompletionPlayer(player);
-                    if (leaderboardManager != null) {
+
+                    // Check if this is a challenge course completion
+                    int finalScore = state.totalStrokes();
+                    int finalTotalPar = totalPar;
+                    boolean isChallengeCourse = courseManager.getActiveChallengeCourseId().isPresent();
+
+                    if (isChallengeCourse) {
+                        // Challenge courses use their own leaderboard system via onChallengeCourseComplete
+                        courseManager.getActiveChallengeCourseId().ifPresent(courseId -> {
+                            ChallengeCourseManager.onChallengeCourseComplete(player, courseId, finalScore, finalTotalPar);
+                        });
+                    } else if (leaderboardManager != null) {
+                        // Regular courses use the standard leaderboard
                         leaderboardManager.recordScore(server, course.name(), player.getGameProfile().getName(), state.totalStrokes());
                     }
 

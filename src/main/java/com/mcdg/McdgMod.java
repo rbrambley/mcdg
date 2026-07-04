@@ -961,21 +961,53 @@ public final class McdgMod implements ModInitializer {
         }
 
         int totalPar = 0;
+        List<LeaderboardResponse.Entry> responseEntries = new ArrayList<>();
+
+        // Check if this is a challenge course first
+        var challengeCatalog = ChallengeCourseManager.getCatalog();
+        if (challengeCatalog.isPresent()) {
+            var challengeEntry = challengeCatalog.get().getCourseByName(courseName);
+            if (challengeEntry.isPresent()) {
+                // Use challenge course completion data from ChallengeCourseCatalog
+                List<ChallengeCourseCatalog.CompletionEntry> completions =
+                    challengeCatalog.get().getCompletionEntries(challengeEntry.get().courseId());
+
+                for (ChallengeCourseCatalog.CompletionEntry entry : completions) {
+                    responseEntries.add(new LeaderboardResponse.Entry(entry.playerName(), entry.score()));
+                }
+
+                // Calculate total par from the generated course
+                if (challengeEntry.get().generatedCourse() != null) {
+                    for (Hole hole : challengeEntry.get().generatedCourse().holes()) {
+                        totalPar += hole.par();
+                    }
+                }
+                ServerPlayNetworking.send(player, LeaderboardResponse.Payload.active(courseName, totalPar, responseEntries));
+                return;
+            }
+        }
+
+        // Regular course: calculate par from active course if available
         Course activeCourse = ACTIVE_COURSE_MANAGER.getActiveCourse().orElse(null);
         if (activeCourse != null && activeCourse.name().equalsIgnoreCase(courseName)) {
-            totalPar = 0;
             for (Hole hole : activeCourse.holes()) {
                 totalPar += hole.par();
             }
         }
 
-        List<LeaderboardManager.LeaderboardEntry> topEntries = LEADERBOARD_MANAGER.getTopScores(courseName, 5);
-        List<LeaderboardResponse.Entry> responseEntries = new ArrayList<>();
-        for (LeaderboardManager.LeaderboardEntry entry : topEntries) {
-            responseEntries.add(new LeaderboardResponse.Entry(entry.playerName(), entry.score()));
-        }
+        // Use regular leaderboard data
+        responseEntries.addAll(getRegularLeaderboardEntries(courseName));
 
         ServerPlayNetworking.send(player, LeaderboardResponse.Payload.active(courseName, totalPar, responseEntries));
+    }
+
+    private static List<LeaderboardResponse.Entry> getRegularLeaderboardEntries(String courseName) {
+        List<LeaderboardResponse.Entry> entries = new ArrayList<>();
+        List<LeaderboardManager.LeaderboardEntry> topEntries = LEADERBOARD_MANAGER.getTopScores(courseName, 5);
+        for (LeaderboardManager.LeaderboardEntry entry : topEntries) {
+            entries.add(new LeaderboardResponse.Entry(entry.playerName(), entry.score()));
+        }
+        return entries;
     }
 
     private static BlockPos resolveSafeFeetNear(ServerWorld world, BlockPos preferredFeet) {
