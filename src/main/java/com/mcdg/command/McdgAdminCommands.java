@@ -416,134 +416,106 @@ public final class McdgAdminCommands {
                                         .executes(context -> WindCommands.executeWindGust(context.getSource())))
                                 .then(literal("auto")
                                         .executes(context -> WindCommands.executeWindAuto(context.getSource()))))
+                        .then(literal("savesession").requires(CommandPermission::canUseAdminCommands)
+                                .executes(context -> SessionCommands.executeSaveSession(
+                                        context.getSource(), courseManager, roundStateManager, playerRoundSessionStorage, null))
+                                .then(argument("players", EntityArgumentType.players())
+                                        .executes(context -> SessionCommands.executeSaveSession(
+                                                context.getSource(), courseManager, roundStateManager, playerRoundSessionStorage,
+                                                EntityArgumentType.getPlayers(context, "players")))))
+                        .then(literal("resumesession").requires(CommandPermission::canUseAdminCommands)
+                                .executes(context -> SessionCommands.executeResumeSession(
+                                        context.getSource(), courseManager, roundStateManager, practiceCourseStorage,
+                                        playerRoundSessionStorage, SessionCommands.ResumeSourceSelection.PREFER_MANUAL, null))
+                                .then(argument("players", EntityArgumentType.players())
+                                        .executes(context -> SessionCommands.executeResumeSession(
+                                                context.getSource(), courseManager, roundStateManager, practiceCourseStorage,
+                                                playerRoundSessionStorage, SessionCommands.ResumeSourceSelection.PREFER_MANUAL,
+                                                EntityArgumentType.getPlayers(context, "players"))))
+                                .then(literal("manual")
+                                        .executes(context -> SessionCommands.executeResumeSession(
+                                                context.getSource(), courseManager, roundStateManager, practiceCourseStorage,
+                                                playerRoundSessionStorage, SessionCommands.ResumeSourceSelection.MANUAL_ONLY, null))
+                                        .then(argument("players", EntityArgumentType.players())
+                                                .executes(context -> SessionCommands.executeResumeSession(
+                                                        context.getSource(), courseManager, roundStateManager, practiceCourseStorage,
+                                                        playerRoundSessionStorage, SessionCommands.ResumeSourceSelection.MANUAL_ONLY,
+                                                        EntityArgumentType.getPlayers(context, "players")))))
+                                .then(literal("auto")
+                                        .executes(context -> SessionCommands.executeResumeSession(
+                                                context.getSource(), courseManager, roundStateManager, practiceCourseStorage,
+                                                playerRoundSessionStorage, SessionCommands.ResumeSourceSelection.AUTO_ONLY, null))
+                                        .then(argument("players", EntityArgumentType.players())
+                                                .executes(context -> SessionCommands.executeResumeSession(
+                                                        context.getSource(), courseManager, roundStateManager, practiceCourseStorage,
+                                                        playerRoundSessionStorage, SessionCommands.ResumeSourceSelection.AUTO_ONLY,
+                                                        EntityArgumentType.getPlayers(context, "players"))))))
+                        .then(literal("roundsession").requires(CommandPermission::canUseAdminCommands)
+                                .executes(context -> SessionCommands.executeRoundSessionStatus(
+                                        context.getSource(), roundSessionStorage))
+                                .then(literal("status")
+                                        .executes(context -> SessionCommands.executeRoundSessionStatus(
+                                                context.getSource(), roundSessionStorage)))
+                                .then(literal("clear")
+                                        .executes(context -> SessionCommands.executeRoundSessionClear(
+                                                context.getSource(), roundSessionStorage, courseManager, roundStateManager, practiceCourseStorage))))
+                        .then(literal("gotocoursebyindex").requires(CommandPermission::canUseAdminCommands)
+                                .then(argument("index", IntegerArgumentType.integer(1))
+                                        .executes(context -> CourseCleanupCommand.executeGotoCourseByIndex(
+                                                context.getSource(), practiceCourseStorage,
+                                                IntegerArgumentType.getInteger(context, "index")))))
+                        .then(literal("cleanupcoursebyindex").requires(CommandPermission::canUseAdminCommands)
+                                .then(argument("index", IntegerArgumentType.integer(1))
+                                        .executes(context -> CourseCleanupCommand.executeCleanupCourseByIndex(
+                                                context.getSource(), practiceCourseStorage, placementService,
+                                                roundStateManager, courseManager,
+                                                IntegerArgumentType.getInteger(context, "index")))))
+                        // Waypoint commands removed (player waypoints replaced by Xaero's Minimap)
+                        .then(literal("buildresort").requires(CommandPermission::canUseAdminCommands)
+                                .executes(context -> ResortAdminCommands.executeBuildResort(
+                                        context.getSource(), generator, autoCourseService, practiceCourseStorage, null, null))
+                                .then(argument("x", IntegerArgumentType.integer())
+                                        .then(argument("z", IntegerArgumentType.integer())
+                                                .executes(context -> ResortAdminCommands.executeBuildResort(
+                                                        context.getSource(), generator, autoCourseService, practiceCourseStorage,
+                                                        IntegerArgumentType.getInteger(context, "x"),
+                                                        IntegerArgumentType.getInteger(context, "z")))))
+                                .then(literal("overwrite").requires(CommandPermission::canUseAdminCommands)
+                                        .executes(context -> ResortAdminCommands.executeBuildResortOverwrite(
+                                                context.getSource(), generator, autoCourseService, practiceCourseStorage)))
+                                .then(literal("cancel").requires(CommandPermission::canUseAdminCommands)
+                                        .executes(context -> ResortAdminCommands.executeBuildResortCancel(
+                                                context.getSource()))))
+                        .then(literal("resetresort").requires(CommandPermission::canUseAdminCommands)
+                                .executes(context -> ResortAdminCommands.executeResetResort(
+                                        context.getSource())))
+                        .then(literal("removesurroundcourses").requires(CommandPermission::canUseAdminCommands)
+                                .executes(context -> ResortAdminCommands.executeRemoveSurroundCourses(
+                                        context.getSource(), placementService, practiceCourseStorage)))
+                        // autocourse
+                        .then(literal("autocourse").requires(CommandPermission::canUseAdminCommands)
+                                .executes(context -> autoCourseService.executeAutoCourseNoName(context.getSource()))
+                                .then(argument("name", StringArgumentType.greedyString())
+                                        .executes(context -> autoCourseService.executeAutoCourseNamed(
+                                                context.getSource(), StringArgumentType.getString(context, "name"))))
+                                .then(literal("cancel")
+                                        .executes(context -> autoCourseService.executeCancel(context.getSource()))))
+                        // removecourse
+                        .then(literal("removecourse").requires(CommandPermission::canUseAdminCommands)
+                                .then(argument("index", IntegerArgumentType.integer(1))
+                                        .executes(context -> CourseAdminCommands.executeRemoveCourse(
+                                                context.getSource(), courseManager, roundStateManager,
+                                                practiceCourseStorage, playerRoundSessionStorage,
+                                                IntegerArgumentType.getInteger(context, "index")))))
+                        // removecourseboth
+                        .then(literal("removecourseboth").requires(CommandPermission::canUseAdminCommands)
+                                .then(argument("index", IntegerArgumentType.integer(1))
+                                        .executes(context -> CourseCleanupCommand.executeRemoveCourseBoth(
+                                                context.getSource(), courseManager, roundStateManager,
+                                                practiceCourseStorage, playerRoundSessionStorage, placementService,
+                                                IntegerArgumentType.getInteger(context, "index")))))
+                        .then(DiscEnchantmentCommands.build())
                         ));
-
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            dispatcher.register(literal("mcdg")
-                    .then(literal("savesession").requires(CommandPermission::canUseAdminCommands)
-                            .executes(context -> SessionCommands.executeSaveSession(
-                                    context.getSource(), courseManager, roundStateManager, playerRoundSessionStorage, null))
-                            .then(argument("players", EntityArgumentType.players())
-                                    .executes(context -> SessionCommands.executeSaveSession(
-                                            context.getSource(), courseManager, roundStateManager, playerRoundSessionStorage,
-                                            EntityArgumentType.getPlayers(context, "players"))))));
-
-            dispatcher.register(literal("mcdg")
-                    .then(literal("resumesession").requires(CommandPermission::canUseAdminCommands)
-                            .executes(context -> SessionCommands.executeResumeSession(
-                                    context.getSource(), courseManager, roundStateManager, practiceCourseStorage,
-                                    playerRoundSessionStorage, SessionCommands.ResumeSourceSelection.PREFER_MANUAL, null))
-                            .then(argument("players", EntityArgumentType.players())
-                                    .executes(context -> SessionCommands.executeResumeSession(
-                                            context.getSource(), courseManager, roundStateManager, practiceCourseStorage,
-                                            playerRoundSessionStorage, SessionCommands.ResumeSourceSelection.PREFER_MANUAL,
-                                            EntityArgumentType.getPlayers(context, "players"))))
-                            .then(literal("manual")
-                                    .executes(context -> SessionCommands.executeResumeSession(
-                                            context.getSource(), courseManager, roundStateManager, practiceCourseStorage,
-                                            playerRoundSessionStorage, SessionCommands.ResumeSourceSelection.MANUAL_ONLY, null))
-                                    .then(argument("players", EntityArgumentType.players())
-                                            .executes(context -> SessionCommands.executeResumeSession(
-                                                    context.getSource(), courseManager, roundStateManager, practiceCourseStorage,
-                                                    playerRoundSessionStorage, SessionCommands.ResumeSourceSelection.MANUAL_ONLY,
-                                                    EntityArgumentType.getPlayers(context, "players")))))
-                            .then(literal("auto")
-                                    .executes(context -> SessionCommands.executeResumeSession(
-                                            context.getSource(), courseManager, roundStateManager, practiceCourseStorage,
-                                            playerRoundSessionStorage, SessionCommands.ResumeSourceSelection.AUTO_ONLY, null))
-                                    .then(argument("players", EntityArgumentType.players())
-                                            .executes(context -> SessionCommands.executeResumeSession(
-                                                    context.getSource(), courseManager, roundStateManager, practiceCourseStorage,
-                                                    playerRoundSessionStorage, SessionCommands.ResumeSourceSelection.AUTO_ONLY,
-                                                    EntityArgumentType.getPlayers(context, "players")))))));
-
-            dispatcher.register(literal("mcdg")
-                    .then(literal("roundsession").requires(CommandPermission::canUseAdminCommands)
-                            .executes(context -> SessionCommands.executeRoundSessionStatus(
-                                    context.getSource(), roundSessionStorage))
-                            .then(literal("status")
-                                    .executes(context -> SessionCommands.executeRoundSessionStatus(
-                                            context.getSource(), roundSessionStorage)))
-                            .then(literal("clear")
-                                    .executes(context -> SessionCommands.executeRoundSessionClear(
-                                            context.getSource(), roundSessionStorage, courseManager, roundStateManager, practiceCourseStorage)))));
-
-            dispatcher.register(literal("mcdg")
-                    .then(literal("gotocoursebyindex").requires(CommandPermission::canUseAdminCommands)
-                            .then(argument("index", IntegerArgumentType.integer(1))
-                                    .executes(context -> CourseCleanupCommand.executeGotoCourseByIndex(
-                                            context.getSource(), practiceCourseStorage,
-                                            IntegerArgumentType.getInteger(context, "index"))))));
-
-            dispatcher.register(literal("mcdg")
-                    .then(literal("cleanupcoursebyindex").requires(CommandPermission::canUseAdminCommands)
-                            .then(argument("index", IntegerArgumentType.integer(1))
-                                    .executes(context -> CourseCleanupCommand.executeCleanupCourseByIndex(
-                                            context.getSource(), practiceCourseStorage, placementService,
-                                            roundStateManager, courseManager,
-                                            IntegerArgumentType.getInteger(context, "index"))))));
-
-            // Waypoint commands removed (player waypoints replaced by Xaero's Minimap)
-
-            dispatcher.register(literal("mcdg")
-                    .then(literal("buildresort").requires(CommandPermission::canUseAdminCommands)
-                            .executes(context -> ResortAdminCommands.executeBuildResort(
-                                    context.getSource(), generator, autoCourseService, practiceCourseStorage, null, null))
-                            .then(argument("x", IntegerArgumentType.integer())
-                                    .then(argument("z", IntegerArgumentType.integer())
-                                            .executes(context -> ResortAdminCommands.executeBuildResort(
-                                                    context.getSource(), generator, autoCourseService, practiceCourseStorage,
-                                                    IntegerArgumentType.getInteger(context, "x"),
-                                                    IntegerArgumentType.getInteger(context, "z")))))
-                            .then(literal("overwrite").requires(CommandPermission::canUseAdminCommands)
-                                    .executes(context -> ResortAdminCommands.executeBuildResortOverwrite(
-                                            context.getSource(), generator, autoCourseService, practiceCourseStorage)))
-                            .then(literal("cancel").requires(CommandPermission::canUseAdminCommands)
-                                    .executes(context -> ResortAdminCommands.executeBuildResortCancel(
-                                            context.getSource())))));
-
-            dispatcher.register(literal("mcdg")
-                    .then(literal("resetresort").requires(CommandPermission::canUseAdminCommands)
-                            .executes(context -> ResortAdminCommands.executeResetResort(
-                                    context.getSource()))));
-
-            dispatcher.register(literal("mcdg")
-                    .then(literal("removesurroundcourses").requires(CommandPermission::canUseAdminCommands)
-                            .executes(context -> ResortAdminCommands.executeRemoveSurroundCourses(
-                                    context.getSource(), placementService, practiceCourseStorage))));
-
-            // autocourse
-            dispatcher.register(literal("mcdg")
-                    .then(literal("autocourse").requires(CommandPermission::canUseAdminCommands)
-                            .executes(context -> autoCourseService.executeAutoCourseNoName(context.getSource()))
-                            .then(argument("name", StringArgumentType.greedyString())
-                                    .executes(context -> autoCourseService.executeAutoCourseNamed(
-                                            context.getSource(), StringArgumentType.getString(context, "name"))))
-                            .then(literal("cancel")
-                                    .executes(context -> autoCourseService.executeCancel(context.getSource())))));
-
-            // removecourse
-            dispatcher.register(literal("mcdg")
-                    .then(literal("removecourse").requires(CommandPermission::canUseAdminCommands)
-                            .then(argument("index", IntegerArgumentType.integer(1))
-                                    .executes(context -> CourseAdminCommands.executeRemoveCourse(
-                                            context.getSource(), courseManager, roundStateManager,
-                                            practiceCourseStorage, playerRoundSessionStorage,
-                                            IntegerArgumentType.getInteger(context, "index"))))));
-
-            // removecourseboth
-            dispatcher.register(literal("mcdg")
-                    .then(literal("removecourseboth").requires(CommandPermission::canUseAdminCommands)
-                            .then(argument("index", IntegerArgumentType.integer(1))
-                                    .executes(context -> CourseCleanupCommand.executeRemoveCourseBoth(
-                                            context.getSource(), courseManager, roundStateManager,
-                                            practiceCourseStorage, playerRoundSessionStorage, placementService,
-                                            IntegerArgumentType.getInteger(context, "index"))))));
-
-            dispatcher.register(literal("mcdg")
-                    .then(DiscEnchantmentCommands.build()));
-        });
     }
 
 }
-

@@ -112,7 +112,7 @@ public final class ChallengeCourseCatalog {
     public void markDiscoveryRewardClaimed(UUID courseId, UUID playerId) {
         CatalogEntry entry = entries.get(courseId);
         if (entry != null) {
-            entry.playerRewards().put(playerId, new PlayerRewardData(Instant.now(), null));
+            entries.put(courseId, entry.withPlayerReward(playerId, new PlayerRewardData(Instant.now(), null)));
         }
     }
 
@@ -140,7 +140,7 @@ public final class ChallengeCourseCatalog {
         CatalogEntry entry = entries.get(courseId);
         if (entry != null) {
             PlayerCompletionData completionData = new PlayerCompletionData(Instant.now(), score, playerName);
-            entry.playerCompletions().put(playerId, completionData);
+            entries.put(courseId, entry.withPlayerCompletion(playerId, completionData));
         }
     }
 
@@ -319,8 +319,8 @@ public final class ChallengeCourseCatalog {
             this.generatedCourse = generatedCourse;
             this.parameters = parameters;
             this.discoveredAt = discoveredAt;
-            this.playerRewards = playerRewards;
-            this.playerCompletions = playerCompletions;
+            this.playerRewards = new HashMap<>(playerRewards);
+            this.playerCompletions = new HashMap<>(playerCompletions);
             this.isPlaced = isPlaced;
         }
 
@@ -332,8 +332,8 @@ public final class ChallengeCourseCatalog {
         public Course generatedCourse() { return generatedCourse; }
         public ChallengeCourseParameters parameters() { return parameters; }
         public Instant discoveredAt() { return discoveredAt; }
-        public Map<UUID, PlayerRewardData> playerRewards() { return playerRewards; }
-        public Map<UUID, PlayerCompletionData> playerCompletions() { return playerCompletions; }
+        public Map<UUID, PlayerRewardData> playerRewards() { return Map.copyOf(playerRewards); }
+        public Map<UUID, PlayerCompletionData> playerCompletions() { return Map.copyOf(playerCompletions); }
         public boolean isPlaced() { return isPlaced; }
 
         public CatalogEntry withPlaced(boolean placed) {
@@ -349,6 +349,42 @@ public final class ChallengeCourseCatalog {
                 playerRewards,
                 playerCompletions,
                 placed
+            );
+        }
+
+        public CatalogEntry withPlayerReward(UUID playerId, PlayerRewardData data) {
+            Map<UUID, PlayerRewardData> updated = new HashMap<>(playerRewards);
+            updated.put(playerId, data);
+            return new CatalogEntry(
+                courseId,
+                name,
+                type,
+                entrancePosition,
+                courseAnchor,
+                generatedCourse,
+                parameters,
+                discoveredAt,
+                updated,
+                playerCompletions,
+                isPlaced
+            );
+        }
+
+        public CatalogEntry withPlayerCompletion(UUID playerId, PlayerCompletionData data) {
+            Map<UUID, PlayerCompletionData> updated = new HashMap<>(playerCompletions);
+            updated.put(playerId, data);
+            return new CatalogEntry(
+                courseId,
+                name,
+                type,
+                entrancePosition,
+                courseAnchor,
+                generatedCourse,
+                parameters,
+                discoveredAt,
+                playerRewards,
+                updated,
+                isPlaced
             );
         }
     }

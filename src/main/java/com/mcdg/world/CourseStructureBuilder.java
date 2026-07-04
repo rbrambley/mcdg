@@ -344,11 +344,11 @@ public final class CourseStructureBuilder {
                     continue;
                 }
 
-                if (!world.isChunkLoaded(tee) || !world.isChunkLoaded(basket)) {
-                    failureCount++;
-                    McdgMod.LOGGER.warn("Skipping challenge theme for hole {} in {}: chunks not loaded",
-                            hole.index(), course.name());
-                    continue;
+                if (!world.isChunkLoaded(tee)) {
+                    world.getChunk(tee);
+                }
+                if (!world.isChunkLoaded(basket)) {
+                    world.getChunk(basket);
                 }
 
                 int[] forward = PlacementUtils.teeForwardUnit(tee, basket);
