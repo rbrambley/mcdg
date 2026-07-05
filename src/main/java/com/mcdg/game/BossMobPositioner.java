@@ -1,5 +1,7 @@
 package com.mcdg.game;
 
+import net.minecraft.block.Blocks;
+import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
@@ -145,15 +147,17 @@ public final class BossMobPositioner {
     }
 
     /**
-     * Checks if a block is dangerous (lava, fire, cactus, etc.).
+     * Checks if a block is dangerous (lava, fire, cactus, magma, etc.).
      */
     private static boolean isDangerousBlock(ServerWorld world, BlockPos pos) {
         var state = world.getBlockState(pos);
-        var block = state.getBlock();
-        // Add more dangerous blocks as needed
-        return block.toString().contains("lava") ||
-               block.toString().contains("fire") ||
-               block.toString().contains("cactus") ||
-               block.toString().contains("magma");
+        return state.isOf(Blocks.LAVA) ||
+               state.isOf(Blocks.FIRE) ||
+               state.isOf(Blocks.SOUL_FIRE) ||
+               state.isOf(Blocks.CACTUS) ||
+               state.isOf(Blocks.MAGMA_BLOCK) ||
+               state.isOf(Blocks.SWEET_BERRY_BUSH) ||
+               state.isOf(Blocks.WITHER_ROSE) ||
+               state.isIn(BlockTags.FIRE);
     }
 }

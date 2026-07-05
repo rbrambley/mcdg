@@ -59,6 +59,8 @@ public final class ScorecardManager {
         if (!hadExisting) {
             player.giveItemStack(stack);
         }
+        player.getInventory().markDirty();
+        HoleProgressTracker.clearScoreHistoryForPlayer(player.getUuid());
     }
 
     private static int resolveScorecardDistanceFeet(Hole hole, PlacedCourseState placedCourseState) {
@@ -103,6 +105,7 @@ public final class ScorecardManager {
         root.put(KEY_HOLES, holes);
         SCORECARD_BY_PLAYER.put(player.getUuid(), root.copy());
         setScorecardRoot(stack, root);
+        player.getInventory().markDirty();
     }
 
     /**
@@ -123,6 +126,7 @@ public final class ScorecardManager {
         root.putString(KEY_PLAYER_NAME, player.getGameProfile().getName());
         SCORECARD_BY_PLAYER.put(player.getUuid(), root.copy());
         setScorecardRoot(stack, root);
+        player.getInventory().markDirty();
     }
 
     public static void ensureScorecardInInventory(ServerPlayerEntity player) {
@@ -136,10 +140,10 @@ public final class ScorecardManager {
             stack = new ItemStack(McdgItems.SCORECARD, 1);
             setScorecardRoot(stack, root.copy());
             player.giveItemStack(stack);
-            return;
+        } else {
+            setScorecardRoot(stack, root.copy());
         }
-
-        setScorecardRoot(stack, root.copy());
+        player.getInventory().markDirty();
     }
 
     public static NbtCompound getScorecardRoot(ItemStack stack) {

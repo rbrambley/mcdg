@@ -81,6 +81,7 @@ public final class HoleProgressTracker {
         ThrowResolver.reset();
                     DiscFlightSimulator.reset();
                     HOLE_ONE_RANDOM_ORDER.clear();
+                    HOLE_SCORE_HISTORY.clear();
         TurnManager.reset();
                     LAST_LIE_POSITION.clear();
                     LAST_BREADCRUMB_POSITION.clear();
@@ -734,6 +735,12 @@ public final class HoleProgressTracker {
         return scoreByHole.containsKey(holeIndex);
     }
 
+    static void clearScoreHistoryForPlayer(UUID playerId) {
+        if (playerId != null) {
+            HOLE_SCORE_HISTORY.remove(playerId);
+        }
+    }
+
     private static void ensureHoleOneRandomOrder(Map<UUID, PlayerRoundState> snapshot) {
         if (!HOLE_ONE_RANDOM_ORDER.isEmpty() || snapshot.isEmpty()) {
             return;
@@ -811,6 +818,7 @@ public final class HoleProgressTracker {
         ThrowResolver.reset();
         DiscFlightSimulator.reset();
         HOLE_ONE_RANDOM_ORDER.clear();
+        HOLE_SCORE_HISTORY.clear();
         TurnManager.reset();
         LAST_LIE_POSITION.clear();
         LAST_BREADCRUMB_POSITION.clear();

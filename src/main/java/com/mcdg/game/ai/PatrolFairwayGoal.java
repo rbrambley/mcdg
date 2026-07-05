@@ -99,6 +99,9 @@ public class PatrolFairwayGoal extends Goal {
             mob.getNavigation().startMovingTo(targetPlayer, chaseSpeed);
         } else {
             // Patrol between waypoints
+            if (chaseCooldown > 0) {
+                chaseCooldown--;
+            }
             patrol();
         }
     }

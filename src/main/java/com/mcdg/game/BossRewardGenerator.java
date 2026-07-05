@@ -1,6 +1,5 @@
 package com.mcdg.game;
 
-import net.minecraft.enchantment.Enchantments;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -81,63 +80,63 @@ public final class BossRewardGenerator {
     // Tier 1 rewards (Par or worse)
     private static ItemStack generateTier1Weapon() {
         return enchanted(Items.IRON_SWORD, b -> {
-            b.add(Enchantments.SHARPNESS, 1);
+            CombatEnchantment.SHARPNESS.apply(b, 1);
         });
     }
 
     private static ItemStack generateTier1Armor() {
         return enchanted(Items.IRON_CHESTPLATE, b -> {
-            b.add(Enchantments.PROTECTION, 1);
+            CombatEnchantment.PROTECTION.apply(b, 1);
         });
     }
 
     // Tier 2 rewards (1-2 under par)
     private static ItemStack generateTier2Weapon() {
         return enchanted(Items.IRON_SWORD, b -> {
-            b.add(Enchantments.SHARPNESS, 2);
+            CombatEnchantment.SHARPNESS.apply(b, 2);
             if (RANDOM.nextFloat() < 0.5f) {
-                b.add(Enchantments.SMITE, 1);
+                CombatEnchantment.SMITE.apply(b, 1);
             }
         });
     }
 
     private static ItemStack generateTier2Armor() {
         return enchanted(Items.IRON_CHESTPLATE, b -> {
-            b.add(Enchantments.PROTECTION, 2);
+            CombatEnchantment.PROTECTION.apply(b, 2);
         });
     }
 
     private static ItemStack generateTier2Bow() {
         return enchanted(Items.BOW, b -> {
-            b.add(Enchantments.POWER, 1);
+            CombatEnchantment.POWER.apply(b, 1);
         });
     }
 
     // Tier 3 rewards (3+ under par)
     private static ItemStack generateTier3Weapon() {
         return enchanted(Items.DIAMOND_SWORD, b -> {
-            b.add(Enchantments.SHARPNESS, 3);
-            b.add(Enchantments.SMITE, 2);
+            CombatEnchantment.SHARPNESS.apply(b, 3);
+            CombatEnchantment.SMITE.apply(b, 2);
             if (RANDOM.nextFloat() < 0.3f) {
-                b.add(Enchantments.UNBREAKING, 1);
+                CombatEnchantment.UNBREAKING.apply(b, 1);
             }
         });
     }
 
     private static ItemStack generateTier3Armor() {
         return enchanted(Items.DIAMOND_CHESTPLATE, b -> {
-            b.add(Enchantments.PROTECTION, 3);
+            CombatEnchantment.PROTECTION.apply(b, 3);
             if (RANDOM.nextFloat() < 0.3f) {
-                b.add(Enchantments.UNBREAKING, 1);
+                CombatEnchantment.UNBREAKING.apply(b, 1);
             }
         });
     }
 
     private static ItemStack generateTier3Bow() {
         return enchanted(Items.BOW, b -> {
-            b.add(Enchantments.POWER, 2);
+            CombatEnchantment.POWER.apply(b, 2);
             if (RANDOM.nextFloat() < 0.5f) {
-                b.add(Enchantments.PUNCH, 1);
+                CombatEnchantment.PUNCH.apply(b, 1);
             }
         });
     }
@@ -145,30 +144,30 @@ public final class BossRewardGenerator {
     // Tier 4 rewards (Ace)
     private static ItemStack generateTier4Weapon() {
         return enchanted(Items.NETHERITE_SWORD, b -> {
-            b.add(Enchantments.SHARPNESS, 4);
-            b.add(Enchantments.SMITE, 3);
-            b.add(Enchantments.MENDING, 1);
+            CombatEnchantment.SHARPNESS.apply(b, 4);
+            CombatEnchantment.SMITE.apply(b, 3);
+            CombatEnchantment.MENDING.apply(b, 1);
             if (RANDOM.nextFloat() < 0.5f) {
-                b.add(Enchantments.UNBREAKING, 2);
+                CombatEnchantment.UNBREAKING.apply(b, 2);
             }
         });
     }
 
     private static ItemStack generateTier4Armor() {
         return enchanted(Items.NETHERITE_CHESTPLATE, b -> {
-            b.add(Enchantments.PROTECTION, 4);
-            b.add(Enchantments.UNBREAKING, 3);
-            b.add(Enchantments.MENDING, 1);
+            CombatEnchantment.PROTECTION.apply(b, 4);
+            CombatEnchantment.UNBREAKING.apply(b, 3);
+            CombatEnchantment.MENDING.apply(b, 1);
         });
     }
 
     private static ItemStack generateTier4Bow() {
         return enchanted(Items.BOW, b -> {
-            b.add(Enchantments.POWER, 4);
-            b.add(Enchantments.FLAME, 1);
-            b.add(Enchantments.INFINITY, 1);
+            CombatEnchantment.POWER.apply(b, 4);
+            CombatEnchantment.FLAME.apply(b, 1);
+            CombatEnchantment.INFINITY.apply(b, 1);
             if (RANDOM.nextFloat() < 0.5f) {
-                b.add(Enchantments.UNBREAKING, 2);
+                CombatEnchantment.UNBREAKING.apply(b, 2);
             }
         });
     }

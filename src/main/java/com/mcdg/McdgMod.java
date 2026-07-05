@@ -28,6 +28,7 @@ import com.mcdg.game.ChallengeCourseDiscoveryHandler;
 import com.mcdg.game.ChallengeCourseManager;
 import com.mcdg.game.ChallengeCourseCatalog;
 import com.mcdg.game.ChallengeCourseBuildTracker;
+import com.mcdg.game.BossMobSpawner;
 import com.mcdg.game.RoundInventoryCleaner;
 import com.mcdg.game.RoundPresentationService;
 import com.mcdg.game.RoundRespawnHandler;
@@ -381,7 +382,7 @@ public final class McdgMod implements ModInitializer {
         });
 		ServerTickEvents.END_SERVER_TICK.register(server -> {
             long start = System.nanoTime();
-            com.mcdg.game.BossMobSpawner.tick(server);
+            BossMobSpawner.tick(server);
             long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
             if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
                 LOGGER.warn("BossMobSpawner tick took {}ms", elapsedMs);
@@ -451,6 +452,7 @@ public final class McdgMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             ChallengeCourseManager.getCatalog().ifPresent(catalog -> catalog.save(server));
         });
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> BossMobSpawner.stopAll());
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
             server.execute(() -> {
                 restoreRoundParticipantOnJoin(handler.player, server);

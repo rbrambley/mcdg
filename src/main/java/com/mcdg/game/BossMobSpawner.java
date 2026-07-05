@@ -1,9 +1,11 @@
 package com.mcdg.game;
 
 import com.mcdg.McdgMod;
+import com.mcdg.game.ai.GuardBasketGoal;
+import com.mcdg.game.ai.PatrolFairwayGoal;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.ai.goal.GoalSelector;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.MinecraftServer;
@@ -13,6 +15,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +30,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class BossMobSpawner {
     private static final Map<UUID, BossMobSpawner> ACTIVE_SPAWNERS = new ConcurrentHashMap<>();
     private static final Random RANDOM = new Random();
+    private static final int GUARD_GOAL_PRIORITY = 2;
+    private static final int PATROL_GOAL_PRIORITY = 3;
 
     private final UUID roundId;
     private final ServerPlayerEntity player;
@@ -34,7 +39,6 @@ public final class BossMobSpawner {
     private final BossMobConfig config;
     private final List<UUID> spawnedMobs;
     private long lastSpawnTick;
-    private int spawnCount;
 
     private BossMobSpawner(UUID roundId, ServerPlayerEntity player, PlacedCourseState placedCourseState, BossMobConfig config) {
         this.roundId = roundId;
@@ -43,16 +47,20 @@ public final class BossMobSpawner {
         this.config = config;
         this.spawnedMobs = new ArrayList<>();
         this.lastSpawnTick = 0;
-        this.spawnCount = 0;
     }
 
     /**
      * Starts mob spawning for a boss hole round.
+     * If a spawner already exists for the round, its mobs are despawned first.
      */
     public static void startSpawning(UUID roundId, ServerPlayerEntity player, PlacedCourseState placedCourseState) {
         BossMobConfig config = BossMobConfig.defaultBossHoleConfig();
         BossMobSpawner spawner = new BossMobSpawner(roundId, player, placedCourseState, config);
-        ACTIVE_SPAWNERS.put(roundId, spawner);
+        BossMobSpawner existing = ACTIVE_SPAWNERS.put(roundId, spawner);
+        if (existing != null) {
+            existing.despawnAllMobs();
+            McdgMod.LOGGER.info("Replaced existing boss hole mob spawner for round {}", roundId);
+        }
 
         McdgMod.LOGGER.info("Started boss hole mob spawning for round {}", roundId);
     }
@@ -61,11 +69,30 @@ public final class BossMobSpawner {
      * Stops mob spawning for a boss hole round and despawns all mobs.
      */
     public static void stopSpawning(UUID roundId) {
+        if (roundId == null) {
+            return;
+        }
         BossMobSpawner spawner = ACTIVE_SPAWNERS.remove(roundId);
         if (spawner != null) {
             spawner.despawnAllMobs();
             McdgMod.LOGGER.info("Stopped boss hole mob spawning for round {}", roundId);
         }
+    }
+
+    /**
+     * Stops all active boss hole spawners and despawns every tracked mob.
+     * Intended for server shutdown to avoid saving orphaned persistent mobs.
+     */
+    public static void stopAll() {
+        if (ACTIVE_SPAWNERS.isEmpty()) {
+            return;
+        }
+        int count = ACTIVE_SPAWNERS.size();
+        for (BossMobSpawner spawner : ACTIVE_SPAWNERS.values()) {
+            spawner.despawnAllMobs();
+        }
+        ACTIVE_SPAWNERS.clear();
+        McdgMod.LOGGER.info("Stopped all {} active boss hole spawners during server shutdown", count);
     }
 
     /**
@@ -98,16 +125,15 @@ public final class BossMobSpawner {
      * Internal tick logic for this spawner.
      */
     private void tickInternal(long currentTick) {
-        // Check if it's time to spawn a new mob
+        // Clean up dead mobs before deciding whether to spawn more.
+        cleanupDeadMobs();
+
         if (currentTick - lastSpawnTick >= config.spawnIntervalTicks()) {
-            if (spawnCount < config.maxMobs()) {
+            if (spawnedMobs.size() < config.maxMobs()) {
                 spawnMob();
                 lastSpawnTick = currentTick;
             }
         }
-
-        // Clean up dead mobs from tracking
-        cleanupDeadMobs();
     }
 
     /**
@@ -173,13 +199,11 @@ public final class BossMobSpawner {
             // Make mob persistent so it doesn't despawn naturally
             if (mob instanceof MobEntity mobEntity) {
                 mobEntity.setPersistent();
-                // Apply custom AI based on interference type
-                applyCustomAI(mobEntity, interferenceType, basketPos);
+                applyCustomAI(mobEntity, interferenceType, basketPos, teePos);
             }
 
             world.spawnEntity(mob);
             spawnedMobs.add(mob.getUuid());
-            spawnCount++;
 
             McdgMod.LOGGER.info("Spawned boss hole mob {} at ({}, {}, {}) for round {}",
                     mobType, spawnPos.getX(), spawnPos.getY(), spawnPos.getZ(), roundId);
@@ -190,13 +214,23 @@ public final class BossMobSpawner {
 
     /**
      * Applies custom AI behavior based on interference type.
-     * For now, this is a placeholder - full AI implementation will be in the goal classes.
      */
-    private void applyCustomAI(MobEntity mob, MobInterferenceType interferenceType, BlockPos basketPos) {
-        // TODO: Apply custom AI goals when GuardBasketGoal and PatrolFairwayGoal are implemented
-        // For now, mobs will use default vanilla AI
-        McdgMod.LOGGER.debug("Applied custom AI for {} - basket at ({}, {}, {})",
-                interferenceType, basketPos.getX(), basketPos.getY(), basketPos.getZ());
+    private void applyCustomAI(MobEntity mob, MobInterferenceType interferenceType, BlockPos basketPos, BlockPos teePos) {
+        try {
+            Field goalSelectorField = MobEntity.class.getDeclaredField("goalSelector");
+            goalSelectorField.setAccessible(true);
+            GoalSelector goalSelector = (GoalSelector) goalSelectorField.get(mob);
+            switch (interferenceType) {
+                case GUARDING_BASKET -> goalSelector.add(GUARD_GOAL_PRIORITY, new GuardBasketGoal(mob, basketPos));
+                case PATROL_FAIRWAY -> goalSelector.add(PATROL_GOAL_PRIORITY, new PatrolFairwayGoal(mob, teePos, basketPos));
+                case HARASS_TEE -> {
+                    // Vanilla AI handles harassment; no custom goals needed.
+                }
+            }
+            McdgMod.LOGGER.debug("Applied custom AI {} to boss hole mob for round {}", interferenceType, roundId);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            McdgMod.LOGGER.error("Failed to apply custom AI to boss hole mob", e);
+        }
     }
 
     /**

@@ -54,6 +54,7 @@ public final class ActiveCourseManager {
     }
 
     public void clearPlacedCourseState() {
+        BossMobSpawner.stopSpawning(this.activeChallengeCourseId);
         this.placedCourseState = null;
         this.persistentPlacedCourse = false;
         this.legacyPracticeSnapshot = false;
@@ -164,6 +165,7 @@ public final class ActiveCourseManager {
     }
 
     public void clear() {
+        BossMobSpawner.stopSpawning(this.activeChallengeCourseId);
         this.activeCourse = null;
         this.placedCourseState = null;
         this.roundActive = false;

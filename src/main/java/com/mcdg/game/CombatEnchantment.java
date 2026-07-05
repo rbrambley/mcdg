@@ -1,5 +1,6 @@
 package com.mcdg.game;
 
+import net.minecraft.component.type.ItemEnchantmentsComponent;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.Enchantments;
 
@@ -17,7 +18,8 @@ public enum CombatEnchantment {
     FEATHER_FALLING(Enchantments.FEATHER_FALLING, 1, 4, "Feather Falling"),
     POWER(Enchantments.POWER, 1, 5, "Power"),
     PUNCH(Enchantments.PUNCH, 1, 2, "Punch"),
-    FLAME(Enchantments.FLAME, 1, 1, "Flame");
+    FLAME(Enchantments.FLAME, 1, 1, "Flame"),
+    INFINITY(Enchantments.INFINITY, 1, 1, "Infinity");
 
     private final Enchantment enchantment;
     private final int minLevel;
@@ -48,13 +50,22 @@ public enum CombatEnchantment {
     }
 
     /**
+     * Applies this enchantment to the builder, clamping the requested level to the
+     * enchantment's valid range.
+     */
+    public void apply(ItemEnchantmentsComponent.Builder builder, int level) {
+        int clamped = Math.max(minLevel, Math.min(level, maxLevel));
+        builder.add(enchantment, clamped);
+    }
+
+    /**
      * Gets enchantments appropriate for the given item type.
      */
     public static List<CombatEnchantment> forItemType(ItemType itemType) {
         return switch (itemType) {
             case SWORD -> List.of(SHARPNESS, SMITE, UNBREAKING, MENDING);
             case ARMOR -> List.of(PROTECTION, UNBREAKING, MENDING, FEATHER_FALLING);
-            case BOW -> List.of(POWER, PUNCH, FLAME, UNBREAKING);
+            case BOW -> List.of(POWER, PUNCH, FLAME, INFINITY, UNBREAKING);
         };
     }
 
