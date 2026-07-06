@@ -12,9 +12,15 @@ import com.mcdg.game.RoundPresentationService;
 import com.mcdg.game.RoundStateManager;
 import com.mcdg.world.CoursePlacementService;
 import com.mcdg.world.CoursePlacementValidator;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -26,22 +32,84 @@ public final class ChallengeCourseCommands {
     private ChallengeCourseCommands() {
     }
 
+    /**
+     * Resolves a course ID from either a UUID string or a course name.
+     * Returns the UUID if found, empty otherwise.
+     */
+    private static Optional<UUID> resolveCourseId(ServerCommandSource source, String courseIdOrName) {
+        // Try parsing as UUID first
+        try {
+            UUID courseId = UUID.fromString(courseIdOrName);
+            var catalog = ChallengeCourseManager.getCatalog();
+            if (catalog.isPresent() && catalog.get().getCourse(courseId).isPresent()) {
+                return Optional.of(courseId);
+            }
+            source.sendError(Text.literal("Challenge course not found with ID: " + courseIdOrName));
+            return Optional.empty();
+        } catch (IllegalArgumentException e) {
+            // Not a UUID, try to find by name
+        }
+
+        // Search by name (case-insensitive, partial match)
+        var catalog = ChallengeCourseManager.getCatalog();
+        if (catalog.isEmpty()) {
+            source.sendError(Text.literal("Challenge course catalog not available"));
+            return Optional.empty();
+        }
+
+        String searchLower = courseIdOrName.toLowerCase();
+        UUID foundId = null;
+        int matchCount = 0;
+
+        for (var entry : catalog.get().getAllCourses()) {
+            if (entry.name().toLowerCase().contains(searchLower)) {
+                foundId = entry.courseId();
+                matchCount++;
+            }
+        }
+
+        if (matchCount == 0) {
+            source.sendError(Text.literal("Challenge course not found: " + courseIdOrName));
+            return Optional.empty();
+        } else if (matchCount > 1) {
+            source.sendError(Text.literal("Multiple courses match '" + courseIdOrName + "'. Please use the full course name or UUID."));
+            return Optional.empty();
+        }
+
+        return Optional.of(foundId);
+    }
+
+    /**
+     * Provides tab-completion suggestions for challenge course names and IDs.
+     */
+    public static final SuggestionProvider<ServerCommandSource> CHALLENGE_COURSE_SUGGESTIONS = (context, builder) -> {
+        var catalog = ChallengeCourseManager.getCatalog();
+        if (catalog.isEmpty()) {
+            return builder.buildFuture();
+        }
+
+        for (var entry : catalog.get().getAllCourses()) {
+            builder.suggest(entry.name());
+            builder.suggest(entry.courseId().toString());
+        }
+
+        return builder.buildFuture();
+    };
+
     public static int executeGotoChallenge(
             ServerCommandSource source,
             String courseIdString
     ) {
-        UUID courseId;
-        try {
-            courseId = UUID.fromString(courseIdString);
-        } catch (IllegalArgumentException e) {
-            source.sendError(Text.literal("Invalid course ID: " + courseIdString));
-            return 0;
-        }
-
         if (!(source.getEntity() instanceof ServerPlayerEntity player)) {
             source.sendError(Text.literal("This command can only be run by a player"));
             return 0;
         }
+
+        Optional<UUID> courseIdOpt = resolveCourseId(source, courseIdString);
+        if (courseIdOpt.isEmpty()) {
+            return 0;
+        }
+        UUID courseId = courseIdOpt.get();
 
         var catalog = ChallengeCourseManager.getCatalog();
         if (catalog.isEmpty()) {
@@ -56,7 +124,7 @@ public final class ChallengeCourseCommands {
         }
 
         if (!catalogEntry.get().isPlaced()) {
-            source.sendError(Text.literal("Challenge course is not built yet. Use /mcdg startchallenge " + courseIdString + " to build and start it."));
+            source.sendError(Text.literal("Challenge course is not built yet. Use /mcdg startchallenge \"" + catalogEntry.get().name() + "\" to build and start it."));
             return 0;
         }
 
@@ -94,12 +162,16 @@ public final class ChallengeCourseCommands {
             boolean skipRoundPresentation,
             String courseIdString
     ) {
-        try {
-            UUID courseId = UUID.fromString(courseIdString);
-        } catch (IllegalArgumentException e) {
-            source.sendError(Text.literal("Invalid course ID: " + courseIdString));
+        if (!(source.getEntity() instanceof ServerPlayerEntity player)) {
+            source.sendError(Text.literal("This command can only be run by a player"));
             return 0;
         }
+
+        Optional<UUID> courseIdOpt = resolveCourseId(source, courseIdString);
+        if (courseIdOpt.isEmpty()) {
+            return 0;
+        }
+        UUID courseId = courseIdOpt.get();
 
         var catalog = ChallengeCourseManager.getCatalog();
         if (catalog.isEmpty()) {
@@ -107,14 +179,9 @@ public final class ChallengeCourseCommands {
             return 0;
         }
 
-        var catalogEntry = catalog.get().getCourse(UUID.fromString(courseIdString));
+        var catalogEntry = catalog.get().getCourse(courseId);
         if (catalogEntry.isEmpty()) {
             source.sendError(Text.literal("Challenge course not found: " + courseIdString));
-            return 0;
-        }
-
-        if (!(source.getEntity() instanceof ServerPlayerEntity player)) {
-            source.sendError(Text.literal("This command can only be run by a player"));
             return 0;
         }
 
@@ -124,14 +191,14 @@ public final class ChallengeCourseCommands {
 
         // If the course is already placed, load its persisted placed state and resume it.
         if (catalogEntry.get().isPlaced()) {
-            Optional<PlacedCourseState> storedPlaced = LostCourseStorage.loadPlacedState(source.getServer(), UUID.fromString(courseIdString));
+            Optional<PlacedCourseState> storedPlaced = LostCourseStorage.loadPlacedState(source.getServer(), courseId);
             if (storedPlaced.isPresent()) {
                 source.sendFeedback(() -> Text.literal("Challenge course already built. Starting round...")
                         .formatted(Formatting.YELLOW), false);
 
                 courseManager.setActiveCourse(course);
                 courseManager.setPlacedCourseState(storedPlaced.get());
-                courseManager.setActiveChallengeCourseId(UUID.fromString(courseIdString));
+                courseManager.setActiveChallengeCourseId(courseId);
 
                 int result = RoundLifecycleCommands.executeResumeCourse(
                         source,
@@ -159,7 +226,7 @@ public final class ChallengeCourseCommands {
         // Queue an incremental, non-blocking build for this challenge course.
         // One hole is placed per server tick so the server thread never freezes.
         ChallengeCourseBuildTracker.startBuild(
-                UUID.fromString(courseIdString),
+                courseId,
                 world,
                 anchor,
                 course,
@@ -174,18 +241,18 @@ public final class ChallengeCourseCommands {
     }
 
     public static int executeCancelChallenge(ServerCommandSource source, String courseIdString) {
-        try {
-            UUID courseId = UUID.fromString(courseIdString);
-            if (ChallengeCourseBuildTracker.cancelBuild(courseId)) {
-                source.sendFeedback(() -> Text.literal("Cancelled challenge course build: " + courseIdString)
-                        .formatted(Formatting.GREEN), false);
-                return 1;
-            }
-            source.sendError(Text.literal("No active build found for challenge course: " + courseIdString));
-            return 0;
-        } catch (IllegalArgumentException e) {
-            source.sendError(Text.literal("Invalid course ID: " + courseIdString));
+        Optional<UUID> courseIdOpt = resolveCourseId(source, courseIdString);
+        if (courseIdOpt.isEmpty()) {
             return 0;
         }
+        UUID courseId = courseIdOpt.get();
+
+        if (ChallengeCourseBuildTracker.cancelBuild(courseId)) {
+            source.sendFeedback(() -> Text.literal("Cancelled challenge course build: " + courseIdString)
+                    .formatted(Formatting.GREEN), false);
+            return 1;
+        }
+        source.sendError(Text.literal("No active build found for challenge course: " + courseIdString));
+        return 0;
     }
 }

@@ -73,6 +73,7 @@ public final class McdgAdminCommands {
                                         .executes(context -> MenuCommands.executeMenuChallenge(context.getSource()))))
                         .then(literal("startchallenge")
                                 .then(argument("courseId", StringArgumentType.string())
+                                        .suggests(ChallengeCourseCommands.CHALLENGE_COURSE_SUGGESTIONS)
                                         .executes(context -> ChallengeCourseCommands.executeStartChallenge(
                                                 context.getSource(),
                                                 courseManager,
@@ -85,12 +86,14 @@ public final class McdgAdminCommands {
                                         ))))
                         .then(literal("gotochallenge")
                                 .then(argument("courseId", StringArgumentType.string())
+                                        .suggests(ChallengeCourseCommands.CHALLENGE_COURSE_SUGGESTIONS)
                                         .executes(context -> ChallengeCourseCommands.executeGotoChallenge(
                                                 context.getSource(),
                                                 StringArgumentType.getString(context, "courseId")
                                         ))))
                         .then(literal("cleanupchallenge").requires(CommandPermission::canUseAdminCommands)
                                 .then(argument("courseId", StringArgumentType.string())
+                                        .suggests(ChallengeCourseCommands.CHALLENGE_COURSE_SUGGESTIONS)
                                         .executes(context -> CourseCleanupCommand.executeCleanupChallenge(
                                                 context.getSource(),
                                                 placementService,
@@ -100,12 +103,14 @@ public final class McdgAdminCommands {
                                         ))))
                         .then(literal("removechallenge").requires(CommandPermission::canUseAdminCommands)
                                 .then(argument("courseId", StringArgumentType.string())
+                                        .suggests(ChallengeCourseCommands.CHALLENGE_COURSE_SUGGESTIONS)
                                         .executes(context -> CourseCleanupCommand.executeRemoveChallenge(
                                                 context.getSource(),
                                                 StringArgumentType.getString(context, "courseId")
                                         ))))
                         .then(literal("removechallengeboth").requires(CommandPermission::canUseAdminCommands)
                                 .then(argument("courseId", StringArgumentType.string())
+                                        .suggests(ChallengeCourseCommands.CHALLENGE_COURSE_SUGGESTIONS)
                                         .executes(context -> CourseCleanupCommand.executeRemoveChallengeBoth(
                                                 context.getSource(),
                                                 placementService,
@@ -115,6 +120,7 @@ public final class McdgAdminCommands {
                                         ))))
                         .then(literal("cancelchallenge").requires(CommandPermission::canUseAdminCommands)
                                 .then(argument("courseId", StringArgumentType.string())
+                                        .suggests(ChallengeCourseCommands.CHALLENGE_COURSE_SUGGESTIONS)
                                         .executes(context -> ChallengeCourseCommands.executeCancelChallenge(
                                                 context.getSource(),
                                                 StringArgumentType.getString(context, "courseId")
@@ -308,7 +314,20 @@ public final class McdgAdminCommands {
                                 .then(literal("clearlostcourses")
                                         .executes(context -> DebugCommands.executeClearLostCourses(context.getSource())))
                                 .then(literal("placetestlostcourse")
-                                        .executes(context -> DebugCommands.executePlaceTestLostCourse(context.getSource())))
+                                        .then(argument("type", StringArgumentType.string())
+                                                .suggests((context, builder) -> {
+                                                        builder.suggest("LOST_COURSE");
+                                                        builder.suggest("BOSS_HOLE");
+                                                        builder.suggest("TIME_TRIAL");
+                                                        builder.suggest("ACCURACY_CHALLENGE");
+                                                        builder.suggest("DISTANCE_CHALLENGE");
+                                                        return builder.buildFuture();
+                                                })
+                                                .executes(context -> DebugCommands.executePlaceTestLostCourse(
+                                                        context.getSource(),
+                                                        StringArgumentType.getString(context, "type")
+                                                )))
+                                        .executes(context -> DebugCommands.executePlaceTestLostCourse(context.getSource(), "")))
                                 .then(literal("repairchallengenames")
                                         .executes(context -> DebugCommands.executeRepairChallengeNames(context.getSource()))))
                         .then(literal("validateplacement").requires(CommandPermission::canUseAdminCommands)

@@ -5,6 +5,7 @@ import com.mcdg.data.Hole;
 import com.mcdg.game.ActiveCourseManager;
 import com.mcdg.game.ChallengeCourseDiscoveryHandler;
 import com.mcdg.game.ChallengeCourseManager;
+import com.mcdg.game.ChallengeCourseType;
 import com.mcdg.game.HazardBehavior;
 import com.mcdg.game.LostCourseStorage;
 import com.mcdg.game.HazardManager;
@@ -342,35 +343,47 @@ public final class DebugCommands {
         /**
          * Places a test lost course at player position.
          */
-        public static int executePlaceTestLostCourse(ServerCommandSource source) {
+        public static int executePlaceTestLostCourse(ServerCommandSource source, String typeString) {
                 if (!(source.getEntity() instanceof ServerPlayerEntity player)) {
                         source.sendError(Text.literal("This command can only be run by a player."));
                         return 0;
                 }
 
+                ChallengeCourseType type;
+                if (typeString == null || typeString.isEmpty()) {
+                        type = ChallengeCourseType.LOST_COURSE;
+                } else {
+                        try {
+                                type = ChallengeCourseType.valueOf(typeString.toUpperCase());
+                        } catch (IllegalArgumentException e) {
+                                source.sendError(Text.literal("Invalid course type: " + typeString + ". Valid types: LOST_COURSE, BOSS_HOLE, TIME_TRIAL, ACCURACY_CHALLENGE, DISTANCE_CHALLENGE"));
+                                return 0;
+                        }
+                }
+
                 BlockPos playerPos = player.getBlockPos();
-                LostCourse testCourse = createTestLostCourse(playerPos);
-                
+                LostCourse testCourse = createTestLostCourse(playerPos, type);
+
                 ChallengeCourseManager.registerLostCourse(testCourse);
                 ChallengeCourseManager.placeLostCourseEntrance(player.getServerWorld(), playerPos, testCourse);
                 LostCourseStorage.save(player.getServer(), ChallengeCourseManager.getAllLostCourses());
-                
-                source.sendFeedback(() -> Text.literal("Placed test lost course: " + testCourse.name() + " at your position"), true);
+
+                source.sendFeedback(() -> Text.literal("Placed test " + type.getDisplayName() + ": " + testCourse.name() + " at your position"), true);
                 return 1;
         }
 
         /**
          * Creates a test lost course for debugging.
          */
-        private static LostCourse createTestLostCourse(BlockPos pos) {
+        private static LostCourse createTestLostCourse(BlockPos pos, ChallengeCourseType type) {
                 UUID courseId = UUID.randomUUID();
                 return new LostCourse(
                         courseId,
-                        "Test Lost Course",
+                        "Test " + type.getDisplayName(),
                         pos,
                         pos.add(50, 0, 50),
                         List.of(),
-                        com.mcdg.game.ChallengeCourseType.LOST_COURSE,
+                        type,
                         false
                 );
         }
