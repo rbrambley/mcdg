@@ -340,46 +340,7 @@ public final class CourseCleanupCommand {
     }
 
     private static Optional<UUID> parseChallengeCourseId(ServerCommandSource source, String courseIdString) {
-        // Try parsing as UUID first
-        try {
-            UUID courseId = UUID.fromString(courseIdString);
-            var catalog = ChallengeCourseManager.getCatalog();
-            if (catalog.isPresent() && catalog.get().getCourse(courseId).isPresent()) {
-                return Optional.of(courseId);
-            }
-            source.sendError(Text.literal("Challenge course not found with ID: " + courseIdString));
-            return Optional.empty();
-        } catch (IllegalArgumentException e) {
-            // Not a UUID, try to find by name
-        }
-
-        // Search by name (case-insensitive, partial match)
-        var catalog = ChallengeCourseManager.getCatalog();
-        if (catalog.isEmpty()) {
-            source.sendError(Text.literal("Challenge course catalog not available"));
-            return Optional.empty();
-        }
-
-        String searchLower = courseIdString.toLowerCase();
-        UUID foundId = null;
-        int matchCount = 0;
-
-        for (var entry : catalog.get().getAllCourses()) {
-            if (entry.name().toLowerCase().contains(searchLower)) {
-                foundId = entry.courseId();
-                matchCount++;
-            }
-        }
-
-        if (matchCount == 0) {
-            source.sendError(Text.literal("Challenge course not found: " + courseIdString));
-            return Optional.empty();
-        } else if (matchCount > 1) {
-            source.sendError(Text.literal("Multiple courses match '" + courseIdString + "'. Please use the full course name or UUID."));
-            return Optional.empty();
-        }
-
-        return Optional.of(foundId);
+        return ChallengeCourseIdResolver.resolve(source, courseIdString);
     }
 
     private static Optional<ChallengeCourseCatalog> requireChallengeCatalog(ServerCommandSource source) {

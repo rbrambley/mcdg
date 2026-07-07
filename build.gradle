@@ -34,6 +34,7 @@ dependencies {
 
 loom {
     splitEnvironmentSourceSets()
+    accessWidenerPath = file("src/main/resources/mcdg.accesswidener")
 }
 
 tasks.withType(JavaCompile).configureEach {

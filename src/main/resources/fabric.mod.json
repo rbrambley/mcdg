@@ -21,6 +21,7 @@
   "mixins": [
     "mcdg.client.mixins.json"
   ],
+  "accessWidener": "mcdg.accesswidener",
   "depends": {
     "fabricloader": ">=0.16.10",
     "minecraft": "~1.20.6",

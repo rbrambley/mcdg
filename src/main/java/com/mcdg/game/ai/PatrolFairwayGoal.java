@@ -5,11 +5,11 @@ import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Random;
 
 /**
  * Custom AI goal for mobs to patrol along the fairway between tee and basket.
@@ -20,6 +20,7 @@ public class PatrolFairwayGoal extends Goal {
     private final BlockPos teePosition;
     private final BlockPos basketPosition;
     private final List<BlockPos> waypoints;
+    private final Random random;
     private int currentWaypointIndex;
     private final double patrolSpeed;
     private final double chaseSpeed;
@@ -27,8 +28,9 @@ public class PatrolFairwayGoal extends Goal {
     private boolean isChasing;
     private int chaseCooldown;
 
-    public PatrolFairwayGoal(MobEntity mob, BlockPos teePosition, BlockPos basketPosition) {
+    public PatrolFairwayGoal(MobEntity mob, Random random, BlockPos teePosition, BlockPos basketPosition) {
         this.mob = mob;
+        this.random = random;
         this.teePosition = teePosition;
         this.basketPosition = basketPosition;
         this.waypoints = generateWaypoints(teePosition, basketPosition);
@@ -151,14 +153,14 @@ public class PatrolFairwayGoal extends Goal {
         points.add(tee);
 
         // Add 2-3 intermediate points along the fairway
-        int intermediatePoints = 2 + (int) (Math.random() * 2); // 2-3 points
+        int intermediatePoints = 2 + random.nextInt(2); // 2-3 points
         for (int i = 1; i <= intermediatePoints; i++) {
             double t = (double) i / (intermediatePoints + 1);
             int x = (int) MathHelper.lerp(t, tee.getX(), basket.getX());
             int z = (int) MathHelper.lerp(t, tee.getZ(), basket.getZ());
 
             // Add some perpendicular offset for variety
-            int perpendicularOffset = (int) (Math.random() * 6) - 3; // -3 to +3
+            int perpendicularOffset = random.nextInt(6) - 3; // -3 to +3
             double dx = basket.getX() - tee.getX();
             double dz = basket.getZ() - tee.getZ();
             double length = Math.sqrt(dx * dx + dz * dz);

@@ -285,6 +285,7 @@ public final class HoleProgressTracker {
                         // Challenge courses use their own leaderboard system via onChallengeCourseComplete
                         courseManager.getActiveChallengeCourseId().ifPresent(courseId -> {
                             ChallengeCourseManager.onChallengeCourseComplete(player, courseId, finalScore, finalTotalPar);
+                            BossMobSpawner.stopSpawning(courseId);
                         });
                     } else if (leaderboardManager != null) {
                         // Regular courses use the standard leaderboard

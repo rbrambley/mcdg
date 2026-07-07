@@ -5,17 +5,19 @@ import com.mcdg.game.ai.GuardBasketGoal;
 import com.mcdg.game.ai.PatrolFairwayGoal;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
-import net.minecraft.entity.ai.goal.GoalSelector;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.mob.AbstractSkeletonEntity;
 import net.minecraft.entity.mob.MobEntity;
+import net.minecraft.entity.mob.ZombieEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.registry.Registries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +31,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class BossMobSpawner {
     private static final Map<UUID, BossMobSpawner> ACTIVE_SPAWNERS = new ConcurrentHashMap<>();
-    private static final Random RANDOM = new Random();
     private static final int GUARD_GOAL_PRIORITY = 2;
     private static final int PATROL_GOAL_PRIORITY = 3;
 
@@ -38,6 +39,7 @@ public final class BossMobSpawner {
     private final PlacedCourseState placedCourseState;
     private final BossMobConfig config;
     private final List<UUID> spawnedMobs;
+    private final Random random;
     private long lastSpawnTick;
 
     private BossMobSpawner(UUID roundId, ServerPlayerEntity player, PlacedCourseState placedCourseState, BossMobConfig config) {
@@ -46,6 +48,7 @@ public final class BossMobSpawner {
         this.placedCourseState = placedCourseState;
         this.config = config;
         this.spawnedMobs = new ArrayList<>();
+        this.random = new Random(roundId.getMostSignificantBits());
         this.lastSpawnTick = 0;
     }
 
@@ -77,6 +80,26 @@ public final class BossMobSpawner {
             spawner.despawnAllMobs();
             McdgMod.LOGGER.info("Stopped boss hole mob spawning for round {}", roundId);
         }
+    }
+
+    /**
+     * Stops the spawner(s) owned by the given player and despawns their mobs.
+     * Used when a player disconnects.
+     */
+    public static void stopSpawningForPlayer(UUID playerId) {
+        if (playerId == null) {
+            return;
+        }
+        ACTIVE_SPAWNERS.entrySet().removeIf(entry -> {
+            BossMobSpawner spawner = entry.getValue();
+            if (playerId.equals(spawner.player.getUuid())) {
+                spawner.despawnAllMobs();
+                McdgMod.LOGGER.info("Stopped boss hole mob spawner for disconnected player {} (round {})",
+                        playerId, spawner.roundId);
+                return true;
+            }
+            return false;
+        });
     }
 
     /**
@@ -140,7 +163,12 @@ public final class BossMobSpawner {
      * Spawns a single mob at a strategic position.
      */
     private void spawnMob() {
-        ServerWorld world = player.getServerWorld();
+        ServerWorld world = getCourseWorld();
+        if (world == null) {
+            McdgMod.LOGGER.warn("Cannot spawn boss hole mob - course world is unavailable for round {}", roundId);
+            return;
+        }
+
         BlockPos basketPos = placedCourseState.holeBaskets().get(1);
         BlockPos teePos = placedCourseState.holeTees().get(1);
 
@@ -150,7 +178,7 @@ public final class BossMobSpawner {
         }
 
         // Select random mob type
-        Identifier mobType = config.mobTypes().get(RANDOM.nextInt(config.mobTypes().size()));
+        Identifier mobType = config.mobTypes().get(random.nextInt(config.mobTypes().size()));
         EntityType<?> entityType = Registries.ENTITY_TYPE.get(mobType);
 
         if (entityType == null) {
@@ -162,26 +190,26 @@ public final class BossMobSpawner {
         BlockPos spawnPos;
         MobInterferenceType interferenceType;
 
-        if (config.guardBasket() && RANDOM.nextFloat() < 0.6f) {
+        if (config.guardBasket() && random.nextFloat() < 0.6f) {
             // 60% chance to spawn basket guard if enabled
-            var positions = BossMobPositioner.findBasketGuardPositions(world, basketPos, 1);
+            var positions = BossMobPositioner.findBasketGuardPositions(world, random, basketPos, 1);
             if (!positions.isEmpty()) {
                 spawnPos = positions.get(0);
                 interferenceType = MobInterferenceType.GUARDING_BASKET;
             } else {
                 // Fallback to fairway patrol
-                positions = BossMobPositioner.findFairwayPatrolPositions(world, teePos, basketPos, 1);
+                positions = BossMobPositioner.findFairwayPatrolPositions(world, random, teePos, basketPos, 1);
                 spawnPos = positions.isEmpty() ? teePos : positions.get(0);
                 interferenceType = MobInterferenceType.PATROL_FAIRWAY;
             }
         } else if (config.patrolFairway()) {
             // Spawn fairway patrol
-            var positions = BossMobPositioner.findFairwayPatrolPositions(world, teePos, basketPos, 1);
+            var positions = BossMobPositioner.findFairwayPatrolPositions(world, random, teePos, basketPos, 1);
             spawnPos = positions.isEmpty() ? teePos : positions.get(0);
             interferenceType = MobInterferenceType.PATROL_FAIRWAY;
         } else {
             // Fallback to tee harass
-            var positions = BossMobPositioner.findTeeHarassPositions(world, teePos, 1);
+            var positions = BossMobPositioner.findTeeHarassPositions(world, random, teePos, 1);
             spawnPos = positions.isEmpty() ? teePos : positions.get(0);
             interferenceType = MobInterferenceType.HARASS_TEE;
         }
@@ -199,6 +227,11 @@ public final class BossMobSpawner {
             // Make mob persistent so it doesn't despawn naturally
             if (mob instanceof MobEntity mobEntity) {
                 mobEntity.setPersistent();
+                // Prevent undead mobs from burning in daylight; keep the helmet from dropping as loot.
+                if (mobEntity instanceof ZombieEntity || mobEntity instanceof AbstractSkeletonEntity) {
+                    mobEntity.equipStack(EquipmentSlot.HEAD, new ItemStack(Items.IRON_HELMET));
+                    mobEntity.setEquipmentDropChance(EquipmentSlot.HEAD, 0.0f);
+                }
                 applyCustomAI(mobEntity, interferenceType, basketPos, teePos);
             }
 
@@ -216,21 +249,14 @@ public final class BossMobSpawner {
      * Applies custom AI behavior based on interference type.
      */
     private void applyCustomAI(MobEntity mob, MobInterferenceType interferenceType, BlockPos basketPos, BlockPos teePos) {
-        try {
-            Field goalSelectorField = MobEntity.class.getDeclaredField("goalSelector");
-            goalSelectorField.setAccessible(true);
-            GoalSelector goalSelector = (GoalSelector) goalSelectorField.get(mob);
-            switch (interferenceType) {
-                case GUARDING_BASKET -> goalSelector.add(GUARD_GOAL_PRIORITY, new GuardBasketGoal(mob, basketPos));
-                case PATROL_FAIRWAY -> goalSelector.add(PATROL_GOAL_PRIORITY, new PatrolFairwayGoal(mob, teePos, basketPos));
-                case HARASS_TEE -> {
-                    // Vanilla AI handles harassment; no custom goals needed.
-                }
+        switch (interferenceType) {
+            case GUARDING_BASKET -> mob.goalSelector.add(GUARD_GOAL_PRIORITY, new GuardBasketGoal(mob, basketPos));
+            case PATROL_FAIRWAY -> mob.goalSelector.add(PATROL_GOAL_PRIORITY, new PatrolFairwayGoal(mob, random, teePos, basketPos));
+            case HARASS_TEE -> {
+                // Vanilla AI handles harassment; no custom goals needed.
             }
-            McdgMod.LOGGER.debug("Applied custom AI {} to boss hole mob for round {}", interferenceType, roundId);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            McdgMod.LOGGER.error("Failed to apply custom AI to boss hole mob", e);
         }
+        McdgMod.LOGGER.debug("Applied custom AI {} to boss hole mob for round {}", interferenceType, roundId);
     }
 
     /**
@@ -241,9 +267,14 @@ public final class BossMobSpawner {
             return;
         }
 
-        ServerWorld world = player.getServerWorld();
-        int despawned = 0;
+        ServerWorld world = getCourseWorld();
+        if (world == null) {
+            // Player/world is gone; clear tracking so persistent mobs are not orphaned.
+            spawnedMobs.clear();
+            return;
+        }
 
+        int despawned = 0;
         for (UUID mobId : spawnedMobs) {
             Entity entity = world.getEntity(mobId);
             if (entity != null && entity.isAlive()) {
@@ -260,7 +291,11 @@ public final class BossMobSpawner {
      * Removes dead mobs from the tracking list.
      */
     private void cleanupDeadMobs() {
-        ServerWorld world = player.getServerWorld();
+        ServerWorld world = getCourseWorld();
+        if (world == null) {
+            spawnedMobs.clear();
+            return;
+        }
         spawnedMobs.removeIf(mobId -> {
             Entity entity = world.getEntity(mobId);
             return entity == null || !entity.isAlive();
@@ -268,20 +303,29 @@ public final class BossMobSpawner {
     }
 
     /**
-     * Checks if this spawner is still valid (player still in world, round still active).
+     * Checks if this spawner is still valid (player still alive and in the course world).
      */
     private boolean isValid() {
         if (!player.isAlive()) {
             return false;
         }
 
-        // Check if player is still in the same world
         ServerWorld world = player.getServerWorld();
-        if (world == null || !world.getRegistryKey().equals(placedCourseState.worldKey())) {
+        if (world == null) {
             return false;
         }
 
-        return true;
+        return world.getRegistryKey().equals(placedCourseState.worldKey());
+    }
+
+    /**
+     * Gets the world where the course was placed, even if the player has moved elsewhere.
+     */
+    private ServerWorld getCourseWorld() {
+        if (player == null || player.getServer() == null) {
+            return null;
+        }
+        return player.getServer().getWorld(placedCourseState.worldKey());
     }
 
     /**

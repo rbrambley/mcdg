@@ -72,8 +72,8 @@ public final class McdgAdminCommands {
                                 .then(literal("challenge")
                                         .executes(context -> MenuCommands.executeMenuChallenge(context.getSource()))))
                         .then(literal("startchallenge")
-                                .then(argument("courseId", StringArgumentType.string())
-                                        .suggests(ChallengeCourseCommands.CHALLENGE_COURSE_SUGGESTIONS)
+                                .then(argument("courseId", StringArgumentType.greedyString())
+                                        .suggests(ChallengeCourseIdResolver.SUGGESTIONS)
                                         .executes(context -> ChallengeCourseCommands.executeStartChallenge(
                                                 context.getSource(),
                                                 courseManager,
@@ -85,15 +85,15 @@ public final class McdgAdminCommands {
                                                 StringArgumentType.getString(context, "courseId")
                                         ))))
                         .then(literal("gotochallenge")
-                                .then(argument("courseId", StringArgumentType.string())
-                                        .suggests(ChallengeCourseCommands.CHALLENGE_COURSE_SUGGESTIONS)
+                                .then(argument("courseId", StringArgumentType.greedyString())
+                                        .suggests(ChallengeCourseIdResolver.SUGGESTIONS)
                                         .executes(context -> ChallengeCourseCommands.executeGotoChallenge(
                                                 context.getSource(),
                                                 StringArgumentType.getString(context, "courseId")
                                         ))))
                         .then(literal("cleanupchallenge").requires(CommandPermission::canUseAdminCommands)
-                                .then(argument("courseId", StringArgumentType.string())
-                                        .suggests(ChallengeCourseCommands.CHALLENGE_COURSE_SUGGESTIONS)
+                                .then(argument("courseId", StringArgumentType.greedyString())
+                                        .suggests(ChallengeCourseIdResolver.SUGGESTIONS)
                                         .executes(context -> CourseCleanupCommand.executeCleanupChallenge(
                                                 context.getSource(),
                                                 placementService,
@@ -102,15 +102,15 @@ public final class McdgAdminCommands {
                                                 StringArgumentType.getString(context, "courseId")
                                         ))))
                         .then(literal("removechallenge").requires(CommandPermission::canUseAdminCommands)
-                                .then(argument("courseId", StringArgumentType.string())
-                                        .suggests(ChallengeCourseCommands.CHALLENGE_COURSE_SUGGESTIONS)
+                                .then(argument("courseId", StringArgumentType.greedyString())
+                                        .suggests(ChallengeCourseIdResolver.SUGGESTIONS)
                                         .executes(context -> CourseCleanupCommand.executeRemoveChallenge(
                                                 context.getSource(),
                                                 StringArgumentType.getString(context, "courseId")
                                         ))))
                         .then(literal("removechallengeboth").requires(CommandPermission::canUseAdminCommands)
-                                .then(argument("courseId", StringArgumentType.string())
-                                        .suggests(ChallengeCourseCommands.CHALLENGE_COURSE_SUGGESTIONS)
+                                .then(argument("courseId", StringArgumentType.greedyString())
+                                        .suggests(ChallengeCourseIdResolver.SUGGESTIONS)
                                         .executes(context -> CourseCleanupCommand.executeRemoveChallengeBoth(
                                                 context.getSource(),
                                                 placementService,
@@ -119,8 +119,8 @@ public final class McdgAdminCommands {
                                                 StringArgumentType.getString(context, "courseId")
                                         ))))
                         .then(literal("cancelchallenge").requires(CommandPermission::canUseAdminCommands)
-                                .then(argument("courseId", StringArgumentType.string())
-                                        .suggests(ChallengeCourseCommands.CHALLENGE_COURSE_SUGGESTIONS)
+                                .then(argument("courseId", StringArgumentType.greedyString())
+                                        .suggests(ChallengeCourseIdResolver.SUGGESTIONS)
                                         .executes(context -> ChallengeCourseCommands.executeCancelChallenge(
                                                 context.getSource(),
                                                 StringArgumentType.getString(context, "courseId")
@@ -309,7 +309,7 @@ public final class McdgAdminCommands {
                                 .then(literal("lostcourses")
                                         .executes(context -> DebugCommands.executeListLostCourses(context.getSource())))
                                 .then(literal("discovercourse")
-                                        .then(argument("courseId", StringArgumentType.string())
+                                        .then(argument("courseId", StringArgumentType.greedyString())
                                                 .executes(context -> DebugCommands.executeDiscoverCourse(context.getSource(), StringArgumentType.getString(context, "courseId")))))
                                 .then(literal("clearlostcourses")
                                         .executes(context -> DebugCommands.executeClearLostCourses(context.getSource())))

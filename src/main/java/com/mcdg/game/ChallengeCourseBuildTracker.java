@@ -157,7 +157,7 @@ public final class ChallengeCourseBuildTracker {
                     ChallengeCourseManager.getLostCourse(build.courseId()).ifPresent(lostCourse -> {
                         if (lostCourse.type() == ChallengeCourseType.BOSS_HOLE) {
                             BossMobSpawner.startSpawning(build.courseId(), player, placedState);
-                            player.sendMessage(Text.literal("§cBoss Hole: Mobs will spawn to guard the basket!")
+                            player.sendMessage(Text.literal("Boss Hole: Mobs will spawn to guard the basket!")
                                     .formatted(Formatting.RED));
                         }
                     });

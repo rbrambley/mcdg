@@ -462,6 +462,7 @@ public final class McdgMod implements ModInitializer {
                 PlayerSkillManager.onPlayerDisconnect(handler.player);
                 ChargedDiscItem.clearServerState(playerUuid);
                 ThrowSetupSyncHelper.clearPlayerState(playerUuid);
+                BossMobSpawner.stopSpawningForPlayer(playerUuid);
             })
         );
         HoleProgressTracker.register(
