@@ -9,20 +9,18 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import net.minecraft.entity.projectile.thrown.EnderPearlEntity;
 import net.minecraft.registry.tag.FluidTags;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.Box;
 import net.minecraft.world.Heightmap;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import com.mcdg.net.ThrowTrailCompleteSync;
 
 /**
- * Resolves throw landings, tracks pearl flight, and enforces strict landing penalties.
+ * Resolves throw landings for calculated trajectories and enforces strict landing penalties.
  */
 public final class ThrowResolver {
     private static final int MAX_THROW_RESOLUTION_WAIT_TICKS = 320;
@@ -34,7 +32,6 @@ public final class ThrowResolver {
     private static final int NEAR_PIN_HEIGHT_TOLERANCE = 4;
     private static final Map<UUID, Integer> LAST_PROCESSED_THROW_TOTAL = new ConcurrentHashMap<>();
     private static final Map<UUID, Integer> LAST_THROW_PENDING_TICKS = new ConcurrentHashMap<>();
-    private static final Map<UUID, UUID> LAST_THROW_PEARL_UUID = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> LAST_THROW_RELEASE_TICK = new ConcurrentHashMap<>();
     private static final Map<UUID, String> LAST_RESOLUTION_REASON = new ConcurrentHashMap<>();
     private static final Map<UUID, Integer> LAST_THROW_DISTANCE_FEET = new ConcurrentHashMap<>();
@@ -90,7 +87,6 @@ public final class ThrowResolver {
     public static void reset() {
         LAST_PROCESSED_THROW_TOTAL.clear();
         LAST_THROW_PENDING_TICKS.clear();
-        LAST_THROW_PEARL_UUID.clear();
         LAST_THROW_RELEASE_TICK.clear();
         LAST_RESOLUTION_REASON.clear();
         LAST_THROW_DISTANCE_FEET.clear();
@@ -136,9 +132,8 @@ public final class ThrowResolver {
         BlockPos throwLie = state.lie();
         BlockPos currentFeet = player.getBlockPos();
 
-        // Wait for the exact throw pearl (plus a short release grace window) before resolving lie.
-        // This avoids stale, older pearls from keeping resolution pinned at the tee.
-        boolean trackedPearlInFlight = hasTrackedPearlInFlight(world, player, throwLie);
+        // Wait for a calculated throw to finish flying (plus a short release grace window) before resolving lie.
+        boolean trackedPearlInFlight = hasCalculatedThrowInFlight(world, player);
         boolean withinReleaseGrace = isWithinThrowReleaseGrace(world, player.getUuid());
         if (trackedPearlInFlight || withinReleaseGrace) {
             int pendingTicks = LAST_THROW_PENDING_TICKS.merge(player.getUuid(), 1, Integer::sum);
@@ -488,16 +483,9 @@ public final class ThrowResolver {
             );
         }
         LAST_PROCESSED_THROW_TOTAL.put(player.getUuid(), updated.totalStrokes());
-        LAST_THROW_PEARL_UUID.remove(player.getUuid());
         LAST_THROW_RELEASE_TICK.remove(player.getUuid());
         LAST_RESOLUTION_REASON.put(player.getUuid(), "RESOLVED");
         return updated;
-    }
-
-    static void registerThrowRelease(UUID playerId, UUID pearlId, long worldTime) {
-        LAST_THROW_PEARL_UUID.put(playerId, pearlId);
-        LAST_THROW_RELEASE_TICK.put(playerId, worldTime);
-        LAST_THROW_PENDING_TICKS.remove(playerId);
     }
 
     /**
@@ -508,8 +496,6 @@ public final class ThrowResolver {
         CALCULATED_THROWS.put(playerId, new CalculatedThrowData(landingPos, flightTicks, worldTime, pathPoints, totalDistanceFt, lateralDriftFt, apexHeightFt, stance, angle));
         LAST_THROW_RELEASE_TICK.put(playerId, worldTime);
         LAST_THROW_PENDING_TICKS.remove(playerId);
-        // No pearl UUID for calculated throws
-        LAST_THROW_PEARL_UUID.remove(playerId);
 
         McdgMod.LOGGER.info(
                 "Calculated throw registered | player={} flightTicks={} landing={},{},{} dist={}ft",
@@ -520,17 +506,6 @@ public final class ThrowResolver {
                 String.format("%.1f", landingPos.z),
                 String.format("%.1f", landingPos.distanceTo(new Vec3d(landingPos.x, landingPos.y, landingPos.z)) * 3.0)
         );
-    }
-
-    /**
-     * Force clear the tracked pearl for a player. Called by DiscFlightSimulator when max flight time is exceeded.
-     * This allows ThrowResolver to proceed with resolution even if the pearl is in unloaded chunks.
-     */
-    public static void forceClearTrackedPearl(UUID playerId) {
-        if (LAST_THROW_PEARL_UUID.containsKey(playerId)) {
-            McdgMod.LOGGER.info("Force clearing tracked pearl for player {} (flight timeout)", playerId);
-            LAST_THROW_PEARL_UUID.remove(playerId);
-        }
     }
 
     static boolean isThrowResolutionPending(UUID playerId, int totalStrokes) {
@@ -575,31 +550,13 @@ public final class ThrowResolver {
         return StrictPenaltyType.NONE;
     }
 
-    private static boolean hasTrackedPearlInFlight(ServerWorld world, ServerPlayerEntity player, BlockPos origin) {
-        // Check for calculated throws first (new trajectory system)
+    private static boolean hasCalculatedThrowInFlight(ServerWorld world, ServerPlayerEntity player) {
         CalculatedThrowData calc = CALCULATED_THROWS.get(player.getUuid());
-        if (calc != null) {
-            long elapsedTicks = world.getTime() - calc.releaseWorldTime();
-            boolean inFlight = elapsedTicks < calc.flightTicks();
-            if (inFlight) {
-                return true; // Calculated throw is still "flying"
-            }
-            // Flight complete - calculated throw is ready for resolution
+        if (calc == null) {
             return false;
         }
-
-        // Legacy: Check for pearl entity (old system, backward compatibility)
-        UUID trackedPearlId = LAST_THROW_PEARL_UUID.get(player.getUuid());
-        if (trackedPearlId == null) {
-            return false;
-        }
-
-        Box search = new Box(origin).expand(384.0, 192.0, 384.0);
-        return !world.getEntitiesByClass(
-                EnderPearlEntity.class,
-                search,
-                pearl -> trackedPearlId.equals(pearl.getUuid()) && !pearl.isRemoved()
-        ).isEmpty();
+        long elapsedTicks = world.getTime() - calc.releaseWorldTime();
+        return elapsedTicks < calc.flightTicks();
     }
 
     private static boolean isWithinThrowReleaseGrace(ServerWorld world, UUID playerId) {

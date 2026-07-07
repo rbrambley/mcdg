@@ -20,7 +20,6 @@ import com.mcdg.data.Course;
 import com.mcdg.data.Hole;
 import com.mcdg.game.BuildCourseSessionManager;
 import com.mcdg.game.ChargedDiscItem;
-import com.mcdg.game.DiscFlightSimulator;
 import com.mcdg.game.ElytraDiscMigration;
 import com.mcdg.game.EntityCapper;
 import com.mcdg.game.PracticeCourseStorage;
@@ -386,14 +385,6 @@ public final class McdgMod implements ModInitializer {
             long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
             if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
                 LOGGER.warn("BossMobSpawner tick took {}ms", elapsedMs);
-            }
-        });
-		ServerTickEvents.END_SERVER_TICK.register(server -> {
-            long start = System.nanoTime();
-            DiscFlightSimulator.tick(server);
-            long elapsedMs = (System.nanoTime() - start) / 1_000_000L;
-            if (elapsedMs > TICK_HANDLER_WARNING_THRESHOLD_MS) {
-                LOGGER.warn("DiscFlightSimulator tick took {}ms", elapsedMs);
             }
         });
         ServerTickEvents.END_SERVER_TICK.register(server -> {
