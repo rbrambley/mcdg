@@ -12,6 +12,12 @@ import java.util.EnumSet;
  * Mobs will stay within a radius of the basket and attack approaching players.
  */
 public class GuardBasketGoal extends Goal {
+    private static final double GUARD_RADIUS = 8.0;
+    private static final double DETECTION_RADIUS = 16.0;
+    private static final double RETURN_THRESHOLD = 2.0;
+    private static final double CHASE_SPEED = 1.0;
+    private static final double RETURN_SPEED = 0.8;
+
     private final MobEntity mob;
     private final BlockPos basketPosition;
     private final double guardRadius;
@@ -21,8 +27,8 @@ public class GuardBasketGoal extends Goal {
     public GuardBasketGoal(MobEntity mob, BlockPos basketPosition) {
         this.mob = mob;
         this.basketPosition = basketPosition;
-        this.guardRadius = 8.0; // Stay within 8 blocks of basket
-        this.detectionRadius = 16.0; // Detect players within 16 blocks
+        this.guardRadius = GUARD_RADIUS;
+        this.detectionRadius = DETECTION_RADIUS;
         this.setControls(EnumSet.of(Control.MOVE, Control.LOOK, Control.TARGET));
     }
 
@@ -56,7 +62,7 @@ public class GuardBasketGoal extends Goal {
                 basketPosition.getY(),
                 basketPosition.getZ() + 0.5
         );
-        return distanceToBasket > 2.0; // Continue until within 2 blocks of basket
+        return distanceToBasket > RETURN_THRESHOLD;
     }
 
     @Override
@@ -78,7 +84,7 @@ public class GuardBasketGoal extends Goal {
         if (targetPlayer != null && targetPlayer.isAlive()) {
             // Chase target player
             mob.getLookControl().lookAt(targetPlayer);
-            mob.getNavigation().startMovingTo(targetPlayer, 1.0); // Normal speed
+            mob.getNavigation().startMovingTo(targetPlayer, CHASE_SPEED);
         } else {
             // Return to basket position
             mob.getLookControl().lookAt(
@@ -90,7 +96,7 @@ public class GuardBasketGoal extends Goal {
                     basketPosition.getX() + 0.5,
                     basketPosition.getY(),
                     basketPosition.getZ() + 0.5,
-                    0.8 // Slightly slower when returning
+                    RETURN_SPEED
             );
         }
     }

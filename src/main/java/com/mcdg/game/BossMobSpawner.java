@@ -15,6 +15,8 @@ import net.minecraft.registry.Registries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
@@ -36,6 +38,7 @@ public final class BossMobSpawner {
 
     private final UUID roundId;
     private final ServerPlayerEntity player;
+    private final MinecraftServer server;
     private final PlacedCourseState placedCourseState;
     private final BossMobConfig config;
     private final List<UUID> spawnedMobs;
@@ -45,6 +48,7 @@ public final class BossMobSpawner {
     private BossMobSpawner(UUID roundId, ServerPlayerEntity player, PlacedCourseState placedCourseState, BossMobConfig config) {
         this.roundId = roundId;
         this.player = player;
+        this.server = player != null ? player.getServer() : null;
         this.placedCourseState = placedCourseState;
         this.config = config;
         this.spawnedMobs = new ArrayList<>();
@@ -66,6 +70,19 @@ public final class BossMobSpawner {
         }
 
         McdgMod.LOGGER.info("Started boss hole mob spawning for round {}", roundId);
+    }
+
+    /**
+     * Starts mob spawning for a boss hole round only if the course type is {@link ChallengeCourseType#BOSS_HOLE}.
+     * This is the single shared entry point for both incremental builds and resumed placed courses.
+     */
+    public static void startSpawningIfBossHole(UUID roundId, ServerPlayerEntity player, PlacedCourseState placedCourseState, ChallengeCourseType type) {
+        if (type != ChallengeCourseType.BOSS_HOLE) {
+            return;
+        }
+        startSpawning(roundId, player, placedCourseState);
+        player.sendMessage(Text.literal("Boss Hole: Mobs will spawn to guard the basket!")
+                .formatted(Formatting.RED));
     }
 
     /**
@@ -160,6 +177,24 @@ public final class BossMobSpawner {
     }
 
     /**
+     * Finds the first available basket/tee pair for a boss hole course.
+     * Boss holes are single-hole courses, so any non-null pair is valid.
+     */
+    private HolePositions findHolePositions() {
+        for (var entry : placedCourseState.holeBaskets().entrySet()) {
+            BlockPos basket = entry.getValue();
+            BlockPos tee = placedCourseState.holeTees().get(entry.getKey());
+            if (basket != null && tee != null) {
+                return new HolePositions(basket, tee);
+            }
+        }
+        return null;
+    }
+
+    private record HolePositions(BlockPos basket, BlockPos tee) {
+    }
+
+    /**
      * Spawns a single mob at a strategic position.
      */
     private void spawnMob() {
@@ -169,13 +204,13 @@ public final class BossMobSpawner {
             return;
         }
 
-        BlockPos basketPos = placedCourseState.holeBaskets().get(1);
-        BlockPos teePos = placedCourseState.holeTees().get(1);
-
-        if (basketPos == null || teePos == null) {
-            McdgMod.LOGGER.warn("Cannot spawn boss hole mob - missing basket or tee position");
+        HolePositions holePositions = findHolePositions();
+        if (holePositions == null) {
+            McdgMod.LOGGER.warn("Cannot spawn boss hole mob - no valid basket/tee pair found for round {}", roundId);
             return;
         }
+        BlockPos basketPos = holePositions.basket();
+        BlockPos teePos = holePositions.tee();
 
         // Select random mob type
         Identifier mobType = config.mobTypes().get(random.nextInt(config.mobTypes().size()));
@@ -232,7 +267,7 @@ public final class BossMobSpawner {
                     mobEntity.equipStack(EquipmentSlot.HEAD, new ItemStack(Items.IRON_HELMET));
                     mobEntity.setEquipmentDropChance(EquipmentSlot.HEAD, 0.0f);
                 }
-                applyCustomAI(mobEntity, interferenceType, basketPos, teePos);
+                applyCustomAI(world, mobEntity, interferenceType, basketPos, teePos);
             }
 
             world.spawnEntity(mob);
@@ -248,10 +283,10 @@ public final class BossMobSpawner {
     /**
      * Applies custom AI behavior based on interference type.
      */
-    private void applyCustomAI(MobEntity mob, MobInterferenceType interferenceType, BlockPos basketPos, BlockPos teePos) {
+    private void applyCustomAI(ServerWorld world, MobEntity mob, MobInterferenceType interferenceType, BlockPos basketPos, BlockPos teePos) {
         switch (interferenceType) {
             case GUARDING_BASKET -> mob.goalSelector.add(GUARD_GOAL_PRIORITY, new GuardBasketGoal(mob, basketPos));
-            case PATROL_FAIRWAY -> mob.goalSelector.add(PATROL_GOAL_PRIORITY, new PatrolFairwayGoal(mob, random, teePos, basketPos));
+            case PATROL_FAIRWAY -> mob.goalSelector.add(PATROL_GOAL_PRIORITY, new PatrolFairwayGoal(mob, world, random, teePos, basketPos));
             case HARASS_TEE -> {
                 // Vanilla AI handles harassment; no custom goals needed.
             }
@@ -269,7 +304,10 @@ public final class BossMobSpawner {
 
         ServerWorld world = getCourseWorld();
         if (world == null) {
-            // Player/world is gone; clear tracking so persistent mobs are not orphaned.
+            // Player/world is gone; clear tracking. Any persistent mobs may be left behind
+            // because we cannot locate them without the world reference.
+            McdgMod.LOGGER.warn("Unable to despawn boss hole mobs for round {} - course world is unavailable; {} mob(s) may be orphaned",
+                    roundId, spawnedMobs.size());
             spawnedMobs.clear();
             return;
         }
@@ -320,12 +358,17 @@ public final class BossMobSpawner {
 
     /**
      * Gets the world where the course was placed, even if the player has moved elsewhere.
+     * Falls back to the server reference captured at construction if the player is no longer available.
      */
     private ServerWorld getCourseWorld() {
-        if (player == null || player.getServer() == null) {
+        MinecraftServer targetServer = this.server;
+        if (targetServer == null && player != null) {
+            targetServer = player.getServer();
+        }
+        if (targetServer == null) {
             return null;
         }
-        return player.getServer().getWorld(placedCourseState.worldKey());
+        return targetServer.getWorld(placedCourseState.worldKey());
     }
 
     /**

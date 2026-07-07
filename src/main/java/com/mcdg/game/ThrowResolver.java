@@ -36,7 +36,7 @@ public final class ThrowResolver {
     private static final Map<UUID, String> LAST_RESOLUTION_REASON = new ConcurrentHashMap<>();
     private static final Map<UUID, Integer> LAST_THROW_DISTANCE_FEET = new ConcurrentHashMap<>();
 
-    // New: Track calculated throws (trajectory-based, no pearl entity)
+    // Track calculated throws (trajectory-based).
     private static final Map<UUID, CalculatedThrowData> CALCULATED_THROWS = new ConcurrentHashMap<>();
 
     // Cached last throw stats for HUD sync on round resume
@@ -133,34 +133,34 @@ public final class ThrowResolver {
         BlockPos currentFeet = player.getBlockPos();
 
         // Wait for a calculated throw to finish flying (plus a short release grace window) before resolving lie.
-        boolean trackedPearlInFlight = hasCalculatedThrowInFlight(world, player);
+        boolean trackedThrowInFlight = hasCalculatedThrowInFlight(world, player);
         boolean withinReleaseGrace = isWithinThrowReleaseGrace(world, player.getUuid());
-        if (trackedPearlInFlight || withinReleaseGrace) {
+        if (trackedThrowInFlight || withinReleaseGrace) {
             int pendingTicks = LAST_THROW_PENDING_TICKS.merge(player.getUuid(), 1, Integer::sum);
             if (pendingTicks <= MAX_THROW_RESOLUTION_WAIT_TICKS) {
                 if (strictFlowDebug) {
                     McdgMod.LOGGER.info(
-                            "Strict landing wait | player={} hole={} total={} throwLie={} currentFeet={} pendingTicks={} inFlightPearl={} releaseGrace={}",
+                            "Strict landing wait | player={} hole={} total={} throwLie={} currentFeet={} pendingTicks={} inFlightThrow={} releaseGrace={}",
                             player.getGameProfile().getName(),
                             state.currentHole(),
                             state.totalStrokes(),
                             OutOfBoundsClassifier.formatPos(throwLie),
                             OutOfBoundsClassifier.formatPos(currentFeet),
                             pendingTicks,
-                            trackedPearlInFlight,
+                            trackedThrowInFlight,
                             withinReleaseGrace
                     );
                 }
-                LAST_RESOLUTION_REASON.put(player.getUuid(), trackedPearlInFlight ? "WAITING_TRACKED_PEARL" : "WAITING_RELEASE_GRACE");
+                LAST_RESOLUTION_REASON.put(player.getUuid(), trackedThrowInFlight ? "WAITING_TRACKED_THROW" : "WAITING_RELEASE_GRACE");
                 return state;
             }
 
-            // If the exact throw pearl is still in flight after timeout, keep waiting instead of
+            // If the tracked calculated throw is still in flight after timeout, keep waiting instead of
             // force-resolving to the throw lie. This avoids false strict blocks on very long throws.
-            if (trackedPearlInFlight) {
+            if (trackedThrowInFlight) {
                 if (strictFlowDebug) {
                     McdgMod.LOGGER.warn(
-                            "Strict landing long-flight wait extension | player={} hole={} total={} throwLie={} currentFeet={} pendingTicks={} trackedPearlStillInFlight=true",
+                            "Strict landing long-flight wait extension | player={} hole={} total={} throwLie={} currentFeet={} pendingTicks={} trackedThrowStillInFlight=true",
                             player.getGameProfile().getName(),
                             state.currentHole(),
                             state.totalStrokes(),
@@ -169,12 +169,12 @@ public final class ThrowResolver {
                             pendingTicks
                     );
                 }
-                LAST_RESOLUTION_REASON.put(player.getUuid(), "WAITING_TRACKED_PEARL_LONG_FLIGHT");
+                LAST_RESOLUTION_REASON.put(player.getUuid(), "WAITING_TRACKED_THROW_LONG_FLIGHT");
                 return state;
             }
 
             McdgMod.LOGGER.warn(
-                    "Forcing throw landing resolution after {} ticks with in-flight pearl still present | player={} hole={} throwLie={} {} {}",
+                    "Forcing throw landing resolution after {} ticks with in-flight throw still present | player={} hole={} throwLie={} {} {}",
                     pendingTicks,
                     player.getGameProfile().getName(),
                     state.currentHole(),
@@ -219,8 +219,8 @@ public final class ThrowResolver {
         }
 
         // The raw landing position is the authoritative point for classification.
-        // For calculated throws this is the computed landing; for pearl throws it is
-        // the player's position after the pearl teleport.
+        // For calculated throws this is the computed landing; otherwise it is the player's
+        // current feet position after any teleport.
         BlockPos rawLandingFeet = rawCalcFeet != null ? rawCalcFeet : currentFeet;
 
         // Made shot detection: check BEFORE applying any penalties so a successful
@@ -291,7 +291,7 @@ public final class ThrowResolver {
                 ), false);
             }
         } else if (ENABLE_STRICT_LANDING_PENALTIES && rulesetManager.isStrict()) {
-            // Classify the raw landing position (same for both calculated throws and pearls)
+            // Classify the raw landing position (same for both calculated throws and direct landings)
             BlockPos landingFeet = SafePositionFinder.findNearestStandableFeet(world, rawLandingFeet);
             OutOfBoundsClassifier.PenaltyDetail currentFeetDetail = OutOfBoundsClassifier.classifyWithDetail(
                     world, rawLandingFeet, currentHole, tee, basket, alternateAnchor, rulesetManager);
@@ -316,7 +316,7 @@ public final class ThrowResolver {
                     );
                 }
                 if (landingPenalty == StrictPenaltyType.OB) {
-                    // Find last in-bounds position (same for both calculated throws and pearls)
+                    // Find last in-bounds position (same for both calculated throws and direct landings)
                     CrossingResolution crossing = findLastSolidBeforeOutCrossing(
                             world,
                             throwLie,
@@ -425,7 +425,7 @@ public final class ThrowResolver {
         }
 
         // Use calculated trajectory distance when available so Throw HUD and Round HUD "Last" match.
-        // Falls back to block-to-block distance for legacy pearl throws.
+        // Falls back to block-to-block distance when no calculated throw is recorded.
         int lastThrowDistance = calc != null
                 ? (int) Math.round(calc.totalDistanceFt())
                 : DistanceUtils.distanceFeet(throwLie, resultingLie);
@@ -489,8 +489,8 @@ public final class ThrowResolver {
     }
 
     /**
-     * Register a calculated throw (trajectory-based, no pearl entity).
-     * Used by the new trajectory calculation system.
+     * Register a calculated throw (trajectory-based).
+     * Used by the trajectory calculation system.
      */
     static void registerCalculatedThrow(UUID playerId, long worldTime, Vec3d landingPos, int flightTicks, Vec3d[] pathPoints, double totalDistanceFt, double lateralDriftFt, double apexHeightFt, ThrowStance stance, ReleaseAngle angle) {
         CALCULATED_THROWS.put(playerId, new CalculatedThrowData(landingPos, flightTicks, worldTime, pathPoints, totalDistanceFt, lateralDriftFt, apexHeightFt, stance, angle));
@@ -698,7 +698,7 @@ public final class ThrowResolver {
             return false;
         }
 
-        // Fallback: straight-line check for legacy pearl throws
+        // Fallback: straight-line check for unrecorded calculated throws
         int targetX = basket.getX();
         int targetZ = basket.getZ();
         int targetY = basket.getY() + 1;
@@ -746,7 +746,7 @@ public final class ThrowResolver {
                 }
             }
         }
-        // Fallback: check actual player position (for pearl throws or already-teleported state).
+        // Fallback: check actual player position (for already-teleported state).
         int dx = currentFeet.getX() - basket.getX();
         int dz = currentFeet.getZ() - basket.getZ();
         if (dx != 0 || dz != 0) {

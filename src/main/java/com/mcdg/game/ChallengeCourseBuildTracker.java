@@ -154,13 +154,9 @@ public final class ChallengeCourseBuildTracker {
 
                 // Start boss hole mob spawning if this is a boss hole
                 if (startResult == 1) {
-                    ChallengeCourseManager.getLostCourse(build.courseId()).ifPresent(lostCourse -> {
-                        if (lostCourse.type() == ChallengeCourseType.BOSS_HOLE) {
-                            BossMobSpawner.startSpawning(build.courseId(), player, placedState);
-                            player.sendMessage(Text.literal("Boss Hole: Mobs will spawn to guard the basket!")
-                                    .formatted(Formatting.RED));
-                        }
-                    });
+                    ChallengeCourseManager.getLostCourse(build.courseId()).ifPresent(lostCourse ->
+                            BossMobSpawner.startSpawningIfBossHole(build.courseId(), player, placedState, lostCourse.type())
+                    );
                 }
 
                 McdgMod.LOGGER.info("Challenge course build completed for {}; round start result={}",

@@ -3,8 +3,10 @@ package com.mcdg.game.ai;
 import net.minecraft.entity.ai.goal.Goal;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
+import net.minecraft.world.Heightmap;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -16,7 +18,17 @@ import java.util.Random;
  * Mobs move between waypoints and can potentially block disc flight paths.
  */
 public class PatrolFairwayGoal extends Goal {
+    private static final double PATROL_SPEED = 0.6;
+    private static final double CHASE_SPEED = 1.0;
+    private static final double DETECTION_RADIUS = 12.0;
+    private static final int CHASE_COOLDOWN_TICKS = 60;
+    private static final double WAYPOINT_REACHED_DISTANCE_SQUARED = 4.0;
+    private static final int INTERMEDIATE_POINTS_MIN = 2;
+    private static final int INTERMEDIATE_POINTS_EXTRA = 2;
+    private static final int PERPENDICULAR_OFFSET_RANGE = 3;
+
     private final MobEntity mob;
+    private final ServerWorld world;
     private final BlockPos teePosition;
     private final BlockPos basketPosition;
     private final List<BlockPos> waypoints;
@@ -28,15 +40,16 @@ public class PatrolFairwayGoal extends Goal {
     private boolean isChasing;
     private int chaseCooldown;
 
-    public PatrolFairwayGoal(MobEntity mob, Random random, BlockPos teePosition, BlockPos basketPosition) {
+    public PatrolFairwayGoal(MobEntity mob, ServerWorld world, Random random, BlockPos teePosition, BlockPos basketPosition) {
         this.mob = mob;
+        this.world = world;
         this.random = random;
         this.teePosition = teePosition;
         this.basketPosition = basketPosition;
-        this.waypoints = generateWaypoints(teePosition, basketPosition);
+        this.waypoints = generateWaypoints(world, teePosition, basketPosition);
         this.currentWaypointIndex = 0;
-        this.patrolSpeed = 0.6; // Slower patrol speed
-        this.chaseSpeed = 1.0; // Normal chase speed
+        this.patrolSpeed = PATROL_SPEED;
+        this.chaseSpeed = CHASE_SPEED;
         this.isChasing = false;
         this.chaseCooldown = 0;
         this.setControls(EnumSet.of(Control.MOVE, Control.LOOK, Control.TARGET));
@@ -51,7 +64,7 @@ public class PatrolFairwayGoal extends Goal {
         }
 
         // Check for nearby players to chase
-        targetPlayer = findNearestPlayer(12.0); // 12 block detection radius
+        targetPlayer = findNearestPlayer(DETECTION_RADIUS);
         if (targetPlayer != null) {
             isChasing = true;
             return true;
@@ -66,12 +79,12 @@ public class PatrolFairwayGoal extends Goal {
     public boolean shouldContinue() {
         if (isChasing) {
             // Continue chasing if target is alive and within range
-            if (targetPlayer != null && targetPlayer.isAlive() && targetPlayer.squaredDistanceTo(mob) < 144.0) { // 12 blocks
+            if (targetPlayer != null && targetPlayer.isAlive() && targetPlayer.squaredDistanceTo(mob) < DETECTION_RADIUS * DETECTION_RADIUS) {
                 return true;
             }
             // Lost target, return to patrolling
             isChasing = false;
-            chaseCooldown = 60; // 3 second cooldown before chasing again
+            chaseCooldown = CHASE_COOLDOWN_TICKS;
             return true; // Continue to return to patrol
         }
 
@@ -123,7 +136,7 @@ public class PatrolFairwayGoal extends Goal {
                 targetWaypoint.getZ() + 0.5
         );
 
-        if (distance < 4.0) { // Within 2 blocks of waypoint
+        if (distance < WAYPOINT_REACHED_DISTANCE_SQUARED) {
             // Move to next waypoint
             currentWaypointIndex = (currentWaypointIndex + 1) % waypoints.size();
         }
@@ -145,22 +158,23 @@ public class PatrolFairwayGoal extends Goal {
 
     /**
      * Generates waypoints along the fairway between tee and basket.
+     * Waypoints are sampled at the local surface height so mobs don't float or get buried.
      */
-    private List<BlockPos> generateWaypoints(BlockPos tee, BlockPos basket) {
+    private List<BlockPos> generateWaypoints(ServerWorld world, BlockPos tee, BlockPos basket) {
         List<BlockPos> points = new ArrayList<>();
 
         // Add tee as starting point
         points.add(tee);
 
-        // Add 2-3 intermediate points along the fairway
-        int intermediatePoints = 2 + random.nextInt(2); // 2-3 points
+        // Add intermediate points along the fairway
+        int intermediatePoints = INTERMEDIATE_POINTS_MIN + random.nextInt(INTERMEDIATE_POINTS_EXTRA);
         for (int i = 1; i <= intermediatePoints; i++) {
             double t = (double) i / (intermediatePoints + 1);
             int x = (int) MathHelper.lerp(t, tee.getX(), basket.getX());
             int z = (int) MathHelper.lerp(t, tee.getZ(), basket.getZ());
 
             // Add some perpendicular offset for variety
-            int perpendicularOffset = random.nextInt(6) - 3; // -3 to +3
+            int perpendicularOffset = random.nextInt(PERPENDICULAR_OFFSET_RANGE * 2 + 1) - PERPENDICULAR_OFFSET_RANGE;
             double dx = basket.getX() - tee.getX();
             double dz = basket.getZ() - tee.getZ();
             double length = Math.sqrt(dx * dx + dz * dz);
@@ -169,7 +183,8 @@ public class PatrolFairwayGoal extends Goal {
                 z += (int) Math.round((dx / length) * perpendicularOffset);
             }
 
-            points.add(new BlockPos(x, tee.getY(), z));
+            int surfaceY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
+            points.add(new BlockPos(x, surfaceY + 1, z));
         }
 
         // Add basket as final point

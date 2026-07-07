@@ -45,7 +45,7 @@
 - `McdgMod` — server initializer, wires all services, registers networking and commands
 - `RoundStateManager` — thread-safe player round state via `ConcurrentHashMap`
 - `ActiveCourseManager` — tracks active course, placement state, round status
-- `HoleProgressTracker` — throw resolution, pearl tracking, strict landing, turn timeouts (~1536 lines, needs splitting)
+- `HoleProgressTracker` — throw resolution, strict landing, turn timeouts (~1536 lines, needs splitting)
 - `CoursePlacementService` — world editing, block placement, validation, signs (~2648 lines, needs splitting)
 - `McdgAdminCommands` — legacy admin command dispatcher (~140 KB, partially split; domain commands extracted)
 - `CourseAdminCommands` — course build, cleanup, and management commands
@@ -60,7 +60,7 @@
 - `ResortCoursePlacement` — computes 3 terrain-aware course anchors around a resort
 - `WorldSpawnHandler` — auto-builds resort on fresh world start; auto-generates lost-course entrances only on fresh worlds (pre-existing worlds without `lost-courses.nbt` are skipped to avoid conflicts with existing builds)
 - `ResortWaypointManager` — resort waypoint broadcast to joining players
-- `ThrowResolver` — throw resolution, pearl tracking, strict landing (~31 KB, extracted from HoleProgressTracker)
+- `ThrowResolver` — throw resolution, calculated trajectory tracking, strict landing (~31 KB, extracted from HoleProgressTracker)
 - `TurnManager` — turn order, timeout enforcement, player rotation (~16 KB, extracted from HoleProgressTracker)
 - `HoleMapSyncService` — server-side minimap state sync (~18 KB, extracted from HoleProgressTracker)
 - `BuildCourseSessionManager` — course placement orchestration and UI state (~50 KB)
@@ -70,6 +70,11 @@
 - `DiscEnchantedBook` — enchanted book item granting disc-specific enchantments
 - `DiscWorkbenchBlock` / `DiscWorkbenchScreenHandler` — block and GUI for applying disc enchantments
 - `McdgEntityTypes` — entity type registration infrastructure (preserved for future special disc types)
+- `BossMobSpawner` — lifecycle management for boss hole challenge course mobs
+- `BossMobConfig` — mob type/spawn-rate configuration for boss holes
+- `BossMobPositioner` — strategic spawn positioning around baskets, fairways, and tees
+- `BossRewardGenerator` / `CombatEnchantment` — tiered enchanted equipment rewards for boss holes
+- `GuardBasketGoal` / `PatrolFairwayGoal` — custom mob AI goals for guarding and patrolling
 
 ### Client (`src/client/java/com/mcdg/client/`)
 - `McdgClientMod` — client initializer, event wiring (~17 KB)

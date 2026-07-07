@@ -5,7 +5,6 @@ import com.mcdg.game.ActiveCourseManager;
 import com.mcdg.game.BossMobSpawner;
 import com.mcdg.game.ChallengeCourseBuildTracker;
 import com.mcdg.game.ChallengeCourseManager;
-import com.mcdg.game.ChallengeCourseType;
 import com.mcdg.game.LostCourseStorage;
 import com.mcdg.game.PlacedCourseState;
 import com.mcdg.game.RoundPresentationService;
@@ -140,13 +139,8 @@ public final class ChallengeCourseCommands {
                 );
 
                 // Start boss hole mob spawning if this is a boss hole
-                if (result == 1 && catalogEntry.get().type() == ChallengeCourseType.BOSS_HOLE) {
-                    UUID roundId = courseManager.getActiveChallengeCourseId().orElse(null);
-                    if (roundId != null) {
-                        BossMobSpawner.startSpawning(roundId, player, storedPlaced.get());
-                        player.sendMessage(Text.literal("Boss Hole: Mobs will spawn to guard the basket!")
-                                .formatted(Formatting.RED));
-                    }
+                if (result == 1) {
+                    BossMobSpawner.startSpawningIfBossHole(courseId, player, storedPlaced.get(), catalogEntry.get().type());
                 }
 
                 return result;
