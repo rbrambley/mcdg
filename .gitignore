@@ -24,6 +24,9 @@ net/
 # Auto-generated tester manifest
 releases/test-packs/MANIFEST.json
 
+# Release test-packs contain large binary artifacts (zips, jars, heap dumps)
+releases/test-packs/*/
+
 # Runtime logs
 logs/
 
