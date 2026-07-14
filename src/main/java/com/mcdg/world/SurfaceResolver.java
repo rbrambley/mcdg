@@ -16,6 +16,10 @@ public final class SurfaceResolver {
 
     private SurfaceResolver() {}
 
+    private static boolean isChunkLoaded(ServerWorld world, BlockPos pos) {
+        return world.isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4);
+    }
+
     public static BlockPos resolveSurfacePos(ServerWorld world, int x, int z) {
         // getTopY forces chunk generation/loading so heightmap values are valid.
 
@@ -108,6 +112,9 @@ public final class SurfaceResolver {
     }
 
     static boolean isValidHeightmapRuleGround(ServerWorld world, BlockPos groundPos) {
+        if (!isChunkLoaded(world, groundPos) || !isChunkLoaded(world, groundPos.up()) || !isChunkLoaded(world, groundPos.up(2))) {
+            return false;
+        }
         BlockState ground = world.getBlockState(groundPos);
         if (!ground.isSolidBlock(world, groundPos)) {
             return false;
@@ -214,9 +221,11 @@ public final class SurfaceResolver {
             }
         }
 
-        BlockState above = world.getBlockState(candidate.up());
-        if (!above.isAir()) {
-            score += 250;
+        if (isChunkLoaded(world, candidate.up())) {
+            BlockState above = world.getBlockState(candidate.up());
+            if (!above.isAir()) {
+                score += 250;
+            }
         }
 
         return score;
@@ -250,6 +259,9 @@ public final class SurfaceResolver {
     }
 
     static boolean isStableGround(ServerWorld world, BlockPos pos) {
+        if (!isChunkLoaded(world, pos)) {
+            return false;
+        }
         BlockState ground = world.getBlockState(pos);
         if (SurfaceAdaptationHelper.isUnsafeSurface(world, pos)) {
             return false;
@@ -258,6 +270,9 @@ public final class SurfaceResolver {
     }
 
     static boolean hasPlayableHeadspace(ServerWorld world, BlockPos groundPos) {
+        if (!isChunkLoaded(world, groundPos.up())) {
+            return false;
+        }
         BlockState above = world.getBlockState(groundPos.up());
         if (!above.getFluidState().isEmpty()) {
             return false;
