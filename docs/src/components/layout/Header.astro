@@ -1,104 +1,161 @@
 ---
-const base = import.meta.env.BASE_URL;
-const nav = [
-  { label: 'Home', href: `${base}` },
-  { label: 'Guide', href: `${base}guide/installation/` },
-  { label: 'Features', href: `${base}features/` },
-  { label: 'About', href: `${base}about/` },
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+const navigation = [
+  { title: 'Guide', href: `${baseUrl}guide/installation` },
+  { title: 'Features', href: `${baseUrl}features/physics` },
+  { title: 'Progression', href: `${baseUrl}progression/skill-unlocks` },
 ];
 ---
 
 <header class="site-header">
-  <div class="container header-inner">
-    <a href={`${base}`} class="logo">
-      <span class="logo-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <path d="M8 12s1.5-2 4-2 4 2 4 2"></path>
-          <path d="M12 12v4"></path>
-        </svg>
-      </span>
-      <span class="logo-accent">MCDG</span>
-      <span class="logo-text">Minecraft Disc Golf</span>
+  <div class="container header-content">
+    <a href={baseUrl} class="logo">
+      <span class="logo-text">MCDG</span>
+      <span class="logo-subtitle">Minecraft Disc Golf</span>
     </a>
-    <nav class="main-nav" aria-label="Main navigation">
-      {nav.map(item => (
-        <a href={item.href}>{item.label}</a>
-      ))}
+
+    <nav class="desktop-nav">
+      <ul class="nav-list">
+        {navigation.map((item) => (
+          <li>
+            <a href={item.href} class="nav-link">{item.title}</a>
+          </li>
+        ))}
+      </ul>
     </nav>
+
+    <button class="mobile-menu-button" aria-label="Toggle menu">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="12" x2="21" y2="12"></line>
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <line x1="3" y1="18" x2="21" y2="18"></line>
+      </svg>
+    </button>
   </div>
+
+  <nav class="mobile-nav">
+    <ul class="mobile-nav-list">
+      {navigation.map((item) => (
+        <li>
+          <a href={item.href} class="mobile-nav-link">{item.title}</a>
+        </li>
+      ))}
+    </ul>
+  </nav>
 </header>
 
 <style>
   .site-header {
-    background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
-    border-bottom: 1px solid var(--border);
+    background-color: var(--color-background-secondary);
+    border-bottom: 1px solid var(--color-border);
     position: sticky;
     top: 0;
     z-index: 100;
   }
 
-  .header-inner {
+  .header-content {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.85rem 1.5rem;
+    padding: 1rem;
   }
 
   .logo {
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-weight: 800;
-    font-size: 1.25rem;
+    flex-direction: column;
     text-decoration: none;
-  }
-
-  .logo-icon {
-    display: flex;
-    color: var(--accent);
-    width: 1.5rem;
-    height: 1.5rem;
-  }
-
-  .logo-accent {
-    color: var(--accent);
+    color: var(--color-text-primary);
   }
 
   .logo-text {
-    color: var(--text-primary);
-    font-weight: 500;
-    font-size: 0.95rem;
-    opacity: 0.8;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-accent);
   }
 
-  .main-nav {
+  .logo-subtitle {
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+  }
+
+  .nav-list {
     display: flex;
-    gap: 1.5rem;
+    list-style: none;
+    gap: 2rem;
   }
 
-  .main-nav a {
-    color: var(--text-secondary);
-    font-weight: 500;
-    padding: 0.35rem 0;
-    border-bottom: 2px solid transparent;
-    transition: color 0.2s, border-color 0.2s;
-  }
-
-  .main-nav a:hover {
-    color: var(--accent);
+  .nav-link {
+    color: var(--color-text-secondary);
     text-decoration: none;
-    border-bottom-color: var(--accent);
+    font-weight: 500;
+    transition: color 0.2s ease;
   }
 
-  @media (max-width: 600px) {
-    .logo-text {
+  .nav-link:hover {
+    color: var(--color-accent);
+  }
+
+  .mobile-menu-button {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--color-text-primary);
+    cursor: pointer;
+    padding: 0.5rem;
+  }
+
+  .mobile-nav {
+    display: none;
+    background-color: var(--color-background-tertiary);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .mobile-nav.hidden {
+    display: none;
+  }
+
+  .mobile-nav-list {
+    list-style: none;
+    padding: 1rem;
+  }
+
+  .mobile-nav-list li {
+    margin-bottom: 0.5rem;
+  }
+
+  .mobile-nav-link {
+    display: block;
+    padding: 0.75rem;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    border-radius: 0.25rem;
+  }
+
+  .mobile-nav-link:hover {
+    background-color: var(--color-background-secondary);
+    color: var(--color-accent);
+  }
+
+  @media (max-width: 768px) {
+    .desktop-nav {
       display: none;
     }
 
-    .main-nav {
-      gap: 1rem;
-      font-size: 0.9rem;
+    .mobile-menu-button {
+      display: block;
+    }
+
+    .mobile-nav {
+      display: block;
     }
   }
 </style>
+
+<script>
+  const menuButton = document.querySelector('.mobile-menu-button');
+  const mobileNav = document.querySelector('.mobile-nav');
+
+  menuButton?.addEventListener('click', () => {
+    mobileNav?.classList.toggle('hidden');
+  });
+</script>

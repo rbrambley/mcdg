@@ -1,0 +1,397 @@
+---
+import FeatureLayout from '../../layouts/FeatureLayout.astro';
+import CommandBlock from '../../components/content/CommandBlock.astro';
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+---
+
+<FeatureLayout 
+  title="Wind System"
+  featureName="Dynamic Wind Mechanics"
+  description="Dynamic wind system that affects disc flight physics with natural weather patterns, admin controls, and tournament support."
+>
+  <h1>Wind System</h1>
+  
+  <p>MCDG's wind system adds environmental complexity to disc flight with dynamic wind conditions that affect trajectory based on speed, direction, and weather patterns. The system provides natural wind generation, admin controls, and tournament-specific wind modes.</p>
+
+  <h2>Wind Physics Model</h2>
+
+  <h3>Wind Data Model</h3>
+  <p>Wind state is represented by multiple parameters:</p>
+  
+  <ul>
+    <li><strong>Velocity:</strong> Wind velocity vector (blocks/tick)</li>
+    <li><strong>Speed:</strong> Magnitude (0.0 - 1.0 scale)</li>
+    <li><strong>Direction:</strong> Compass direction (0-360 degrees, 0 = North)</li>
+    <li><strong>Mode:</strong> Wind behavior mode (CALM, NATURAL, FIXED, TOURNAMENT)</li>
+    <li><strong>Gusting:</strong> Variable wind conditions flag</li>
+  </ul>
+
+  <h3>Wind Strength Scale</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Speed</th>
+        <th>Description</th>
+        <th>Effect on Throws</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>0.0</td>
+        <td>Calm</td>
+        <td>No effect</td>
+      </tr>
+      <tr>
+        <td>0.2</td>
+        <td>Light breeze</td>
+        <td>Subtle drift (~2-5 ft)</td>
+      </tr>
+      <tr>
+        <td>0.4</td>
+        <td>Moderate wind</td>
+        <td>Noticeable curve (~5-10 ft)</td>
+      </tr>
+      <tr>
+        <td>0.6</td>
+        <td>Strong wind</td>
+        <td>Significant impact (~10-20 ft)</td>
+      </tr>
+      <tr>
+        <td>0.8</td>
+        <td>Very strong</td>
+        <td>Major trajectory changes (~15-30 ft)</td>
+      </tr>
+      <tr>
+        <td>1.0</td>
+        <td>Extreme</td>
+        <td>Severe impact (~20-40 ft)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Wind Modes</h2>
+
+  <h3>CALM Mode</h3>
+  <ul>
+    <li><strong>Speed:</strong> Always 0.0 (no wind)</li>
+    <li><strong>Use Case:</strong> Practice, beginner play, testing</li>
+    <li><strong>Effect:</strong> No wind impact on disc flight</li>
+    <li><strong>Admin:</strong> Default for new rounds unless specified</li>
+  </ul>
+
+  <h3>NATURAL Mode</h3>
+  <ul>
+    <li><strong>Speed:</strong> Dynamic based on weather and biome</li>
+    <li><strong>Use Case:</strong> Standard gameplay, realistic conditions</li>
+    <li><strong>Effect:</strong> Variable wind that changes over time</li>
+    <li><strong>Generation:</strong> Based on biome, weather, and time</li>
+  </ul>
+
+  <h3>FIXED Mode</h3>
+  <ul>
+    <li><strong>Speed:</strong> Manually set by admin</li>
+    <li><strong>Use Case:</strong> Custom conditions, event setup</li>
+    <li><strong>Effect:</strong> Consistent wind at specified settings</li>
+    <li><strong>Control:</strong> Admin commands for precise control</li>
+  </ul>
+
+  <h3>TOURNAMENT Mode</h3>
+  <ul>
+    <li><strong>Speed:</strong> Tournament-specific behavior</li>
+    <li><strong>Use Case:</strong> Competitive play, consistent conditions</li>
+    <li><strong>Effect:</strong> Consistent wind for all players in tournament</li>
+    <li><strong>Consistency:</strong> Same wind for all tournament rounds</li>
+  </ul>
+
+  <h2>Natural Wind Generation</h2>
+
+  <h3>Generation Algorithm</h3>
+  <p>Natural wind is generated based on multiple environmental factors:</p>
+
+  <h4>Weather Multiplier</h4>
+  <ul>
+    <li><strong>Clear:</strong> 1.0x (base wind speed)</li>
+    <li><strong>Rain:</strong> 1.5x (stronger wind)</li>
+    <li><strong>Thunder:</strong> 2.5x (very strong wind)</li>
+  </ul>
+
+  <h4>Biome Modifier</h4>
+  <ul>
+    <li><strong>Open Areas:</strong> 1.2x (plains, desert)</li>
+    <li><strong>Forests:</strong> 0.8x (calmer due to trees)</li>
+    <li><strong>Mountains:</strong> 1.5x (stronger at elevation)</li>
+    <li><strong>Ocean:</strong> 1.3x (coastal winds)</li>
+  </ul>
+
+  <h4>Time Variation</h4>
+  <ul>
+    <li><strong>Day:</strong> 0.8x (calmer daytime conditions)</li>
+    <li><strong>Night:</strong> 1.2x (windier at night)</li>
+    <li><strong>Dawn/Dusk:</strong> 1.0x (transitional periods)</li>
+  </ul>
+
+  <h4>Random Variation</h4>
+  <ul>
+    <li><strong>Base Speed:</strong> 0.1 + (random × 0.3)</li>
+    <li><strong>Smoothing:</strong> Perlin-like smoothing for gradual changes</li>
+    <li><strong>Direction:</strong> Gradual direction changes (no sudden 180° flips)</li>
+    <li><strong>Gusts:</strong> Random gusting events in variable conditions</li>
+  </ul>
+
+  <h2>Wind Effects on Disc Flight</h2>
+
+  <h3>Physics Integration</h3>
+  <p>Wind affects disc flight through the trajectory calculation:</p>
+
+  <h4>Glide Phase Impact</h4>
+  <ul>
+    <li><strong>Stronger Effect:</strong> Wind affects gliding discs more than non-gliding</li>
+    <li><strong>Duration Factor:</strong> Longer glide = more wind exposure</li>
+    <li><strong>Effect Multiplier:</strong> 0.02 for glide stances, 0.005 for OVERHAND</li>
+  </ul>
+
+  <h4>Velocity Addition</h4>
+  <pre><code>// Wind effect calculation
+Vec3d vel = new Vec3d(velX, velY, velZ);
+double windEffect = hasGlide ? 0.02 : 0.005;
+vel = vel.add(windVelocity.multiply(windEffect));</code></pre>
+
+  <h3>Directional Effects</h3>
+
+  <h4>Headwind</h4>
+  <ul>
+    <li><strong>Effect:</strong> Increases lift, exaggerates fade</li>
+    <li><strong>Distance:</strong> Reduces total distance</li>
+    <li><strong>Strategy:</strong> Use lower-loft shots, more power</li>
+  </ul>
+
+  <h4>Tailwind</h4>
+  <ul>
+    <li><strong>Effect:</strong> Reduces lift, decreases fade</li>
+    <li><strong>Distance:</strong> Can increase distance with proper timing</li>
+    <li><strong>Strategy:</strong> Use higher-loft shots, anhyzer angles</li>
+  </ul>
+
+  <h4>Crosswind</h4>
+  <ul>
+    <li><strong>Effect:</strong> Pushes disc laterally</li>
+    <li><strong>Distance:</strong> Minimal distance impact</li>
+    <li><strong>Strategy:</strong> Aim into wind, use angle compensation</li>
+  </ul>
+
+  <h2>Wind Commands</h2>
+
+  <h3>Wind Control Commands</h3>
+  <CommandBlock 
+    command="/mcdg wind calm"
+    description="Set wind to calm mode (no wind)"
+  />
+  <CommandBlock 
+    command="/mcdg wind natural"
+    description="Enable natural wind generation"
+  />
+  <CommandBlock 
+    command="/mcdg wind fixed [speed] [direction]"
+    description="Set fixed wind at specified speed and direction"
+  />
+  <CommandBlock 
+    command="/mcdg wind status"
+    description="Show current wind conditions"
+  />
+
+  <h4>Command Parameters</h4>
+  <ul>
+    <li><strong>Speed:</strong> 0.0-1.0 (wind strength)</li>
+    <li><strong>Direction:</strong> 0-360 (compass degrees)</li>
+    <li><strong>Direction Reference:</strong> 0=N, 90=E, 180=S, 270=W</li>
+  </ul>
+
+  <h2>Round Wind Automation</h2>
+
+  <h3>Round Wind Policy</h3>
+  <ul>
+    <li><strong>Default:</strong> CALM wind for new rounds</li>
+    <li><strong>Consistency:</strong> Wind remains consistent throughout round</li>
+    <li><strong>Manual Override:</strong> Admins can change wind during round</li>
+    <li><strong>Tournament Mode:</strong> Special wind behavior for tournaments</li>
+  </ul>
+
+  <h3>Wind Service Integration</h3>
+  <ul>
+    <li><strong>Round Start:</strong> Wind mode set when round begins</li>
+    <li><strong>Hole Transitions:</strong> Wind persists between holes</li>
+    <li><strong>Round End:</strong> Wind resets to default after round completion</li>
+    <li><strong>Session Management:</strong> Wind state preserved in saved sessions</li>
+  </ul>
+
+  <h2>Tournament Wind System</h2>
+
+  <h3>Tournament Wind Modes</h3>
+  <ul>
+    <li><strong>Consistency:</strong> Same wind for all tournament participants</li>
+    <li><strong>Fairness:</strong> All players face identical wind conditions</li>
+    <li><strong>Pre-determined:</strong> Wind set before tournament begins</li>
+    <li><strong>Round Consistency:</strong> Wind remains same across tournament rounds</li>
+  </ul>
+
+  <h3>Tournament Wind Manager</h3>
+  <ul>
+    <li><strong>UUID Association:</strong> Wind linked to tournament ID</li>
+    <li><strong>Persistence:</strong> Tournament wind survives server restarts</li>
+    <li><strong>Cleanup:</strong> Tournament wind cleared when tournament ends</li>
+    <li><strong>Multiple Tournaments:</strong> Supports concurrent tournaments with different wind</li>
+  </ul>
+
+  <h2>Wind Display</h2>
+
+  <h3>HUD Integration</h3>
+  <ul>
+    <li><strong>Wind Indicator:</strong> Shows wind direction and speed on HUD</li>
+    <li><strong>Compass:</strong> Wind direction shown on compass overlay</li>
+    <li><strong>Speed Display:</strong> Numerical wind speed indicator</li>
+    <li><strong>Color Coding:</strong> Calm (green) to Extreme (red) color scale</li>
+  </ul>
+
+  <h3>Minimap Integration</h3>
+  <ul>
+    <li><strong>Wind Arrow:</strong> Arrow showing wind direction</li>
+    <li><strong>Intensity:</strong> Arrow size indicates wind strength</li>
+    <li><strong>Animation:</strong> Animated arrow for gusting conditions</li>
+    <li><strong>Position:</strong> Corner of minimap for visibility</li>
+  </ul>
+
+  <h2>Wind Strategy</h2>
+
+  <h3>Reading the Wind</h3>
+  <ul>
+    <li><strong>Check HUD:</strong> Always check wind indicator before throwing</li>
+    <li><strong>Assess Impact:</strong> Consider how wind will affect your shot</li>
+    <li><strong>Plan Compensation:</strong> Adjust aim and power for wind effect</li>
+    <li><strong>Monitor Changes:</strong> Watch for wind changes during round</li>
+  </ul>
+
+  <h3>Shot Adjustment</h3>
+
+  <h4>Headwind Adjustment</h4>
+  <ul>
+    <li><strong>Power:</strong> Increase power to maintain distance</li>
+    <li><strong>Angle:</strong> Use lower loft to reduce lift</li>
+    <li><strong>Stance:</strong> OVERHAND for more predictable flight</li>
+    <li><strong>Disc:</strong> Use more overstable discs</li>
+  </ul>
+
+  <h4>Tailwind Adjustment</h4>
+  <ul>
+    <li><strong>Power:</strong> Reduce power to prevent overshooting</li>
+    <li><strong>Angle:</strong> Use higher loft to maximize distance</li>
+    <li><strong>Stance:</strong> BACKHAND/FOREHAND for glide advantage</li>
+    <li><strong>Disc:</strong> Use understable discs for distance</li>
+  </ul>
+
+  <h4>Crosswind Adjustment</h4>
+  <ul>
+    <li><strong>Aim:</strong> Aim into wind to compensate for drift</li>
+    <li><strong>Angle:</strong> Use angle to curve with or against wind</li>
+    <li><strong>Power:</strong> Standard power, focus on accuracy</li>
+    <li><strong>Disc:</strong> Use stable discs for predictable response</li>
+  </ul>
+
+  <h3>Disc Selection for Wind</h3>
+
+  <h4>Windy Conditions</h4>
+  <ul>
+    <li><strong>Headwind:</strong> Overstable, high-speed discs</li>
+    <li><strong>Tailwind:</strong> Understable, high-glide discs</li>
+    <li><strong>Crosswind:</strong> Stable, predictable discs</li>
+    <li><strong>Variable:</strong> Versatile discs that handle changing conditions</li>
+  </ul>
+
+  <h4>Enchantment Help</h4>
+  <ul>
+    <li><strong>STABILITY:</strong> Reduces wind-induced fade</li>
+    <li><strong>Diamond/Netherite:</strong> Built-in wind resistance</li>
+    <li><strong>Range:</strong> Extra distance to fight headwinds</li>
+  </ul>
+
+  <h2>Advanced Wind Features</h2>
+
+  <h3>Gusting System</h3>
+  <ul>
+    <li><strong>Variable Conditions:</strong> Random gusting events</li>
+    <li><strong>Intensity:</strong> Gusts can temporarily increase wind speed</li>
+    <li><strong>Duration:</strong> Gusts last for limited time periods</li>
+    <li><strong>Warning:</strong> HUD indicates gusting conditions</li>
+  </ul>
+
+  <h3>Biome Wind Patterns</h3>
+  <ul>
+    <li><strong>Coastal:</strong> Consistent onshore/offshore patterns</li>
+    <li><strong>Mountain:</strong> Stronger winds at elevation</li>
+    <li><strong>Forest:</strong> Calmer conditions due to tree cover</li>
+    <li><strong>Open:</strong> More variable and stronger winds</li>
+  </ul>
+
+  <h3>Seasonal Variations</h3>
+  <ul>
+    <li><strong>Spring:</strong> Moderate winds, variable directions</li>
+    <li><strong>Summer:</strong> Generally calmer, thermal winds</li>
+    <li><strong>Autumn:</strong> Stronger winds, storm systems</li>
+    <li><strong>Winter:</strong> Cold fronts, strong gusty winds</li>
+  </ul>
+
+  <h2>Troubleshooting</h2>
+
+  <h3>Common Issues</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Issue</th>
+        <th>Solution</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Wind not updating</td>
+        <td>Check wind mode, verify natural generation, try manual set</td>
+      </tr>
+      <tr>
+        <td>Wind display incorrect</td>
+        <td>Check HUD settings, verify client sync, rejoin server</td>
+      </tr>
+      <tr>
+        <td>Wind effects too strong</td>
+        <td>Reduce wind speed, use calm mode for practice</td>
+      </tr>
+      <tr>
+        <td>Tournament wind inconsistent</td>
+        <td>Verify tournament mode, check wind manager settings</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Best Practices</h2>
+
+  <h3>For Players</h3>
+  <ul>
+    <li><strong>Check Wind:</strong> Always check wind before each throw</li>
+    <li><strong>Adapt:</strong> Adjust strategy based on wind conditions</li>
+    <li><strong>Practice:</strong> Practice in various wind conditions</li>
+    <li><strong>Patience:</strong> Wait for favorable conditions in extreme wind</li>
+  </ul>
+
+  <h3>For Server Admins</h3>
+  <ul>
+    <li><strong>Default Settings:</strong> Use calm mode for beginner-friendly servers</li>
+    <li><strong>Tournament Setup:</strong> Pre-set wind for consistent conditions</li>
+    <li><strong>Communication:</strong> Inform players of wind changes</li>
+    <li><strong>Testing:</strong> Test wind settings before events</li>
+  </ul>
+
+  <h2>Related Documentation</h2>
+  <ul>
+    <li><a href={`${baseUrl}features/physics`}>Physics System</a></li>
+    <li><a href={`${baseUrl}guide/gameplay`}>Gameplay Mechanics</a></li>
+    <li><a href={`${baseUrl}guide/biome-courses`}>Biome Course Guide</a></li>
+    <li><a href={`${baseUrl}guide/admin-commands`}>Admin Commands Reference</a></li>
+  </ul>
+</FeatureLayout>

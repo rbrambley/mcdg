@@ -1,6 +1,117 @@
 ---
+interface DiscTier {
+  name: string;
+  speed: number;
+  glide: number;
+  turn: number;
+  fade: number;
+  durability: number;
+  special?: string;
+}
+
+interface Props {
+  tiers: DiscTier[];
+}
+
+const { tiers } = Astro.props;
 ---
 
-<div class="placeholder-component">
-  <p><em>TierComparison component — interactive tier comparison table coming soon.</em></p>
+<div class="tier-comparison">
+  <h2>Disc Tier Comparison</h2>
+  <div class="comparison-table-wrapper">
+    <table class="comparison-table">
+      <thead>
+        <tr>
+          <th>Tier</th>
+          <th>Speed</th>
+          <th>Glide</th>
+          <th>Turn</th>
+          <th>Fade</th>
+          <th>Durability</th>
+          <th>Special</th>
+        </tr>
+      </thead>
+      <tbody>
+        {tiers.map((tier) => (
+          <tr class={`tier-row tier-${tier.name.toLowerCase()}`}>
+            <td class="tier-name">{tier.name}</td>
+            <td>{tier.speed}</td>
+            <td>{tier.glide}</td>
+            <td>{tier.turn}</td>
+            <td>{tier.fade}</td>
+            <td>{tier.durability}</td>
+            <td>{tier.special || '-'}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
 </div>
+
+<style>
+  .tier-comparison {
+    background-color: var(--color-background-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    padding: 2rem;
+    margin: 2rem 0;
+  }
+
+  .tier-comparison h2 {
+    color: var(--color-text-primary);
+    margin-bottom: 1.5rem;
+  }
+
+  .comparison-table-wrapper {
+    overflow-x: auto;
+  }
+
+  .comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .comparison-table th {
+    background-color: var(--color-background-tertiary);
+    color: var(--color-text-primary);
+    font-weight: 600;
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 2px solid var(--color-border);
+  }
+
+  .comparison-table td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+  }
+
+  .tier-row:hover {
+    background-color: var(--color-background-tertiary);
+  }
+
+  .tier-name {
+    font-weight: 600;
+    color: var(--color-text-primary);
+  }
+
+  .tier-training .tier-name { color: var(--tier-training); }
+  .tier-wooden .tier-name { color: var(--tier-wooden); }
+  .tier-stone .tier-name { color: var(--tier-stone); }
+  .tier-iron .tier-name { color: var(--tier-iron); }
+  .tier-gold .tier-name { color: var(--tier-gold); }
+  .tier-diamond .tier-name { color: var(--tier-diamond); }
+  .tier-netherite .tier-name { color: var(--tier-netherite); }
+
+  @media (max-width: 768px) {
+    .tier-comparison {
+      padding: 1rem;
+    }
+
+    .comparison-table th,
+    .comparison-table td {
+      padding: 0.75rem 0.5rem;
+      font-size: 0.875rem;
+    }
+  }
+</style>

@@ -1,34 +1,123 @@
 ---
-const year = new Date().getFullYear();
+const currentYear = new Date().getFullYear();
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
 ---
 
 <footer class="site-footer">
-  <div class="container footer-inner">
-    <p>&copy; {year} MCDG — Minecraft Disc Golf. All rights reserved.</p>
-    <p>
-      <a href="https://github.com/rbrambley/mcdg">GitHub Repository</a>
-    </p>
+  <div class="container footer-content">
+    <div class="footer-section">
+      <h3>MCDG</h3>
+      <p>Minecraft Disc Golf Modpack</p>
+      <p>A Fabric mod for Minecraft 1.20.6</p>
+    </div>
+
+    <div class="footer-section">
+      <h4>Quick Links</h4>
+      <ul class="footer-links">
+        <li><a href={`${baseUrl}guide/installation`}>Installation Guide</a></li>
+        <li><a href={`${baseUrl}guide/gameplay`}>Gameplay Guide</a></li>
+        <li><a href={`${baseUrl}guide/multiplayer`}>Multiplayer Guide</a></li>
+        <li><a href={`${baseUrl}features/physics`}>Physics System</a></li>
+      </ul>
+    </div>
+
+    <div class="footer-section">
+      <h4>Resources</h4>
+      <ul class="footer-links">
+        <li><a href={`${baseUrl}guide/crafting`}>Crafting & Recipes</a></li>
+        <li><a href={`${baseUrl}guide/stances-angles`}>Stances & Angles</a></li>
+        <li><a href={`${baseUrl}guide/cave-courses`}>Cave Courses</a></li>
+        <li><a href={`${baseUrl}guide/admin-commands`}>Admin Commands</a></li>
+      </ul>
+    </div>
+
+    <div class="footer-section">
+      <h4>Features</h4>
+      <ul class="footer-links">
+        <li><a href={`${baseUrl}features/stamina-xp`}>Stamina & XP</a></li>
+        <li><a href={`${baseUrl}features/round-rewards`}>Round Rewards</a></li>
+        <li><a href={`${baseUrl}progression/skill-unlocks`}>Skill Unlocks</a></li>
+        <li><a href={`${baseUrl}features/charge-enhancements`}>Charge Enhancements</a></li>
+      </ul>
+    </div>
+
+    <div class="footer-section">
+      <h4>Community</h4>
+      <ul class="footer-links">
+        <li><a href="https://github.com/rbrambley/mcdg" target="_blank" rel="noopener">GitHub</a></li>
+        <li><a href={`${baseUrl}guide/challenge-courses`}>Challenge Courses</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="footer-bottom">
+    <div class="container">
+      <p>&copy; {currentYear} MCDG. All rights reserved.</p>
+    </div>
   </div>
 </footer>
 
 <style>
   .site-footer {
-    border-top: 1px solid var(--border);
-    background: var(--bg-secondary);
-    padding: 2rem 1rem;
-    margin-top: auto;
+    background-color: var(--color-background-secondary);
+    border-top: 1px solid var(--color-border);
+    margin-top: 4rem;
   }
 
-  .footer-inner {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 1rem;
-    color: var(--text-secondary);
-    font-size: 0.9rem;
+  .footer-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 2rem;
+    padding: 3rem 1rem;
   }
 
-  .footer-inner p {
+  .footer-section h3,
+  .footer-section h4 {
+    color: var(--color-accent);
+    margin-bottom: 1rem;
+  }
+
+  .footer-section p {
+    color: var(--color-text-secondary);
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .footer-links {
+    list-style: none;
+  }
+
+  .footer-links li {
+    margin-bottom: 0.5rem;
+  }
+
+  .footer-links a {
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: color 0.2s ease;
+  }
+
+  .footer-links a:hover {
+    color: var(--color-accent);
+  }
+
+  .footer-bottom {
+    background-color: var(--color-background-tertiary);
+    padding: 1rem;
+    text-align: center;
+  }
+
+  .footer-bottom p {
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
     margin: 0;
+  }
+
+  @media (max-width: 768px) {
+    .footer-content {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
   }
 </style>

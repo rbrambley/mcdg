@@ -1,13 +1,84 @@
 ---
 interface Props {
   title: string;
-  href: string;
+  description: string;
+  icon?: string;
+  href?: string;
+  tier?: 'training' | 'wooden' | 'stone' | 'iron' | 'gold' | 'diamond' | 'netherite';
 }
 
-const { title, href } = Astro.props;
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+const { title, description, icon, href, tier } = Astro.props;
+const resolvedHref = href?.startsWith(baseUrl) ? href : (href?.startsWith('/') ? baseUrl + href.slice(1) : href);
 ---
 
-<a href={href} class="card feature-card">
-  <h3>{title}</h3>
-  <slot />
+<a href={resolvedHref || '#'} class="feature-card">
+  {icon && <div class="feature-icon">{icon}</div>}
+  <div class="feature-content">
+    <h3 class={`feature-title ${tier ? `tier-${tier}` : ''}`}>{title}</h3>
+    <p class="feature-description">{description}</p>
+  </div>
+  {tier && <div class={`feature-tier tier-${tier}`}>{tier}</div>}
 </a>
+
+<style>
+  .feature-card {
+    display: block;
+    background-color: var(--color-background-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .feature-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--color-accent);
+    box-shadow: 0 8px 25px rgba(0, 255, 136, 0.1);
+  }
+
+  .feature-icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+  }
+
+  .feature-content {
+    margin-bottom: 1rem;
+  }
+
+  .feature-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .feature-description {
+    color: var(--color-text-secondary);
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  .feature-tier {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--color-background);
+  }
+
+  .tier-training { background-color: var(--tier-training); }
+  .tier-wooden { background-color: var(--tier-wooden); }
+  .tier-stone { background-color: var(--tier-stone); }
+  .tier-iron { background-color: var(--tier-iron); }
+  .tier-gold { background-color: var(--tier-gold); }
+  .tier-diamond { background-color: var(--tier-diamond); }
+  .tier-netherite { background-color: var(--tier-netherite); color: white; }
+</style>

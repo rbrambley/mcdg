@@ -1,0 +1,336 @@
+---
+import FeatureLayout from '../../layouts/FeatureLayout.astro';
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+---
+
+<FeatureLayout 
+  title="Charge Enhancements"
+  featureName="Advanced Throw Charging System"
+  description="Slower charge rate, 125% overcharge zone, power lock feature, audio cues, and distance markers for precise throw control."
+>
+  <h1>Charge Enhancements</h1>
+  
+  <p>MCDG's charge enhancement system provides advanced throw control with slower charging, overcharge capabilities, power locking, audio feedback, and distance estimation. These features give players precise control over throw power and timing.</p>
+
+  <h2>Charge System Overview</h2>
+
+  <h3>Enhanced Charging</h3>
+  <ul>
+    <li><strong>Slower Rate:</strong> 120 ticks (2 seconds) for full charge instead of 1 second</li>
+    <li><strong>Overcharge Zone:</strong> 125% max power with extended charging</li>
+    <li><strong>Power Lock:</strong> Lock charge at desired level for aiming</li>
+    <li><strong>Audio Cues:</strong> Sound feedback at charge thresholds</li>
+    <li><strong>Distance Markers:</strong> HUD shows estimated throw distance</li>
+  </ul>
+
+  <h3>Charge Mechanics</h3>
+  <ul>
+    <li><strong>Base Charging:</strong> Standard 0-100% charge range</li>
+    <li><strong>Overcharge:</strong> Extended 100-125% charge range</li>
+    <li><strong>Stamina Cost:</strong> Overcharge consumes stamina</li>
+    <li><strong>Power Scaling:</strong> Throw power scales with charge percentage</li>
+  </ul>
+
+  <h2>Slower Charge Rate</h2>
+
+  <h3>Timing Changes</h3>
+  <ul>
+    <li><strong>Old Rate:</strong> 1 second for full charge</li>
+    <li><strong>New Rate:</strong> 2 seconds for full charge</li>
+    <li><strong>Purpose:</strong> More precise control over throw power</li>
+    <li><strong>Benefit:</strong> Easier to hit specific power levels</li>
+  </ul>
+
+  <h3>Strategic Impact</h3>
+  <ul>
+    <li><strong>Precision:</strong> More time to select exact power level</li>
+    <li><strong>Timing:</strong> Requires better timing for optimal release</li>
+    <li><strong>Control:</strong> Reduces accidental overcharging</li>
+    <li><strong>Skill Development:</strong> Encourages precise charging</li>
+  </ul>
+
+  <h2>Overcharge Zone</h2>
+
+  <h3>Extended Power</h3>
+  <ul>
+    <li><strong>125% Max:</strong> Overcharge extends beyond 100% to 125%</li>
+    <li><strong>Additional Power:</strong> 25% extra power for maximum distance</li>
+    <li><strong>Stamina Cost:</strong> Overcharge consumes stamina per tick</li>
+    <li><strong>Risk/Reward:</strong> More power at cost of stamina</li>
+  </ul>
+
+  <h3>Overcharge Mechanics</h3>
+
+  <h4>Activation</h4>
+  <ul>
+    <li><strong>Trigger:</strong> Continue charging past 100%</li>
+    <li><strong>Visual:</strong> HUD color change indicates overcharge zone</li>
+    <li><strong>Audio:</strong> Distinct sound when entering overcharge</li>
+    <li><strong>Stamina:</strong> Stamina bar shows drain rate</li>
+  </ul>
+
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Distance:</strong> Significantly increased throw distance</li>
+    <li><strong>Stamina:</strong> Continuous stamina consumption</li>
+    <li><strong>Accuracy:</strong> Reduced accuracy due to power</li>
+    <li><strong>Recovery:</strong> Requires stamina regeneration after use</li>
+  </ul>
+
+  <h3>Overcharge Strategy</h3>
+
+  <h4>When to Use</h4>
+  <ul>
+    <li><strong>Maximum Distance:</strong> When needing absolute maximum distance</li>
+    <li><strong>Emergency:</strong> When standard power insufficient</li>
+    <li><strong>Downhill:</strong> When downhill assists distance</li>
+    <li><strong>Tailwind:</strong> When wind assists distance</li>
+  </ul>
+
+  <h4>When to Avoid</h4>
+  <ul>
+    <li><strong>Precision Shots:</strong> When accuracy is critical</li>
+    <li><strong>Low Stamina:</strong> When stamina reserves are low</li>
+    <li><strong>Short Holes:</strong> When overcharge is unnecessary</li>
+    <li><strong>Combat Risk:</strong> When combat may be needed</li>
+  </ul>
+
+  <h2>Power Lock Feature</h2>
+
+  <h3>Lock Mechanism</h3>
+  <ul>
+    <li><strong>Keybind:</strong> F key (default) to lock/unlock charge</li>
+    <li><strong>Function:</strong> Locks charge at current level</li>
+    <li><strong>Benefit:</strong> Allows aiming without losing charge</li>
+    <li><strong>Release:</strong> Throw while locked releases at locked power</li>
+  </ul>
+
+  <h3>Power Lock Usage</h3>
+
+  <h4>Basic Locking</h4>
+  <ul>
+    <li><strong>Charge to Desired Level:</strong> Hold right-click to charge</li>
+    <li><strong>Press F:</strong> Lock charge at current level</li>
+    <li><strong>Aim:</strong> Adjust aim while charge is locked</li>
+    <li><strong>Release:</strong> Release right-click to throw</li>
+  </ul>
+
+  <h4>Advanced Locking</h4>
+  <ul>
+    <li><strong>Micro-Adjustments:</strong> Lock at power, fine-tune aim</li>
+    <li><strong>Wind Adaptation:</strong> Lock power, adjust for wind</li>
+    <li><strong>Obstacle Aiming:</strong> Lock power, aim around obstacles</li>
+    <li><strong>Multi-Target:</strong> Lock power, aim at different targets</li>
+  </ul>
+
+  <h3>Power Lock Strategy</h3>
+
+  <h4>Precision Throws</h4>
+  <ul>
+    <li><strong>Approach Shots:</strong> Lock precise power for accuracy</li>
+    <li><strong>Putting:</strong> Lock consistent power for putting</li>
+    <li><strong>Obstacle Navigation:</strong> Lock power, focus on aim</li>
+  </ul>
+
+  <h4>Power Management</h4>
+  <ul>
+    <li><strong>Consistency:</strong> Lock same power for repeated shots</li>
+    <li><strong>Distance Control:</strong> Lock specific power for target distance</li>
+    <li><strong>Wind Compensation:</strong> Lock power, adjust aim for wind</li>
+  </ul>
+
+  <h2>Audio Cues</h2>
+
+  <h3>Charge Thresholds</h3>
+  <ul>
+    <li><strong>25%:</strong> Low charge audio cue</li>
+    <li><strong>50%:</strong> Medium charge audio cue</li>
+    <li><strong>75%:</strong> High charge audio cue</li>
+    <li><strong>100%:</strong> Full charge audio cue</li>
+    <li><strong>Overcharge:</strong> Distinct overcharge sound</li>
+  </ul>
+
+  <h3>Audio Feedback</h3>
+
+  <h4>Sound Design</h4>
+  <ul>
+    <li><strong>Progressive:</strong> Sounds increase in pitch/intensity</li>
+    <li><strong>Distinct:</strong> Each threshold has unique sound</li>
+    <li><strong>Overcharge:</strong> Warning sound for overcharge zone</li>
+    <li><strong>Lock:</strong> Confirmation sound when power locked</li>
+  </ul>
+
+  <h4>Audio Strategy</h4>
+  <ul>
+    <li><strong>Power Estimation:</strong> Learn to estimate power by sound</li>
+    <li><strong>Timing:</strong> Use audio cues for precise timing</li>
+    <li><strong>Overcharge Warning:</strong> Respond to overcharge audio</li>
+    <li><strong>Lock Confirmation:</strong> Verify lock with audio feedback</li>
+  </ul>
+
+  <h2>Distance Markers</h2>
+
+  <h3>HUD Integration</h3>
+  <ul>
+    <li><strong>Display:</strong> Shows estimated throw distance on HUD</li>
+    <li><strong>Real-time:</strong> Updates as charge increases</li>
+    <li><strong>Accuracy:</strong> Based on current charge and conditions</li>
+    <li><strong>Visual:</strong> Distance shown near power meter</li>
+  </ul>
+
+  <h3>Distance Calculation</h3>
+
+  <h4>Factors</h4>
+  <ul>
+    <li><strong>Charge Level:</strong> Current charge percentage</li>
+    <li><strong>Stance:</strong> Throw stance affects distance</li>
+    <li><strong>Disc Stats:</strong> Disc tier and enchantments</li>
+    <li><strong>Conditions:</strong> Wind, elevation, and terrain</li>
+  </ul>
+
+  <h4>Accuracy</h4>
+  <ul>
+    <li><strong>Estimation:</strong> Provides estimated distance range</li>
+    <li><strong>Conditions:</strong> Accounts for major factors</li>
+    <li><strong>Variation:</strong> Actual distance may vary slightly</li>
+    <li><strong>Learning:</strong> Helps learn distance relationships</li>
+  </ul>
+
+  <h3>Distance Strategy</h3>
+
+  <h4>Target Distance</h4>
+  <ul>
+    <li><strong>Distance Matching:</strong> Match marker to target distance</li>
+    <li><strong>Power Selection:</strong> Use marker for power decisions</li>
+    <li><strong>Course Planning:</strong> Plan shots using distance estimates</li>
+  </ul>
+
+  <h4>Learning Tool</h4>
+  <ul>
+    <li><strong>Power-Distance:</strong> Learn power-distance relationships</li>
+    <li><strong>Stance Effects:</strong> Compare distances across stances</li>
+    <li><strong>Disc Performance:</strong> Test different disc performances</li>
+  </ul>
+
+  <h2>HUD Enhancements</h2>
+
+  <h3>Power Meter</h3>
+  <ul>
+    <li><strong>Visual Display:</strong> Shows current charge level</li>
+    <li><strong>Color Coding:</strong> Changes color at thresholds</li>
+    <li><strong>Overcharge Indicator:</strong> Special color for overcharge zone</li>
+    <li><strong>Lock Indicator:</strong> Shows when power is locked</li>
+  </ul>
+
+  <h3>Enhanced Styling</h3>
+  <ul>
+    <li><strong>Color Changes:</strong> Color changes at charge thresholds</li>
+    <li><strong>Percentage Text:</strong> Shows exact charge percentage</li>
+    <li><strong>LOCKED Indicator:</strong> Text indicator when power locked</li>
+    <li><strong>Distance Display:</strong> Shows estimated throw distance</li>
+  </ul>
+
+  <h2>Advanced Techniques</h2>
+
+  <h3>Charge Mastery</h3>
+
+  <h4>Precision Charging</h4>
+  <ul>
+    <li><strong>Target Charging:</strong> Charge to specific percentage</li>
+    <li><strong>Audio Timing:</strong> Use audio cues for precision</li>
+    <li><strong>Visual Confirmation:</strong> Verify with HUD display</li>
+    <li><strong>Consistency:</strong> Develop consistent charging habits</li>
+  </ul>
+
+  <h4>Overcharge Control</h4>
+  <ul>
+    <li><strong>Stamina Management:</strong> Balance overcharge with stamina</li>
+    <li><strong>Strategic Use:</strong> Use overcharge only when needed</li>
+    <li><strong>Recovery Planning:</strong> Plan stamina recovery after overcharge</li>
+    <li><strong>Risk Assessment:</strong> Weigh benefits vs. stamina cost</li>
+  </ul>
+
+  <h3>Power Lock Mastery</h3>
+
+  <h4>Lock Timing</h4>
+  <ul>
+    <li><strong>Early Lock:</strong> Lock early for aiming time</li>
+    <li><strong>Late Lock:</strong> Lock late for precision</li>
+    <li><strong>Unlock and Relock:</strong> Adjust locked power as needed</li>
+    <li><strong>Release Timing:</strong> Time release for optimal accuracy</li>
+  </ul>
+
+  <h4>Lock Strategy</h4>
+  <ul>
+    <li><strong>Approach Lock:</strong> Lock for precise approach shots</li>
+    <li><strong>Putting Lock:</strong> Lock consistent power for putting</li>
+    <li><strong>Wind Lock:</strong> Lock power, adjust aim for wind</li>
+    <li><strong>Obstacle Lock:</strong> Lock power, focus on obstacle navigation</li>
+  </ul>
+
+  <h2>Configuration</h2>
+
+  <h3>Keybind Settings</h3>
+  <ul>
+    <li><strong>Power Lock:</strong> F key (default, configurable)</li>
+    <li><strong>Charge:</strong> Right-click (default, configurable)</li>
+    <li><strong>Cancel:</strong> Left-click to cancel charge</li>
+  </ul>
+
+  <h3>Audio Settings</h3>
+  <ul>
+    <li><strong>Volume:</strong> Charge cue volume</li>
+    <li><strong>Enabled/Disabled:</strong> Toggle audio cues</li>
+    <li><strong>Sound Selection:</strong> Choose from available sounds</li>
+  </ul>
+
+  <h3>HUD Settings</h3>
+  <ul>
+    <li><strong>Position:</strong> Customize HUD element positioning</li>
+    <li><strong>Distance Display:</strong> Toggle distance markers</li>
+    <li><strong>Color Scheme:</strong> Customize color coding</li>
+    <li><strong>Text Size:</strong> Adjust text display size</li>
+  </ul>
+
+  <h2>Troubleshooting</h2>
+
+  <h3>Common Issues</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Issue</th>
+        <th>Solution</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Charge too fast</td>
+        <td>Check server charge rate settings, practice timing</td>
+      </tr>
+      <tr>
+        <td>Overcharge not working</td>
+        <td>Verify stamina system enabled, check overcharge settings</td>
+      </tr>
+      <tr>
+        <td>Power lock not working</td>
+        <td>Check keybind settings, verify F key not conflicting</td>
+      </tr>
+      <tr>
+        <td>Audio cues not playing</td>
+        <td>Check audio settings, verify sound system enabled</td>
+      </tr>
+      <tr>
+        <td>Distance markers inaccurate</td>
+        <td>Check disc stats, verify conditions, markers are estimates</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Related Documentation</h2>
+  <ul>
+    <li><a href={`${baseUrl}guide/gameplay`}>Gameplay Mechanics</a></li>
+    <li><a href={`${baseUrl}features/physics`}>Physics System</a></li>
+    <li><a href={`${baseUrl}features/stamina-xp`}>Stamina & XP System</a></li>
+    <li><a href={`${baseUrl}guide/stances-angles`}>Stances & Angles Guide</a></li>
+  </ul>
+</FeatureLayout>

@@ -1,0 +1,355 @@
+---
+import GuideLayout from '../../layouts/GuideLayout.astro';
+import CommandBlock from '../../components/content/CommandBlock.astro';
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+---
+
+<GuideLayout 
+  title="Multiplayer Guide"
+  guideType="multiplayer"
+>
+  <h1>Multiplayer Guide</h1>
+  
+  <p>MCDG supports full multiplayer gameplay with stroke-play rounds, live leaderboards, turn management, and scoring systems. This guide covers setting up and playing multiplayer disc golf rounds.</p>
+
+  <h2>Server Requirements</h2>
+  
+  <h3>Hardware Requirements</h3>
+  
+  <h4>Minimum (2-4 players)</h4>
+  <ul>
+    <li><strong>CPU:</strong> 2 cores, 2.4 GHz+</li>
+    <li><strong>RAM:</strong> 4 GB allocated to server</li>
+    <li><strong>Storage:</strong> 10 GB SSD</li>
+    <li><strong>Network:</strong> 10 Mbps upload</li>
+  </ul>
+
+  <h4>Recommended (5-10 players)</h4>
+  <ul>
+    <li><strong>CPU:</strong> 4 cores, 3.0 GHz+</li>
+    <li><strong>RAM:</strong> 8 GB allocated to server</li>
+    <li><strong>Storage:</strong> 20 GB SSD</li>
+    <li><strong>Network:</strong> 25 Mbps upload</li>
+  </ul>
+
+  <h4>High Performance (10+ players)</h4>
+  <ul>
+    <li><strong>CPU:</strong> 6+ cores, 3.5 GHz+</li>
+    <li><strong>RAM:</strong> 16 GB allocated to server</li>
+    <li><strong>Storage:</strong> 50 GB SSD (NVMe preferred)</li>
+    <li><strong>Network:</strong> 50+ Mbps upload</li>
+  </ul>
+
+  <h3>Software Requirements</h3>
+  <ul>
+    <li><strong>Java 21</strong> (JDK or JRE)</li>
+    <li><strong>Minecraft Server 1.20.6</strong></li>
+    <li><strong>Fabric Loader 0.19.3</strong></li>
+    <li><strong>MCDG Mod</strong> (same version as clients)</li>
+  </ul>
+
+  <h2>Server Setup</h2>
+
+  <h3>Basic Server Configuration</h3>
+  <p>Edit <code>server.properties</code>:</p>
+  <pre><code># Basic Settings
+server-name=MCDG Disc Golf Server
+motd=Welcome to MCDG Disc Golf Server!
+max-players=20
+difficulty=peaceful
+gamemode=survival
+hardcore=false
+
+# Network Settings
+server-port=25565
+server-ip=
+pvp=false
+enable-query=false
+enable-rcon=false
+
+# Performance Settings
+view-distance=10
+simulation-distance=10
+max-tick-time=60000
+
+# Player Settings
+white-list=false
+enforce-whitelist=false
+spawn-protection=0
+spawn-monsters=false
+spawn-animals=true
+spawn-npcs=true</code></pre>
+
+  <h3>Performance Optimization</h3>
+  <p>Add to server startup flags:</p>
+  <pre><code>java -Xms4G -Xmx8G \
+  -XX:+UseG1GC \
+  -XX:+ParallelRefProcEnabled \
+  -XX:MaxGCPauseMillis=200 \
+  -XX:+UnlockExperimentalVMOptions \
+  -XX:+DisableExplicitGC \
+  -XX:+AlwaysPreTouch \
+  -XX:G1NewSizePercent=30 \
+  -XX:G1MaxNewSizePercent=40 \
+  -XX:G1HeapRegionSize=8M \
+  -XX:G1ReservePercent=20 \
+  -XX:G1HeapWastePercent=5 \
+  -XX:G1MixedGCCountTarget=4 \
+  -XX:InitiatingHeapOccupancyPercent=15 \
+  -XX:G1MixedGCLiveThresholdPercent=90 \
+  -XX:G1RSetUpdatingPauseTimePercent=5 \
+  -XX:SurvivorRatio=32 \
+  -XX:+PerfDisableSharedMem \
+  -XX:MaxTenuringThreshold=1 \
+  -Dusing.aikars.flags=https://mcflags.emc.gs \
+  -Daikars.new.flags=true \
+  -jar fabric-server-launcher.jar nogui</code></pre>
+
+  <h3>Network Configuration</h3>
+  
+  <h4>Firewall Setup</h4>
+  <CommandBlock 
+    command="sudo ufw allow 25565/tcp && sudo ufw reload"
+    description="Ubuntu/Debian (ufw)"
+  />
+  <CommandBlock 
+    command="sudo firewall-cmd --permanent --add-port=25565/tcp && sudo firewall-cmd --reload"
+    description="CentOS/RHEL (firewalld)"
+  />
+
+  <h4>Port Forwarding (Home Hosting)</h4>
+  <ul>
+    <li>Forward external port 25565 to internal server IP</li>
+    <li>Configure router with static IP for server</li>
+    <li>Consider using DDNS for dynamic IP</li>
+  </ul>
+
+  <h2>Starting a Multiplayer Round</h2>
+
+  <h3>Admin Setup</h3>
+  <ol>
+    <li>Join the server and press <strong>G</strong> to open the menu</li>
+    <li><strong>Build a course:</strong>
+      <ul>
+        <li>Menu → <strong>Auto Build Course</strong> → type a name and press Enter</li>
+        <li>Or: Menu → <strong>Manual Build Course</strong> for seed-based generation</li>
+      </ul>
+    </li>
+    <li><strong>Start a round:</strong>
+      <ul>
+        <li>Menu → Admin → <strong>Start Round</strong></li>
+        <li>Select the course and ruleset</li>
+        <li>Set round options (hole count, rules, etc.)</li>
+      </ul>
+    </li>
+  </ol>
+
+  <h3>Player Joining</h3>
+  <ol>
+    <li>Players join the server with the MCDG mod installed</li>
+    <li>Press <strong>G</strong> to open the menu</li>
+    <li>Select <strong>Join Round</strong></li>
+    <li>Wait for the round to start</li>
+  </ol>
+
+  <h2>Round Gameplay</h2>
+
+  <h3>Turn Management</h3>
+  <ul>
+    <li><strong>Turn Order:</strong> Players take turns based on the leaderboard</li>
+    <li><strong>Timeout:</strong> Each player has a time limit per throw (configurable)</li>
+    <li><strong>Skip Turn:</strong> Players can skip their turn if needed</li>
+    <li><strong>Turn Rotation:</strong> Order rotates after each hole</li>
+  </ul>
+
+  <h3>Live Leaderboard</h3>
+  <ul>
+    <li><strong>Real-time Updates:</strong> Scores update automatically after each hole</li>
+    <li><strong>Stroke Count:</strong> Shows total strokes and relative to par</li>
+    <li><strong>Position:</strong> Current ranking in the round</li>
+    <li><strong>Hole Progress:</strong> Shows which hole each player is on</li>
+  </ul>
+
+  <h3>Scoring System</h3>
+  <ul>
+    <li><strong>Stroke Play:</strong> Total strokes across all holes</li>
+    <li><strong>Par Comparison:</strong> Shows +/− relative to par</li>
+    <li><strong>Hole Scores:</strong> Individual hole scores recorded</li>
+    <li><strong>Round Total:</strong> Cumulative score for the round</li>
+  </ul>
+
+  <h2>Round Commands</h2>
+
+  <h3>Player Commands</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Command</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>/mcdg joinround</code></td>
+        <td>Join the current active round</td>
+      </tr>
+      <tr>
+        <td><code>/mcdg leaveround</code></td>
+        <td>Leave the current round</td>
+      </tr>
+      <tr>
+        <td><code>/mcdg gotolie</code></td>
+        <td>Teleport to your lie marker</td>
+      </tr>
+      <tr>
+        <td><code>/mcdg leaderboard</code></td>
+        <td>View the current leaderboard</td>
+      </tr>
+      <tr>
+        <td><code>/mcdg saveandleave</code></td>
+        <td>Save progress and leave the round</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Admin Commands</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Command</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>/mcdg startround</code></td>
+        <td>Start a new round</td>
+      </tr>
+      <tr>
+        <td><code>/mcdg endround</code></td>
+        <td>End the current round</td>
+      </tr>
+      <tr>
+        <td><code>/mcdg joinround [player]</code></td>
+        <td>Force a player to join the round</td>
+      </tr>
+      <tr>
+        <td><code>/mcdg kickround [player]</code></td>
+        <td>Remove a player from the round</td>
+      </tr>
+      <tr>
+        <td><code>/mcdg roundstatus</code></td>
+        <td>Check current round status</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Rulesets</h2>
+
+  <h3>Casual Ruleset</h3>
+  <ul>
+    <li>Forgiving surface interactions</li>
+    <li>No strict landing enforcement</li>
+    <li>Generous out-of-bounds rules</li>
+    <li>Relaxed turn timers</li>
+    <li>Best for casual play and learning</li>
+  </ul>
+
+  <h3>Strict Ruleset</h3>
+  <ul>
+    <li>Accurate surface physics</li>
+    <li>Strict landing enforcement</li>
+    <li>Standard out-of-bounds penalties</li>
+    <li>Standard turn timers</li>
+    <li>Best for competitive play</li>
+  </ul>
+
+  <h3>Tournament Ruleset</h3>
+  <ul>
+    <li>Tournament surface settings</li>
+    <li>Strictest landing enforcement</li>
+    <li>Professional out-of-bounds rules</li>
+    <li>Strict turn timers with penalties</li>
+    <li>Best for official tournaments</li>
+  </ul>
+
+  <h2>Troubleshooting</h2>
+
+  <h3>Common Issues</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Issue</th>
+        <th>Solution</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Players can't join round</td>
+        <td>Ensure round is in REGISTERING status, check OP permissions</td>
+      </tr>
+      <tr>
+        <td>Desync from lie marker</td>
+        <td>Use <code>/mcdg gotolie</code> or Menu → Go to Lie</td>
+      </tr>
+      <tr>
+        <td>Turn timer not working</td>
+        <td>Check server performance, verify timer settings in config</td>
+      </tr>
+      <tr>
+        <td>Leaderboard not updating</td>
+        <td>Check network connection, verify round is still active</td>
+      </tr>
+      <tr>
+        <td>Course not visible to players</td>
+        <td>Ensure course is built and active, check player permissions</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Best Practices</h2>
+
+  <h3>For Server Admins</h3>
+  <ul>
+    <li>Test courses before starting multiplayer rounds</li>
+    <li>Use appropriate rulesets for your player skill level</li>
+    <li>Monitor server performance during rounds</li>
+    <li>Keep backup of course configurations</li>
+    <li>Communicate clearly with players about round settings</li>
+  </ul>
+
+  <h3>For Players</h3>
+  <ul>
+    <li>Join rounds on time to avoid delaying start</li>
+    <li>Be ready when your turn comes up</li>
+    <li>Use <code>gotolie</code> if you get desynced</li>
+    <li>Save progress if you need to leave early</li>
+    <li>Be respectful of other players' time</li>
+  </ul>
+
+  <h2>Advanced Features</h2>
+
+  <h3>Session Persistence</h3>
+  <ul>
+    <li>Rounds can be saved and resumed later</li>
+    <li>Player progress is preserved across server restarts</li>
+    <li>Use <code>saveandleave</code> to safely exit</li>
+    <li>Admins can resume saved rounds with <code>resumecourse</code></li>
+  </ul>
+
+  <h3>Spectator Mode</h3>
+  <ul>
+    <li>Non-participants can view live leaderboards</li>
+    <li>Spectators can see hole progress and scores</li>
+    <li>Useful for tournaments and events</li>
+    <li>No impact on active gameplay</li>
+  </ul>
+
+  <h2>Related Documentation</h2>
+  <ul>
+    <li><a href={`${baseUrl}guide/admin-commands`}>Admin Commands Reference</a></li>
+    <li><a href={`${baseUrl}guide/gameplay`}>Gameplay Mechanics</a></li>
+    <li><a href={`${baseUrl}admin/server-setup`}>Server Setup Guide</a></li>
+    <li><a href={`${baseUrl}admin/permissions`}>Permission System</a></li>
+  </ul>
+</GuideLayout>

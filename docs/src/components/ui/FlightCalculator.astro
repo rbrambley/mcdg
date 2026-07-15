@@ -1,6 +1,371 @@
 ---
+interface DiscTier {
+  name: string;
+  speed: number;
+  glide: number;
+  turn: number;
+  fade: number;
+  velocity: number;
+  throwSpeedMultiplier: number;
+}
+
+const discTiers: DiscTier[] = [
+  { name: 'Training', speed: 3, glide: 4, turn: 0, fade: 1, velocity: 2.30, throwSpeedMultiplier: 1.0 },
+  { name: 'Wooden', speed: 4, glide: 3, turn: -1, fade: 1, velocity: 2.30, throwSpeedMultiplier: 1.0 },
+  { name: 'Stone', speed: 5, glide: 3, turn: 0, fade: 1, velocity: 2.30, throwSpeedMultiplier: 1.0 },
+  { name: 'Iron', speed: 6, glide: 4, turn: 0, fade: 2, velocity: 2.30, throwSpeedMultiplier: 1.0 },
+  { name: 'Gold', speed: 7, glide: 5, turn: -1, fade: 1, velocity: 2.53, throwSpeedMultiplier: 1.1 },
+  { name: 'Diamond', speed: 9, glide: 6, turn: 0, fade: 3, velocity: 2.30, throwSpeedMultiplier: 1.0 },
+  { name: 'Netherite', speed: 11, glide: 7, turn: 1, fade: 4, velocity: 2.30, throwSpeedMultiplier: 1.0 },
+];
+
+const stances = ['OVERHAND', 'BACKHAND', 'FOREHAND'];
+const angles = ['HYZER', 'FLAT', 'ANHYZER'];
 ---
 
-<div class="placeholder-component">
-  <p><em>FlightCalculator component — interactive disc flight calculator coming soon.</em></p>
+<div class="flight-calculator">
+  <h2>Disc Flight Calculator</h2>
+  <p class="calculator-description">Calculate theoretical maximum disc flight distances based on disc tier, stance, and release angle.</p>
+
+  <div class="calculator-controls">
+    <div class="control-group">
+      <label for="disc-tier">Disc Tier</label>
+      <select id="disc-tier" class="select">
+        {discTiers.map((tier) => (
+          <option value={tier.name}>{tier.name}</option>
+        ))}
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label for="stance">Throw Stance</label>
+      <select id="stance" class="select">
+        {stances.map((stance) => (
+          <option value={stance}>{stance}</option>
+        ))}
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label for="angle">Release Angle</label>
+      <select id="angle" class="select">
+        {angles.map((angle) => (
+          <option value={angle}>{angle}</option>
+        ))}
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label for="power">Power (%)</label>
+      <input 
+        type="range" 
+        id="power" 
+        class="input" 
+        min="0" 
+        max="100" 
+        value="100"
+      />
+      <span id="power-value">100%</span>
+    </div>
+
+    <div class="control-group">
+      <label for="wind">Wind Speed</label>
+      <select id="wind" class="select">
+        <option value="0">Calm (0.0)</option>
+        <option value="0.2">Light Breeze (0.2)</option>
+        <option value="0.4">Moderate (0.4)</option>
+        <option value="0.6">Strong (0.6)</option>
+        <option value="0.8">Very Strong (0.8)</option>
+        <option value="1.0">Extreme (1.0)</option>
+      </select>
+    </div>
+
+    <button id="calculate-btn" class="button button-primary">Calculate Distance</button>
+  </div>
+
+  <div class="calculator-results">
+    <div class="result-card">
+      <h3>Results</h3>
+      <div class="result-item">
+        <span class="result-label">Estimated Distance:</span>
+        <span id="result-distance" class="result-value">--</span>
+      </div>
+      <div class="result-item">
+        <span class="result-label">Flight Time:</span>
+        <span id="result-time" class="result-value">--</span>
+      </div>
+      <div class="result-item">
+        <span class="result-label">Max Height:</span>
+        <span id="result-height" class="result-value">--</span>
+      </div>
+    </div>
+
+    <div class="result-card">
+      <h3>Disc Stats</h3>
+      <div id="disc-stats" class="disc-stats-display">
+        <div class="stat-row">
+          <span class="stat-label">Speed:</span>
+          <span id="stat-speed" class="stat-value">--</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Glide:</span>
+          <span id="stat-glide" class="stat-value">--</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Turn:</span>
+          <span id="stat-turn" class="stat-value">--</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Fade:</span>
+          <span id="stat-fade" class="stat-value">--</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="calculator-notes">
+    <h4>Notes</h4>
+    <ul>
+      <li>Calculations are theoretical maximums under ideal conditions</li>
+      <li>Real distances will vary based on terrain, obstacles, and player skill</li>
+      <li>Wind effects are simplified and may not match in-game behavior exactly</li>
+      <li>OVERHAND stance has no glide phase, BACKHAND/FOREHAND have extended glide</li>
+    </ul>
+  </div>
 </div>
+
+<style>
+  .flight-calculator {
+    background-color: var(--color-background-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    padding: 2rem;
+    margin: 2rem 0;
+  }
+
+  .flight-calculator h2 {
+    color: var(--color-text-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .calculator-description {
+    color: var(--color-text-secondary);
+    margin-bottom: 2rem;
+  }
+
+  .calculator-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .control-group label {
+    color: var(--color-text-primary);
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+  }
+
+  .control-group .select,
+  .control-group .input {
+    flex: 1;
+  }
+
+  #power-value {
+    color: var(--color-accent);
+    font-weight: 600;
+    margin-top: 0.25rem;
+  }
+
+  #calculate-btn {
+    grid-column: 1 / -1;
+    margin-top: 1rem;
+  }
+
+  .calculator-results {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .result-card {
+    background-color: var(--color-background-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+  }
+
+  .result-card h3 {
+    color: var(--color-accent);
+    margin-bottom: 1rem;
+  }
+
+  .result-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .result-item:last-child {
+    border-bottom: none;
+  }
+
+  .result-label {
+    color: var(--color-text-secondary);
+  }
+
+  .result-value {
+    color: var(--color-text-primary);
+    font-weight: 600;
+  }
+
+  .disc-stats-display {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .stat-label {
+    color: var(--color-text-secondary);
+  }
+
+  .stat-value {
+    color: var(--color-text-primary);
+    font-weight: 600;
+  }
+
+  .calculator-notes {
+    background-color: var(--color-background-tertiary);
+    border-left: 3px solid var(--color-accent);
+    padding: 1rem;
+    border-radius: 0.25rem;
+  }
+
+  .calculator-notes h4 {
+    color: var(--color-text-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .calculator-notes ul {
+    color: var(--color-text-secondary);
+    font-size: 0.875rem;
+    padding-left: 1.5rem;
+  }
+
+  .calculator-notes li {
+    margin-bottom: 0.25rem;
+  }
+
+  @media (max-width: 768px) {
+    .flight-calculator {
+      padding: 1rem;
+    }
+
+    .calculator-controls {
+      grid-template-columns: 1fr;
+    }
+
+    .calculator-results {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script is:inline define:vars={{ discTiers }}>
+  const discData = discTiers;
+
+  function calculateDistance() {
+    const tier = document.getElementById('disc-tier').value;
+    const stance = document.getElementById('stance').value;
+    const angle = document.getElementById('angle').value;
+    const power = parseInt(document.getElementById('power').value) / 100;
+    const wind = parseFloat(document.getElementById('wind').value);
+
+    const disc = discData.find(d => d.name === tier);
+    if (!disc) return;
+
+    // Update disc stats display
+    document.getElementById('stat-speed').textContent = disc.speed;
+    document.getElementById('stat-glide').textContent = disc.glide;
+    document.getElementById('stat-turn').textContent = disc.turn;
+    document.getElementById('stat-fade').textContent = disc.fade;
+
+    // Physics constants (simplified from actual game code)
+    const MIN_VELOCITY = 0.7;
+    const VELOCITY_SPAN = 1.6;
+    const GRAVITY = 0.08;
+    const RELEASE_HEIGHT_OFFSET = 1.5;
+
+    // Calculate initial velocity
+    const baseVelocity = MIN_VELOCITY + (VELOCITY_SPAN * power);
+    const velocity = baseVelocity * disc.throwSpeedMultiplier;
+
+    // Calculate flight time based on stance
+    let flightTime;
+    let maxDistance;
+
+    if (stance === 'OVERHAND') {
+      // No glide, ballistic trajectory
+      flightTime = (2 * velocity * Math.sin(Math.PI / 4)) / GRAVITY;
+      maxDistance = velocity * flightTime;
+    } else {
+      // BACKHAND/FOREHAND with glide
+      const glideMultiplier = disc.glide / 4; // Normalize to 0-1 range
+      const baseGlideTime = 10 + (power * 40);
+      flightTime = baseGlideTime * glideMultiplier;
+      
+      // Wind effect during glide
+      const windEffect = wind * 0.02 * flightTime;
+      flightTime += windEffect;
+
+      maxDistance = velocity * flightTime;
+      
+      // Angle effect on distance
+      if (angle === 'HYZER') {
+        maxDistance *= 0.9; // Slight distance reduction
+      } else if (angle === 'ANHYZER') {
+        maxDistance *= 1.05; // Slight distance increase
+      }
+    }
+
+    // Calculate max height (simplified)
+    const maxHeight = RELEASE_HEIGHT_OFFSET + (velocity * 0.5);
+
+    // Convert to feet (1 block ≈ 3.28 feet)
+    const distanceFeet = Math.round(maxDistance * 3.28);
+    const distanceBlocks = Math.round(maxDistance);
+    const timeSeconds = (flightTime / 20).toFixed(2); // 20 ticks per second
+    const heightBlocks = maxHeight.toFixed(1);
+
+    // Update results
+    document.getElementById('result-distance').textContent = `${distanceFeet} ft (${distanceBlocks} blocks)`;
+    document.getElementById('result-time').textContent = `${timeSeconds}s`;
+    document.getElementById('result-height').textContent = `${heightBlocks} blocks`;
+  }
+
+  // Event listeners
+  document.getElementById('calculate-btn')?.addEventListener('click', calculateDistance);
+  document.getElementById('power')?.addEventListener('input', (e) => {
+    document.getElementById('power-value').textContent = `${e.target.value}%`;
+  });
+
+  // Auto-calculate on change
+  ['disc-tier', 'stance', 'angle', 'wind'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', calculateDistance);
+  });
+
+  // Initial calculation
+  calculateDistance();
+</script>

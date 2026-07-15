@@ -1,14 +1,65 @@
-/* Mobile-specific overrides */
-@media (max-width: 600px) {
-  .hero h1 {
-    font-size: 2.25rem;
+/* Mobile-specific styles */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 0.75rem;
   }
 
-  .hero p {
-    font-size: 1rem;
+  h1 { font-size: 2rem; }
+  h2 { font-size: 1.75rem; }
+  h3 { font-size: 1.25rem; }
+
+  .button {
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
   }
 
-  .card-grid {
-    grid-template-columns: 1fr;
+  .card {
+    padding: 1rem;
+  }
+
+  /* Touch-friendly targets */
+  .button,
+  .input,
+  .select {
+    min-height: 44px;
+  }
+
+  /* Collapsible navigation */
+  .mobile-nav {
+    display: flex;
+  }
+
+  .desktop-nav {
+    display: none;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-nav {
+    display: none;
+  }
+
+  .desktop-nav {
+    display: flex;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) {
+  .button:hover {
+    transform: none;
+  }
+
+  .card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .button:active {
+    transform: scale(0.98);
+  }
+
+  .card:active {
+    transform: scale(0.98);
   }
 }

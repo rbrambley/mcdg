@@ -1,0 +1,314 @@
+---
+import GuideLayout from '../../layouts/GuideLayout.astro';
+import CommandBlock from '../../components/content/CommandBlock.astro';
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+---
+
+<GuideLayout 
+  title="Challenge Courses Guide"
+  guideType="challenge-courses"
+>
+  <h1>Challenge Courses Guide</h1>
+  
+  <p>Challenge courses offer advanced gameplay beyond standard procedural courses. These include lost courses that must be discovered, boss holes with mob combat, and special rewards for completion.</p>
+
+  <h2>Lost Courses</h2>
+
+  <h3>Discovery System</h3>
+  <p>Lost courses are hidden throughout the world and must be discovered through exploration:</p>
+  
+  <ul>
+    <li><strong>Procedural Generation:</strong> Lost courses are generated in remote locations</li>
+    <li><strong>Entrance Markers:</strong> Subtle markers indicate course entrances</li>
+    <li><strong>Biome Specific:</strong> Different lost courses appear in different biomes</li>
+    <li><strong>Unique Layouts:</strong> Each lost course has a unique design</li>
+  </ul>
+
+  <h3>Finding Lost Courses</h3>
+  <ol>
+    <li><strong>Explore Remote Areas:</strong> Lost courses are far from spawn and civilization</li>
+    <li><strong>Look for Markers:</strong> Subtle signs indicate course entrances</li>
+    <li><strong>Check Different Biomes:</strong> Each biome type has unique lost courses</li>
+    <li><strong>Use Waypoints:</strong> Mark potential locations for later investigation</li>
+  </ol>
+
+  <h3>Lost Course Types</h3>
+
+  <h4>Ancient Forest Course</h4>
+  <ul>
+    <li><strong>Location:</strong> Dense forest biomes</li>
+    <li><strong>Characteristics:</strong> Heavy vegetation, tree obstacles, challenging navigation</li>
+    <li><strong>Difficulty:</strong> Advanced</li>
+    <li><strong>Rewards:</strong> Forest-themed disc enchantments</li>
+  </ul>
+
+  <h4>Mountain Peak Course</h4>
+  <ul>
+    <li><strong>Location:</strong> High elevation mountain biomes</li>
+    <li><strong>Characteristics:</strong> Extreme elevation changes, cliff hazards, thin air</li>
+    <li><strong>Difficulty:</strong> Expert</li>
+    <li><strong>Rewards:</strong> Mountain-themed equipment</li>
+  </ul>
+
+  <h4>Desert Oasis Course</h4>
+  <ul>
+    <li><strong>Location:</strong> Desert biomes near water features</li>
+    <li><strong>Characteristics:</strong> Sand hazards, cactus fields, oasis water features</li>
+    <li><strong>Difficulty:</strong> Advanced</li>
+    <li><strong>Rewards:</strong> Desert survival equipment</li>
+  </ul>
+
+  <h3>Accessing Lost Courses</h3>
+  <p>Once discovered, lost courses can be accessed through:</p>
+  <ul>
+    <li><strong>Physical Entrance:</strong> Walk into the course entrance marker</li>
+    <li><strong>Menu Navigation:</strong> Lost courses appear in the course catalog</li>
+    <li><strong>Commands:</strong> Use <code>/mcdg usecourse</code> with the lost course index</li>
+  </ul>
+
+  <h2>Boss Holes</h2>
+
+  <h3>Overview</h3>
+  <p>Boss holes are special challenge holes that feature mob combat as part of the gameplay:</p>
+  
+  <ul>
+    <li><strong>Combat Integration:</strong> Fight mobs while playing disc golf</li>
+    <li><strong>Strategic Positioning:</strong> Mob placement affects shot strategy</li>
+    <li><strong>Enchanted Rewards:</strong> Defeating bosses grants special equipment</li>
+    <li><strong>Progressive Difficulty:</strong> Boss difficulty scales with player progress</li>
+  </ul>
+
+  <h3>Boss Mob Types</h3>
+
+  <h4>Guardian Mobs</h4>
+  <p>Guardians protect baskets and must be defeated to complete holes:</p>
+  <ul>
+    <li><strong>Behavior:</strong> Patrol around baskets, attack approaching players</li>
+    <li><strong>Combat Style:</strong> Melee attacks with knockback</li>
+    <li><strong>Difficulty:</strong> Moderate</li>
+    <li><strong>Strategy:</strong> Use ranged attacks, avoid melee engagement</li>
+  </ul>
+
+  <h4>Patrol Mobs</h4>
+  <p>Patrols roam fairways and interfere with throws:</p>
+  <ul>
+    <li><strong>Behavior:</strong> Patrol fairways, knock aside discs and players</li>
+    <li><strong>Combat Style:</strong> Ranged attacks that deflect discs</li>
+    <li><strong>Difficulty:</strong> Moderate</li>
+    <li><strong>Strategy:</strong> Time throws between patrol patterns</li>
+  </ul>
+
+  <h4>Elite Bosses</h4>
+  <p>Elite bosses are powerful enemies that guard major challenge courses:</p>
+  <ul>
+    <li><strong>Behavior:</strong> Complex AI with multiple attack patterns</li>
+    <li><strong>Combat Style:</strong> Mix of melee and ranged attacks</li>
+    <li><strong>Difficulty:</strong> Expert</li>
+    <li><strong>Strategy:</strong> Requires combat preparation and disc golf skill</li>
+  </ul>
+
+  <h3>Boss Combat Mechanics</h3>
+
+  <h4>Mob Positioning</h4>
+  <ul>
+    <li><strong>Basket Guards:</strong> Positioned around baskets to protect completion</li>
+    <li><strong>Fairway Patrols:</strong> Roam fairways to interfere with approach shots</li>
+    <li><strong>Tee Defenders:</strong> Guard tee areas to prevent easy starts</li>
+    <li><strong>Dynamic Spawning:</strong> Additional mobs may spawn during play</li>
+  </ul>
+
+  <h4>Combat Integration</h4>
+  <ul>
+    <li><strong>Simultaneous Play:</strong> Fight mobs while progressing through holes</li>
+    <li><strong>Disc as Weapon:</strong> Some disc throws can damage or stun mobs</li>
+    <li><strong>Equipment Synergy:</strong> Use disc golf equipment in combat</li>
+    <li><strong>Tactical Choices:</strong> Balance combat focus vs. golf focus</li>
+  </ul>
+
+  <h3>Boss Strategies</h3>
+
+  <h4>Preparation</h4>
+  <ul>
+    <li><strong>Equipment:</strong> Bring appropriate weapons and armor</li>
+    <li><strong>Disc Selection:</strong> Use discs with combat enchantments</li>
+    <li><strong>Consumables:</strong> Bring food and healing items</li>
+    <li><strong>Scouting:</strong> Observe mob patterns before engaging</li>
+  </ul>
+
+  <h4>Combat Tactics</h4>
+  <ul>
+    <li><strong>Priority Targets:</strong> Focus on basket guards first</li>
+    <li><strong>Positioning:</strong> Use terrain to avoid mob attacks</li>
+    <li><strong>Timing:</strong> Throw discs when mobs are vulnerable</li>
+    <li><strong>Escape Routes:</strong> Always have an escape path planned</li>
+  </ul>
+
+  <h4>Disc Golf Integration</h4>
+  <ul>
+    <li><strong>Shot Selection:</strong> Choose shots that avoid mob interference</li>
+    <li><strong>Stance Usage:</strong> OVERHAND for vertical clearance over mobs</li>
+    <li><strong>Angle Management:</strong> Curve shots around mob positions</li>
+    <li><strong>Power Control:</strong> Adjust power to account for combat timing</li>
+  </ul>
+
+  <h2>Reward System</h2>
+
+  <h3>Boss Rewards</h3>
+  <p>Defeating boss mobs grants special enchanted equipment:</p>
+
+  <h4>Equipment Tiers</h4>
+  <ul>
+    <li><strong>Common:</strong> Basic enchanted tools and armor</li>
+    <li><strong>Uncommon:</strong> Better enchantments, higher durability</li>
+    <li><strong>Rare:</strong> High-tier enchantments, special abilities</li>
+    <li><strong>Epic:</strong> Unique equipment with custom enchantments</li>
+    <li><strong>Legendary:</strong> Best-in-slot items with exclusive properties</li>
+  </ul>
+
+  <h4>Reward Types</h4>
+  <ul>
+    <li><strong>Weapons:</strong> Enchanted swords, bows, and combat tools</li>
+    <li><strong>Armor:</strong> Protective gear with special abilities</li>
+    <li><strong>Tools:</strong> Utility items with enchantments</li>
+    <li><strong>Disc Enchantments:</strong> Special books for disc enhancement</li>
+    <li><strong>Materials:</strong> Rare materials for crafting</li>
+  </ul>
+
+  <h3>Combat Enchantments</h3>
+  <p>Special enchantments available only from boss rewards:</p>
+
+  <h4>Guard Slayer</h4>
+  <ul>
+    <li><strong>Effect:</strong> Increased damage against boss mobs</li>
+    <li><strong>Tiers:</strong> I-III (5%, 10%, 15% bonus damage)</li>
+    <li><strong>Applicability:</strong> Weapons and tools</li>
+  </ul>
+
+  <h4>Basket Guardian</h4>
+  <ul>
+    <li><strong>Effect:</strong> Protection from basket guard attacks</li>
+    <li><strong>Tiers:</strong> I-II (10%, 20% damage reduction)</li>
+    <li><strong>Applicability:</strong> Armor</li>
+  </ul>
+
+  <h4>Fairway Strider</h4>
+  <ul>
+    <li><strong>Effect:</strong> Movement speed boost on fairways</li>
+    <li><strong>Tiers:</strong> I-III (5%, 10%, 15% speed boost)</li>
+    <li><strong>Applicability:</strong> Boots</li>
+  </ul>
+
+  <h2>Challenge Course Commands</h2>
+
+  <h3>Lost Course Commands</h3>
+  <CommandBlock 
+    command="/mcdg lostcourses"
+    description="List discovered lost courses"
+  />
+  <CommandBlock 
+    command="/mcdg discoverlost"
+    description="Reveal nearby lost course hints (advanced)"
+  />
+
+  <h3>Boss Commands</h3>
+  <CommandBlock 
+    command="/mcdg bossstatus"
+    description="Check boss hole status"
+  />
+  <CommandBlock 
+    command="/mcdg skipboss"
+    description="Skip current boss fight (admin only)"
+  />
+
+  <h2>Difficulty Scaling</h2>
+
+  <h3>Player Progression</h3>
+  <ul>
+    <li><strong>Early Game:</strong> Simpler bosses, basic rewards</li>
+    <li><strong>Mid Game:</strong> Moderate difficulty, better rewards</li>
+    <li><strong>Late Game:</strong> Challenging bosses, top-tier rewards</li>
+    <li><strong>End Game:</strong> Extreme challenges, legendary equipment</li>
+  </ul>
+
+  <h3>Course Difficulty</h3>
+  <ul>
+    <li><strong>Lost Course Level:</strong> Affects mob strength and numbers</li>
+    <li><strong>Biome Modifier:</strong> Some biomes increase difficulty</li>
+    <li><strong>Player Count:</strong> More players = harder but more rewards</li>
+    <li><strong>Completion Time:</strong> Faster completion = bonus rewards</li>
+  </ul>
+
+  <h2>Multiplayer Challenge Courses</h2>
+
+  <h3>Cooperative Play</h3>
+  <ul>
+    <li><strong>Team Combat:</strong> Players can team up against bosses</li>
+    <li><strong>Role Specialization:</strong> Some players focus on combat, others on golf</li>
+    <li><strong>Shared Rewards:</strong> Rewards distributed among participants</li>
+    <li><strong>Communication:</strong> Coordination is key for success</li>
+  </ul>
+
+  <h3>Competitive Play</h3>
+  <ul>
+    <li><strong>Race Completion:</strong> First to complete wins bonus rewards</li>
+    <li><strong>Score Competition:</strong> Lowest score with boss combat wins</li>
+    <li><strong>Boss Speed:</strong> Fastest boss kill times tracked</li>
+    <li><strong>Leaderboards:</strong> Challenge course rankings available</li>
+  </ul>
+
+  <h2>Advanced Strategies</h2>
+
+  <h3>Speed Running</h3>
+  <ul>
+    <li><strong>Route Optimization:</strong> Learn optimal paths through courses</li>
+    <li><strong>Boss Patterns:</strong> Memorize boss attack patterns for quick kills</li>
+    <li><strong>Disc Selection:</strong> Use fastest discs for speed runs</li>
+    <li><strong>Risk Management:</strong> Take calculated risks for faster times</li>
+  </ul>
+
+  <h3>Score Optimization</h3>
+  <ul>
+    <li><strong>Combat Efficiency:</strong> Minimize time spent on combat</li>
+    <li><strong>Shot Precision:</strong> Avoid hazards that require recovery</li>
+    <li><strong>Resource Management:</strong> Consume healing items strategically</li>
+    <li><strong>Mob Luring:</strong> Lure mobs away from critical areas</li>
+  </ul>
+
+  <h2>Troubleshooting</h2>
+
+  <h3>Common Issues</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Issue</th>
+        <th>Solution</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Can't find lost courses</td>
+        <td>Explore remote areas, look for subtle markers, use waypoints</td>
+      </tr>
+      <tr>
+        <td>Boss too difficult</td>
+        <td>Better equipment preparation, bring friends, try different strategy</td>
+      </tr>
+      <tr>
+        <td>Rewards not received</td>
+        <td>Ensure boss was actually defeated, check inventory, re-complete if needed</td>
+      </tr>
+      <tr>
+        <td>Mobs not spawning</td>
+        <td>Check difficulty settings, verify boss hole activation, server restart may help</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Related Documentation</h2>
+  <ul>
+    <li><a href={`${baseUrl}guide/hazards`}>Hazards Guide</a></li>
+    <li><a href={`${baseUrl}guide/biome-courses`}>Biome Courses Guide</a></li>
+    <li><a href={`${baseUrl}features/enchantments`}>Disc Enchantments</a></li>
+    <li><a href={`${baseUrl}guide/progression`}>Progression System</a></li>
+  </ul>
+</GuideLayout>

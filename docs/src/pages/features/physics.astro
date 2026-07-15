@@ -1,0 +1,232 @@
+---
+import FeatureLayout from '../../layouts/FeatureLayout.astro';
+import FlightCalculator from '../../components/ui/FlightCalculator.astro';
+import ScreenshotPlaceholder from '../../components/ui/ScreenshotPlaceholder.astro';
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+---
+
+<FeatureLayout 
+  title="Physics System"
+  featureName="Disc Flight Physics"
+  description="Authentic disc flight simulation with glide phases, fade curves, wind effects, and multiple throw stances."
+>
+  <h1>Disc Flight Physics System</h1>
+  
+  <p>MCDG features a sophisticated disc flight simulation system that accurately models real-world disc golf physics. The system accounts for multiple factors including throw stances, release angles, wind conditions, and disc characteristics.</p>
+
+  <h2>Core Physics Concepts</h2>
+
+  <h3>Velocity and Power</h3>
+  <p>Throw power is controlled by how long you hold right-click, ranging from 0% to 100% (with overcharge up to 125% using stamina). The initial velocity of the disc is calculated based on:</p>
+  <ul>
+    <li><strong>Base velocity:</strong> 0.7 + (1.6 × charge)</li>
+    <li><strong>Disc multiplier:</strong> Some tiers (like Gold) have velocity bonuses</li>
+    <li><strong>Result:</strong> Higher power = faster initial speed = greater distance potential</li>
+  </ul>
+
+  <h3>Glide Phase</h3>
+  <p>BACKHAND and FOREHAND stances include an extended glide phase where the disc maintains lift and travels further:</p>
+  <ul>
+    <li><strong>Duration:</strong> 10-50 ticks depending on power and disc glide rating</li>
+    <li><strong>Effect:</strong> Significantly increases total distance</li>
+    <li><strong>Wind sensitivity:</strong> More affected by wind during glide</li>
+    <li><strong>Disc factor:</strong> Higher glide rating = longer glide phase</li>
+  </ul>
+
+  <h3>Fade Curve</h3>
+  <p>As the disc slows down, it naturally fades to the left (for right-handed backhand throws):</p>
+  <ul>
+    <li><strong>Timing:</strong> Occurs in the final phase of flight</li>
+    <li><strong>Strength:</strong> Determined by disc fade rating</li>
+    <li><strong>Angle influence:</strong> Hyzer increases fade, Anhyzer can counteract it</li>
+    <li><strong>Wind effect:</strong> Headwinds increase fade, tailwinds reduce it</li>
+  </ul>
+
+  <h2>Throw Stances</h2>
+
+  <h3>OVERHAND</h3>
+  <ul>
+    <li><strong>No glide phase</strong> - pure ballistic trajectory</li>
+    <li><strong>Best for:</strong> Short approach shots, putting, windy conditions</li>
+    <li><strong>Characteristics:</strong> Most predictable, least affected by wind</li>
+    <li><strong>Distance:</strong> Limited compared to glide stances</li>
+  </ul>
+
+  <h3>BACKHAND</h3>
+  <ul>
+    <li><strong>Extended glide</strong> - maximum distance potential</li>
+    <li><strong>Best for:</strong> Long drives, open fairways</li>
+    <li><strong>Characteristics:</strong> Standard throwing motion, familiar to most players</li>
+    <li><strong>Wind sensitivity:</strong> High during glide phase</li>
+  </ul>
+
+  <h3>FOREHAND</h3>
+  <ul>
+    <li><strong>Extended glide</strong> - similar distance to backhand</li>
+    <li><strong>Best for:</strong> Alternative release angles, specialized shot shapes</li>
+    <li><strong>Characteristics:</strong> Different arm motion, can achieve different flight paths</li>
+    <li><strong>Wind sensitivity:</strong> High during glide phase</li>
+  </ul>
+
+  <ScreenshotPlaceholder 
+    title="Disc Flight Trajectory"
+    description="Visual representation of disc flight paths with different stances"
+    width="100%"
+    height="300px"
+  />
+
+  <h2>Release Angles</h2>
+
+  <h3>Hyzer</h3>
+  <p>Disc released with the outer edge tilted down:</p>
+  <ul>
+    <li><strong>Flight effect:</strong> Curves right (RHBH) throughout flight</li>
+    <li><strong>Best for:</strong> Fighting headwinds, controlled fade shots</li>
+    <li><strong>Distance impact:</strong> Slight reduction due to increased drag</li>
+  </ul>
+
+  <h3>Flat</h3>
+  <p>Disc released with no tilt:</p>
+  <ul>
+    <li><strong>Flight effect:</strong> Most predictable, straightest flight</li>
+    <li><strong>Best for:</strong> Accuracy, tunnel shots, calm conditions</li>
+    <li><strong>Distance impact:</strong> Optimal for most situations</li>
+  </ul>
+
+  <h3>Anhyzer</h3>
+  <p>Disc released with the outer edge tilted up:</p>
+  <ul>
+    <li><strong>Flight effect:</strong> Curves left (RHBH) initially, then fades back</li>
+    <li><strong>Best for:</strong> Tailwind shots, maximum distance attempts</li>
+    <li><strong>Distance impact:</strong> Can increase distance with proper timing</li>
+  </ul>
+
+  <h2>Wind System</h2>
+  <p>Wind significantly affects disc flight, especially during the glide phase:</p>
+  
+  <h3>Wind Effects</h3>
+  <ul>
+    <li><strong>Headwind:</strong> Increases lift, exaggerates fade, reduces distance</li>
+    <li><strong>Tailwind:</strong> Reduces lift, decreases fade, can increase distance</li>
+    <li><strong>Crosswind:</strong> Pushes disc laterally, requires angle compensation</li>
+    <li><strong>Gusts:</strong> Variable wind conditions add unpredictability</li>
+  </ul>
+
+  <h3>Wind Modes</h3>
+  <ul>
+    <li><strong>CALM:</strong> No wind effect</li>
+    <li><strong>NATURAL:</strong> Dynamic weather-based wind</li>
+    <li><strong>FIXED:</strong> Manually set wind conditions</li>
+    <li><strong>TOURNAMENT:</strong> Consistent wind for competitive play</li>
+  </ul>
+
+  <h2>Disc Characteristics</h2>
+  <p>Each disc tier has unique flight ratings that affect its behavior:</p>
+
+  <h3>Speed</h3>
+  <ul>
+    <li><strong>Lower speed:</strong> Easier to control, less distance</li>
+    <li><strong>Higher speed:</strong> More distance potential, requires more skill</li>
+    <li><strong>Effect:</strong> Influences initial velocity and fade onset</li>
+  </ul>
+
+  <h3>Glide</h3>
+  <ul>
+    <li><strong>Lower glide:</strong> Shorter flight, more predictable</li>
+    <li><strong>Higher glide:</strong> Longer flight, more distance</li>
+    <li><strong>Effect:</strong> Determines duration of glide phase</li>
+  </ul>
+
+  <h3>Turn</h3>
+  <ul>
+    <li><strong>Negative turn:</strong> Disc curves right during high-speed flight</li>
+    <li><strong>Zero turn:</strong> Stable flight, minimal curve</li>
+    <li><strong>Positive turn:</strong> Disc curves left during high-speed flight</li>
+    <li><strong>Effect:</strong> High-speed flight behavior</li>
+  </ul>
+
+  <h3>Fade</h3>
+  <ul>
+    <li><strong>Lower fade:</strong> Less end-of-flight curve</li>
+    <li><strong>Higher fade:</strong> More pronounced end-of-flight curve</li>
+    <li><strong>Effect:</strong> Low-speed flight behavior and landing pattern</li>
+  </ul>
+
+  <h2>Interactive Flight Calculator</h2>
+  <p>Use the calculator below to estimate theoretical maximum distances for different disc configurations:</p>
+
+  <FlightCalculator />
+
+  <h2>Physics Constants</h2>
+  <p>The following constants are used in the trajectory calculation:</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Constant</th>
+        <th>Value</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>MIN_VELOCITY</td>
+        <td>0.7 blocks/tick</td>
+        <td>Minimum throw velocity</td>
+      </tr>
+      <tr>
+        <td>VELOCITY_SPAN</td>
+        <td>1.6 blocks/tick</td>
+        <td>Velocity range from 0-100% power</td>
+      </tr>
+      <tr>
+        <td>UPWARD_IMPULSE</td>
+        <td>0.06 blocks/tick</td>
+        <td>Upward velocity component</td>
+      </tr>
+      <tr>
+        <td>GRAVITY</td>
+        <td>0.08 blocks/tick²</td>
+        <td>Downward acceleration</td>
+      </tr>
+      <tr>
+        <td>RELEASE_HEIGHT_OFFSET</td>
+        <td>1.5 blocks</td>
+        <td>Initial release height</td>
+      </tr>
+      <tr>
+        <td>GLIDE_TAPER_START</td>
+        <td>0.6</td>
+        <td>When glide phase begins tapering</td>
+      </tr>
+      <tr>
+        <td>MAX_SIMULATION_TICKS</td>
+        <td>400</td>
+        <td>Maximum flight simulation time</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Advanced Topics</h2>
+
+  <h3>Enchantment Effects</h3>
+  <p>Disc enchantments can modify flight physics:</p>
+  <ul>
+    <li><strong>GLIDE:</strong> Increases hang time during glide phase</li>
+    <li><strong>STABILITY:</strong> Reduces fade curve for straighter flight</li>
+    <li><strong>RANGE:</strong> Increases maximum throw distance</li>
+    <li><strong>PIERCE:</strong> Ignores leaf/vegetation collisions</li>
+  </ul>
+
+  <h3>Terrain Effects</h3>
+  <p>Different terrain types affect disc behavior:</p>
+  <ul>
+    <li><strong>Rough:</strong> Increases drag, reduces distance</li>
+    <li><strong>Sand:</strong> Significantly increases drag, can stop disc</li>
+    <li><strong>Ice:</strong> Reduces friction, disc slides further</li>
+    <li><strong>Water:</strong> Hazard zone, penalty strokes</li>
+  </ul>
+
+  <h2>References</h2>
+  <p>For more detailed physics information and simulation data, see the <a href={`${baseUrl}reference/physics`}>Physics Reference</a> page.</p>
+</FeatureLayout>

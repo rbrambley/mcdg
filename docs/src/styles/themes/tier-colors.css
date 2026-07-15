@@ -1,4 +1,3 @@
-/* Tier color palette */
 :root {
   --tier-training: #b87333;
   --tier-wooden: #8b7355;
@@ -7,4 +6,60 @@
   --tier-gold: #ffd700;
   --tier-diamond: #00ffff;
   --tier-netherite: #1a1a2e;
+}
+
+.tier-training {
+  color: var(--tier-training);
+}
+
+.tier-wooden {
+  color: var(--tier-wooden);
+}
+
+.tier-stone {
+  color: var(--tier-stone);
+}
+
+.tier-iron {
+  color: var(--tier-iron);
+}
+
+.tier-gold {
+  color: var(--tier-gold);
+}
+
+.tier-diamond {
+  color: var(--tier-diamond);
+}
+
+.tier-netherite {
+  color: var(--tier-netherite);
+}
+
+.bg-tier-training {
+  background-color: var(--tier-training);
+}
+
+.bg-tier-wooden {
+  background-color: var(--tier-wooden);
+}
+
+.bg-tier-stone {
+  background-color: var(--tier-stone);
+}
+
+.bg-tier-iron {
+  background-color: var(--tier-iron);
+}
+
+.bg-tier-gold {
+  background-color: var(--tier-gold);
+}
+
+.bg-tier-diamond {
+  background-color: var(--tier-diamond);
+}
+
+.bg-tier-netherite {
+  background-color: var(--tier-netherite);
 }

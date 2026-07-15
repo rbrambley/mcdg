@@ -1,0 +1,289 @@
+---
+import FeatureLayout from '../../layouts/FeatureLayout.astro';
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+---
+
+<FeatureLayout 
+  title="Round Rewards System"
+  featureName="Round Completion Rewards"
+  description="Earn enchanted equipment, tools, armor, and books based on round performance, scoring, and ruleset completion."
+>
+  <h1>Round Rewards System</h1>
+  
+  <p>MCDG's round rewards system provides meaningful incentives for skilled play and round completion. Players earn enchanted equipment, tools, armor, and special books based on their performance relative to par, ace count, and ruleset completion.</p>
+
+  <h2>Reward Overview</h2>
+
+  <h3>Reward Categories</h3>
+  <ul>
+    <li><strong>Enchanted Tools:</strong> Pickaxes, axes, shovels with useful enchantments</li>
+    <li><strong>Armor:</strong> Protective gear with combat and utility enchantments</li>
+    <li><strong>Disc Enchanted Books:</strong> Special books for disc enhancement</li>
+    <li><strong>Materials:</strong> Rare materials for crafting and progression</li>
+  </ul>
+
+  <h3>Reward Tiers</h3>
+  <ul>
+    <li><strong>Common:</strong> Basic enchanted tools and armor</li>
+    <li><strong>Uncommon:</strong> Better enchantments, higher durability</li>
+    <li><strong>Rare:</strong> High-tier enchantments, special abilities</li>
+    <li><strong>Epic:</strong> Unique equipment with custom enchantments</li>
+    <li><strong>Legendary:</strong> Best-in-slot items with exclusive properties</li>
+  </ul>
+
+  <h2>Scoring-Based Rewards</h2>
+
+  <h3>Par Performance</h3>
+  <p>Rewards are primarily based on your score relative to par:</p>
+
+  <h4>Under Par</h4>
+  <ul>
+    <li><strong>Significant Bonus:</strong> Under-par rounds grant major reward upgrades</li>
+    <li><strong>Tier Scaling:</strong> More under-par = higher reward tier</li>
+    <li><strong>Multiplier Effect:</strong> Each stroke under par increases reward quality</li>
+    <li><strong>Legendary Potential:</strong> Exceptional under-par rounds can grant legendary items</li>
+  </ul>
+
+  <h4>At Par</h4>
+  <ul>
+    <li><strong>Standard Rewards:</strong> Par rounds grant common/uncommon rewards</li>
+    <li><strong>Consistency Bonus:</strong> Consistent par play improves reward quality</li>
+    <li><strong>Progression:</strong> Regular par rounds unlock better reward tiers</li>
+  </ul>
+
+  <h4>Over Par</h4>
+  <ul>
+    <li><strong>Basic Rewards:</strong> Over-par rounds grant common rewards</li>
+    <li><strong>Learning Curve:</strong> Early rounds may still give decent rewards</li>
+    <li><strong>Improvement Tracking:</strong> Consistent improvement leads to better rewards</li>
+  </ul>
+
+  <h3>Ace Bonuses</h3>
+  <ul>
+    <li><strong>Hole-in-One:</strong> Each ace grants immediate bonus reward</li>
+    <li><strong>Multiple Aces:</strong> Multiple aces in one round provide stacking bonuses</li>
+    <li><strong>Rare Items:</strong> Aces significantly increase chance for rare/epic rewards</li>
+    <li><strong>Special Recognition:</strong> Ace count displayed in reward summary</li>
+  </ul>
+
+  <h2>Ruleset Rewards</h2>
+
+  <h3>Strict Ruleset</h3>
+  <ul>
+    <li><strong>Enhanced Rewards:</strong> Strict ruleset provides higher reward multipliers</li>
+    <li><strong>Challenge Bonus:</strong> Playing with strict rules rewards skill</li>
+    <li><strong>Elite Items:</strong> Better chance for epic/legendary rewards</li>
+    <li><strong>Proof of Skill:</strong> Strict completion demonstrates mastery</li>
+  </ul>
+
+  <h3>Standard Ruleset</h3>
+  <ul>
+    <li><strong>Standard Rewards:</strong> Normal ruleset provides baseline rewards</li>
+    <li><strong>Balanced Play:</strong> Standard rules offer balanced risk/reward</li>
+    <li><strong>Progressive Improvement:</strong> Better performance = better rewards</li>
+  </ul>
+
+  <h3>Casual Ruleset</h3>
+  <ul>
+    <li><strong>Reduced Rewards:</strong> Casual ruleset provides lower reward multipliers</li>
+    <li><strong>Learning Mode:</strong> Casual play for learning without pressure</li>
+    <li><strong>Basic Rewards:</strong> Still provides rewards for completion</li>
+  </ul>
+
+  <h2>Reward Types</h2>
+
+  <h3>Enchanted Tools</h3>
+
+  <h4>Pickaxes</h4>
+  <ul>
+    <li><strong>Efficiency:</strong> Faster mining speed</li>
+    <li><strong>Fortune:</strong> Increased ore drops</li>
+    <li><strong>Unbreaking:</strong> Extended durability</li>
+    <li><strong>Mending:</strong> Self-repair from XP</li>
+  </ul>
+
+  <h4>Axes</h4>
+  <ul>
+    <li><strong>Sharpness:</strong> Increased damage</li>
+    <li><strong>Efficiency:</strong> Faster chopping</li>
+    <li><strong>Fortune:</strong> More log drops</li>
+    <li><strong>Unbreaking:</strong> Extended durability</li>
+  </ul>
+
+  <h3>Armor</h3>
+
+  <h4>Protection</h4>
+  <ul>
+    <li><strong>Protection:</strong> General damage reduction</li>
+    <li><strong>Unbreaking:</strong> Extended durability</li>
+    <li><strong>Mending:</strong> Self-repair from XP</li>
+    <li><strong>Thorns:</strong> Damage attackers</li>
+  </ul>
+
+  <h4>Special Armor</h4>
+  <ul>
+    <li><strong>Feather Falling:</strong> Reduced fall damage</li>
+    <li><strong>Depth Strider:</strong> Faster swimming</li>
+    <li><strong>Frost Walker:</strong> Walk on water</li>
+    <li><strong>Fire Protection:</strong> Fire resistance</li>
+  </ul>
+
+  <h3>Disc Enchanted Books</h3>
+
+  <h4>Enchantment Types</h4>
+  <ul>
+    <li><strong>GLIDE:</strong> Increased hang time for extended distance</li>
+    <li><strong>STABILITY:</strong> Reduced fade for straighter flight</li>
+    <li><strong>PIERCE:</strong> Ignores vegetation collisions</li>
+    <li><strong>DURABILITY:</strong> Slows disc wear rate</li>
+    <li><strong>RANGE:</strong> Increases maximum throw distance</li>
+  </ul>
+
+  <h4>Enchantment Levels</h4>
+  <ul>
+    <li><strong>Level I:</strong> Basic enchantment effect</li>
+    <li><strong>Level II:</strong> Moderate enchantment effect</li>
+    <li><strong>Level III:</strong> Maximum enchantment effect</li>
+  </ul>
+
+  <h3>Materials</h3>
+
+  <h4>Rare Materials</h4>
+  <ul>
+    <li><strong>Diamonds:</strong> For advanced crafting</li>
+    <li><strong>Netherite Ingots:</strong> For master-level equipment</li>
+    <li><strong>Ender Pearls:</strong> For teleportation items</li>
+    <li><strong>Experience Bottles:</strong> For enchanting and repair</li>
+  </ul>
+
+  <h2>Reward Calculation</h2>
+
+  <h3>Base Score</h3>
+  <ul>
+    <li><strong>Round Completion:</strong> Base reward for finishing round</li>
+    <li><strong>Hole Count:</strong> More holes = higher base score</li>
+    <li><strong>Course Difficulty:</strong> Harder courses increase base score</li>
+  </ul>
+
+  <h3>Performance Modifiers</h3>
+  <ul>
+    <li><strong>Par Modifier:</strong> Score relative to par affects reward tier</li>
+    <li><strong>Ace Bonus:</strong> Each ace adds significant bonus</li>
+    <li><strong>Ruleset Multiplier:</strong> Strict ruleset provides multiplier</li>
+    <li><strong>Streak Bonus:</strong> Consecutive good rounds increase rewards</li>
+  </ul>
+
+  <h3>Reward Tier Calculation</h3>
+  <pre><code>// Simplified reward calculation
+int baseScore = holeCount * courseDifficulty;
+int parModifier = (par - actualScore) * 10;
+int aceBonus = aceCount * 50;
+int rulesetMultiplier = strictRuleset ? 2 : 1;
+int totalScore = (baseScore + parModifier + aceBonus) * rulesetMultiplier;</code></pre>
+
+  <h2>Reward Distribution</h2>
+
+  <h3>Delivery Method</h3>
+  <ul>
+    <li><strong>Inventory:</strong> Rewards appear in player inventory</li>
+    <li><strong>Notification:</strong> Chat message announces rewards</li>
+    <li><strong>Summary:</strong> End-of-round reward summary display</li>
+    <li><strong>Rarity Display:</strong> Rarity color-coded in inventory</li>
+  </ul>
+
+  <h3>Quantity Limits</h3>
+  <ul>
+    <li><strong>Item Limits:</strong> Prevents inventory overflow</li>
+    <li><strong>Stacking:</strong> Compatible items stack appropriately</li>
+    <li><strong>Overflow Handling:</strong> Excess rewards dropped if inventory full</li>
+  </ul>
+
+  <h2>Advanced Strategies</h2>
+
+  <h3>Maximizing Rewards</h3>
+
+  <h4>Scoring Strategy</h4>
+  <ul>
+    <li><strong>Under Par Focus:</strong> Prioritize scoring under par for best rewards</li>
+    <li><strong>Ace Hunting:</strong> Target aces for massive bonus rewards</li>
+    <li><strong>Consistency:</strong> Consistent under-par rounds build streak bonuses</li>
+    <li><strong>Course Selection:</strong> Choose courses where you can excel</li>
+  </ul>
+
+  <h4>Ruleset Strategy</h4>
+  <ul>
+    <li><strong>Strict Mode:</strong> Use strict ruleset when confident for multiplier</li>
+    <li><strong>Progressive Difficulty:</strong> Start casual, progress to strict</li>
+    <li><strong>Skill Matching:</strong> Match ruleset to current skill level</li>
+  </ul>
+
+  <h3>Reward Planning</h3>
+
+  <h4>Equipment Goals</h4>
+  <ul>
+    <li><strong>Target Items:</strong> Focus rounds on specific reward types</li>
+    <li><strong>Enchantment Needs:</strong> Plan rounds for specific disc enchantments</li>
+    <li><strong>Material Farming:</strong> Use rounds to gather rare materials</li>
+  </ul>
+
+  <h4>Progression Path</h4>
+  <ul>
+    <li><strong>Early Game:</strong> Focus on common/uncommon rewards for basic equipment</li>
+    <li><strong>Mid Game:</strong> Target rare rewards for advanced enchantments</li>
+    <li><strong>Late Game:</strong> Pursue epic/legendary rewards for best equipment</li>
+  </ul>
+
+  <h2>Multiplayer Rewards</h2>
+
+  <h3>Competition Rewards</h3>
+  <ul>
+    <li><strong>Leaderboard Position:</strong> Higher placement = better rewards</li>
+    <li><strong>Player Count:</strong> More players = potential for better rewards</li>
+    <li><strong>Performance Relative:</strong> Rewards based on relative performance</li>
+  </ul>
+
+  <h3>Cooperative Rewards</h3>
+  <ul>
+    <li><strong>Team Completion:</strong> All players receive completion rewards</li>
+    <li><strong>Team Performance:</strong> Team under-par bonuses</li>
+    <li><strong>Shared Loot:</strong> Some rewards shared among team</li>
+  </ul>
+
+  <h2>Troubleshooting</h2>
+
+  <h3>Common Issues</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Issue</th>
+        <th>Solution</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Rewards not received</td>
+        <td>Verify round completion, check inventory, ensure ruleset completed</td>
+      </tr>
+      <tr>
+        <td>Rewards too low quality</td>
+        <td>Improve score relative to par, use strict ruleset, aim for aces</td>
+      </tr>
+      <tr>
+        <td>Inventory full</td>
+        <td>Clear inventory space before round completion</td>
+      </tr>
+      <tr>
+        <td>Rewards not matching performance</td>
+        <td>Check server reward settings, verify ruleset multiplier</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Related Documentation</h2>
+  <ul>
+    <li><a href={`${baseUrl}guide/gameplay`}>Gameplay Mechanics</a></li>
+    <li><a href={`${baseUrl}guide/progression`}>Progression System</a></li>
+    <li><a href={`${baseUrl}features/enchantments`}>Disc Enchantments</a></li>
+    <li><a href={`${baseUrl}guide/multiplayer`}>Multiplayer Guide</a></li>
+  </ul>
+</FeatureLayout>

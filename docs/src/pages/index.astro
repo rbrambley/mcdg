@@ -1,169 +1,329 @@
 ---
 import MainLayout from '../layouts/MainLayout.astro';
-
-const base = import.meta.env.BASE_URL;
-
-const features = [
-  {
-    title: 'Procedural Courses',
-    description: 'Generate biome-aware disc golf courses across varied terrain, from rolling meadows to challenging hazard layouts.',
-    href: `${base}features/courses/`,
-    icon: 'map',
-  },
-  {
-    title: 'Calculated Flight Physics',
-    description: 'A dedicated trajectory system models stance, release angle, wind, fade, and disc glide ratings.',
-    href: `${base}features/physics/`,
-    icon: 'physics',
-  },
-  {
-    title: 'Resort System',
-    description: 'Build and manage a central resort with lobbies, housing, lighting, and multiple course anchors.',
-    href: `${base}features/resort/`,
-    icon: 'resort',
-  },
-  {
-    title: 'Multiplayer Rounds',
-    description: 'Run stroke-play rounds with turn order enforcement, strict landing rules, and live scoreboards.',
-    href: `${base}guide/multiplayer/`,
-    icon: 'multiplayer',
-  },
-  {
-    title: 'Disc Enchantments',
-    description: 'Upgrade discs and earn enchanted equipment through challenge courses and boss holes.',
-    href: `${base}features/enchantments/`,
-    icon: 'enchant',
-  },
-  {
-    title: 'Progression & Skills',
-    description: 'Unlock crafting tiers, skills, and accessories as you advance from wooden to netherite discs.',
-    href: `${base}progression/skill-unlocks/`,
-    icon: 'progression',
-  },
-];
-
-const icons: Record<string, string> = {
-  map: 'M3 6l9 4 9-4M3 6v12l9 4 9-4V6M3 6l9-4 9 4',
-  physics: 'M12 2a10 10 0 100 20 10 10 0 000-20zm0 4a6 6 0 110 12 6 6 0 010-12zm0 2a4 4 0 100 8 4 4 0 000-8z',
-  resort: 'M3 21h18M4 18h16M6 18V8l6-4 6 4v10M9 18v-6h6v6',
-  multiplayer: 'M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75',
-  enchant: 'M12 2l2.4 7.2h7.6l-6 4.8 2.4 7.2-6-4.8-6 4.8 2.4-7.2-6-4.8h7.6L12 2z',
-  progression: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
-};
+import Hero from '../components/ui/Hero.astro';
+import FeatureCard from '../components/ui/FeatureCard.astro';
+import DiscStats from '../components/ui/DiscStats.astro';
+import ScreenshotPlaceholder from '../components/ui/ScreenshotPlaceholder.astro';
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
 ---
 
-<MainLayout title="MCDG — Minecraft Disc Golf" description="A Fabric mod for Minecraft 1.20.6 that brings procedural disc golf courses, multiplayer rounds, and a full resort system to your world.">
-  <section class="hero">
+<MainLayout 
+  title="MCDG - Minecraft Disc Golf"
+  description="A Fabric mod for Minecraft 1.20.6 that brings disc golf to your world. Build procedural courses, compete in multiplayer rounds, and manage a full resort experience."
+>
+  <Hero 
+    title="MCDG"
+    subtitle="Minecraft Disc Golf"
+    description="A Fabric mod for Minecraft 1.20.6 that brings disc golf to your world. Build procedural courses, compete in multiplayer rounds, and manage a full resort experience."
+    ctaText="Get Started"
+    ctaHref="/guide/installation"
+    backgroundImage="/images/hero-bg.png"
+  />
+
+  <section class="hero-image-section">
     <div class="container">
-      <div class="hero-badge">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="10"></circle>
-          <path d="M8 12s1.5-2 4-2 4 2 4 2"></path>
-          <path d="M12 12v4"></path>
-        </svg>
-        <span>Minecraft Disc Golf</span>
+      <!-- Replace ScreenshotPlaceholder with actual image when available -->
+      <ScreenshotPlaceholder 
+        title="MCDG Gameplay Screenshot"
+        description="In-game screenshot showing disc golf gameplay"
+        width="100%"
+        height="500px"
+      />
+      <!-- 
+      <img 
+        src={`${baseUrl}images/screenshots/mcdg-gameplay.png`} 
+        alt="MCDG Gameplay Screenshot"
+        class="hero-screenshot"
+        loading="lazy"
+      />
+      -->
+    </div>
+  </section>
+
+  <section class="features-section">
+    <h2 class="section-title">Key Features</h2>
+    <div class="features-grid">
+      <FeatureCard 
+        title="Procedural Courses"
+        description="Automatically generate disc golf courses in any biome with terrain-aware hole placement and hazard systems."
+        icon="🏞️"
+        href={`${baseUrl}features/courses`}
+      />
+      <FeatureCard 
+        title="Realistic Physics"
+        description="Authentic disc flight simulation with glide phases, fade curves, wind effects, and multiple throw stances."
+        icon="🎯"
+        href={`${baseUrl}features/physics`}
+      />
+      <FeatureCard 
+        title="Multiplayer Rounds"
+        description="Compete with friends in stroke-play rounds with live leaderboards, turn management, and scoring systems."
+        icon="👥"
+        href={`${baseUrl}guide/multiplayer`}
+      />
+      <FeatureCard 
+        title="Disc Progression"
+        description="Craft discs from wooden to netherite, each with unique flight characteristics and enchantment options."
+        icon="⚒️"
+        href={`${baseUrl}guide/crafting`}
+        tier="diamond"
+      />
+      <FeatureCard 
+        title="Resort System"
+        description="Auto-build central resorts with housing, courtyards, and surrounding courses for a complete experience."
+        icon="🏨"
+        href={`${baseUrl}features/resort`}
+      />
+      <FeatureCard 
+        title="Challenge Courses"
+        description="Discover lost courses, face boss hole mobs, and earn enchanted equipment rewards."
+        icon="⚔️"
+        href={`${baseUrl}guide/challenge-courses`}
+        tier="gold"
+      />
+      <FeatureCard 
+        title="Skill Progression"
+        description="Unlock advanced equipment through skill-based achievements and performance milestones."
+        icon="🏆"
+        href={`${baseUrl}progression/skill-unlocks`}
+        tier="netherite"
+      />
+    </div>
+  </section>
+
+  <section class="disc-stats-section">
+    <h2 class="section-title">Disc Flight Ratings</h2>
+    <p class="section-description">Each disc tier has unique flight characteristics that affect distance, accuracy, and control.</p>
+    
+    <div class="disc-stats-grid">
+      <DiscStats 
+        discName="Training Disc"
+        speed={3}
+        glide={4}
+        turn={0}
+        fade={1}
+        tier="training"
+      />
+      <DiscStats 
+        discName="Wooden Disc"
+        speed={4}
+        glide={3}
+        turn={-1}
+        fade={1}
+        tier="wooden"
+      />
+      <DiscStats 
+        discName="Stone Disc"
+        speed={5}
+        glide={3}
+        turn={0}
+        fade={1}
+        tier="stone"
+      />
+      <DiscStats 
+        discName="Iron Disc"
+        speed={6}
+        glide={4}
+        turn={0}
+        fade={2}
+        tier="iron"
+      />
+      <DiscStats 
+        discName="Gold Disc"
+        speed={7}
+        glide={5}
+        turn={-1}
+        fade={1}
+        tier="gold"
+      />
+      <DiscStats 
+        discName="Diamond Disc"
+        speed={9}
+        glide={6}
+        turn={0}
+        fade={3}
+        tier="diamond"
+      />
+      <DiscStats 
+        discName="Netherite Disc"
+        speed={11}
+        glide={7}
+        turn={1}
+        fade={4}
+        tier="netherite"
+      />
+    </div>
+  </section>
+
+  <section class="quick-start-section">
+    <h2 class="section-title">Quick Start</h2>
+    <div class="quick-steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <h3>Install the Mod</h3>
+        <p>Download the latest test pack and install it on your Minecraft 1.20.6 Fabric instance.</p>
+        <a href={`${baseUrl}guide/installation`} class="button button-secondary">Installation Guide</a>
       </div>
-      <h1><span>MCDG</span> — Minecraft Disc Golf</h1>
-      <p>Build procedural courses, compete with friends, and manage your own disc golf resort in Minecraft 1.20.6.</p>
-      <div class="hero-actions">
-        <a href={`${base}guide/installation/`} class="btn">Get Started</a>
-        <a href={`${base}guide/gameplay/`} class="btn btn-secondary">How to Play</a>
-        <a href="https://github.com/rbrambley/mcdg" class="btn btn-secondary">GitHub</a>
+      <div class="step">
+        <div class="step-number">2</div>
+        <h3>Learn the Basics</h3>
+        <p>Master throw stances, release angles, and disc flight mechanics.</p>
+        <a href={`${baseUrl}guide/gameplay`} class="button button-secondary">Gameplay Guide</a>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <h3>Build Your Course</h3>
+        <p>Use the auto-build system to generate procedural courses in any biome.</p>
+        <a href={`${baseUrl}guide/admin-commands`} class="button button-secondary">Course Commands</a>
       </div>
     </div>
   </section>
 
-  <section class="container features-section">
-    <h2>Features</h2>
-    <div class="card-grid">
-      {features.map(feature => (
-        <a href={feature.href} class="card feature-card">
-          <div class="feature-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d={icons[feature.icon]}></path>
-            </svg>
-          </div>
-          <h3>{feature.title}</h3>
-          <p>{feature.description}</p>
-        </a>
-      ))}
-    </div>
-  </section>
-
-  <section class="container">
-    <h2>Quick Start</h2>
-    <div class="card">
-      <ol>
-        <li>Install Fabric for Minecraft <strong>1.20.6</strong> and Java <strong>21</strong>.</li>
-        <li>Download the latest test pack from the <a href="https://github.com/rbrambley/mcdg/releases">releases page</a>.</li>
-        <li>Merge the client pack into your Minecraft instance.</li>
-        <li>Join a world or server, press <kbd>G</kbd>, and choose <strong>Auto Build Course</strong>.</li>
-        <li>Start a round, invite other players, and throw!</li>
-      </ol>
-      <p><a href={`${base}guide/installation/`} class="btn">Full Installation Guide</a></p>
+  <section class="requirements-section">
+    <h2 class="section-title">Requirements</h2>
+    <div class="requirements-grid">
+      <div class="requirement-card">
+        <h3>Minecraft</h3>
+        <p>1.20.6</p>
+      </div>
+      <div class="requirement-card">
+        <h3>Fabric Loader</h3>
+        <p>0.19.3</p>
+      </div>
+      <div class="requirement-card">
+        <h3>Java</h3>
+        <p>21</p>
+      </div>
     </div>
   </section>
 </MainLayout>
 
 <style>
-  .hero-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border);
-    color: var(--accent);
-    padding: 0.4rem 0.85rem;
-    border-radius: 999px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    margin-bottom: 1.25rem;
+  .hero-image-section {
+    padding: 2rem 1rem;
+    background: linear-gradient(180deg, var(--color-background) 0%, var(--color-background-secondary) 100%);
   }
 
-  .hero-badge svg {
-    width: 1.1rem;
-    height: 1.1rem;
+  .features-section,
+  .disc-stats-section,
+  .quick-start-section,
+  .requirements-section {
+    padding: 4rem 1rem;
   }
 
-  .feature-card {
-    display: block;
-    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.2s ease;
+  .section-title {
+    text-align: center;
+    font-size: 2.5rem;
+    color: var(--color-text-primary);
+    margin-bottom: 1rem;
   }
 
-  .feature-card:hover {
-    transform: translateY(-3px);
-    border-color: var(--accent);
-    box-shadow: 0 8px 24px rgba(0, 255, 136, 0.1);
-    text-decoration: none;
+  .section-description {
+    text-align: center;
+    color: var(--color-text-secondary);
+    max-width: 600px;
+    margin: 0 auto 2rem;
   }
 
-  .feature-card h3 {
-    color: var(--accent);
-    margin-top: 0.75rem;
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    max-width: 1200px;
+    margin: 0 auto;
   }
 
-  .feature-icon {
-    width: 3rem;
-    height: 3rem;
+  .disc-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .quick-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .step {
+    text-align: center;
+    padding: 2rem;
+    background-color: var(--color-background-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+  }
+
+  .step-number {
+    width: 50px;
+    height: 50px;
+    background-color: var(--color-accent);
+    color: var(--color-background);
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--accent-dim);
-    border-radius: var(--radius);
-    color: var(--accent);
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 auto 1rem;
   }
 
-  .feature-icon svg {
-    width: 1.5rem;
-    height: 1.5rem;
+  .step h3 {
+    color: var(--color-text-primary);
+    margin-bottom: 0.5rem;
   }
 
-  section.container {
-    padding-top: 3rem;
-    padding-bottom: 3rem;
+  .step p {
+    color: var(--color-text-secondary);
+    margin-bottom: 1rem;
   }
 
-  .features-section {
-    background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  .requirements-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .requirement-card {
+    background-color: var(--color-background-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    text-align: center;
+  }
+
+  .requirement-card h3 {
+    color: var(--color-accent);
+    margin-bottom: 0.5rem;
+  }
+
+  .requirement-card p {
+    color: var(--color-text-primary);
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  @media (max-width: 768px) {
+    .features-section,
+    .disc-stats-section,
+    .quick-start-section,
+    .requirements-section {
+      padding: 2rem 1rem;
+    }
+
+    .section-title {
+      font-size: 2rem;
+    }
+
+    .features-grid,
+    .disc-stats-grid,
+    .quick-steps {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

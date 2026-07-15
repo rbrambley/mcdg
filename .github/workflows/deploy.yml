@@ -34,7 +34,7 @@ jobs:
         working-directory: docs
         run: npm ci
 
-      - name: Build site
+      - name: Build Astro
         working-directory: docs
         run: npm run build
 

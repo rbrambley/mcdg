@@ -1,0 +1,304 @@
+---
+import GuideLayout from '../../layouts/GuideLayout.astro';
+import CommandBlock from '../../components/content/CommandBlock.astro';
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+---
+
+<GuideLayout 
+  title="Cave Courses Guide"
+  guideType="cave-courses"
+>
+  <h1>Cave Courses Guide</h1>
+  
+  <p>Cave courses are unique underground disc golf courses generated in cave systems with special lighting, water tunnels, and cave-specific structures. These courses offer a completely different gameplay experience with unique challenges and aesthetics.</p>
+
+  <h2>Cave Course Overview</h2>
+
+  <h3>Unique Characteristics</h3>
+  <ul>
+    <li><strong>Underground:</strong> Courses generated in natural cave systems</li>
+    <li><strong>Lighting:</strong> Automatic lighting system for visibility</li>
+    <li><strong>Water Tunnels:</strong> Underground water features and tunnels</li>
+    <li><strong>Structures:</strong> Cave-specific tee pads and basket markers</li>
+  </ul>
+
+  <h3>Generation System</h3>
+  <ul>
+    <li><strong>CaveCoursePlacementService:</strong> Handles cave detection and placement</li>
+    <li><strong>CaveStructureBuilder:</strong> Builds cave-specific structures</li>
+    <li><strong>CaveHazardPlacementService:</strong> Places cave-appropriate hazards</li>
+    <li><strong>Automatic Lighting:</strong> Ensures visibility throughout course</li>
+  </ul>
+
+  <h2>Cave Course Generation</h2>
+
+  <h3>Cave Detection</h3>
+  <ul>
+    <li><strong>Surface Scanning:</strong> System scans for cave entrances</li>
+    <li><strong>Cave Mapping:</strong> Maps cave system for course placement</li>
+    <li><strong>Suitability Analysis:</strong> Evaluates cave size and structure</li>
+    <li><strong>Placement Selection:</strong> Chooses optimal cave locations</li>
+  </ul>
+
+  <h3>Course Placement</h3>
+  <ul>
+    <li><strong>Tee Pads:</strong> Special cave tee pads with lighting</li>
+    <li><strong>Basket Markers:</strong> Cave-specific basket markers</li>
+    <li><strong>Fairway Clearing:</strong> Clears vegetation in cave fairways</li>
+    <li><strong>Structure Integration:</strong> Works with existing cave formations</li>
+  </ul>
+
+  <h3>Lighting System</h3>
+  <ul>
+    <li><strong>Automatic Placement:</strong> Lights placed throughout course</li>
+    <li><strong>Visibility:</strong> Ensures all holes are playable</li>
+    <li><strong>Aesthetic:</strong> Cave-appropriate lighting design</li>
+    <li><strong>Performance:</strong> Optimized lighting for cave environments</li>
+  </ul>
+
+  <h2>Cave Course Features</h2>
+
+  <h3>Water Tunnels</h3>
+  <ul>
+    <li><strong>Underground Water:</strong> Water features within cave systems</li>
+    <li><strong>Tunnel Navigation:</strong> Water tunnels for shot variety</li>
+    <li><strong>Hazard Integration:</strong> Water hazards in cave context</li>
+    <li><strong>Visual Appeal:</strong> Unique underground water aesthetics</li>
+  </ul>
+
+  <h3>Cave Structures</h3>
+
+  <h4>Tee Pads</h4>
+  <ul>
+    <li><strong>Cave Design:</strong> Stone-themed tee pads</li>
+    <li><strong>Lighting:</strong> Integrated lighting for visibility</li>
+    <li><strong>Placement:</strong> Positioned on flat cave surfaces</li>
+    <li><strong>Markers:</strong> Cave-specific tee markers</li>
+  </ul>
+
+  <h4>Basket Markers</h4>
+  <ul>
+    <li><strong>Cave Aesthetics:</strong> Stone-themed basket markers</li>
+    <li><strong>Visibility:</strong> Enhanced lighting for basket visibility</li>
+    <li><strong>Placement:</strong> Positioned in clear cave areas</li>
+    <li><strong>Protection:</strong> Protected from cave hazards</li>
+  </ul>
+
+  <h3>Cave Hazards</h3>
+
+  <h4>Underground Hazards</h4>
+  <ul>
+    <li><strong>Lava:</strong> Underground lava pools and flows</li>
+    <li><strong>Water:</strong> Cave lakes and underground rivers</li>
+    <li><strong>Cliffs:</strong> Cave drops and elevation changes</li>
+    <li><strong>Stalactites:</strong> Ceiling obstacles and hazards</li>
+  </ul>
+
+  <h4>Hazard Placement</h4>
+  <ul>
+    <li><strong>Cave Integration:</strong> Hazards integrated with cave formations</li>
+    <li><strong>Strategic Placement:</strong> Placed to challenge specific shots</li>
+    <li><strong>Fairness:</strong> Always provides playable routes</li>
+    <li><strong>Visual:</strong> Clear hazard marking in cave environment</li>
+  </ul>
+
+  <h2>Cave Course Gameplay</h2>
+
+  <h3>Unique Challenges</h3>
+
+  <h4>Visibility</h3>
+  <ul>
+    <li><strong>Lighting:</strong> Cave lighting affects depth perception</li>
+    <li><strong>Shadows:</strong> Cave shadows can hide obstacles</li>
+    <li><strong>Adaptation:</strong> Requires visual adaptation to cave environment</li>
+  </ul>
+
+  <h4>Terrain</h4>
+  <ul>
+    <li><strong>Uneven Surfaces:</strong> Cave floors are often uneven</li>
+    <li><strong>Ceiling Height:</strong> Low ceilings limit shot options</li>
+    <li><strong>Wall Proximity:</strong> Cave walls affect flight paths</li>
+  </ul>
+
+  <h4>Atmosphere</h4>
+  <ul>
+    <li><strong>Acoustics:</strong> Cave acoustics affect audio cues</li>
+    <li><strong>Temperature:</strong> Cave temperature may affect gameplay</li>
+    <li><strong>Enclosed Space:</strong> Confined space affects throw psychology</li>
+  </ul>
+
+  <h3>Strategic Considerations</h3>
+
+  <h4>Shot Selection</h4>
+  <ul>
+    <li><strong>Ceiling Clearance:</strong> Overhand for vertical clearance</li>
+    <li><strong>Wall Bounces:</strong> Use walls for strategic bounces</li>
+    <li><strong>Tight Spaces:</strong> Precision shots over power</li>
+    <li><strong>Lighting Awareness:</strong> Account for lighting in aiming</li>
+  </ul>
+
+  <h4>Disc Selection</h4>
+  <ul>
+    <li><strong>Stability:</strong> Stable discs for predictable cave flight</li>
+    <li><strong>Control:</strong> Control over distance in confined spaces</li>
+    <li><strong>Durability:</strong> Cave walls may increase disc wear</li>
+  </ul>
+
+  <h2>Cave Course Commands</h2>
+
+  <h3>Auto Build Cave Course</h3>
+  <CommandBlock 
+    command="/mcdg autocourse [name] --cave"
+    description="Generate cave course with auto or specified name"
+  />
+
+  <h4>Usage</h4>
+  <ul>
+    <li>Stand near cave entrance or in cave system</li>
+    <li>Run command with --cave flag</li>
+    <li>System detects suitable cave location</li>
+    <li>Course generates within cave system</li>
+  </ul>
+
+  <h3>Manual Build Cave Course</h3>
+  <CommandBlock 
+    command="/mcdg buildcourse [name] [seed] --cave"
+    description="Build cave course with specific seed"
+  />
+
+  <h4>Usage</h4>
+  <ul>
+    <li>Choose seed for reproducible cave course</li>
+    <li>Use --cave flag for cave generation</li>
+    <li>Same seed produces identical cave layout</li>
+    <li>Document seeds for cave course sharing</li>
+  </ul>
+
+  <h2>Cave Course Types</h2>
+
+  <h3>Natural Caves</h3>
+  <ul>
+    <li><strong>Source:</strong> Natural Minecraft cave systems</li>
+    <li><strong>Characteristics:</strong> Organic formations, varied terrain</li>
+    <li><strong>Difficulty:</strong> Variable based on cave complexity</li>
+    <li><strong>Aesthetics:</strong> Natural cave beauty and variety</li>
+  </ul>
+
+  <h3>Ravines</h3>
+  <ul>
+    <li><strong>Source:</strong> Natural ravine formations</li>
+    <li><strong>Characteristics:</strong> Deep vertical drops, dramatic elevation</li>
+    <li><strong>Difficulty:</strong> High due to elevation changes</li>
+    <li><strong>Aesthetics:</strong> Dramatic vertical landscapes</li>
+  </ul>
+
+  <h3>Mineshafts</h3>
+  <ul>
+    <li><strong>Source:</strong> Abandoned mineshaft structures</li>
+    <li><strong>Characteristics:</strong> Wooden structures, minecart rails</li>
+    <li><strong>Difficulty:</strong> Moderate with structural obstacles</li>
+    <li><strong>Aesthetics:</strong> Industrial mining atmosphere</li>
+  </ul>
+
+  <h2>Cave Course Strategy</h2>
+
+  <h3>Course Selection</h3>
+
+  <h4>For Beginners</h3>
+  <ul>
+    <li><strong>Simple Caves:</strong> Start with simple cave systems</li>
+    <li><strong>Good Lighting:</strong> Choose well-lit cave courses</li>
+    <li><strong>Open Spaces:</strong> Prefer caves with open areas</li>
+    <li><strong>Minimal Hazards:</strong> Avoid lava-heavy caves initially</li>
+  </ul>
+
+  <h4>For Advanced Players</h4>
+  <ul>
+    <li><strong>Complex Caves:</strong> Challenge with complex cave systems</li>
+    <li><strong>Tight Spaces:</strong> Test precision in confined areas</li>
+    <li><strong>Extreme Hazards:</strong> Take on lava and cliff challenges</li>
+    <li><strong>Ravines:</strong> Master elevation changes in ravines</li>
+  </ul>
+
+  <h3>Shot Strategy</h3>
+
+  <h4>Ceiling Management</h4>
+  <ul>
+    <li><strong>Height Awareness:</strong> Always check ceiling height</li>
+    <li><strong>Stance Selection:</strong> Overhand for low ceilings</li>
+    <li><strong>Power Control:</strong> Reduce power in tight spaces</li>
+    <li><strong>Angle Management:</strong> Use angles to avoid ceiling</li>
+  </ul>
+
+  <h4>Wall Play</h4>
+  <ul>
+    <li><strong>Wall Bounces:</strong> Use walls strategically</li>
+    <li><strong>Wall Avoidance:</strong> Avoid walls when possible</li>
+    <li><strong>Corner Play:</strong> Master corner shots in caves</li>
+    <li><strong>Narrow Passages:</strong> Precision through narrow areas</li>
+  </ul>
+
+  <h2>Cave Course Benefits</h2>
+
+  <h3>Unique Experience</h3>
+  <ul>
+    <li><strong>Atmosphere:</strong> Immersive underground environment</li>
+    <li><strong>Variety:</strong> Different from surface courses</li>
+    <li><strong>Challenge:</strong> Unique cave-specific challenges</li>
+    <li><strong>Exploration:</strong> Encourages cave exploration</li>
+  </ul>
+
+  <h3>Skill Development</h3>
+  <ul>
+    <li><strong>Precision:</strong> Develops precision in confined spaces</li>
+    <li><strong>Spatial Awareness:</strong> Improves 3D spatial awareness</li>
+    <li><strong>Adaptability:</strong> Teaches adaptation to different environments</li>
+    <li><strong>Creativity:</strong> Encourages creative shot solutions</li>
+  </ul>
+
+  <h2>Troubleshooting</h2>
+
+  <h3>Common Issues</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Issue</th>
+        <th>Solution</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Cave course generation failing</td>
+        <td>Find larger cave system, check cave suitability, try different location</td>
+      </tr>
+      <tr>
+        <td>Lighting insufficient</td>
+        <td>Report lighting bug, add torches manually, use brightness settings</td>
+      </tr>
+      <tr>
+        <td>Tee pads not placing</td>
+        <td>Check for flat surface, try different cave area, verify placement space</td>
+      </tr>
+      <tr>
+        <td>Basket not visible</td>
+        <td>Check lighting, adjust brightness settings, clear line of sight</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Performance Considerations</h3>
+  <ul>
+    <li><strong>Lighting:</strong> Cave lighting may affect performance</li>
+    <li><strong>Chunk Loading:</strong> Cave courses may require more chunks</li>
+    <li><strong>Entity Count:</strong> Minimal entity impact in caves</li>
+    <li><strong>Optimization:</strong> Adjust render distance if needed</li>
+  </ul>
+
+  <h2>Related Documentation</h2>
+  <ul>
+    <li><a href={`${baseUrl}guide/hazards`}>Hazards Guide</a></li>
+    <li><a href={`${baseUrl}features/courses`}>Course Generation System</a></li>
+    <li><a href={`${baseUrl}guide/biome-courses`}>Biome Course Guide</a></li>
+    <li><a href={`${baseUrl}guide/stances-angles`}>Stances & Angles Guide</a></li>
+  </ul>
+</GuideLayout>

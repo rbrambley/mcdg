@@ -1,0 +1,97 @@
+---
+interface Props {
+  title?: string;
+  description?: string;
+  width?: string;
+  height?: string;
+}
+
+const { 
+  title = 'Screenshot Placeholder', 
+  description = 'Screenshot coming soon',
+  width = '100%',
+  height = '400px'
+} = Astro.props;
+---
+
+<div class="screenshot-placeholder" style={`width: ${width}; height: ${height};`}>
+  <div class="placeholder-content">
+    <svg class="placeholder-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+      <circle cx="8.5" cy="8.5" r="1.5"></circle>
+      <polyline points="21 15 16 10 5 21"></polyline>
+    </svg>
+    <h3 class="placeholder-title">{title}</h3>
+    <p class="placeholder-description">{description}</p>
+  </div>
+</div>
+
+<style>
+  .screenshot-placeholder {
+    background: linear-gradient(135deg, var(--color-background-secondary) 0%, var(--color-background-tertiary) 100%);
+    border: 2px dashed var(--color-border);
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 2rem 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .screenshot-placeholder::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 10px,
+      rgba(0, 255, 136, 0.03) 10px,
+      rgba(0, 255, 136, 0.03) 20px
+    );
+  }
+
+  .placeholder-content {
+    text-align: center;
+    z-index: 1;
+    padding: 2rem;
+  }
+
+  .placeholder-icon {
+    color: var(--color-accent);
+    margin-bottom: 1rem;
+    opacity: 0.5;
+  }
+
+  .placeholder-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .placeholder-description {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    margin: 0;
+  }
+
+  @media (max-width: 768px) {
+    .screenshot-placeholder {
+      height: 300px;
+    }
+
+    .placeholder-content {
+      padding: 1rem;
+    }
+
+    .placeholder-icon {
+      width: 48px;
+      height: 48px;
+    }
+  }
+</style>

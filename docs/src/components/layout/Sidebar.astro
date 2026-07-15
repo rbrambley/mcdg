@@ -1,87 +1,70 @@
 ---
-const base = import.meta.env.BASE_URL;
-const sections = [
-  {
-    title: 'Guide',
-    links: [
-      { label: 'Installation', href: `${base}guide/installation/` },
-      { label: 'Gameplay', href: `${base}guide/gameplay/` },
-    ],
-  },
-  {
-    title: 'Features',
-    links: [
-      { label: 'Overview', href: `${base}features/` },
-    ],
-  },
-  {
-    title: 'Reference',
-    links: [
-      { label: 'About', href: `${base}about/` },
-      { label: 'GitHub', href: 'https://github.com/rbrambley/mcdg' },
-    ],
-  },
-];
+interface Props {
+  items: Array<{ title: string; href: string }>;
+  activeItem?: string;
+}
+
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+const { items, activeItem } = Astro.props;
 ---
 
-<aside class="sidebar" aria-label="Section navigation">
-  {sections.map(section => (
-    <div class="sidebar-section">
-      <h3>{section.title}</h3>
-      <ul>
-        {section.links.map(link => (
-          <li><a href={link.href}>{link.label}</a></li>
-        ))}
-      </ul>
-    </div>
-  ))}
+<aside class="sidebar">
+  <h3>Guide Contents</h3>
+  <ul class="sidebar-list">
+    {items.map((item) => (
+      <li>
+        <a 
+          href={item.href?.startsWith(baseUrl) ? item.href : (item.href?.startsWith('/') ? baseUrl + item.href.slice(1) : item.href)}
+          class={`sidebar-link ${activeItem === item.title.toLowerCase().replace(' ', '-') ? 'active' : ''}`}
+        >
+          {item.title}
+        </a>
+      </li>
+    ))}
+  </ul>
 </aside>
 
 <style>
   .sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .sidebar-section h3 {
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-secondary);
-    margin-bottom: 0.75rem;
-  }
-
-  .sidebar-section ul {
-    list-style: none;
-    margin: 0;
     padding: 0;
   }
 
-  .sidebar-section li {
-    margin-bottom: 0.5rem;
+  .sidebar h3 {
+    font-size: 1rem;
+    color: var(--color-text-primary);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--color-border);
   }
 
-  .sidebar-section a {
-    color: var(--text-secondary);
+  .sidebar-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .sidebar-list li {
+    margin-bottom: 0.25rem;
+  }
+
+  .sidebar-link {
     display: block;
-    padding: 0.35rem 0;
-    border-left: 2px solid transparent;
-    padding-left: 0.75rem;
-    margin-left: -0.75rem;
-    transition: color 0.2s, border-color 0.2s;
-  }
-
-  .sidebar-section a:hover {
-    color: var(--accent);
+    padding: 0.5rem 0.75rem;
+    color: var(--color-text-secondary);
     text-decoration: none;
-    border-left-color: var(--accent);
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
   }
 
-  @media (max-width: 900px) {
-    .sidebar {
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 1rem;
-    }
+  .sidebar-link:hover {
+    background-color: var(--color-background-tertiary);
+    color: var(--color-text-primary);
+  }
+
+  .sidebar-link.active {
+    background-color: rgba(0, 255, 136, 0.1);
+    color: var(--color-accent);
+    font-weight: 500;
   }
 </style>

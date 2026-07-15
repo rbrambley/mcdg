@@ -1,23 +1,26 @@
 {
-  "name": "mcdg-website",
+  "name": "mcdg-site",
   "type": "module",
-  "version": "0.0.1",
-  "private": true,
-  "description": "MCDG Modpack website and user guide",
+  "version": "1.0.0",
+  "description": "MCDG Modpack User Guide and Promotional Site",
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
-    "build": "astro build",
+    "build": "astro check && astro build",
     "preview": "astro preview",
     "astro": "astro"
   },
   "dependencies": {
-    "astro": "^5.0.0"
+    "@astrojs/check": "^0.9.4",
+    "@astrojs/mdx": "^3.1.8",
+    "@astrojs/sitemap": "3.2.1",
+    "@astrojs/tailwind": "^5.1.4",
+    "astro": "^4.16.12",
+    "tailwindcss": "^3.4.17"
   },
   "devDependencies": {
-    "typescript": "^5.4.0"
-  },
-  "engines": {
-    "node": ">=20.0.0"
+    "@types/node": "^22.10.2",
+    "prettier": "^3.4.2",
+    "prettier-plugin-astro": "^0.14.1"
   }
 }

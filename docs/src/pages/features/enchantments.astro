@@ -1,0 +1,334 @@
+---
+import FeatureLayout from '../../layouts/FeatureLayout.astro';
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+---
+
+<FeatureLayout 
+  title="Disc Enchantments"
+  featureName="Disc Enchantment System"
+  description="Enhance your discs with powerful enchantments that modify flight characteristics, improve durability, and add special abilities."
+>
+  <h1>Disc Enchantment System</h1>
+  
+  <p>MCDG features a comprehensive enchantment system that allows you to customize your discs with special abilities. Enchantments can modify flight physics, improve durability, and add unique effects to enhance your gameplay.</p>
+
+  <h2>Enchantment Overview</h2>
+
+  <h3>Enchanting Methods</h3>
+  <ul>
+    <li><strong>Disc Workbench:</strong> Special crafting table for disc enchantments</li>
+    <li><strong>Enchantment Table:</strong> Standard Minecraft enchanting (limited options)</li>
+    <li><strong>Anvil:</strong> Combine enchanted discs and books</li>
+    <li><strong>Rewards:</strong> Earn enchanted books from round completion</li>
+  </ul>
+
+  <h3>Enchantment Mechanics</h3>
+  <ul>
+    <li><strong>Stacking:</strong> Multiple enchantments can be applied to one disc</li>
+    <li><strong>Tier Limits:</strong> Higher disc tiers can support more enchantments</li>
+    <li><strong>Durability Cost:</strong> Enchanting uses disc durability</li>
+    <li><strong>Level Scaling:</strong> Enchantment power scales with level (I-III)</li>
+  </ul>
+
+  <h2>Enchantment Types</h2>
+
+  <h3>GLIDE</h3>
+  <p>Increases hang time during the glide phase for extended distance.</p>
+  
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Level I:</strong> +5% glide duration</li>
+    <li><strong>Level II:</strong> +10% glide duration</li>
+    <li><strong>Level III:</strong> +15% glide duration</li>
+  </ul>
+
+  <h4>Best For</h4>
+  <ul>
+    <li>Distance driving and maximum throw attempts</li>
+    <li>Tailwind conditions where extra glide helps</li>
+    <li>Low-glide discs that need distance improvement</li>
+    <li>Players who prefer backhand/forehand stances</li>
+  </ul>
+
+  <h4>Physics Integration</h4>
+  <p>GLIDE enchantment directly modifies the glide phase duration in the trajectory calculation:</p>
+  <pre><code>// Base glide calculation
+int baseGlideTime = 10 + (power * 40);
+int glideBonus = enchantmentLevel * 5; // GLIDE levels
+int totalGlideTime = baseGlideTime + glideBonus;</code></pre>
+
+  <h3>STABILITY</h3>
+  <p>Reduces fade curve for straighter, more predictable flight.</p>
+  
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Level I:</strong> -15% fade curve</li>
+    <li><strong>Level II:</strong> -30% fade curve</li>
+    <li><strong>Level III:</strong> -45% fade curve</li>
+  </ul>
+
+  <h4>Best For</h4>
+  <ul>
+    <li>Accuracy and precision shots</li>
+    <li>Headwind conditions where fade is exaggerated</li>
+    <li>High-fade discs that need straightening</li>
+    <li>Players who struggle with fade control</li>
+  </ul>
+
+  <h4>Physics Integration</h4>
+  <p>STABILITY enchantment modifies the curve strength calculation:</p>
+  <pre><code>// Fade curve calculation
+double stabilityMultiplier = 1.0 - (stabilityLevel * 0.15);
+double curveStrength = BASE_CURVE * stabilityMultiplier;</code></pre>
+
+  <h3>PIERCE</h3>
+  <p>Ignores leaf and vegetation collisions for unobstructed flight.</p>
+  
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Level I:</strong> Ignores leaves and small vegetation</li>
+    <li><strong>Level II:</strong> Ignores most vegetation (excluding trees)</li>
+    <li><strong>Level III:</strong> Ignores all vegetation including trees</li>
+  </ul>
+
+  <h4>Best For</h4>
+  <ul>
+    <li>Forest and jungle courses with dense vegetation</li>
+    <li>Shots through narrow gaps in tree lines</li>
+    <li>Recovery from rough and cactus hazards</li>
+    <li>Challenge courses with mob obstacles</li>
+  </ul>
+
+  <h4>Collision Handling</h4>
+  <p>PIERCE enchantment modifies collision detection logic:</p>
+  <pre><code set:html={"// Collision check with PIERCE\nif (hasPierceEnchantment) {\n  BlockState block = world.getBlockState(blockPos);\n  if (block.isIn(BlockTags.LEAVES) || block.isIn(BlockTags.LOGS)) {\n    continue; // Skip collision\n  }\n}"}></code></pre>
+
+  <h3>DURABILITY</h3>
+  <p>Slows disc wear rate for extended equipment life.</p>
+  
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Level I:</strong> -25% durability loss per throw</li>
+    <li><strong>Level II:</strong> -50% durability loss per throw</li>
+    <li><strong>Level III:</strong> -75% durability loss per throw</li>
+  </ul>
+
+  <h4>Best For</h4>
+  <ul>
+    <li>High-tier discs that are expensive to replace</li>
+    <li>Frequent players who wear through discs quickly</li>
+    <li>Favorite discs that you want to last longer</li>
+    <li>Economy-focused players who want to save resources</li>
+  </ul>
+
+  <h4>Durability Mechanics</h4>
+  <p>DURABILITY enchantment modifies the wear calculation:</p>
+  <pre><code>// Durability loss calculation
+double durabilityMultiplier = 1.0 - (durabilityLevel * 0.25);
+int durabilityLoss = baseLoss * durabilityMultiplier;</code></pre>
+
+  <h3>RANGE</h3>
+  <p>Increases maximum throw distance for extended reach.</p>
+  
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Level I:</strong> +10% maximum distance</li>
+    <li><strong>Level II:</strong> +20% maximum distance</li>
+  </ul>
+
+  <h4>Best For</h4>
+  <ul>
+    <li>Long-distance requirements on difficult holes</li>
+    <li>Players who need extra distance for certain courses</li>
+    <li>Low-speed discs that need range improvement</li>
+    <li>Competitive play where every foot matters</li>
+  </ul>
+
+  <h4>Physics Integration</h4>
+  <p>RANGE enchantment modifies the initial velocity calculation:</p>
+  <pre><code>// Range bonus calculation
+double rangeMultiplier = 1.0 + (rangeLevel * 0.10);
+double initialVelocity = baseVelocity * rangeMultiplier;</code></pre>
+
+  <h2>Disc Workbench</h2>
+
+  <h3>Overview</h3>
+  <p>The Disc Workbench is a special crafting table designed specifically for applying disc enchantments:</p>
+  
+  <ul>
+    <li><strong>Block:</strong> Custom workbench block with disc-specific GUI</li>
+    <li><strong>Interface:</strong> Dedicated enchantment application screen</li>
+    <li><strong>Compatibility:</strong> Works with all MCDG discs (Training → Netherite)</li>
+    <li><strong>Integration:</strong> Uses Disc Enchanted Books for enchantment sources</li>
+  </ul>
+
+  <h3>Using the Workbench</h3>
+  <ol>
+    <li>Place a Disc Workbench in your world</li>
+    <li>Right-click to open the workbench interface</li>
+    <li>Place the disc you want to enchant in the disc slot</li>
+    <li>Place a Disc Enchanted Book in the enchantment slot</li>
+    <li>Confirm the enchantment application</li>
+    <li>The enchanted disc is returned with the new enchantment</li>
+  </ol>
+
+  <h3>Enchantment Costs</h3>
+  <ul>
+    <li><strong>Durability:</strong> Each enchantment uses disc durability</li>
+    <li><strong>Book Consumption:</strong> Enchanted books are consumed in the process</li>
+    <li><strong>Tier Limits:</strong> Higher disc tiers can accept more enchantments</li>
+    <li><strong>Level Scaling:</strong> Higher enchantment levels cost more durability</li>
+  </ul>
+
+  <h2>Disc Enchanted Books</h2>
+
+  <h3>Overview</h3>
+  <p>Disc Enchanted Books are special items that contain disc-specific enchantments:</p>
+  
+  <ul>
+    <li><strong>Source:</strong> Round completion rewards, boss drops, trading</li>
+    <li><strong>Types:</strong> Each enchantment type has corresponding books</li>
+    <li><strong>Levels:</strong> Books come in different enchantment levels (I-III)</li>
+    <li><strong>Stacking:</strong> Multiple books can be applied to one disc</li>
+  </ul>
+
+  <h3>Obtaining Enchanted Books</h3>
+  <h4>Round Completion Rewards</h4>
+  <ul>
+    <li><strong>Under Par:</strong> Higher chance for better enchantments</li>
+    <li><strong>Aces:</strong> Guaranteed high-level enchantment book</li>
+    <li><strong>Streak Bonuses:</strong> Consecutive good rounds increase drop rates</li>
+    <li><strong>Difficulty:</strong> Harder rulesets offer better rewards</li>
+  </ul>
+
+  <h4>Boss Drops</h4>
+  <ul>
+    <li><strong>Elite Bosses:</strong> Drop rare enchantment books</li>
+    <li><strong>Challenge Courses:</strong> Special enchantments only from bosses</li>
+    <li><strong>Combat Enchantments:</strong> Unique books for combat-focused players</li>
+    <li><strong>Loot Tables:</strong> Different bosses drop different enchantment types</li>
+  </ul>
+
+  <h2>Enchantment Combinations</h2>
+
+  <h3>Popular Combos</h3>
+
+  <h4>Distance Driver</h4>
+  <ul>
+    <li><strong>GLIDE III</strong> + <strong>RANGE II</strong></li>
+    <li><strong>Purpose:</strong> Maximum distance driving</li>
+    <li><strong>Best Disc:</strong> High-speed driver (Diamond, Netherite)</li>
+    <li><strong>Use Case:</strong> Long par 5s, distance requirements</li>
+  </ul>
+
+  <h4>Precision Approach</h4>
+  <ul>
+    <li><strong>STABILITY III</strong> + <strong>DURABILITY II</strong></li>
+    <li><strong>Purpose:</strong> Accurate approach shots with longevity</li>
+    <li><strong>Best Disc:</strong> Mid-range disc (Iron, Gold)</li>
+    <li><strong>Use Case:</strong> Approach shots, accuracy-focused play</li>
+  </ul>
+
+  <h4>Vegetation Cutter</h4>
+  <ul>
+    <li><strong>PIERCE III</strong> + <strong>GLIDE I</strong></li>
+    <li><strong>Purpose:</strong> Forest and jungle course navigation</li>
+    <li><strong>Best Disc:</strong> Stable mid-range disc</li>
+    <li><strong>Use Case:</strong> Dense vegetation, tree-lined fairways</li>
+  </ul>
+
+  <h4>All-Purpose Disc</h4>
+  <ul>
+    <li><strong>STABILITY II</strong> + <strong>DURABILITY II</strong> + <strong>GLIDE I</strong></li>
+    <li><strong>Purpose:</strong> Versatile disc for general play</li>
+    <li><strong>Best Disc:</strong> Iron or Gold tier disc</li>
+    <li><strong>Use Case:</strong> Everyday play, variety of conditions</li>
+  </ul>
+
+  <h3>Enchantment Limits</h3>
+  <ul>
+    <li><strong>Training:</strong> 1 enchantment max</li>
+    <li><strong>Wooden:</strong> 1 enchantment max</li>
+    <li><strong>Stone:</strong> 2 enchantments max</li>
+    <li><strong>Iron:</strong> 2 enchantments max</li>
+    <li><strong>Gold:</strong> 3 enchantments max</li>
+    <li><strong>Diamond:</strong> 3 enchantments max</li>
+    <li><strong>Netherite:</strong> 4 enchantments max</li>
+  </ul>
+
+  <h2>Advanced Enchanting</h2>
+
+  <h3>Anvil Combinations</h3>
+  <ul>
+    <li><strong>Disc + Disc:</strong> Combine enchantments from two discs</li>
+    <li><strong>Disc + Book:</strong> Add enchantment from book to disc</li>
+    <li><strong>Book + Book:</strong> Combine enchantment levels</li>
+    <li><strong>Cost Scaling:</strong> Higher levels cost more experience</li>
+  </ul>
+
+  <h3>Enchantment Priority</h3>
+  <p>When combining enchantments, priority determines which effects are kept:</p>
+  <ol>
+    <li><strong>PIERCE</strong> - Highest priority (collision effects)</li>
+    <li><strong>RANGE</strong> - Distance modification</li>
+    <li><strong>GLIDE</strong> - Flight time modification</li>
+    <li><strong>STABILITY</strong> - Flight curve modification</li>
+    <li><strong>DURABILITY</strong> - Lowest priority (passive effect)</li>
+  </ol>
+
+  <h2>Enchantment Strategy</h2>
+
+  <h3>Progression Planning</h3>
+  <ul>
+    <li><strong>Early Game:</strong> Focus on DURABILITY for economy</li>
+    <li><strong>Mid Game:</strong> Add GLIDE and STABILITY for performance</li>
+    <li><strong>Late Game:</strong> PIERCE and RANGE for specialized play</li>
+    <li><strong>End Game:</strong> Max-level enchantments on Netherite discs</li>
+  </ul>
+
+  <h3>Course-Specific Loadouts</h3>
+  <ul>
+    <li><strong>Forest:</strong> PIERCE enchantments essential</li>
+    <li><strong>Desert:</strong> DURABILITY for sand resistance</li>
+    <li><strong>Mountain:</strong> GLIDE for elevation management</li>
+    <li><strong>Coastal:</strong> STABILITY for wind resistance</li>
+  </ul>
+
+  <h2>Troubleshooting</h2>
+
+  <h3>Common Issues</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Issue</th>
+        <th>Solution</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Enchantment not applying</td>
+        <td>Check disc tier limits, ensure durability is sufficient</td>
+      </tr>
+      <tr>
+        <td>Book not consumed</td>
+        <td>Verify it's a Disc Enchanted Book, not regular enchanted book</td>
+      </tr>
+      <tr>
+        <td>Enchantment not working in-game</td>
+        <td>Check enchantment level, verify physics integration</td>
+      </tr>
+      <tr>
+        <td>Can't combine enchantments</td>
+        <td>Check anvil level requirements, experience cost</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Related Documentation</h2>
+  <ul>
+    <li><a href={`${baseUrl}features/physics`}>Physics System</a></li>
+    <li><a href={`${baseUrl}guide/progression`}>Progression System</a></li>
+    <li><a href={`${baseUrl}guide/crafting`}>Crafting Guide</a></li>
+    <li><a href={`${baseUrl}features/courses`}>Course Generation</a></li>
+  </ul>
+</FeatureLayout>

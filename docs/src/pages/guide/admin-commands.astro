@@ -1,0 +1,381 @@
+---
+import GuideLayout from '../../layouts/GuideLayout.astro';
+import CommandBlock from '../../components/content/CommandBlock.astro';
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+---
+
+<GuideLayout 
+  title="Admin Commands Reference"
+  guideType="admin-commands"
+>
+  <h1>Admin Commands Reference</h1>
+  
+  <p>Complete reference for all MCDG admin commands. Commands are accessed via the MCDG menu (press G) or through chat using <code>/mcdg</code>.</p>
+
+  <h2>Command Basics</h2>
+
+  <h3>Accessing Commands</h3>
+  <ul>
+    <li><strong>Menu:</strong> Press <strong>G</strong> to open the MCDG menu</li>
+    <li><strong>Chat:</strong> Type <code>/mcdg</code> for command list</li>
+    <li><strong>Permissions:</strong> Most commands require OP level 2+</li>
+  </ul>
+
+  <h3>Advanced Commands</h3>
+  <p>Some commands are hidden unless advanced mode is enabled:</p>
+  <CommandBlock 
+    command="MCDG_SHOW_ADVANCED_COMMANDS=true"
+    description="Environment variable"
+  />
+  <CommandBlock 
+    command="-Dmcdg.showAdvancedCommands=true"
+    description="JVM property"
+  />
+
+  <h2>Course Management Commands</h2>
+
+  <h3>Auto Build Course</h3>
+  <p>Automatically generate a course at your current location.</p>
+  <CommandBlock 
+    command="/mcdg autocourse [name]"
+    description="Build course with auto-generated name or specified name"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 2</li>
+    <li><strong>Usage:</strong> Stand at desired tee location and run command</li>
+    <li><strong>Note:</strong> Course generates outward from your position</li>
+  </ul>
+
+  <h3>Manual Build Course</h3>
+  <p>Build a course using a specific seed for reproducible generation.</p>
+  <CommandBlock 
+    command="/mcdg buildcourse [name] [seed]"
+    description="Build course with specific seed"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 2</li>
+    <li><strong>Usage:</strong> Use same seed to generate identical courses</li>
+    <li><strong>Note:</strong> Useful for tournaments and consistent testing</li>
+  </ul>
+
+  <h3>List Courses</h3>
+  <p>Display all available courses in the catalog.</p>
+  <CommandBlock 
+    command="/mcdg listcourses"
+    description="Show all available courses"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 0 (all players)</li>
+    <li><strong>Output:</strong> Course names, hole counts, and biome types</li>
+  </ul>
+
+  <h3>Use Course</h3>
+  <p>Select a specific course from the catalog for play.</p>
+  <CommandBlock 
+    command="/mcdg usecourse [index]"
+    description="Select course by catalog index"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 2</li>
+    <strong>Usage:</strong> Use <code>listcourses</code> to get index numbers</li>
+  </ul>
+
+  <h3>Cleanup Course</h3>
+  <p>Remove the current course and restore terrain.</p>
+  <CommandBlock 
+    command="/mcdg cleanupcourse"
+    description="Remove current course blocks"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 2</li>
+    <li><strong>Warning:</strong> This action cannot be undone</li>
+    <li><strong>Note:</strong> Resort areas are protected from cleanup</li>
+  </ul>
+
+  <h3>Prune Courses</h3>
+  <p>Remove unused courses from the catalog.</p>
+  <CommandBlock 
+    command="/mcdg prunecourses"
+    description="Remove unused courses (advanced)"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 2</li>
+    <li><strong>Advanced:</strong> Requires advanced mode enabled</li>
+    <li><strong>Note:</strong> Removes courses not recently used</li>
+  </ul>
+
+  <h3>Go to Course</h3>
+  <p>Teleport to a specific course.</p>
+  <CommandBlock 
+    command="/mcdg gotocourse [index]"
+    description="Teleport to course (advanced)"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 2</li>
+    <li><strong>Advanced:</strong> Requires advanced mode enabled</li>
+  </ul>
+
+  <h3>Validate Placement</h3>
+  <p>Check if current course placement is valid.</p>
+  <CommandBlock 
+    command="/mcdg validateplacement"
+    description="Validate course placement (advanced)"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 2</li>
+    <li><strong>Advanced:</strong> Requires advanced mode enabled</li>
+    <li><strong>Output:</strong> Reports any placement issues or conflicts</li>
+  </ul>
+
+  <h2>Round Management Commands</h2>
+
+  <h3>Start Round</h3>
+  <p>Start a new multiplayer round.</p>
+  <CommandBlock 
+    command="/mcdg startround"
+    description="Start new round with current course"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 2</li>
+    <li><strong>Options:</strong> Select ruleset, hole count, and other settings</li>
+    <li><strong>Note:</strong> Course must be built before starting round</li>
+  </ul>
+
+  <h3>End Round</h3>
+  <p>End the current round and show final scores.</p>
+  <CommandBlock 
+    command="/mcdg endround"
+    description="End current round"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 2</li>
+    <li><strong>Effect:</strong> Stops gameplay, displays final leaderboard</li>
+  </ul>
+
+  <h3>Join Round</h3>
+  <p>Join the current active round.</p>
+  <CommandBlock 
+    command="/mcdg joinround [player]"
+    description="Join round (admin can force player join)"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 0 (self), OP level 2 (others)</li>
+    <li><strong>Usage:</strong> Players can join themselves, admins can force others</li>
+  </ul>
+
+  <h3>Leave Round</h3>
+  <p>Leave the current round.</p>
+  <CommandBlock 
+    command="/mcdg leaveround [player]"
+    description="Leave round (admin can force player leave)"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 0 (self), OP level 2 (others)</li>
+  </ul>
+
+  <h3>Round Status</h3>
+  <p>Check the current status of the active round.</p>
+  <CommandBlock 
+    command="/mcdg roundstatus"
+    description="Show round status (advanced)"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 2</li>
+    <li><strong>Advanced:</strong> Requires advanced mode enabled</li>
+    <li><strong>Output:</strong> Detailed round state and player progress</li>
+  </ul>
+
+  <h2>Resort Commands</h2>
+
+  <h3>Build Resort</h3>
+  <p>Build a central resort structure at current location.</p>
+  <CommandBlock 
+    command="/mcdg buildresort [x] [z]"
+    description="Build resort at current or specified coordinates"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 2</li>
+    <li><strong>Features:</strong> Lobby, housing, courtyard, surrounding courses</li>
+    <li><strong>Note:</strong> Auto-builds 3 surrounding courses</li>
+  </ul>
+
+  <h2>Player Commands</h2>
+
+  <h3>Go to Lie</h3>
+  <p>Teleport to your current lie marker.</p>
+  <CommandBlock 
+    command="/mcdg gotolie"
+    description="Teleport to lie marker"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 0 (all players)</li>
+    <li><strong>Usage:</strong> Use if desynced from lie position</li>
+  </ul>
+
+  <h3>Save and Leave</h3>
+  <p>Save current progress and leave the round.</p>
+  <CommandBlock 
+    command="/mcdg saveandleave"
+    description="Save progress and exit round"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 0 (all players)</li>
+    <li><strong>Effect:</strong> Progress preserved for later resumption</li>
+  </ul>
+
+  <h3>Leaderboard</h3>
+  <p>View the current round leaderboard.</p>
+  <CommandBlock 
+    command="/mcdg leaderboard"
+    description="Show current leaderboard"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 0 (all players)</li>
+    <li><strong>Output:</strong> Live scores and rankings</li>
+  </ul>
+
+  <h2>Debug Commands</h2>
+
+  <h3>Auto Tests</h3>
+  <p>Run automated placement tests.</p>
+  <CommandBlock 
+    command="/mcdg autotests"
+    description="Run automated tests (advanced)"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 2</li>
+    <li><strong>Advanced:</strong> Requires advanced mode enabled</li>
+    <li><strong>Note:</strong> For development and testing purposes</li>
+  </ul>
+
+  <h3>Build Camp</h3>
+  <p>Build a camp structure (deprecated).</p>
+  <CommandBlock 
+    command="/mcdg buildcamp"
+    description="Build camp (deprecated, use buildresort)"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 2</li>
+    <li><strong>Status:</strong> Deprecated, use <code>buildresort</code> instead</li>
+  </ul>
+
+  <h2>Enchantment Commands</h2>
+
+  <h3>Debug Enchantments</h3>
+  <p>Debug enchantment system behavior.</p>
+  <CommandBlock 
+    command="/mcdg debugenchantments"
+    description="Debug enchantment system"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 2</li>
+    <li><strong>Note:</strong> For development and troubleshooting</li>
+  </ul>
+
+  <h2>Session Commands</h2>
+
+  <h3>Resume Course</h3>
+  <p>Resume a saved course session.</p>
+  <CommandBlock 
+    command="/mcdg resumecourse"
+    description="Resume saved course session (advanced)"
+  />
+  <ul>
+    <li><strong>Permission:</strong> OP level 2</li>
+    <li><strong>Advanced:</strong> Requires advanced mode enabled</li>
+  </ul>
+
+  <h2>Permission Levels</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Level</th>
+        <th>Description</th>
+        <th>Commands Available</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>0</td>
+        <td>All players</td>
+        <td>joinround, leaveround, gotolie, saveandleave, leaderboard, listcourses</td>
+      </tr>
+      <tr>
+        <td>1</td>
+        <td>Moderators</td>
+        <td>Level 0 + basic admin functions</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Admins</td>
+        <td>All commands including course and round management</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Server Owners</td>
+        <td>All commands + server configuration</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Command Categories</h2>
+
+  <h3>Course Commands</h3>
+  <ul>
+    <li><code>autocourse</code> - Auto-generate course</li>
+    <li><code>buildcourse</code> - Manual course generation</li>
+    <li><code>listcourses</code> - List available courses</li>
+    <li><code>usecourse</code> - Select course</li>
+    <li><code>cleanupcourse</code> - Remove course</li>
+    <li><code>prunecourses</code> - Remove unused courses</li>
+    <li><code>gotocourse</code> - Teleport to course</li>
+    <li><code>validateplacement</code> - Validate course placement</li>
+  </ul>
+
+  <h3>Round Commands</h3>
+  <ul>
+    <li><code>startround</code> - Start new round</li>
+    <li><code>endround</code> - End current round</li>
+    <li><code>joinround</code> - Join round</li>
+    <li><code>leaveround</code> - Leave round</li>
+    <li><code>roundstatus</code> - Check round status</li>
+  </ul>
+
+  <h3>Resort Commands</h3>
+  <ul>
+    <li><code>buildresort</code> - Build resort structure</li>
+  </ul>
+
+  <h3>Player Commands</h3>
+  <ul>
+    <li><code>gotolie</code> - Teleport to lie</li>
+    <li><code>saveandleave</code> - Save and exit</li>
+    <li><code>leaderboard</code> - View scores</li>
+  </ul>
+
+  <h2>Troubleshooting Commands</h2>
+
+  <h3>Command Not Found</h3>
+  <ul>
+    <li>Verify MCDG mod is loaded on server</li>
+    <li>Check command spelling and syntax</li>
+    <li>Ensure you have required OP level</li>
+    <li>Some commands require advanced mode</li>
+  </ul>
+
+  <h3>Permission Denied</h3>
+  <ul>
+    <li>Check your OP level with <code>/op</code></li>
+    <li>Ensure you're listed in ops.json</li>
+    <li>Server admins may need to set permissions</li>
+  </ul>
+
+  <h2>Related Documentation</h2>
+  <ul>
+    <li><a href={`${baseUrl}guide/multiplayer`}>Multiplayer Guide</a></li>
+    <li><a href={`${baseUrl}admin/server-setup`}>Server Setup Guide</a></li>
+    <li><a href={`${baseUrl}admin/permissions`}>Permission System</a></li>
+    <li><a href={`${baseUrl}guide/gameplay`}>Gameplay Mechanics</a></li>
+  </ul>
+</GuideLayout>

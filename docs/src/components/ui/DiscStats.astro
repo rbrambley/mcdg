@@ -1,6 +1,111 @@
 ---
+interface Props {
+  discName: string;
+  speed: number;
+  glide: number;
+  turn: number;
+  fade: number;
+  tier?: 'training' | 'wooden' | 'stone' | 'iron' | 'gold' | 'diamond' | 'netherite';
+}
+
+const { discName, speed, glide, turn, fade, tier = 'training' } = Astro.props;
+
+const getSpeedClass = (speed: number) => {
+  if (speed <= 4) return 'speed-wooden';
+  if (speed <= 6) return 'speed-iron';
+  if (speed <= 8) return 'speed-gold';
+  return 'speed-diamond';
+};
+
+const getTurnClass = (turn: number) => {
+  if (turn < 0) return 'turn-negative';
+  if (turn === 0) return 'turn-neutral';
+  return 'turn-positive';
+};
+
+const speedClass = getSpeedClass(speed);
+const turnClass = getTurnClass(turn);
 ---
 
-<div class="placeholder-component">
-  <p><em>DiscStats component — interactive disc stat display coming soon.</em></p>
+<div class={`disc-stats ${tier ? `tier-${tier}` : ''}`}>
+  <div class="disc-name">{discName}</div>
+  <div class="stats-grid">
+    <div class="stat-item">
+      <span class="stat-label">Speed</span>
+      <span class={`stat-value ${speedClass}`}>{speed}</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Glide</span>
+      <span class="stat-value glide-value">{glide}</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Turn</span>
+      <span class={`stat-value ${turnClass}`}>{turn}</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Fade</span>
+      <span class="stat-value fade-value">{fade}</span>
+    </div>
+  </div>
 </div>
+
+<style>
+  .disc-stats {
+    background-color: var(--color-background-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    text-align: center;
+  }
+
+  .disc-name {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 1rem;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+
+  .speed-wooden { color: var(--tier-wooden); }
+  .speed-iron { color: var(--tier-iron); }
+  .speed-gold { color: var(--tier-gold); }
+  .speed-diamond { color: var(--tier-diamond); }
+
+  .glide-value { color: var(--tier-diamond); }
+
+  .turn-negative { color: var(--color-accent); }
+  .turn-neutral { color: var(--tier-iron); }
+  .turn-positive { color: var(--tier-gold); }
+
+  .fade-value { color: var(--tier-gold); }
+
+  @media (max-width: 768px) {
+    .stats-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+</style>

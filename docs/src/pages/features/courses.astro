@@ -1,0 +1,371 @@
+---
+import FeatureLayout from '../../layouts/FeatureLayout.astro';
+import CommandBlock from '../../components/content/CommandBlock.astro';
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+---
+
+<FeatureLayout 
+  title="Course Generation System"
+  featureName="Procedural Course Generation"
+  description="Automatically generate infinite disc golf courses with terrain-aware placement, biome-specific characteristics, and customizable hole configurations."
+>
+  <h1>Course Generation System</h1>
+  
+  <p>MCDG features a sophisticated procedural course generation system that creates unique disc golf courses adapted to terrain, biome, and player preferences. From simple practice courses to complex championship layouts, the system provides infinite variety for endless gameplay.</p>
+
+  <h2>Course Generation Overview</h2>
+
+  <h3>Generation Methods</h3>
+  <ul>
+    <li><strong>Auto Build:</strong> Instant course generation at current location</li>
+    <li><strong>Manual Build:</strong> Seed-based generation for reproducible courses</li>
+    <li><strong>Biome-Aware:</strong> Courses adapt to surrounding biome characteristics</li>
+    <li><strong>Terrain Integration:</strong> Courses work with existing terrain features</li>
+  </ul>
+
+  <h3>Course Types</h3>
+  <ul>
+    <li><strong>Practice Courses:</strong> Standard courses for casual play and practice</li>
+    <li><strong>Biome Courses:</strong> Courses with biome-specific characteristics</li>
+    <li><strong>Challenge Courses:</strong> Lost courses and boss holes for advanced play</li>
+    <li><strong>Resort Courses:</strong> Surrounding courses auto-generated with resorts</li>
+  </ul>
+
+  <h2>Auto Build System</h2>
+
+  <h3>Outward Cone Generator</h3>
+  <p>The primary course generation algorithm uses an outward cone + teardrop pattern:</p>
+  
+  <ul>
+    <li><strong>Anchor Point:</strong> Course generation starts from player position</li>
+    <li><strong>Cone Pattern:</strong> Holes radiate outward in a cone shape</li>
+    <li><strong>Teardrop Layout:</strong> Course narrows at the far end for basket placement</li>
+    <li><strong>Universal Application:</strong> Used for all auto-build scenarios</li>
+  </ul>
+
+  <h4>Generation Process</h4>
+  <ol>
+    <li><strong>Anchor Resolution:</strong> Find suitable ground level at anchor point</li>
+    <li><strong>Terrain Analysis:</strong> Analyze surrounding terrain for obstacles</li>
+    <li><strong>Hole Placement:</strong> Place holes in outward cone pattern</li>
+    <li><strong>Terrain Preparation:</strong> Clear and level terrain for each hole</li>
+    <li><strong>Feature Placement:</strong> Add hazards, obstacles, and decorations</li>
+    <li><strong>Sign Placement:</strong> Add informational signs and markers</li>
+  </ol>
+
+  <h3>Auto Build Command</h3>
+  <CommandBlock 
+    command="/mcdg autocourse [name]"
+    description="Generate course with auto or specified name"
+  />
+
+  <h4>Usage</h4>
+  <ul>
+    <li>Stand at desired tee location</li>
+    <li>Run command with optional course name</li>
+    <li>Course generates outward from your position</li>
+    <li>System automatically handles terrain and obstacles</li>
+  </ul>
+
+  <h2>Manual Build System</h2>
+
+  <h3>Seed-Based Generation</h3>
+  <p>Manual build uses specific seeds for reproducible course generation:</p>
+  
+  <ul>
+    <li><strong>Deterministic:</strong> Same seed always produces same course</li>
+    <li><strong>Sharing:</strong> Seeds can be shared for consistent courses</li>
+    <li><strong>Tournaments:</strong> Ensures all players play identical courses</li>
+    <li><strong>Testing:</strong> Allows testing specific course configurations</li>
+  </ul>
+
+  <h3>Manual Build Command</h3>
+  <CommandBlock 
+    command="/mcdg buildcourse [name] [seed]"
+    description="Build course with specific seed"
+  />
+
+  <h4>Usage</h4>
+  <ul>
+    <li>Choose a seed number (any positive integer)</li>
+    <li>Run command with name and seed</li>
+    <li>Same seed produces identical course layout</li>
+    <li>Document seeds for course sharing and tournaments</li>
+  </ul>
+
+  <h2>Biome Course Generation</h2>
+
+  <h3>Biome Profiles</h3>
+  <p>Different biomes have unique course generation profiles:</p>
+
+  <h4>Biome Course Profile Structure</h4>
+  <ul>
+    <li><strong>Hazard Multiplier:</strong> Controls hazard frequency (0.8-1.5x)</li>
+    <li><strong>Elevation Variation:</strong> Terrain height changes (0.3-1.5x)</li>
+    <li><strong>Water Frequency:</strong> Water feature placement (0.1-1.5x)</li>
+    <li><strong>Vegetation Density:</strong> Tree and plant density (0.1-1.5x)</li>
+    <li><strong>Preferred Blocks:</strong> Aesthetic blocks for signs and structures</li>
+  </ul>
+
+  <h3>Biome-Specific Characteristics</h3>
+
+  <h4>Plains</h4>
+  <ul>
+    <li><strong>Hazard Multiplier:</strong> 0.8 (fewer hazards)</li>
+    <li><strong>Elevation:</strong> 0.5 (relatively flat)</li>
+    <li><strong>Water:</strong> 0.3 (occasional water)</li>
+    <li><strong>Vegetation:</strong> 0.4 (light vegetation)</li>
+    <li><strong>Blocks:</strong> Grass, dirt, oak logs</li>
+  </ul>
+
+  <h4>Forest</h4>
+  <ul>
+    <li><strong>Hazard Multiplier:</strong> 1.2 (more hazards)</li>
+    <li><strong>Elevation:</strong> 0.8 (moderate changes)</li>
+    <li><strong>Water:</strong> 0.2 (rare water)</li>
+    <li><strong>Vegetation:</strong> 1.2 (dense vegetation)</li>
+    <li><strong>Blocks:</strong> Grass, oak logs, leaves</li>
+  </ul>
+
+  <h4>Desert</h4>
+  <ul>
+    <li><strong>Hazard Multiplier:</strong> 1.0 (standard)</li>
+    <li><strong>Elevation:</strong> 0.6 (dunes and ridges)</li>
+    <li><strong>Water:</strong> 0.1 (rare oasis)</li>
+    <li><strong>Vegetation:</strong> 0.1 (minimal vegetation)</li>
+    <li><strong>Blocks:</strong> Sand, sandstone, terracotta</li>
+  </ul>
+
+  <h4>Mountain</h4>
+  <ul>
+    <li><strong>Hazard Multiplier:</strong> 1.5 (many hazards)</li>
+    <li><strong>Elevation:</strong> 1.5 (extreme changes)</li>
+    <li><strong>Water:</strong> 0.4 (mountain lakes)</li>
+    <li><strong>Vegetation:</strong> 0.6 (alpine vegetation)</li>
+    <li><strong>Blocks:</strong> Stone, gravel, snow</li>
+  </ul>
+
+  <h2>Hole Generation</h2>
+
+  <h3>Hole Configuration</h3>
+  <p>Each hole is generated with specific characteristics:</p>
+
+  <h4>Par Assignment</h4>
+  <ul>
+    <li><strong>Par 3:</strong> Short holes (150-250 ft)</li>
+    <li><strong>Par 4:</strong> Medium holes (250-400 ft)</li>
+    <li><strong>Par 5:</strong> Long holes (400+ ft)</li>
+    <li><strong>Calculation:</strong> Based on distance and obstacle density</li>
+  </ul>
+
+  <h4>Tee Placement</h4>
+  <ul>
+    <li><strong>Location:</strong> Start of each hole</li>
+    <li><strong>Surface:</strong> Level tee pad for consistent throws</li>
+    <li><strong>Marker:</strong> Tee sign with hole number and par</li>
+    <li><strong>Orientation:</strong> Positioned toward fairway and basket</li>
+  </ul>
+
+  <h4>Fairway Design</h4>
+  <ul>
+    <li><strong>Width:</strong> Varies based on hole difficulty</li>
+    <li><strong>Obstacles:</strong> Trees, hazards, and terrain features</li>
+    <li><strong>Elevation:</strong> Uphill, downhill, and level variations</li>
+    <li><strong>Shape:</strong> Straight, dogleg, and S-curve patterns</li>
+  </ul>
+
+  <h4>Basket Placement</h4>
+  <ul>
+    <li><strong>Location:</strong> End of fairway with clear approach</li>
+    <li><strong>Protection:</strong> Optional obstacles around basket</li>
+    <li><strong>Elevation:</strong> May be elevated or depressed</li>
+    <li><strong>Marker:</strong> Basket sign with hole number</li>
+  </ul>
+
+  <h2>Terrain Integration</h2>
+
+  <h3>Surface Resolution</h3>
+  <ul>
+    <li><strong>Anchor Point:</strong> Finds suitable ground level for course start</li>
+    <li><strong>Terrain Following:</strong> Course follows natural terrain contours</li>
+    <li><strong>Obstacle Avoidance:</strong> Works around major terrain features</li>
+    <li><strong>Water Handling:</strong> Bridges or routes around water features</li>
+  </ul>
+
+  <h3>Terrain Preparation</h3>
+  <ul>
+    <li><strong>Clearing:</strong> Removes vegetation in fairway areas</li>
+    <li><strong>Leveling:</strong> Creates level surfaces for tees and baskets</li>
+    <li><strong>Smoothing:</strong> Reduces extreme terrain variations</li>
+    <li><strong>Fire Protection:</strong> Protects course structures from fire</li>
+  </ul>
+
+  <h2>Hazard Placement</h2>
+
+  <h3>Hazard Types</h3>
+  <ul>
+    <li><strong>Rough:</strong> Tall grass and difficult terrain</li>
+    <li><strong>Sand:</strong> Bunkers and sandy areas</li>
+    <li><strong>Water:</strong> Lakes, rivers, and ponds</li>
+    <li><strong>Vegetation:</strong> Trees, cactus, and other plants</li>
+    <li><strong>Special:</strong> Ice, lava, cliffs, and unique hazards</li>
+  </ul>
+
+  <h3>Placement Logic</h3>
+  <ul>
+    <li><strong>Frequency:</strong> Based on biome hazard multiplier</li>
+    <li><strong>Strategic:</strong> Placed to challenge specific shot types</li>
+    <li><strong>Fairness:</strong> Always provides playable routes around hazards</li>
+    <li><strong>Visual:</strong> Clear hazard marking for player awareness</li>
+  </ul>
+
+  <h2>Course Catalog</h2>
+
+  <h3>Course Storage</h3>
+  <ul>
+    <li><strong>Practice Course Storage:</strong> Saves generated courses for reuse</li>
+    <li><strong>Catalog Index:</strong> Each course assigned unique index number</li>
+    <li><strong>Persistence:</strong> Courses survive server restarts</li>
+    <li><strong>Management:</strong> Commands for listing, using, and pruning courses</li>
+  </ul>
+
+  <h3>Catalog Commands</h3>
+  <CommandBlock 
+    command="/mcdg listcourses"
+    description="Show all available courses in catalog"
+  />
+  <CommandBlock 
+    command="/mcdg usecourse [index]"
+    description="Select course from catalog by index"
+  />
+  <CommandBlock 
+    command="/mcdg prunecourses"
+    description="Remove unused courses from catalog"
+  />
+
+  <h2>Course Customization</h2>
+
+  <h3>Hole Count</h3>
+  <ul>
+    <li><strong>Standard:</strong> 9 holes (default)</li>
+    <li><strong>Extended:</strong> 18 holes (configurable)</li>
+    <li><strong>Custom:</strong> Any number of holes (admin command)</li>
+    <li><strong>Balance:</strong> Mix of par 3, 4, and 5 holes</li>
+  </ul>
+
+  <h3>Difficulty Settings</h3>
+  <ul>
+    <li><strong>Beginner:</strong> Fewer hazards, wider fairways</li>
+    <li><strong>Intermediate:</strong> Standard hazard frequency</li>
+    <li><strong>Advanced:</strong> More hazards, narrower fairways</li>
+    <li><strong>Expert:</strong> Maximum challenge, extreme hazards</li>
+  </ul>
+
+  <h2>Course Validation</h3>
+
+  <h3>Placement Validation</h3>
+  <ul>
+    <li><strong>Overlap Check:</strong> Ensures courses don't overlap</li>
+    <li><strong>Conflict Detection:</strong> Identifies terrain conflicts</li>
+    <li><strong>Playability:</strong> Verifies all holes are playable</li>
+    <li><strong>Integrity:</strong> Checks for generation errors</li>
+  </ul>
+
+  <h3>Validation Command</h3>
+  <CommandBlock 
+    command="/mcdg validateplacement"
+    description="Validate current course placement"
+  />
+
+  <h2>Performance Considerations</h3>
+
+  <h3>Generation Performance</h3>
+  <ul>
+    <li><strong>Tick-Spread Placement:</strong> Block placement spread over multiple ticks</li>
+    <li><strong>Lag Prevention:</strong> Prevents server lag during generation</li>
+    <li><strong>Progressive Building:</strong> Visual feedback during construction</li>
+    <li><strong>Cancellation:</strong> Can cancel long generation processes</li>
+  </ul>
+
+  <h3>Server Impact</h3>
+  <ul>
+    <li><strong>Chunk Loading:</strong> Course generation loads new chunks</li>
+    <li><strong>Block Updates:</strong> Significant block updates during placement</li>
+    <li><strong>Entity Count:</strong> Minimal entity impact from courses</li>
+    <li><strong>Storage:</strong> Course data stored efficiently</li>
+  </ul>
+
+  <h2>Advanced Features</h2>
+
+  <h3>Cave Courses</h3>
+  <ul>
+    <li><strong>Underground:</strong> Courses generated in cave systems</li>
+    <li><strong>Lighting:</strong> Automatic lighting for visibility</li>
+    <li><strong>Structures:</strong> Cave-specific structures and tunnels</li>
+    <li><strong>Water Tunnels:</strong> Underground water features</li>
+  </ul>
+
+  <h3>Challenge Integration</h3>
+  <ul>
+    <li><strong>Lost Courses:</strong> Special generation for hidden courses</li>
+    <li><strong>Boss Holes:</strong> Mob integration on specific holes</li>
+    <li><strong>Elite Hazards:</strong> Unique hazards for challenge courses</li>
+    <li><strong>Reward Placement:</strong> Loot chests and reward structures</li>
+  </ul>
+
+  <h2>Troubleshooting</h2>
+
+  <h3>Common Issues</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Issue</th>
+        <th>Solution</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Course generation failing</td>
+        <td>Check terrain suitability, try different location, verify permissions</td>
+      </tr>
+      <tr>
+        <td>Holes unplayable</td>
+        <td>Report generation bug, use validation command, try different seed</td>
+      </tr>
+      <tr>
+        <td>Terrain conflicts</td>
+        <td>Use manual build with better location, clear obstacles first</td>
+      </tr>
+      <tr>
+        <td>Performance issues</td>
+        <td>Reduce hole count, use simpler terrain, check server resources</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Best Practices</h3>
+
+  <h3>For Course Builders</h3>
+  <ul>
+    <li><strong>Location:</strong> Choose flat, open areas for best results</li>
+    <li><strong>Testing:</strong> Test courses before using for events</li>
+    <li><strong>Documentation:</strong> Record seeds for reproducible courses</li>
+    <li><strong>Variety:</strong> Use different biomes for course variety</li>
+  </ul>
+
+  <h3>For Server Admins</h3>
+  <ul>
+    <li><strong>Catalog Management:</strong> Regularly prune unused courses</li>
+    <li><strong>Performance:</strong> Monitor server during course generation</li>
+    <li><strong>Backups:</strong> Backup world before major course builds</li>
+    <li><strong>Communication:</strong> Inform players of new courses</li>
+  </ul>
+
+  <h2>Related Documentation</h2>
+  <ul>
+    <li><a href={`${baseUrl}guide/biome-courses`}>Biome Course Guide</a></li>
+    <li><a href={`${baseUrl}guide/hazards`}>Hazards Guide</a></li>
+    <li><a href={`${baseUrl}guide/admin-commands`}>Admin Commands Reference</a></li>
+    <li><a href={`${baseUrl}features/physics`}>Physics System</a></li>
+  </ul>
+</FeatureLayout>

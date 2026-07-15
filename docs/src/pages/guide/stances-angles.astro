@@ -1,0 +1,387 @@
+---
+import GuideLayout from '../../layouts/GuideLayout.astro';
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+---
+
+<GuideLayout 
+  title="Stances & Angles Guide"
+  guideType="stances-angles"
+>
+  <h1>Stances & Angles Guide</h1>
+  
+  <p>Master MCDG's throw mechanics with detailed guides to the three throw stances (Overhand, Backhand, Forehand) and three release angles (Hyzer, Flat, Anhyzer). Understanding how these elements interact with the physics system is essential for advanced play.</p>
+
+  <h2>Throw Stances</h2>
+
+  <h3>Overview</h3>
+  <p>MCDG features three distinct throw stances, each with unique flight characteristics and use cases:</p>
+  
+  <ul>
+    <li><strong>Overhand:</strong> Vertical throw with minimal glide, maximum control</li>
+    <li><strong>Backhand:</strong> Traditional backhand throw with balanced glide and stability</li>
+    <li><strong>Forehand:</strong> Sidearm throw with enhanced glide and reduced stability</li>
+  </ul>
+
+  <h3>Stance Selection</h3>
+  <ul>
+    <li><strong>Default:</strong> Backhand is the default stance</li>
+    <li><strong>Cycling:</strong> Use cycle key to switch between stances</li>
+    <li><strong>HUD Display:</strong> Current stance shown on HUD</li>
+    <li><strong>Auto-Switch:</strong> Some situations recommend specific stances</li>
+  </ul>
+
+  <h2>Overhand Stance</h2>
+
+  <h3>Characteristics</h3>
+  <ul>
+    <li><strong>Flight Path:</strong> Vertical, straight trajectory</li>
+    <li><strong>Glide Duration:</strong> Minimal (0.005 wind effect multiplier)</li>
+    <li><strong>Stability:</strong> High stability, minimal fade</li>
+    <li><strong>Power:</strong> Standard power scaling</li>
+  </ul>
+
+  <h3>Physics Integration</h3>
+  <ul>
+    <li><strong>Wind Effect:</strong> Minimal wind impact (0.005 multiplier)</li>
+    <li><strong>Curve Behavior:</strong> Straight flight with minimal curve</li>
+    <li><strong>Distance:</strong> Shorter than other stances due to minimal glide</li>
+    <li><strong>Accuracy:</strong> Highest accuracy due to predictable flight</li>
+  </ul>
+
+  <h3>Best Use Cases</h3>
+  <ul>
+    <li><strong>Precision Shots:</strong> When accuracy is critical</li>
+    <li><strong>Obstacle Clearance:</strong> Vertical clearance over obstacles</li>
+    <li><strong>Windy Conditions:</strong> Minimal wind impact for consistency</li>
+    <li><strong>Short Holes:</strong> Controlled shots on short holes</li>
+  </ul>
+
+  <h3>Strategy</h3>
+  <ul>
+    <li><strong>Putting:</strong> Excellent for putting due to accuracy</li>
+    <li><strong>Obstacle Navigation:</strong> Use for vertical clearance over trees</li>
+    <li><strong>Wind Compensation:</strong> Minimal adjustment needed for wind</li>
+    <li><strong>Power Management:</strong> Standard power for consistent distance</li>
+  </ul>
+
+  <h2>Backhand Stance</h2>
+
+  <h3>Characteristics</h3>
+  <ul>
+    <li><strong>Flight Path:</strong> Traditional curved trajectory</li>
+    <li><strong>Glide Duration:</strong> Moderate (0.02 wind effect multiplier)</li>
+    <li><strong>Stability:</strong> Balanced stability with moderate fade</li>
+    <li><strong>Power:</strong> Standard power scaling</li>
+  </ul>
+
+  <h3>Physics Integration</h3>
+  <ul>
+    <li><strong>Wind Effect:</strong> Moderate wind impact (0.02 multiplier)</li>
+    <li><strong>Curve Behavior:</strong> Natural fade curve at end of flight</li>
+    <li><strong>Distance:</strong> Balanced distance with good glide</li>
+    <li><strong>Accuracy:</strong> Good accuracy with predictable fade</li>
+  </ul>
+
+  <h3>Best Use Cases</h3>
+  <ul>
+    <li><strong>General Play:</strong> Default stance for most situations</li>
+    <li><strong>Distance Throws:</strong> Good balance of distance and control</li>
+    <li><strong>Fairway Shots:</strong> Predictable flight on open fairways</li>
+    <li><strong>Standard Conditions:</strong> Reliable performance in normal conditions</li>
+  </ul>
+
+  <h3>Strategy</h3>
+  <ul>
+    <li><strong>Default Stance:</strong> Use as primary stance for most throws</li>
+    <li><strong>Fade Management:</strong> Account for natural fade in aiming</li>
+    <li><strong>Wind Adaptation:</strong> Moderate wind compensation needed</li>
+    <li><strong>Distance Control:</strong> Good for mid-range distance control</li>
+  </ul>
+
+  <h2>Forehand Stance</h2>
+
+  <h3>Characteristics</h3>
+  <ul>
+    <li><strong>Flight Path:</strong> Sidearm trajectory with enhanced glide</li>
+    <li><strong>Glide Duration:</strong> Enhanced (0.02 wind effect multiplier)</li>
+    <li><strong>Stability:</strong> Reduced stability with increased fade</li>
+    <li><strong>Power:</strong> Standard power scaling</li>
+  </ul>
+
+  <h3>Physics Integration</h3>
+  <ul>
+    <li><strong>Wind Effect:</strong> Moderate wind impact (0.02 multiplier)</li>
+    <li><strong>Curve Behavior:</strong> Enhanced fade curve at end of flight</li>
+    <li><strong>Distance:</strong> Maximum distance due to enhanced glide</li>
+    <li><strong>Accuracy:</strong> Lower accuracy due to increased fade</li>
+  </ul>
+
+  <h3>Best Use Cases</h3>
+  <ul>
+    <li><strong>Maximum Distance:</strong> When distance is priority</li>
+    <li><strong>Tailwind:</strong> Enhanced glide with tailwind assistance</li>
+    <li><strong>Open Fairways:</strong> When fade won't cause issues</li>
+    <li><strong>Downhill:</strong> Enhanced glide with downhill assistance</li>
+  </ul>
+
+  <h3>Strategy</h3>
+  <ul>
+    <li><strong>Distance Priority:</strong> Use when maximum distance needed</li>
+    <li><strong>Fade Compensation:</strong> Account for enhanced fade in aiming</li>
+    <li><strong>Wind Assistance:</strong> Best with tailwind conditions</li>
+    <li><strong>Open Conditions:</strong> Use when obstacles won't interfere with fade</li>
+  </ul>
+
+  <h2>Release Angles</h2>
+
+  <h3>Overview</h3>
+  <p>Release angles control the initial curve direction of the disc:</p>
+  
+  <ul>
+    <li><strong>Hyzer:</strong> Right curve (for right-handed throwers)</li>
+    <li><strong>Flat:</strong> Straight release with natural fade</li>
+    <li><strong>Anhyzer:</strong> Left curve (for right-handed throwers)</li>
+  </ul>
+
+  <h3>Angle Selection</h3>
+  <ul>
+    <li><strong>Default:</strong> Flat is the default release angle</li>
+    <li><strong>Cycling:</strong> Use cycle key to switch between angles</li>
+    <li><strong>HUD Display:</strong> Current angle shown on HUD</li>
+    <li><strong>Context-Aware:</strong> Some situations recommend specific angles</li>
+  </ul>
+
+  <h2>Hyzer Angle</h2>
+
+  <h3>Characteristics</h3>
+  <ul>
+    <li><strong>Curve Direction:</strong> Right curve (for right-handed throwers)</li>
+    <li><strong>Curve Strength:</strong> Moderate to strong depending on disc stability</li>
+    <li><strong>Wind Interaction:</strong> Fights headwind, exaggerates tailwind</li>
+    <li><strong>Distance:</strong> Slightly reduced due to curve</li>
+  </ul>
+
+  <h3>Physics Integration</h3>
+  <ul>
+    <li><strong>Initial Release:</strong> Angled release creates right curve</li>
+    <li><strong>Fade Interaction:</strong> Combines with natural fade for total curve</li>
+    <li><strong>Wind Effect:</strong> Headwind increases curve, tailwind reduces curve</li>
+    <li><strong>Stance Interaction:</strong> Works with all stances but effects vary</li>
+  </ul>
+
+  <h3>Best Use Cases</h3>
+  <ul>
+    <li><strong>Headwind:</strong> Fights headwind for straighter flight</li>
+    <li><strong>Right Obstacles:</strong> Curve around obstacles on right side</li>
+    <li><strong>Fade Compensation:</strong> Counteract natural fade of understable discs</li>
+    <li><strong>Controlled Distance:</strong> Reduce distance for precise shots</li>
+  </ul>
+
+  <h3>Strategy</h3>
+  <ul>
+    <li><strong>Headwind Play:</strong> Use hyzer to fight headwind</li>
+    <li><strong>Obstacle Navigation:</strong> Curve around right-side obstacles</li>
+    <li><strong>Disc Selection:</strong> Use with understable discs for straighter flight</li>
+    <li><strong>Distance Control:</strong> Use hyzer to reduce distance when needed</li>
+  </ul>
+
+  <h2>Flat Angle</h2>
+
+  <h3>Characteristics</h3>
+  <ul>
+    <li><strong>Curve Direction:</strong> Straight initial release</li>
+    <li><strong>Curve Strength:</strong> Natural fade only (no initial curve)</li>
+    <li><strong>Wind Interaction:</strong> Standard wind response</li>
+    <li><strong>Distance:</strong> Maximum distance for straight shots</li>
+  </ul>
+
+  <h3>Physics Integration</h3>
+  <ul>
+    <li><strong>Initial Release:</strong> Flat release creates straight initial flight</li>
+    <li><strong>Fade Interaction:</strong> Only natural fade affects flight</li>
+    <li><strong>Wind Effect:</strong> Standard wind impact based on conditions</li>
+    <li><strong>Stance Interaction:</strong> Most predictable across all stances</li>
+  </ul>
+
+  <h3>Best Use Cases</h3>
+  <ul>
+    <li><strong>General Play:</strong> Default angle for most situations</li>
+    <li><strong>Straight Shots:</strong> When straight line to basket is clear</li>
+    <li><strong>Distance:</strong> Maximum distance for straight shots</li>
+    <li><strong>Predictability:</strong> Most predictable flight pattern</li>
+  </ul>
+
+  <h3>Strategy</h3>
+  <ul>
+    <li><strong>Default Angle:</strong> Use as primary angle for most throws</li>
+    <li><strong>Straight Lines:</strong> Best when straight path to basket is clear</li>
+    <li><strong>Wind Management:</strong> Standard wind compensation needed</li>
+    <li><strong>Distance Maximization:</strong> Use for maximum distance on straight shots</li>
+  </ul>
+
+  <h2>Anhyzer Angle</h2>
+
+  <h3>Characteristics</h3>
+  <ul>
+    <li><strong>Curve Direction:</strong> Left curve (for right-handed throwers)</li>
+    <li><strong>Curve Strength:</strong> Moderate to strong depending on disc stability</li>
+    <li><strong>Wind Interaction:</strong> Fights tailwind, exaggerates headwind</li>
+    <li><strong>Distance:</strong> Slightly reduced due to curve</li>
+  </ul>
+
+  <h3>Physics Integration</h3>
+  <ul>
+    <li><strong>Initial Release:</strong> Angled release creates left curve</li>
+    <li><strong>Fade Interaction:</strong> Combines with natural fade for total curve</li>
+    <li><strong>Wind Effect:</strong> Tailwind increases curve, headwind reduces curve</li>
+    <li><strong>Stance Interaction:</strong> Works with all stances but effects vary</li>
+  </ul>
+
+  <h3>Best Use Cases</h3>
+  <ul>
+    <li><strong>Tailwind:</strong> Fights tailwind for straighter flight</li>
+    <li><strong>Left Obstacles:</strong> Curve around obstacles on left side</li>
+    <li><strong>Fade Enhancement:</strong> Enhance fade of overstable discs</li>
+    <li><strong>Controlled Distance:</strong> Reduce distance for precise shots</li>
+  </ul>
+
+  <h3>Strategy</h3>
+  <ul>
+    <li><strong>Tailwind Play:</strong> Use anhyzer to fight tailwind</li>
+    <li><strong>Obstacle Navigation:</strong> Curve around left-side obstacles</li>
+    <li><strong>Disc Selection:</strong> Use with overstable discs for enhanced fade</li>
+    <li><strong>Distance Control:</strong> Use anhyzer to reduce distance when needed</li>
+  </ul>
+
+  <h2>Stance & Angle Combinations</h2>
+
+  <h3>Overhand + Flat</h3>
+  <ul>
+    <li><strong>Characteristics:</strong> Most accurate, minimal curve</li>
+    <li><strong>Best For:</strong> Precision shots, putting, short holes</li>
+    <li><strong>Wind:</strong> Minimal wind impact</li>
+  </ul>
+
+  <h3>Backhand + Flat</h3>
+  <ul>
+    <li><strong>Characteristics:</strong> Balanced, predictable flight</li>
+    <li><strong>Best For:</strong> General play, fairway shots, standard conditions</li>
+    <li><strong>Wind:</strong> Moderate wind impact</li>
+  </ul>
+
+  <h3>Forehand + Flat</h3>
+  <ul>
+    <li><strong>Characteristics:</strong> Maximum distance, enhanced fade</li>
+    <li><strong>Best For:</strong> Distance throws, tailwind, open fairways</li>
+    <li><strong>Wind:</strong> Moderate wind impact</li>
+  </ul>
+
+  <h3>Backhand + Hyzer</h3>
+  <ul>
+    <li><strong>Characteristics:</strong> Right curve, fights headwind</li>
+    <li><strong>Best For:</strong> Headwind conditions, right obstacles</li>
+    <li><strong>Wind:</strong> Excellent for headwind</li>
+  </ul>
+
+  <h3>Backhand + Anhyzer</h3>
+  <ul>
+    <li><strong>Characteristics:</strong> Left curve, fights tailwind</li>
+    <li><strong>Best For:</strong> Tailwind conditions, left obstacles</li>
+    <li><strong>Wind:</strong> Excellent for tailwind</li>
+  </ul>
+
+  <h2>Advanced Techniques</h2>
+
+  <h3>Shot Shaping</h3>
+
+  <h4>S-Curves</h4>
+  <ul>
+    <li><strong>Technique:</strong> Combine angle with disc stability for S-curve</li>
+    <li><strong>Use Case:</strong> Navigate around complex obstacles</li>
+    <li><strong>Disc Selection:</strong> Use stable discs for predictable S-curves</li>
+  </ul>
+
+  <h4>Fade Control</h4>
+  <ul>
+    <li><strong>Technique:</strong> Use angle to compensate for natural fade</li>
+    <li><strong>Use Case:</strong> Straighten flight of high-fade discs</li>
+    <li><strong>Stance Selection:</strong> Overhand for minimal fade</li>
+  </ul>
+
+  <h3>Wind Mastery</h3>
+
+  <h4>Headwind Strategy</h4>
+  <ul>
+    <li><strong>Stance:</strong> Overhand for minimal wind impact</li>
+    <li><strong>Angle:</strong> Hyzer to fight headwind</li>
+    <li><strong>Power:</strong> Increased power to maintain distance</li>
+  </ul>
+
+  <h4>Tailwind Strategy</h4>
+  <ul>
+    <li><strong>Stance:</strong> Forehand for enhanced glide</li>
+    <li><strong>Angle:</strong> Anhyzer to fight tailwind</li>
+    <li><strong>Power:</strong> Reduced power to prevent overshooting</li>
+  </ul>
+
+  <h2>Stance & Angle Progression</h2>
+
+  <h3>Beginner</h3>
+  <ul>
+    <li><strong>Focus:</strong> Backhand + Flat (default combination)</li>
+    <li><strong>Goal:</strong> Master basic throwing mechanics</li>
+    <li><strong>Practice:</strong> Use practice courses for learning</li>
+  </ul>
+
+  <h3>Intermediate</h3>
+  <ul>
+    <li><strong>Focus:</strong> All stances with Flat angle</li>
+    <li><strong>Goal:</strong> Understand stance differences</li>
+    <li><strong>Practice:</strong> Experiment with different stances</li>
+  </ul>
+
+  <h3>Advanced</h3>
+  <ul>
+    <li><strong>Focus:</strong> All stance + angle combinations</li>
+    <li><strong>Goal:</strong> Master shot shaping and wind play</li>
+    <li><strong>Practice:</strong> Complex course navigation</li>
+  </ul>
+
+  <h2>Troubleshooting</h2>
+
+  <h3>Common Issues</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Issue</th>
+        <th>Solution</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Disc curving too much</td>
+        <td>Check angle selection, try different disc stability</td>
+      </tr>
+      <tr>
+        <td>Not enough distance</td>
+        <td>Try Forehand stance, increase power, use tailwind</td>
+      </tr>
+      <tr>
+        <td>Wind affecting throws</td>
+        <td>Use Overhand for minimal wind, adjust angle for wind direction</td>
+      </tr>
+      <tr>
+        <td>Can't hit specific curve</td>
+        <td>Practice angle cycling, try different disc stabilities</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Related Documentation</h2>
+  <ul>
+    <li><a href={`${baseUrl}guide/gameplay`}>Gameplay Mechanics</a></li>
+    <li><a href={`${baseUrl}features/physics`}>Physics System</a></li>
+    <li><a href={`${baseUrl}features/charge-enhancements`}>Charge Enhancements</a></li>
+    <li><a href={`${baseUrl}features/wind-system`}>Wind System</a></li>
+  </ul>
+</GuideLayout>

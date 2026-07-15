@@ -1,14 +1,92 @@
 ---
-import MainLayout from './MainLayout.astro';
+import '../styles/global.css';
+import Header from '../components/layout/Header.astro';
+import Footer from '../components/layout/Footer.astro';
+import Sidebar from '../components/layout/Sidebar.astro';
 
 interface Props {
-  title?: string;
+  title: string;
   description?: string;
+  guideType: 'installation' | 'gameplay' | 'crafting' | 'stances-angles' | 'multiplayer' | 'admin-commands' | 'hazards' | 'biome-courses' | 'cave-courses' | 'challenge-courses';
 }
 
-const { title, description } = Astro.props;
+const { 
+  title, 
+  description = "MCDG User Guide",
+  guideType
+} = Astro.props;
+
+const sidebarItems = [
+  { title: 'Installation', href: '/guide/installation' },
+  { title: 'Gameplay', href: '/guide/gameplay' },
+  { title: 'Stances & Angles', href: '/guide/stances-angles' },
+  { title: 'Crafting', href: '/guide/crafting' },
+  { title: 'Multiplayer', href: '/guide/multiplayer' },
+  { title: 'Admin Commands', href: '/guide/admin-commands' },
+  { title: 'Hazards', href: '/guide/hazards' },
+  { title: 'Biome Courses', href: '/guide/biome-courses' },
+  { title: 'Cave Courses', href: '/guide/cave-courses' },
+  { title: 'Challenge Courses', href: '/guide/challenge-courses' },
+];
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
 ---
 
-<MainLayout title={title} description={description}>
-  <slot />
-</MainLayout>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content={description} />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href={`${baseUrl}favicon.svg`} />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title} | MCDG Guide</title>
+  </head>
+  <body>
+    <Header />
+    <div class="guide-layout">
+      <aside class="guide-sidebar">
+        <Sidebar items={sidebarItems} activeItem={guideType} />
+      </aside>
+      <main class="guide-content">
+        <div class="content-wrapper">
+          <slot />
+        </div>
+      </main>
+    </div>
+    <Footer />
+  </body>
+</html>
+
+<style>
+  .guide-layout {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    gap: 2rem;
+    min-height: calc(100vh - 120px);
+  }
+
+  .guide-sidebar {
+    position: sticky;
+    top: 80px;
+    height: fit-content;
+    padding: 1rem;
+    background-color: var(--color-background-secondary);
+    border-radius: 0.5rem;
+    border: 1px solid var(--color-border);
+  }
+
+  .guide-content {
+    padding: 2rem 1rem;
+  }
+
+  @media (max-width: 768px) {
+    .guide-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .guide-sidebar {
+      position: static;
+      margin-bottom: 1rem;
+    }
+  }
+</style>

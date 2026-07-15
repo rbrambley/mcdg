@@ -1,4 +1,17 @@
-/* Dark theme variables — see global.css for the full palette */
 :root {
-  color-scheme: dark;
+  --color-background: #0f0f1a;
+  --color-background-secondary: #1a1a2e;
+  --color-background-tertiary: #252542;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a0a0a0;
+  --color-text-muted: #666666;
+  --color-accent: #00ff88;
+  --color-accent-hover: #00cc6a;
+  --color-border: #33334d;
+  --color-code-bg: #1a1a2e;
+  --color-table-header: #1a1a2e;
+  --color-success: #00ff88;
+  --color-warning: #ffd700;
+  --color-error: #ff4444;
+  --color-info: #00ffff;
 }

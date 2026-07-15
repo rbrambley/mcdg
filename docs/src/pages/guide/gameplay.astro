@@ -1,72 +1,225 @@
 ---
-import MainLayout from '../../layouts/MainLayout.astro';
-import Sidebar from '../../components/layout/Sidebar.astro';
-
-const base = import.meta.env.BASE_URL;
+import GuideLayout from '../../layouts/GuideLayout.astro';
+import CommandBlock from '../../components/content/CommandBlock.astro';
+import ScreenshotPlaceholder from '../../components/ui/ScreenshotPlaceholder.astro';
 ---
 
-<MainLayout title="Gameplay | MCDG" description="Learn the core gameplay loop for MCDG: menus, keybinds, throwing, and multiplayer rounds.">
-  <div class="container page-layout">
-    <Sidebar />
-    <article class="content card">
-      <h1>Gameplay</h1>
-      <p>MCDG brings disc golf to Minecraft through an in-game menu, calculated disc flight, and multiplayer stroke-play rounds.</p>
+<GuideLayout 
+  title="Gameplay Guide"
+  guideType="gameplay"
+>
+  <h1>Gameplay Guide</h1>
+  
+  <h2>Opening the Menu</h2>
+  <p>Press <strong>G</strong> (default) to open the MCDG menu from anywhere in-game. Or type <code>/mcdg</code> in chat (a clickable link is shown on join). All actions are available via the menu — no need to memorize commands.</p>
+  <p>The keybind can be rebound in <strong>Options → Controls → MCDG</strong>.</p>
 
-      <h2>Opening the Menu</h2>
-      <p>Press <kbd>G</kbd> (default) to open the MCDG menu from anywhere. All core actions are available there, so you rarely need to type commands. The keybind can be rebound in <strong>Options → Controls → MCDG</strong>.</p>
+  <h2>Keybinds</h2>
+  <p>All keybinds are rebindable in <strong>Options → Controls → MCDG</strong>.</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Key</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>G</td>
+        <td>Open MCDG menu</td>
+      </tr>
+      <tr>
+        <td>M</td>
+        <td>Add waypoint at current position (opens name/color screen)</td>
+      </tr>
+      <tr>
+        <td>N</td>
+        <td>Remove nearest waypoint</td>
+      </tr>
+      <tr>
+        <td>L</td>
+        <td>Toggle waypoint labels</td>
+      </tr>
+      <tr>
+        <td>+/-</td>
+        <td>Minimap size up/down</td>
+      </tr>
+    </tbody>
+  </table>
 
-      <h2>Keybinds</h2>
-      <table>
-        <thead>
-          <tr><th>Key</th><th>Action</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><kbd>G</kbd></td><td>Open MCDG menu</td></tr>
-          <tr><td><kbd>M</kbd></td><td>Add waypoint at current position</td></tr>
-          <tr><td><kbd>N</kbd></td><td>Remove nearest waypoint</td></tr>
-          <tr><td><kbd>L</kbd></td><td>Toggle waypoint labels</td></tr>
-          <tr><td><kbd>+</kbd> / <kbd>-</kbd></td><td>Increase / decrease minimap size</td></tr>
-        </tbody>
-      </table>
+  <ScreenshotPlaceholder 
+    title="MCDG Menu Interface"
+    description="The MCDG menu showing all available actions"
+    width="100%"
+    height="300px"
+  />
 
-      <h2>Admin Flow</h2>
-      <ol>
-        <li>Press <kbd>G</kbd> and choose <strong>Auto Build Course</strong> (or <strong>Manual Build Course</strong> for a seed).</li>
-        <li>Enter a course name and confirm placement.</li>
-        <li>Open the menu again and go to <strong>Admin → Start Round</strong>.</li>
-        <li>Other players can join via <strong>Join Round</strong> in the same menu.</li>
-        <li>After each throw, use <strong>Go to Lie</strong> if you ever desync from the marker.</li>
-        <li>View scores anytime through <strong>Leaderboard</strong>.</li>
-      </ol>
+  <h2>Throwing Mechanics</h2>
+  
+  <h3>Throw Stances</h3>
+  <p>MCDG supports three different throw stances, each with unique flight characteristics:</p>
+  
+  <h4>Overhand (Default)</h4>
+  <ul>
+    <li>No glide phase - direct ballistic trajectory</li>
+    <li>Best for short, accurate throws</li>
+    <li>Less affected by wind</li>
+    <li>Good for approach shots and putting</li>
+  </ul>
 
-      <h2>Player Flow</h2>
-      <ol>
-        <li>Wait for the admin to start a round, then press <kbd>G</kbd> and choose <strong>Join Round</strong>.</li>
-        <li>On your turn, select a disc, stance, and release angle.</li>
-        <li>Charge your throw with the power meter, then release.</li>
-        <li>Follow the lie marker and throw again until you reach the basket.</li>
-      </ol>
+  <h4>Backhand</h4>
+  <ul>
+    <li>Extended glide phase for maximum distance</li>
+    <li>Standard throwing style for most players</li>
+    <li>Best for long-distance drives</li>
+    <li>More affected by wind during glide</li>
+  </ul>
 
-      <h2>Throw Mechanics</h2>
-      <p>Disc flight depends on your stance, release angle, disc glide/fade ratings, and wind. See the <a href={`${base}features/physics/`}>physics guide</a> for a deep dive.</p>
+  <h4>Forehand</h4>
+  <ul>
+    <li>Similar glide characteristics to backhand</li>
+    <li>Alternative throwing style for different release angles</li>
+    <li>Useful for specialized shot shapes</li>
+  </ul>
+
+  <h3>Release Angles</h3>
+  <p>Control the curve of your disc with three release angles:</p>
+  
+  <h4>Hyzer</h4>
+  <ul>
+    <li>Disc curves to the right (for right-handed backhand)</li>
+    <li>Useful for controlled fade shots</li>
+    <li>Good for fighting headwinds</li>
+  </ul>
+
+  <h4>Flat</h4>
+  <ul>
+    <li>Neutral release with minimal curve</li>
+    <li>Best for straight shots</li>
+    <li>Most predictable flight path</li>
+  </ul>
+
+  <h4>Anhyzer</h4>
+  <ul>
+    <li>Disc curves to the left (for right-handed backhand)</li>
+    <li>Useful for tailwind shots</li>
+    <li>Good for maximum distance with proper timing</li>
+  </ul>
+
+  <h2>Power Charging</h2>
+  <p>Hold right-click to charge your throw power:</p>
+  <ul>
+    <li>Longer hold = more power (up to 100%)</li>
+    <li>Power affects throw distance and disc speed</li>
+    <li>Overcharge (125%) available with stamina system</li>
+    <li>Audio cues indicate charge levels</li>
+  </ul>
+
+  <h2>Reading the HUD</h2>
+  
+  <h3>Power Meter</h3>
+  <p>Visual indicator showing current charge level when holding right-click.</p>
+
+  <h3>Stance/Angle Display</h3>
+  <p>Shows current throw stance and release angle for quick reference.</p>
+
+  <h3>Minimap</h3>
+  <ul>
+    <li>Shows hole layout, basket location, and your position</li>
+    <li>Color-coded hazard overlays (water, sand, rough, etc.)</li>
+    <li>Adjustable size with +/- keys</li>
+    <li>Waypoint markers for custom navigation</li>
+  </ul>
+
+  <h2>Scoring</h2>
+  <p>MCDG uses traditional disc golf scoring:</p>
+  <ul>
+    <li><strong>Par</strong>: Expected number of throws for the hole</li>
+    <li><strong>Birdie</strong>: One under par</li>
+    <li><strong>Eagle</strong>: Two under par</li>
+    <li><strong>Ace</strong>: Hole-in-one (one throw)</li>
+    <li><strong>Bogey</strong>: One over par</li>
+    <li><strong>Double Bogey</strong>: Two over par</li>
+  </ul>
+
+  <h2>Rules / Surface Preset</h2>
+  <p>Menu → <strong>Rules</strong> to view and change ruleset (Casual / Strict).</p>
+  
+  <h3>Strict Surface Presets</h3>
+  <ul>
+    <li><strong>Fast</strong> — Forgiving surface, less penalty for rough landings</li>
+    <li><strong>Balanced</strong> — Default settings</li>
+    <li><strong>Tournament</strong> — Hardest settings, strict landing enforcement</li>
+  </ul>
+
+  <h2>Admin Tester Flow</h2>
+  <ol>
+    <li>Join the world/server and press <strong>G</strong> to open the menu</li>
+    <li><strong>Build a course:</strong>
       <ul>
-        <li><strong>Stances:</strong> Overhand, Backhand, Forehand</li>
-        <li><strong>Release angles:</strong> Hyzer, Flat, Anhyzer</li>
-        <li><strong>Power:</strong> Hold the throw button to charge; overcharging costs stamina.</li>
-        <li><strong>Fade:</strong> Discs finish left or right depending on their fade rating and spin.</li>
+        <li>Menu → <strong>Auto Build Course</strong> → type a name and press Enter</li>
+        <li>(or: Menu → <strong>Manual Build Course</strong> for seed-based generation)</li>
       </ul>
+    </li>
+    <li><strong>Start a round:</strong>
+      <ul>
+        <li>Menu → Admin → <strong>Start Round</strong></li>
+      </ul>
+    </li>
+    <li><strong>Other players join:</strong>
+      <ul>
+        <li>Menu → <strong>Join Round</strong></li>
+        <li>(or admin uses Menu → Admin → <strong>Join Round</strong> for all)</li>
+      </ul>
+    </li>
+    <li><strong>During play</strong>, if a player desyncs from the lie marker:
+      <ul>
+        <li>Menu → <strong>Go to Lie</strong> (or <code>/mcdg gotolie</code>)</li>
+      </ul>
+    </li>
+    <li><strong>View scores</strong> at any time:
+      <ul>
+        <li>Menu → <strong>Leaderboard</strong></li>
+      </ul>
+    </li>
+    <li><strong>End and clean up</strong> after the test cycle:
+      <ul>
+        <li>Menu → <strong>End Round</strong> → Menu → Admin → <strong>Cleanup Course</strong></li>
+      </ul>
+    </li>
+  </ol>
 
-      <p>For the full tester flow, see the <a href="https://github.com/rbrambley/mcdg/blob/main/USERGUIDE.md">User Guide markdown</a>.</p>
-    </article>
-  </div>
-</MainLayout>
+  <h2>Player Tester Flow</h2>
+  <ol>
+    <li>Join the world/server and press <strong>G</strong> to open the menu</li>
+    <li>Join an active round: Menu → <strong>Join Round</strong></li>
+    <li>Play holes normally — throw your disc, walk to it, repeat</li>
+    <li>Use Menu → <strong>Go to Lie</strong> if you need to teleport to your lie</li>
+    <li>Save progress if leaving early: Menu → <strong>Save & Leave Round</strong></li>
+  </ol>
 
-<style>
-  .content {
-    max-width: 100%;
-  }
+  <h2>Advanced Commands</h2>
+  <p>Some commands are intentionally hidden unless advanced mode is enabled.</p>
+  
+  <h3>Enable Advanced Commands</h3>
+  <CommandBlock 
+    command="MCDG_SHOW_ADVANCED_COMMANDS=true"
+    description="Environment variable"
+  />
+  <CommandBlock 
+    command="-Dmcdg.showAdvancedCommands=true"
+    description="JVM property"
+  />
 
-  .content h1 {
-    margin-top: 0;
-  }
-</style>
+  <h3>Typical Advanced Commands</h3>
+  <ul>
+    <li><code>resumecourse</code> — Resume a saved course session</li>
+    <li><code>usecourse</code> — Select a specific course from catalog</li>
+    <li><code>prunecourses</code> — Remove unused courses from catalog</li>
+    <li><code>gotocourse</code> — Teleport to a specific course</li>
+    <li><code>roundstatus</code> — Check current round status</li>
+    <li><code>validateplacement</code> — Validate course placement</li>
+    <li><code>buildcamp</code> — Build camp structure (deprecated)</li>
+    <li><code>autotests</code> — Run automated placement tests</li>
+  </ul>
+</GuideLayout>

@@ -1,0 +1,353 @@
+---
+import FeatureLayout from '../../layouts/FeatureLayout.astro';
+import CommandBlock from '../../components/content/CommandBlock.astro';
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+---
+
+<FeatureLayout 
+  title="Skill Unlocks System"
+  featureName="Achievement-Based Progression"
+  description="Unlock advanced equipment and abilities through skill-based achievements and performance milestones."
+>
+  <h1>Skill Unlocks System</h1>
+  
+  <p>MCDG's skill unlocks system provides achievement-based progression that rewards player skill and dedication. Beyond material requirements, many advanced items and abilities require demonstrating specific skills through gameplay achievements.</p>
+
+  <h2>Skill Unlock Overview</h2>
+
+  <h3>Unlock Philosophy</h3>
+  <ul>
+    <li><strong>Skill-Based:</strong> Unlocks require demonstrating actual gameplay skill</li>
+    <li><strong>Progressive:</strong> Skills build upon each other in logical progression</li>
+    <li><strong>Multiple Paths:</strong> Different playstyles unlock different abilities</li>
+    <li><strong>Meaningful Rewards:</strong> Unlocks provide significant gameplay advantages</li>
+  </ul>
+
+  <h3>Unlock Categories</h3>
+  <ul>
+    <li><strong>Stance Mastery:</strong> Demonstrate proficiency with throw stances</li>
+    <li><strong>Angle Control:</strong> Show curve control and shot shaping</li>
+    <li><strong>Distance Achievement:</strong> Reach power and distance milestones</li>
+    <li><strong>Course Exploration:</strong> Experience different course types</li>
+    <li><strong>Competitive Success:</strong> Excel in multiplayer and tournaments</li>
+  </ul>
+
+  <h2>Stance Master Unlock</h2>
+
+  <h3>Requirements</h3>
+  <ul>
+    <li><strong>Task:</strong> Complete 5 holes with each stance (Overhand, Backhand, Forehand)</li>
+    <li><strong>Total:</strong> 15 holes minimum (5 per stance)</li>
+    <li><strong>Difficulty:</strong> Beginner</li>
+    <li><strong>Time Estimate:</strong> 2-3 rounds</li>
+  </ul>
+
+  <h3>Reward</h3>
+  <ul>
+    <li><strong>Unlock:</strong> Enchanting table access for discs</li>
+    <li><strong>Benefit:</strong> Can apply enchantments to discs</li>
+    <li><strong>Significance:</strong> Opens up disc customization</li>
+  </ul>
+
+  <h3>Purpose</h3>
+  <ul>
+    <li><strong>Understanding:</strong> Ensures players understand all throw mechanics</li>
+    <li><strong>Versatility:</strong> Encourages learning multiple throwing styles</li>
+    <li><strong>Foundation:</strong> Prerequisite for advanced crafting</li>
+  </ul>
+
+  <h3>Strategy</h3>
+  <ul>
+    <li><strong>Practice Round:</strong> Use a practice course to complete requirements</li>
+    <li><strong>Stance Rotation:</strong> Cycle through stances on each hole</li>
+    <li><strong>Short Holes:</strong> Start with shorter holes for easier completion</li>
+    <li><strong>Progress Tracking:</strong> Use `/mcdg skills` to track progress</li>
+  </ul>
+
+  <h2>Angle Master Unlock</h2>
+
+  <h3>Requirements</h3>
+  <ul>
+    <li><strong>Task:</strong> Complete 3 holes with each release angle (Hyzer, Flat, Anhyzer)</li>
+    <li><strong>Total:</strong> 9 holes minimum (3 per angle)</li>
+    <li><strong>Difficulty:</strong> Intermediate</li>
+    <li><strong>Time Estimate:</strong> 2-3 rounds</li>
+  </ul>
+
+  <h3>Reward</h3>
+  <ul>
+    <li><strong>Unlock:</strong> Stability enchantment access</li>
+    <li><strong>Benefit:</strong> Can apply STABILITY enchantment to discs</li>
+    <li><strong>Significance:</strong> Improves shot accuracy and control</li>
+  </ul>
+
+  <h3>Purpose</h3>
+  <ul>
+    <li><strong>Curve Control:</strong> Teaches curve control before advanced equipment</li>
+    <li><strong>Shot Shaping:</strong> Encourages learning different shot shapes</li>
+    <li><strong>Accuracy:</strong> Rewards precision and control</li>
+  </ul>
+
+  <h3>Strategy</h3>
+  <ul>
+    <li><strong>Course Selection:</strong> Choose courses with fairways that reward curve shots</li>
+    <li><strong>Wind Awareness:</strong> Use wind to practice different angles</li>
+    <li><strong>Obstacle Navigation:</strong> Use angles to navigate around obstacles</li>
+    <li><strong>Progress Tracking:</strong> Monitor angle usage in `/mcdg skills`</li>
+  </ul>
+
+  <h2>Distance Champion Unlock</h2>
+
+  <h3>Requirements</h3>
+  <ul>
+    <li><strong>Task:</strong> Achieve 400+ ft throw distance</li>
+    <li><strong>Difficulty:</strong> Advanced</li>
+    <li><strong>Time Estimate:</strong> 3-5 rounds</li>
+  </ul>
+
+  <h3>Reward</h3>
+  <ul>
+    <li><strong>Unlock:</strong> Range enchantment access</li>
+    <li><strong>Benefit:</strong> Can apply RANGE enchantment to discs</li>
+    <li><strong>Significance:</strong> Extends maximum throw distance</li>
+  </ul>
+
+  <h3>Purpose</h3>
+  <ul>
+    <li><strong>Power Development:</strong> Rewards skill development in power throwing</li>
+    <li><strong>Distance Mastery:</strong> Encourages learning optimal power charging</li>
+    <li><strong>Course Strategy:</strong> Enables taking on longer courses</li>
+  </ul>
+
+  <h3>Strategy</h3>
+  <ul>
+    <li><strong>Overcharge Mastery:</strong> Learn to use 125% overcharge effectively</li>
+    <li><strong>Stance Selection:</strong> Use BACKHAND/FOREHAND for maximum distance</li>
+    <li><strong>Wind Assistance:</strong> Use tailwind conditions for extra distance</li>
+    <li><strong>Course Choice:</strong> Practice on long par 5 holes</li>
+  </ul>
+
+  <h2>Course Explorer Unlock</h2>
+
+  <h3>Requirements</h3>
+  <ul>
+    <li><strong>Task:</strong> Complete 5 different courses</li>
+    <li><strong>Difficulty:</strong> Intermediate</li>
+    <li><strong>Time Estimate:</strong> 5-7 rounds</li>
+  </ul>
+
+  <h3>Reward</h3>
+  <ul>
+    <li><strong>Unlock:</strong> Glide enchantment access</li>
+    <li><strong>Benefit:</strong> Can apply GLIDE enchantment to discs</li>
+    <li><strong>Significance:</strong> Increases hang time for extended distance</li>
+  </ul>
+
+  <h3>Purpose</h3>
+  <ul>
+    <li><strong>Exploration:</strong> Encourages experiencing different course types</li>
+    <li><strong>Variety:</strong> Rewards trying different biomes and layouts</li>
+    <li><strong>Adaptability:</strong> Develops skills across varied conditions</li>
+  </ul>
+
+  <h3>Strategy</h3>
+  <ul>
+    <li><strong>Biome Variety:</strong> Try courses in different biomes</li>
+    <li><strong>Difficulty Range:</strong> Mix easy and challenging courses</li>
+    <li><strong>Course Generation:</strong> Use autocourse to create variety</li>
+    <li><strong>Progress Tracking:</strong> Check completed courses in `/mcdg skills`</li>
+  </ul>
+
+  <h2>Tournament Winner Unlock</h2>
+
+  <h3>Requirements</h3>
+  <ul>
+    <li><strong>Task:</strong> Win a tournament</li>
+    <li><strong>Difficulty:</strong> Expert</li>
+    <li><strong>Time Estimate:</strong> Variable (depends on tournament availability)</li>
+  </ul>
+
+  <h3>Reward</h3>
+  <ul>
+    <li><strong>Unlock:</strong> PIERCE enchantment access</li>
+    <li><strong>Benefit:</strong> Can apply PIERCE enchantment to discs</li>
+    <li><strong>Significance:</strong> Ignores vegetation collisions</li>
+  </ul>
+
+  <h3>Purpose</h3>
+  <ul>
+    <li><strong>Competitive Excellence:</strong> Rewards tournament success</li>
+    <li><strong>High-Level Play:</strong> Demonstrates mastery under pressure</li>
+    <li><strong>Community:</strong> Encourages participation in competitive play</li>
+  </ul>
+
+  <h3>Strategy</h3>
+  <ul>
+    <li><strong>Tournament Preparation:</strong> Practice extensively before tournaments</li>
+    <li><strong>Course Knowledge:</strong> Learn tournament courses thoroughly</li>
+    <li><strong>Mental Game:</strong> Develop competitive mindset and pressure handling</li>
+    <li><strong>Equipment:</strong> Use best available equipment for tournaments</li>
+  </ul>
+
+  <h2>Advanced Unlocks</h2>
+
+  <h3>Ace Master</h3>
+  <ul>
+    <li><strong>Requirement:</strong> Achieve 5 aces</li>
+    <li><strong>Reward:</strong> DURABILITY enchantment access</li>
+    <li><strong>Difficulty:</strong> Expert</li>
+  </ul>
+
+  <h3>Biome Specialist</h3>
+  <ul>
+    <li><strong>Requirement:</strong> Complete courses in all major biomes</li>
+    <li><strong>Reward:</strong> Biome-specific enchantment bonuses</li>
+    <li><strong>Difficulty:</strong> Advanced</li>
+  </ul>
+
+  <h3>Round Perfectionist</h3>
+  <ul>
+    <li><strong>Requirement:</strong> Complete a round under par</li>
+    <li><strong>Reward:</strong> Enhanced round rewards</li>
+    <li><strong>Difficulty:</strong> Advanced</li>
+  </ul>
+
+  <h2>Skill Commands</h2>
+
+  <h3>Skills Command</h3>
+  <CommandBlock 
+    command="/mcdg skills"
+    description="View current skill progress and unlock status"
+  />
+
+  <h4>Output Information</h4>
+  <ul>
+    <li><strong>Current Skills:</strong> Shows all available skill unlocks</li>
+    <li><strong>Progress:</strong> Displays progress toward each unlock</li>
+    <li><strong>Status:</strong> Shows completed vs. pending unlocks</li>
+    <li><strong>Rewards:</strong> Lists rewards for each completed skill</li>
+  </ul>
+
+  <h2>Progress Tracking</h2>
+
+  <h3>Achievement System</h3>
+  <ul>
+    <li><strong>Automatic Tracking:</strong> System automatically tracks skill progress</li>
+    <li><strong>Persistence:</strong> Progress saved across sessions</li>
+    <li><strong>Visual Feedback:</strong> In-game notifications for progress milestones</li>
+    <li><strong>Completion Alerts:</strong> Notifications when unlocks are earned</li>
+  </ul>
+
+  <h3>Progress Display</h3>
+  <ul>
+    <li><strong>Percentage:</strong> Shows completion percentage for each skill</li>
+    <li><strong>Counter:</strong> Displays specific progress (e.g., "3/5 holes")</li>
+    <li><strong>Requirements:</strong> Shows remaining requirements for completion</li>
+    <li><strong>Reward Preview:</strong> Displays upcoming rewards</li>
+  </ul>
+
+  <h2>Unlock Strategies</h2>
+
+  <h3>Efficient Progression</h3>
+
+  <h4>Early Game</h4>
+  <ul>
+    <li><strong>Focus:</strong> Stance Master and Angle Master</li>
+    <li><strong>Approach:</strong> Practice courses for skill development</li>
+    <li><strong>Equipment:</strong> Use training disc for learning</li>
+    <li><strong>Goal:</strong> Unlock basic enchantments</li>
+  </ul>
+
+  <h4>Mid Game</h4>
+  <ul>
+    <li><strong>Focus:</strong> Distance Champion and Course Explorer</li>
+    <li><strong>Approach:</strong> Mix practice with competitive play</li>
+    <li><strong>Equipment:</strong> Use tiered discs for performance</li>
+    <li><strong>Goal:</strong> Unlock advanced enchantments</li>
+  </ul>
+
+  <h4>Late Game</h4>
+  <ul>
+    <li><strong>Focus:</strong> Tournament Winner and advanced unlocks</li>
+    <li><strong>Approach:</strong> Competitive play and mastery challenges</li>
+    <li><strong>Equipment:</strong> Use best available equipment</li>
+    <li><strong>Goal:</strong> Complete all skill unlocks</li>
+  </ul>
+
+  <h3>Playstyle Paths</h3>
+
+  <h4>Power Player</h4>
+  <ul>
+    <li><strong>Priority:</strong> Distance Champion → Course Explorer</li>
+    <li><strong>Focus:</strong> Power throwing and long courses</li>
+    <li><strong>Equipment:</strong> High-speed discs with RANGE enchantment</li>
+  </ul>
+
+  <h4>Technical Player</h4>
+  <ul>
+    <li><strong>Priority:</strong> Angle Master → Stance Master</li>
+    <li><strong>Focus:</strong> Shot shaping and precision</li>
+    <li><strong>Equipment:</strong> Stable discs with STABILITY enchantment</li>
+  </ul>
+
+  <h4>Explorer</h4>
+  <ul>
+    <li><strong>Priority:</strong> Course Explorer → Biome Specialist</li>
+    <li><strong>Focus:</strong> Variety and adaptation</li>
+    <li><strong>Equipment:</strong> Versatile discs with GLIDE enchantment</li>
+  </ul>
+
+  <h2>Multiplayer Integration</h2>
+
+  <h3>Competitive Skills</h3>
+  <ul>
+    <li><strong>Tournament Skills:</strong> Some unlocks require tournament participation</li>
+    <li><strong>Leaderboard Skills:</strong> Competitive performance unlocks</li>
+    <li><strong>Team Skills:</strong> Cooperative play achievements</li>
+  </ul>
+
+  <h3>Shared Progress</h3>
+  <ul>
+    <li><strong>Individual Tracking:</strong> Skills tracked per player</li>
+    <li><strong>No Sharing:</strong> Cannot share skill progress between players</li>
+    <li><strong>Independent:</strong> Each player must earn their own unlocks</li>
+  </ul>
+
+  <h2>Troubleshooting</h2>
+
+  <h3>Common Issues</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Issue</th>
+        <th>Solution</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Progress not tracking</td>
+        <td>Verify skill system enabled, check server settings</td>
+      </tr>
+      <tr>
+        <td>Unlock not granting</td>
+        <td>Verify requirements met, check `/mcdg skills` status</td>
+      </tr>
+      <tr>
+        <td>Progress lost</td>
+        <td>Check session persistence, verify save integrity</td>
+      </tr>
+      <tr>
+        <td>Skills command not working</td>
+        <td>Check permissions, verify command registration</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Related Documentation</h2>
+  <ul>
+    <li><a href={`${baseUrl}guide/progression`}>Progression System</a></li>
+    <li><a href={`${baseUrl}guide/gameplay`}>Gameplay Mechanics</a></li>
+    <li><a href={`${baseUrl}features/enchantments`}>Disc Enchantments</a></li>
+    <li><a href={`${baseUrl}guide/crafting`}>Crafting and Recipes</a></li>
+  </ul>
+</FeatureLayout>

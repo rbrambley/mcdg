@@ -1,0 +1,383 @@
+---
+import FeatureLayout from '../../layouts/FeatureLayout.astro';
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+---
+
+<FeatureLayout 
+  title="Disc Accessories"
+  featureName="Disc Bags and Accessories"
+  description="Expand your disc golf capabilities with specialized bags, gloves, towels, range finders, retrievers, and compass accessories."
+>
+  <h1>Disc Bags and Accessories</h1>
+  
+  <p>MCDG features a comprehensive accessory system that enhances your disc golf experience. From disc bags that carry multiple discs to specialized tools that improve your gameplay, accessories provide strategic advantages and convenience.</p>
+
+  <h2>Disc Bags</h2>
+
+  <h3>Overview</h3>
+  <p>Disc bags allow you to carry multiple discs, giving you access to different flight characteristics without returning to storage:</p>
+  
+  <ul>
+    <li><strong>Capacity:</strong> Different bag tiers offer different slot counts</li>
+    <li><strong>Quick Access:</strong> Switch between discs during gameplay</li>
+    <li><strong>Organization:</strong> Keep discs organized by type and use case</li>
+    <li><strong>Special Abilities:</strong> Higher-tier bags have unique features</li>
+  </ul>
+
+  <h3>Bag Tiers</h3>
+
+  <h4>Basic Disc Bag</h4>
+  <ul>
+    <li><strong>Capacity:</strong> 3 disc slots</li>
+    <li><strong>Crafting:</strong> 4x Leather, 2x String</li>
+    <li><strong>Unlock:</strong> Available from start</li>
+    <li><strong>Features:</strong> Basic storage, no special abilities</li>
+  </ul>
+
+  <h4>Standard Disc Bag</h4>
+  <ul>
+    <li><strong>Capacity:</strong> 6 disc slots</li>
+    <li><strong>Crafting:</strong> 6x Leather, 2x Iron Ingots</li>
+    <li><strong>Unlock:</strong> Craft iron ingots</li>
+    <li><strong>Features:</strong> Quick slot access, durability display</li>
+  </ul>
+
+  <h4>Advanced Disc Bag</h4>
+  <ul>
+    <li><strong>Capacity:</strong> 9 disc slots</li>
+    <li><strong>Crafting:</strong> 6x Leather, 2x Diamonds, 1x Gold Ingot</li>
+    <li><strong>Unlock:</strong> Craft diamonds</li>
+    <li><strong>Features:</strong> Auto-sort, quick access, durability display</li>
+  </ul>
+
+  <h4>Legendary Disc Bag</h4>
+  <ul>
+    <li><strong>Capacity:</strong> 12 disc slots</li>
+    <li><strong>Crafting:</strong> 6x Leather, 2x Netherite Ingots, 1x Ender Pearl</li>
+    <li><strong>Unlock:</strong> Craft netherite</li>
+    <li><strong>Features:</strong> Instant access, teleport to bag, auto-sort</li>
+  </ul>
+
+  <h3>Using Disc Bags</h3>
+  <ol>
+    <li>Craft or obtain a disc bag</li>
+    <li>Right-click the bag to open the bag interface</li>
+    <li>Place discs in the bag slots</li>
+    <li>During gameplay, use the bag hotkey to switch discs</li>
+    <li>Higher-tier bags offer faster switching and better organization</li>
+  </ol>
+
+  <h2>Accessories</h2>
+
+  <h3>Disc Glove</h3>
+  <p>Improves grip and control for more consistent throws.</p>
+  
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Grip Bonus:</strong> Reduced chance of grip failures</li>
+    <li><strong>Control:</strong> Slightly improved throw accuracy</li>
+    <li><strong>Comfort:</strong> Reduced stamina drain on overcharge</li>
+    <li><strong>Durability:</strong> Glove durability affects performance</li>
+  </ul>
+
+  <h4>Crafting</h4>
+  <ul>
+    <li><strong>Materials:</strong> 2x Leather, 1x Iron Ingot</li>
+    <li><strong>Unlock:</strong> Craft iron ingots</li>
+    <li><strong>Slot:</strong> Accessory slot (equippable item)</li>
+  </ul>
+
+  <h4>Best For</h4>
+  <ul>
+    <li>Players who struggle with consistency</li>
+    <li>High-power throwers who need grip control</li>
+    <li>Wet or icy conditions where grip is challenging</li>
+    <li>Players who frequently overcharge</li>
+  </ul>
+
+  <h3>Disc Towel</h3>
+  <p>Cleans discs to maintain optimal flight characteristics.</p>
+  
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Cleaning:</strong> Removes debris and moisture from discs</li>
+    <li><strong>Performance:</strong> Maintains consistent disc flight</li>
+    <li><strong>Durability:</strong> Reduces disc wear from environmental factors</li>
+    <li><strong>Uses:</strong> Limited uses before requiring replacement</li>
+  </ul>
+
+  <h4>Crafting</h4>
+  <ul>
+    <li><strong>Materials:</strong> 3x Wool, 1x String</li>
+    <li><strong>Unlock:</strong> Available from start</li>
+    <li><strong>Slot:</strong> Accessory slot (equippable item)</li>
+  </ul>
+
+  <h4>Best For</h4>
+  <ul>
+    <li>Players in wet or muddy environments</li>
+    <li>Sandy desert courses where discs get dirty</li>
+    <li>Long sessions where disc performance degrades</li>
+    <li>Players who want consistent disc behavior</li>
+  </ul>
+
+  <h3>Range Finder</h3>
+  <p>Calculates optimal disc, stance, angle, and power for current shot.</p>
+  
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Distance Calculation:</strong> Shows exact distance to basket</li>
+    <li><strong>Disc Recommendation:</strong> Suggests optimal disc for the shot</li>
+    <li><strong>Stance Advice:</strong> Recommends best throw stance</li>
+    <li><strong>Angle Guidance:</strong> Suggests optimal release angle</li>
+    <li><strong>Power Target:</strong> Indicates ideal charge level</li>
+  </ul>
+
+  <h4>Crafting</h4>
+  <ul>
+    <li><strong>Materials:</strong> 2x Iron Ingots, 1x Redstone, 1x Glass</li>
+    <li><strong>Unlock:</strong> Craft iron ingots and redstone</li>
+    <li><strong>Slot:</strong> Accessory slot (equippable item)</li>
+  </ul>
+
+  <h4>Best For</h4>
+  <ul>
+    <li>Beginners learning shot selection</li>
+    <li>Players who want to optimize their game</li>
+    <li>Competitive play where every decision matters</li>
+    <li>New courses where distances are unknown</li>
+  </ul>
+
+  <h4>Usage</h4>
+  <ul>
+    <li>Right-click during a round to activate range finder</li>
+    <li>Point at basket to get distance and recommendations</li>
+    <li>Follow the suggestions for optimal shot execution</li>
+    <li>Optional auto-throw feature available at XP cost</li>
+  </ul>
+
+  <h3>Disc Retriever</h3>
+  <p>Tool to recover discs from hazards and out-of-bounds areas.</p>
+  
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Hazard Recovery:</strong> Retrieve discs from water, lava, and other hazards</li>
+    <li><strong>Range:</strong> Extended reach for difficult recoveries</li>
+    <li><strong>Durability:</strong> Uses durability for each recovery</li>
+    <li><strong>Success Rate:</strong> Higher tier retrievers have better success rates</li>
+  </ul>
+
+  <h4>Crafting</h4>
+  <ul>
+    <li><strong>Materials:</strong> 3x Iron Ingots, 2x String, 1x Stick</li>
+    <li><strong>Unlock:</strong> Craft iron ingots</li>
+    <li><strong>Slot:</strong> Hand slot (held item)</li>
+  </ul>
+
+  <h4>Best For</h4>
+  <ul>
+    <li>Players who frequently land in hazards</li>
+    <li>Courses with abundant water and lava features</li>
+    <li>Economy-focused players who want to save discs</li>
+    <li>Risk-takers who play aggressive lines</li>
+  </ul>
+
+  <h4>Usage</h4>
+  <ul>
+    <li>Equip retriever in hand</li>
+    <li>Right-click on hazard containing your disc</li>
+    <li>Retrieval attempt uses durability and may fail</li>
+    <li>Success returns the disc to your inventory</li>
+  </ul>
+
+  <h3>Disc Compass</h3>
+  <p>Points to nearest basket or lost disc for navigation assistance.</p>
+  
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Basket Location:</strong> Points to current hole's basket</li>
+    <li><strong>Lost Disc:</strong> Points to your most recent lost disc</li>
+    <li><strong>Waypoint Integration:</strong> Can mark custom waypoints</li>
+    <li><strong>Distance Display:</strong> Shows distance to target</li>
+  </ul>
+
+  <h4>Crafting</h4>
+  <ul>
+    <li><strong>Materials:</strong> 1x Compass, 1x Iron Ingot, 1x Redstone</li>
+    <li><strong>Unlock:</strong> Craft compass and redstone</li>
+    <li><strong>Slot:</strong> Accessory slot (equippable item)</li>
+  </ul>
+
+  <h4>Best For</h4>
+  <ul>
+    <li>New players learning course layouts</li>
+    <li>Large courses where baskets are hard to find</li>
+    <li>Players who frequently lose discs</li>
+    <li>Navigation in dense vegetation or complex terrain</li>
+  </ul>
+
+  <h4>Usage</h4>
+  <ul>
+    <li>Equip compass in accessory slot</li>
+    <li>Compass needle points to target automatically</li>
+    <li>Right-click to toggle between basket and lost disc mode</li>
+    <li>Shift-right-click to set custom waypoint</li>
+  </ul>
+
+  <h2>Accessory Management</h2>
+
+  <h3>Equipping Accessories</h3>
+  <ul>
+    <li><strong>Accessory Slot:</strong> Most accessories use dedicated accessory slot</li>
+    <li><strong>Hand Items:</strong> Some accessories (retriever) are held items</li>
+    <li><strong>Stacking:</strong> Only one accessory per slot type</li>
+    <li><strong>Hotbar:</strong> Can place accessories on hotbar for quick access</li>
+  </ul>
+
+  <h3>Accessory Combinations</h3>
+  <h4>Beginner Setup</h4>
+  <ul>
+    <li><strong>Disc Bag:</strong> Basic (3 slots)</li>
+    <li><strong>Accessory:</strong> Disc Compass</li>
+    <li><strong>Purpose:</strong> Learning and navigation focus</li>
+  </ul>
+
+  <h4>Intermediate Setup</h4>
+  <ul>
+    <li><strong>Disc Bag:</strong> Standard (6 slots)</li>
+    <li><strong>Accessory:</strong> Range Finder</li>
+    <li><strong>Accessory:</strong> Disc Glove</li>
+    <li><strong>Purpose:</strong> Performance improvement focus</li>
+  </ul>
+
+  <h4>Advanced Setup</h4>
+  <ul>
+    <li><strong>Disc Bag:</strong> Advanced (9 slots)</li>
+    <li><strong>Accessory:</strong> Range Finder</li>
+    <li><strong>Accessory:</strong> Disc Glove</li>
+    <li><strong>Accessory:</strong> Disc Towel</li>
+    <li><strong>Purpose:</strong> Maximum performance focus</li>
+  </ul>
+
+  <h4>Expert Setup</h4>
+  <ul>
+    <li><strong>Disc Bag:</strong> Legendary (12 slots)</li>
+    <li><strong>Accessory:</strong> Range Finder</li>
+    <li><strong>Accessory:</strong> Disc Glove</li>
+    <li><strong>Accessory:</strong> Disc Compass</li>
+    <li><strong>Hand Item:</strong> Disc Retriever</li>
+    <li><strong>Purpose:</strong> Complete toolkit for all situations</li>
+  </ul>
+
+  <h2>Accessory Progression</h2>
+
+  <h3>Early Game</h3>
+  <ul>
+    <li><strong>Focus:</strong> Basic bag and navigation</li>
+    <li><strong>Priority:</strong> Basic Disc Bag → Disc Compass</li>
+    <li><strong>Goal:</strong> Carry multiple discs, find your way around</li>
+  </ul>
+
+  <h3>Mid Game</h3>
+  <ul>
+    <li><strong>Focus:</strong> Performance improvement</li>
+    <li><strong>Priority:</strong> Standard Bag → Range Finder → Disc Glove</li>
+    <li><strong>Goal:</strong> Better shot selection, more consistent throws</li>
+  </ul>
+
+  <h3>Late Game</h3>
+  <ul>
+    <li><strong>Focus:</strong> Specialization and optimization</li>
+    <li><strong>Priority:</strong> Advanced Bag → Towel → Retriever</li>
+    <li><strong>Goal:</strong> Handle any situation, maximize performance</li>
+  </ul>
+
+  <h3>End Game</h3>
+  <ul>
+    <li><strong>Focus:</strong> Complete accessory collection</li>
+    <li><strong>Priority:</strong> Legendary Bag → All accessories</li>
+    <li><strong>Goal:</strong> Ultimate toolkit for expert play</li>
+  </ul>
+
+  <h2>Advanced Accessory Features</h2>
+
+  <h3>Auto-Throw (Range Finder)</h3>
+  <ul>
+    <li><strong>Feature:</strong> Automatically execute recommended shot</li>
+    <li><strong>Cost:</strong> XP cost per auto-throw</li>
+    <li><strong>Accuracy:</strong> Follows recommendations precisely</li>
+    <li><strong>Unlock:</strong> Requires Range Finder + skill unlock</li>
+  </ul>
+
+  <h3>Bag Teleportation (Legendary Bag)</h3>
+  <ul>
+    <li><strong>Feature:</strong> Teleport to your bag location</li>
+    <li><strong>Cost:</strong> Ender pearl charge per teleport</li>
+    <li><strong>Range:</strong> Limited distance within same dimension</li>
+    <li><strong>Cooldown:</strong> 30-second cooldown between teleports</li>
+  </ul>
+
+  <h3>Advanced Retrieval (Upgraded Retriever)</h3>
+  <ul>
+    <li><strong>Feature:</strong> Retrieve multiple discs at once</li>
+    <li><strong>Range:</strong> Extended retrieval range</li>
+    <li><strong>Success Rate:</strong> Near-perfect retrieval success</li>
+    <li><strong>Crafting:</strong> Netherite upgrade to base retriever</li>
+  </ul>
+
+  <h2>Accessory Strategy</h2>
+
+  <h3>Course-Specific Loadouts</h3>
+  <ul>
+    <li><strong>Forest:</strong> Compass + Retriever (navigation + recovery)</li>
+    <li><strong>Desert:</strong> Towel + Glove (cleaning + grip)</li>
+    <li><strong>Mountain:</strong> Range Finder + Compass (distance + navigation)</li>
+    <li><strong>Coastal:</strong> Glove + Towel (grip + cleaning)</li>
+  </ul>
+
+  <h3>Playstyle Optimization</h3>
+  <ul>
+    <li><strong>Aggressive:</strong> Retriever + Glove (risk + control)</li>
+    <li><strong>Conservative:</strong> Range Finder + Towel (optimization + maintenance)</li>
+    <li><strong>Explorer:</strong> Compass + Retriever (navigation + recovery)</li>
+    <li><strong>Competitive:</strong> Range Finder + Glove (optimization + consistency)</li>
+  </ul>
+
+  <h2>Troubleshooting</h2>
+
+  <h3>Common Issues</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Issue</th>
+        <th>Solution</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Accessory not working</td>
+        <td>Check if properly equipped, verify accessory slot</td>
+      </tr>
+      <tr>
+        <td>Bag not storing discs</td>
+        <td>Check bag capacity, ensure discs are compatible</td>
+      </tr>
+      <tr>
+        <td>Range finder inaccurate</td>
+        <td>Ensure line of sight to basket, check for obstructions</td>
+      </tr>
+      <tr>
+        <td>Retriever failing</td>
+        <td>Check retriever durability, verify target is valid</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Related Documentation</h2>
+  <ul>
+    <li><a href={`${baseUrl}guide/progression`}>Progression System</a></li>
+    <li><a href={`${baseUrl}guide/crafting`}>Crafting Guide</a></li>
+    <li><a href={`${baseUrl}features/physics`}>Physics System</a></li>
+    <li><a href={`${baseUrl}guide/hazards`}>Hazards Guide</a></li>
+  </ul>
+</FeatureLayout>

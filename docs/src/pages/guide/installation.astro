@@ -1,70 +1,211 @@
 ---
-import MainLayout from '../../layouts/MainLayout.astro';
-import Sidebar from '../../components/layout/Sidebar.astro';
-
-const base = import.meta.env.BASE_URL;
+import GuideLayout from '../../layouts/GuideLayout.astro';
+import CommandBlock from '../../components/content/CommandBlock.astro';
+import ScreenshotPlaceholder from '../../components/ui/ScreenshotPlaceholder.astro';
 ---
 
-<MainLayout title="Installation | MCDG" description="Install the MCDG modpack for Minecraft 1.20.6 with Fabric and Java 21.">
-  <div class="container page-layout">
-    <Sidebar />
-    <article class="content card">
-      <h1>Installation</h1>
+<GuideLayout 
+  title="Installation Guide"
+  guideType="installation"
+>
+  <h1>Installation Guide</h1>
+  
+  <h2>Requirements</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Component</th>
+        <th>Version</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Minecraft</td>
+        <td>1.20.6</td>
+      </tr>
+      <tr>
+        <td>Fabric Loader</td>
+        <td>0.19.3</td>
+      </tr>
+      <tr>
+        <td>Java</td>
+        <td>21</td>
+      </tr>
+    </tbody>
+  </table>
 
-      <p>MCDG is a Fabric mod for Minecraft 1.20.6. You can install it as part of the bundled test pack or build it from source.</p>
-
-      <h2>Requirements</h2>
-      <table>
-        <thead>
-          <tr><th>Component</th><th>Version</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>Minecraft</td><td>1.20.6</td></tr>
-          <tr><td>Fabric Loader</td><td>0.16.10 or compatible</td></tr>
-          <tr><td>Java</td><td>21</td></tr>
-        </tbody>
-      </table>
-
-      <h2>Client Installation</h2>
-      <ol>
-        <li>Download the latest client test pack from the <a href="https://github.com/rbrambley/mcdg/releases">releases page</a>.</li>
-        <li>Extract the archive into your Minecraft instance directory.</li>
-        <li>Launch the instance with the Fabric profile.</li>
-        <li>The MCDG-Test-Resources pack is built into the mod jar and auto-enabled.</li>
-      </ol>
-
-      <h2>Server Installation</h2>
-      <ol>
-        <li>Download the latest server test pack.</li>
-        <li>Stop the server and back up the server directory.</li>
-        <li>Extract the server pack into the server directory.</li>
-        <li>Start the server and verify MCDG loads in the console.</li>
-        <li>Distribute the matching client pack to every player.</li>
-      </ol>
-      <p>For detailed Oracle Cloud setup, see the <a href={`${base}admin/server-setup/`}>Server Setup Guide</a> or the <a href="https://github.com/rbrambley/mcdg/blob/main/SERVER-SETUP-GUIDE.md">raw markdown doc</a>.</p>
-
-      <h2>Building from Source</h2>
-      <pre><code>git clone https://github.com/rbrambley/mcdg.git
-cd mcdg
-./gradlew build</code></pre>
-      <p>The built jar will be in <code>build/libs</code>.</p>
-
-      <h2>Troubleshooting</h2>
+  <h2>Client Installation</h2>
+  
+  <h3>Option 1: Using Fabric Installer (Recommended)</h3>
+  <ol>
+    <li>Download Fabric installer from <a href="https://fabricmc.net/" target="_blank" rel="noopener">https://fabricmc.net/</a></li>
+    <li>Run installer: Select "Client" installation</li>
+    <li>Select Minecraft 1.20.6 and Loader 0.19.3</li>
+    <li>Create new profile in Minecraft Launcher</li>
+    <li>Install MCDG mod:
       <ul>
-        <li><strong>Wrong Java version:</strong> MCDG requires Java 21. Older versions will fail to load.</li>
-        <li><strong>Mismatched client/server packs:</strong> All players must use the same release ID.</li>
-        <li><strong>Missing textures:</strong> The resource pack is bundled; do not delete it from the jar.</li>
+        <li>Navigate to <code>.minecraft/mods/</code></li>
+        <li>Copy <code>mcdg-0.1.0.jar</code> to mods folder</li>
+        <li>Launch Minecraft with Fabric profile</li>
       </ul>
-    </article>
-  </div>
-</MainLayout>
+    </li>
+  </ol>
 
-<style>
-  .content {
-    max-width: 100%;
-  }
+  <h3>Option 2: Using MultiMC/Prism Launcher</h3>
+  <ol>
+    <li>Create new instance</li>
+    <li>Select Minecraft 1.20.6</li>
+    <li>Add Fabric Loader component</li>
+    <li>Add MCDG mod as external mod</li>
+    <li>Launch instance</li>
+  </ol>
 
-  .content h1 {
-    margin-top: 0;
-  }
-</style>
+  <h3>Option 3: ATLauncher</h3>
+  <ol>
+    <li>Create new instance</li>
+    <li>Select Minecraft 1.20.6 with Fabric</li>
+    <li>Add MCDG mod to mods folder</li>
+    <li>Launch instance</li>
+  </ol>
+
+  <ScreenshotPlaceholder 
+    title="Launcher Instance Setup"
+    description="MultiMC/Prism launcher showing instance configuration"
+    width="100%"
+    height="300px"
+  />
+
+  <h2>Server Installation</h2>
+
+  <h3>Step 1: Prepare Server Environment</h3>
+  
+  <h4>Install Java 21</h4>
+  <CommandBlock 
+    command="sudo apt update && sudo apt install openjdk-21-jre-headless"
+    description="Ubuntu/Debian"
+  />
+  <CommandBlock 
+    command="sudo yum install java-21-openjdk-headless"
+    description="CentOS/RHEL"
+  />
+  <CommandBlock 
+    command="java -version"
+    description="Verify installation"
+  />
+
+  <h4>Create Server Directory</h4>
+  <CommandBlock 
+    command="mkdir -p /opt/mcdg-server && cd /opt/mcdg-server"
+    description="Create and enter server directory"
+  />
+
+  <h4>Download Minecraft Server</h4>
+  <CommandBlock 
+    command="wget https://launcher.mojang.com/v1/objects/8f3112a1049751c472beb9697ae9425ac0d371a9/server.jar"
+    description="Download Minecraft 1.20.6 server jar"
+  />
+  <CommandBlock 
+    command="echo 'eula=true' > eula.txt"
+    description="Accept EULA"
+  />
+
+  <h4>Install Fabric Loader</h4>
+  <CommandBlock 
+    command="wget https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.0.1/fabric-installer-1.0.1.jar"
+    description="Download Fabric installer"
+  />
+  <CommandBlock 
+    command="java -jar fabric-installer-1.0.1.jar server -mcversion 1.20.6 -loader 0.19.3"
+    description="Install server"
+  />
+
+  <h3>Step 2: Install MCDG Mod</h3>
+  
+  <h4>Install Mod Files</h4>
+  <CommandBlock 
+    command="mkdir -p /opt/mcdg-server/mods"
+    description="Create mods directory"
+  />
+  <CommandBlock 
+    command="cp mcdg-0.1.0.jar /opt/mcdg-server/mods/"
+    description="Copy MCDG mod"
+  />
+
+  <h3>Step 3: Configure Server</h3>
+  
+  <h4>Basic Server Configuration</h4>
+  <p>Edit <code>server.properties</code>:</p>
+  <pre><code># Basic Settings
+server-name=MCDG Disc Golf Server
+motd=Welcome to MCDG Disc Golf Server!
+max-players=20
+difficulty=peaceful
+gamemode=survival
+hardcore=false
+
+# World Settings
+level-name=world
+level-seed=
+level-type=default
+generate-structures=true
+
+# Network Settings
+server-port=25565
+server-ip=
+pvp=false
+enable-query=false
+enable-rcon=false
+
+# Performance Settings
+view-distance=10
+simulation-distance=10
+max-tick-time=60000
+max-world-size=29999984
+
+# Player Settings
+white-list=false
+enforce-whitelist=false
+spawn-protection=0
+spawn-monsters=false
+spawn-animals=true
+spawn-npcs=true</code></pre>
+
+  <h2>Resource Pack</h2>
+  <p>MCDG-Test-Resources is <strong>built into the mod jar</strong> and is <strong>auto-enabled by default</strong>.</p>
+  <ul>
+    <li>You do <strong>not</strong> need to manually enable it in Options → Resource Packs</li>
+    <li>If you ever need to reinstall it manually, use the standalone <code>MCDG-Test-Resources.zip</code> in the resourcepacks folder</li>
+  </ul>
+
+  <h2>Troubleshooting</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Issue</th>
+        <th>Fix</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Release ID mismatch</td>
+        <td>Confirm <code>VERSION.txt</code> matches across all participants</td>
+      </tr>
+      <tr>
+        <td>Fabric / Java version mismatch</td>
+        <td>Verify Fabric Loader <code>0.19.3</code> and Java <code>21</code></td>
+      </tr>
+      <tr>
+        <td>Resource pack visuals differ</td>
+        <td>Ensure <code>MCDG-Test-Resources</code> is loaded. It is auto-enabled, but check <strong>Options → Resource Packs</strong> if needed</td>
+      </tr>
+      <tr>
+        <td>Command permission fails</td>
+        <td>Ensure OP level >= 2 on dedicated server</td>
+      </tr>
+      <tr>
+        <td>G keybind conflict</td>
+        <td>Rebind in <strong>Options → Controls → MCDG</strong></td>
+      </tr>
+    </tbody>
+  </table>
+</GuideLayout>

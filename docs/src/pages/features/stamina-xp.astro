@@ -1,0 +1,240 @@
+---
+import FeatureLayout from '../../layouts/FeatureLayout.astro';
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+---
+
+<FeatureLayout 
+  title="Stamina & XP System"
+  featureName="Stamina and Experience Rewards"
+  description="Stamina-based throw mechanics and XP rewards for throws and round completion in survival mode."
+>
+  <h1>Stamina & XP System</h1>
+  
+  <p>MCDG integrates stamina mechanics and experience rewards into the throwing system, adding strategic depth to disc golf in survival mode. Stamina management affects throw power, while XP rewards provide progression incentives for skilled play.</p>
+
+  <h2>Stamina System</h2>
+
+  <h3>Overview</h3>
+  <p>The stamina system adds a resource management layer to throwing mechanics:</p>
+  
+  <ul>
+    <li><strong>Overcharge Cost:</strong> Going beyond 100% charge consumes stamina</li>
+    <li><strong>Stamina Drain:</strong> Excessive overcharging depletes stamina reserves</li>
+    <li><strong>Recovery:</strong> Stamina regenerates over time</li>
+    <li><strong>Survival Integration:</strong> Stamina affects player movement and actions</li>
+  </ul>
+
+  <h3>Stamina Mechanics</h3>
+
+  <h4>Overcharge Zone</h4>
+  <ul>
+    <li><strong>125% Max Power:</strong> Overcharge zone extends beyond 100% charge</li>
+    <li><strong>Stamina Cost:</strong> Each tick in overcharge zone consumes stamina</li>
+    <li><strong>Visual Feedback:</strong> HUD indicates stamina drain during overcharge</li>
+    <li><strong>Risk/Reward:</strong> More power at cost of stamina depletion</li>
+  </ul>
+
+  <h4>Stamina Effects</h4>
+  <ul>
+    <li><strong>Movement Speed:</strong> Low stamina reduces movement speed</li>
+    <li><strong>Throw Power:</strong> Severely depleted stamina reduces max charge</li>
+    <li><strong>Regeneration:</strong> Stamina slowly regenerates when not charging</li>
+    <li><strong>Exhaustion:</strong> Complete stamina exhaustion prevents overcharge</li>
+  </ul>
+
+  <h3>Stamina Management Strategy</h3>
+
+  <h4>Optimal Charging</h4>
+  <ul>
+    <li><strong>100% Charge:</strong> Standard throws without stamina cost</li>
+    <li><strong>Strategic Overcharge:</strong> Use 125% only when needed for distance</li>
+    <li><strong>Recovery Timing:</strong> Allow stamina to regenerate between throws</li>
+    <li><strong>Pacing:</strong> Manage stamina usage throughout the round</li>
+  </ul>
+
+  <h4>Survival Impact</h4>
+  <ul>
+    <li><strong>Combat Readiness:</strong> Keep stamina high for combat situations</li>
+    <li><strong>Exploration:</strong> Balance disc golf stamina with travel needs</li>
+    <li><strong>Resource Management:</strong> Food can restore stamina in survival mode</li>
+    <li><strong>Risk Assessment:</strong> Weigh power benefits against stamina costs</li>
+  </ul>
+
+  <h2>XP Rewards System</h2>
+
+  <h3>Overview</h3>
+  <p>Experience points are awarded for skilled play and round completion:</p>
+  
+  <ul>
+    <li><strong>Throw XP:</strong> XP awarded based on throw quality and distance</li>
+    <li><strong>Round XP:</strong> Bonus XP for completing rounds</li>
+    <li><strong>Performance Bonuses:</strong> Extra XP for exceptional play</li>
+    <li><strong>Progression:</strong> XP contributes to skill unlocks and advancement</li>
+  </ul>
+
+  <h3>Throw XP Calculation</h3>
+
+  <h4>Distance-Based XP</h4>
+  <ul>
+    <li><strong>Base XP:</strong> Standard XP award for any successful throw</li>
+    <li><strong>Distance Bonus:</strong> Additional XP for longer throws</li>
+    <li><strong>Accuracy Bonus:</strong> Extra XP for accurate shots near target</li>
+    <li><strong>Difficulty Modifier:</strong> Higher XP for challenging conditions</li>
+  </ul>
+
+  <h4>Quality Factors</h4>
+  <ul>
+    <li><strong>Basket Proximity:</strong> Closer to basket = more XP</li>
+    <li><strong>Hole Completion:</strong> Completing a hole grants bonus XP</li>
+    <li><strong>Under Par:</strong> Scoring under par provides XP multiplier</li>
+    <li><strong>First Throw:</strong> First throw of each hole gets bonus XP</li>
+  </ul>
+
+  <h3>Round XP Rewards</h3>
+
+  <h4>Completion XP</h4>
+  <ul>
+    <li><strong>Round Finish:</strong> Base XP for completing a round</li>
+    <li><strong>Hole Count:</strong> More holes = more total XP</li>
+    <li><strong>Course Difficulty:</strong> Harder courses grant more XP</li>
+    <li><strong>Time Bonus:</strong> Fast completion grants time bonus XP</li>
+  </ul>
+
+  <h4>Performance Bonuses</h4>
+  <ul>
+    <li><strong>Under Par:</strong> Significant XP multiplier for under-par rounds</li>
+    <li><strong>Ace Bonus:</strong> Hole-in-one grants substantial XP reward</li>
+    <li><strong>Birdie Streak:</strong> Consecutive birdies provide stacking bonus</li>
+    <li><strong>Consistency:</strong> Stable performance across holes rewarded</li>
+  </ul>
+
+  <h2>Survival Mode Integration</h2>
+
+  <h3>Stamina in Survival</h3>
+  <ul>
+    <li><strong>Food System:</strong> Eating food restores stamina</li>
+    <li><strong>Combat Impact:</strong> Combat drains stamina, affects throwing capability</li>
+    <li><strong>Environmental Factors:</strong> Heat, cold, and terrain affect stamina drain</li>
+    <li><strong>Resource Balance:</strong> Must balance food supplies with disc golf needs</li>
+  </ul>
+
+  <h3>XP in Survival</h3>
+  <ul>
+    <li><strong>Skill Unlocks:</strong> XP contributes to skill-based unlock requirements</li>
+    <li><strong>Leveling:</strong> XP grants levels that unlock new abilities</li>
+    <li><strong>Enchantment Access:</strong> Higher levels unlock better enchantments</li>
+    <li><strong>Equipment Access:</strong> XP progression gates advanced equipment</li>
+  </ul>
+
+  <h2>HUD Integration</h2>
+
+  <h3>Stamina Display</h3>
+  <ul>
+    <li><strong>Stamina Bar:</strong> Visual indicator of current stamina level</li>
+    <li><strong>Overcharge Warning:</strong> HUD warns when stamina is draining</li>
+    <li><strong>Regeneration Indicator:</strong> Shows stamina recovery status</li>
+    <li><strong>Color Coding:</strong> Green (high) → Yellow (medium) → Red (low)</li>
+  </ul>
+
+  <h3>XP Display</h3>
+  <ul>
+    <li><strong>XP Bar:</strong> Shows current XP progress to next level</li>
+    <li><strong>Throw XP Popup:</strong> Floating text shows XP gained per throw</li>
+    <li><strong>Round XP Summary:</strong> End-of-round XP breakdown</li>
+    <li><strong>Level Notification:</strong> Alert when level increases</li>
+  </ul>
+
+  <h2>Advanced Strategies</h2>
+
+  <h3>Stamina Optimization</h3>
+
+  <h4>For Distance</h4>
+  <ul>
+    <li><strong>Strategic Overcharge:</strong> Use 125% only for critical distance needs</li>
+    <li><strong>Recovery Planning:</strong> Allow stamina regen between important throws</li>
+    <li><strong>Food Management:</strong> Keep food available for stamina restoration</li>
+    <li><strong>Pacing:</strong> Don't overcharge on every throw</li>
+  </ul>
+
+  <h4>For Consistency</h4>
+  <ul>
+    <li><strong>Standard Charging:</strong> Stick to 100% for consistent performance</li>
+    <li><strong>Stamina Conservation:</strong> Preserve stamina for critical moments</li>
+    <li><strong>Recovery Timing:</strong> Plan regen breaks during hole transitions</li>
+    <li><strong>Risk Minimization:</strong> Avoid stamina exhaustion situations</li>
+  </ul>
+
+  <h3>XP Maximization</h3>
+
+  <h4>Throw Optimization</h4>
+  <ul>
+    <li><strong>Aim for Basket:</strong> Closer shots grant more XP</li>
+    <li><strong>Distance Efficiency:</strong> Balance distance with accuracy for XP</li>
+    <li><strong>First Throws:</strong> Make first throw of each hole count</li>
+    <li><strong>Difficulty Chasing:</strong> Take on challenging conditions for XP bonus</li>
+  </ul>
+
+  <h4>Round Strategy</h4>
+  <ul>
+    <li><strong>Under Par Focus:</strong> Prioritize scoring under par for XP multiplier</li>
+    <li><strong>Ace Hunting:</strong> Target aces for massive XP rewards</li>
+    <li><strong>Birdie Streaks:</strong> Build streaks for stacking bonuses</li>
+    <li><strong>Consistency:</strong> Stable performance across all holes</li>
+  </ul>
+
+  <h2>Configuration</h2>
+
+  <h3>Server Settings</h3>
+  <ul>
+    <li><strong>Stamina Drain Rate:</strong> Configurable stamina consumption rate</li>
+    <li><strong>Stamina Regeneration:</strong> Adjustable stamina recovery speed</li>
+    <li><strong>XP Multipliers:</strong> Server-wide XP reward multipliers</li>
+    <li><strong>Survival Mode:</strong> Enable/disable stamina/XP systems</li>
+  </ul>
+
+  <h3>Client Settings</h3>
+  <ul>
+    <li><strong>HUD Positioning:</strong> Customize stamina and XP bar placement</li>
+    <li><strong>Audio Cues:</strong> Enable/disable stamina warning sounds</li>
+    <li><strong>XP Notifications:</strong> Configure XP popup display</li>
+    <li><strong>Color Themes:</strong> Customize stamina bar color coding</li>
+  </ul>
+
+  <h2>Troubleshooting</h2>
+
+  <h3>Common Issues</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Issue</th>
+        <th>Solution</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Stamina draining too fast</td>
+        <td>Check server stamina settings, reduce overcharge usage</td>
+      </tr>
+      <tr>
+        <td>XP not awarding</td>
+        <td>Verify survival mode enabled, check server XP settings</td>
+      </tr>
+      <tr>
+        <td>Stamina not regenerating</td>
+        <td>Ensure not in overcharge zone, check regeneration settings</td>
+      </tr>
+      <tr>
+        <td>HUD not showing stamina/XP</td>
+        <td>Check HUD settings, verify client configuration</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Related Documentation</h2>
+  <ul>
+    <li><a href={`${baseUrl}guide/gameplay`}>Gameplay Mechanics</a></li>
+    <li><a href={`${baseUrl}guide/progression`}>Progression System</a></li>
+    <li><a href={`${baseUrl}features/physics`}>Physics System</a></li>
+    <li><a href={`${baseUrl}guide/crafting`}>Crafting and Recipes</a></li>
+  </ul>
+</FeatureLayout>

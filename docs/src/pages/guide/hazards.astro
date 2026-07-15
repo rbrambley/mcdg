@@ -1,0 +1,343 @@
+---
+import GuideLayout from '../../layouts/GuideLayout.astro';
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+---
+
+<GuideLayout 
+  title="Hazards Guide"
+  guideType="hazards"
+>
+  <h1>Hazards Guide</h1>
+  
+  <p>Hazards are environmental features that affect disc flight and scoring. Understanding how to play from different hazards is essential for lowering your scores and navigating challenging courses.</p>
+
+  <h2>Hazard Types</h2>
+
+  <h3>Rough</h3>
+  <p>Rough terrain represents tall grass, brush, and difficult ground conditions.</p>
+  
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Increased drag:</strong> Disc slows down more quickly when landing in rough</li>
+    <li><strong>Reduced distance:</strong> Throws from rough travel shorter distances</li>
+    <li><strong>Unpredictable bounces:</strong> Disc may bounce unpredictably on rough terrain</li>
+    <li><strong>Difficulty:</strong> Moderate challenge for recovery shots</li>
+  </ul>
+
+  <h4>Strategy</h4>
+  <ul>
+    <li>Use higher-speed discs to power through rough</li>
+    <li>Aim for cleaner landing areas when possible</li>
+    <li>Consider using OVERHAND stance for more predictable flight</li>
+    <li>Play conservatively - focus on getting back in play rather than aggressive recovery</li>
+  </ul>
+
+  <h4>Minimap Color</h4>
+  <p><span style="color: #8B4513;">Brown</span> - Rough terrain appears as brown on the minimap</p>
+
+  <h3>Sand</h3>
+  <p>Sand hazards represent bunkers, beaches, and sandy areas that significantly affect disc flight.</p>
+  
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Severe drag:</strong> Disc stops quickly when landing in sand</li>
+    <li><strong>Burial risk:</strong> Disc may become partially buried</li>
+    <li><strong>Power loss:</strong> Next throw has significantly reduced power</li>
+    <li><strong>Difficulty:</strong> High challenge for recovery shots</li>
+  </ul>
+
+  <h4>Strategy</h4>
+  <ul>
+    <li>Avoid sand at all costs on approach shots</li>
+    <li>If in sand, play out sideways rather than trying to power through</li>
+    <li>Use higher loft angles to escape sand traps</li>
+    <li>Accept that recovery will cost strokes - play conservatively</li>
+  </ul>
+
+  <h4>Minimap Color</h4>
+  <p><span style="color: #F4A460;">Sandy Brown</span> - Sand appears as sandy brown on the minimap</p>
+
+  <h3>Ice</h3>
+  <p>Ice hazards represent frozen surfaces that reduce friction and cause unpredictable sliding.</p>
+  
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Reduced friction:</strong> Disc slides much further on ice</li>
+    <li><strong>Unpredictable direction:</strong> Slide direction can be hard to control</li>
+    <li><strong>Speed maintenance:</strong> Disc maintains speed longer on ice</li>
+    <li><strong>Difficulty:</strong> Variable - can help or hurt depending on situation</li>
+  </ul>
+
+  <h4>Strategy</h4>
+  <ul>
+    <li>Account for extra slide distance when planning shots</li>
+    <li>Use lower power to maintain control on icy surfaces</li>
+    <li>Ice can be advantageous for long-distance slides if positioned well</li>
+    <li>Avoid putting on ice - extremely difficult to control distance</li>
+  </ul>
+
+  <h4>Minimap Color</h4>
+  <p><span style="color: #ADD8E6;">Light Blue</span> - Ice appears as light blue on the minimap</p>
+
+  <h3>Cactus</h3>
+  <p>Cactus hazards represent desert vegetation that can damage discs and deflect throws.</p>
+  
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Collision deflection:</strong> Disc bounces off cactus unpredictably</li>
+    <li><strong>Durability damage:</strong> Repeated hits reduce disc durability</li>
+    <li><strong>Blocked paths:</strong> Cactus can block direct lines to basket</li>
+    <li><strong>Difficulty:</strong> High - requires precise shot shaping</li>
+  </ul>
+
+  <h4>Strategy</h4>
+  <ul>
+    <li>Use PIERCE enchantment to ignore cactus collisions</li>
+    <li>Shape shots around cactus rather than through them</li>
+    <li>Hyzer and Anhyzer angles can navigate around cactus fields</li>
+    <li>Consider OVERHAND for vertical clearance over cactus</li>
+  </ul>
+
+  <h4>Minimap Color</h4>
+  <p><span style="color: #228B22;">Forest Green</span> - Cactus appears as green on the minimap</p>
+
+  <h3>Swamp</h3>
+  <p>Swamp hazards represent wetlands, marshes, and waterlogged terrain.</p>
+  
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Extreme drag:</strong> Disc stops almost immediately in swamp</li>
+    <li><strong>Stuck risk:</strong> Disc may become stuck and unplayable</li>
+    <li><strong>Penalty strokes:</strong> Swamp areas often carry stroke penalties</li>
+    <li><strong>Difficulty:</strong> Very high - often requires relief</li>
+  </ul>
+
+  <h4>Strategy</h4>
+  <ul>
+    <li>Avoid swamp entirely - plan routes around wetland areas</li>
+    <li>If in swamp, take relief and penalty strokes rather than playing out</li>
+    <li>Use elevated stances to keep disc above swamp vegetation</li>
+    <li>Swamp is effectively a hazard zone - treat it like water</li>
+  </ul>
+
+  <h4>Minimap Color</h4>
+  <p><span style="color: #556B2F;">Dark Olive Green</span> - Swamp appears as dark green on the minimap</p>
+
+  <h3>Lava</h3>
+  <p>Lava hazards represent dangerous volcanic areas that destroy discs.</p>
+  
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Disc destruction:</strong> Disc is destroyed if it lands in lava</li>
+    <li><strong>Severe penalties:</strong> Lava carries maximum stroke penalties</li>
+    <li><strong>Relief required:</strong> Must take relief from nearest safe point</li>
+    <li><strong>Difficulty:</strong> Extreme - avoid at all costs</li>
+  </ul>
+
+  <h4>Strategy</h4>
+  <ul>
+    <li>Never attempt shots over lava unless absolutely necessary</li>
+    <li>Use extreme caution near lava hazards - play conservatively</li>
+    <li>If forced to play near lava, aim well away from hazard edges</li>
+    <li>Accept penalty strokes rather than risk disc loss</li>
+  </ul>
+
+  <h4>Minimap Color</h4>
+  <p><span style="color: #FF4500;">Orange Red</span> - Lava appears as orange-red on the minimap</p>
+
+  <h3>Cliff</h3>
+  <p>Cliff hazards represent elevation drops and steep terrain changes.</p>
+  
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Elevation loss:</strong> Disc may fall down cliffs, adding distance</li>
+    <li><strong>Unreachable lies:</strong> Disc may land in inaccessible positions</li>
+    <li><strong>Line of sight:</strong> Cliffs can block direct shots to basket</li>
+    <li><strong>Difficulty:</strong> Variable - depends on cliff height and accessibility</li>
+  </ul>
+
+  <h4>Strategy</h4>
+  <ul>
+    <li>Use elevation to your advantage when possible</li>
+    <li>Aim for cliff edges rather than going over - use backspin to stop near edge</li>
+    <li>From below cliffs, use higher-loft shots to regain elevation</li>
+    <li>Consider going around cliffs rather than trying to power over</li>
+  </ul>
+
+  <h4>Minimap Color</h4>
+  <p><span style="color: #808080;">Gray</span> - Cliffs appear as gray on the minimap</p>
+
+  <h3>Water</h3>
+  <p>Water hazards represent lakes, rivers, ponds, and other water features.</p>
+  
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Hazard zone:</strong> Water is a designated hazard area</li>
+    <li><strong>Penalty strokes:</strong> Landing in water incurs stroke penalties</li>
+    <li><strong>Relief required:</strong> Must take relief from water hazard</li>
+    <li><strong>Difficulty:</strong> High - requires course management</li>
+  </ul>
+
+  <h4>Strategy</h4>
+  <ul>
+    <li>Avoid water at all costs on approach shots</li>
+    <li>Play away from water rather than risking marginal shots</li>
+    <li>Use layup shots to position safely away from water</li>
+    <li>When forced to carry water, use plenty of clearance</li>
+  </ul>
+
+  <h4>Minimap Color</h4>
+  <p><span style="color: #0000FF;">Blue</span> - Water appears as blue on the minimap</p>
+
+  <h2>Hazard Minimap</h2>
+  <p>The minimap displays hazard information using color-coded overlays:</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Hazard</th>
+        <th>Color</th>
+        <th>Severity</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Rough</td>
+        <td><span style="color: #8B4513;">Brown</span></td>
+        <td>Moderate</td>
+      </tr>
+      <tr>
+        <td>Sand</td>
+        <td><span style="color: #F4A460;">Sandy Brown</span></td>
+        <td>High</td>
+      </tr>
+      <tr>
+        <td>Ice</td>
+        <td><span style="color: #ADD8E6;">Light Blue</span></td>
+        <td>Variable</td>
+      </tr>
+      <tr>
+        <td>Cactus</td>
+        <td><span style="color: #228B22;">Forest Green</span></td>
+        <td>High</td>
+      </tr>
+      <tr>
+        <td>Swamp</td>
+        <td><span style="color: #556B2F;">Dark Olive Green</span></td>
+        <td>Very High</td>
+      </tr>
+      <tr>
+        <td>Lava</td>
+        <td><span style="color: #FF4500;">Orange Red</span></td>
+        <td>Extreme</td>
+      </tr>
+      <tr>
+        <td>Cliff</td>
+        <td><span style="color: #808080;">Gray</span></td>
+        <td>Variable</td>
+      </tr>
+      <tr>
+        <td>Water</td>
+        <td><span style="color: #0000FF;">Blue</span></td>
+        <td>High</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>General Hazard Strategy</h2>
+
+  <h3>Risk Management</h3>
+  <ul>
+    <li><strong>Assess the risk:</strong> Evaluate potential hazard vs. reward before each shot</li>
+    <li><strong>Play the percentages:</strong> Choose high-percentage shots over low-percentage hero shots</li>
+    <li><strong>Accept bogeys:</strong> Taking a conservative bogey is better than risking double bogey or worse</li>
+    <li><strong>Know your limits:</strong> Don't attempt shots beyond your skill level</li>
+  </ul>
+
+  <h3>Recovery Techniques</h3>
+  <ul>
+    <li><strong>Lateral movement:</strong> Often better to move sideways than directly toward target</li>
+    <li><strong>Tempo control:</strong> Slower, controlled throws are often better from hazards</li>
+    <li><strong>Stance selection:</strong> OVERHAND can provide more predictability from difficult lies</li>
+    <li><strong>Angle management:</strong> Use release angles to shape shots around hazards</li>
+  </ul>
+
+  <h3>Enchantment Help</h3>
+  <ul>
+    <li><strong>PIERCE:</strong> Ignores vegetation collisions (cactus, rough)</li>
+    <li><strong>STABILITY:</strong> Reduces fade for straighter recovery shots</li>
+    <li><strong>RANGE:</strong> Extra distance can help escape deep hazards</li>
+    <li><strong>DURABILITY:</strong> Reduces wear from hazard damage</li>
+  </ul>
+
+  <h2>Biome-Specific Hazards</h2>
+  <p>Different biomes have different hazard distributions:</p>
+
+  <h3>Plains</h3>
+  <ul>
+    <li><strong>Primary hazards:</strong> Rough, occasional water</li>
+    <li><strong>Difficulty:</strong> Low - most forgiving biome</li>
+    <li><strong>Strategy:</strong> Aggressive play is viable</li>
+  </ul>
+
+  <h3>Forest</h3>
+  <ul>
+    <li><strong>Primary hazards:</strong> Rough, cactus, cliffs</li>
+    <li><strong>Difficulty:</strong> Moderate - requires shot shaping</li>
+    <li><strong>Strategy:</strong> Precision over power, use gaps in vegetation</li>
+  </ul>
+
+  <h3>Desert</h3>
+  <ul>
+    <li><strong>Primary hazards:</strong> Sand, cactus, lava</li>
+    <li><strong>Difficulty:</strong> High - punishing hazards</li>
+    <li><strong>Strategy:</strong> Avoid sand at all costs, play conservatively</li>
+  </ul>
+
+  <h3>Mountain</h3>
+  <ul>
+    <li><strong>Primary hazards:</strong> Cliffs, rough, ice</li>
+    <li><strong>Difficulty:</strong> High - elevation changes challenge</li>
+    <li><strong>Strategy:</strong> Manage elevation carefully, account for slope</li>
+  </ul>
+
+  <h3>Jungle</h3>
+  <ul>
+    <li><strong>Primary hazards:</strong> Rough, swamp, cactus</li>
+    <li><strong>Difficulty:</strong> Very High - dense vegetation and wetlands</li>
+    <li><strong>Strategy:</strong> Extreme precision required, accept penalties</li>
+  </ul>
+
+  <h3>Ice</h3>
+  <ul>
+    <li><strong>Primary hazards:</strong> Ice, water, rough</li>
+    <li><strong>Difficulty:</strong> Variable - ice can help or hurt</li>
+    <li><strong>Strategy:</strong> Account for slide distance, use ice to advantage when possible</li>
+  </ul>
+
+  <h2>Advanced Hazard Play</h2>
+
+  <h3>Reading Hazard Layouts</h3>
+  <ul>
+    <li>Use the minimap to identify hazard locations before throwing</li>
+    <li>Plan multiple escape routes from each potential landing area</li>
+    <li>Consider how wind will affect hazard interaction</li>
+    <li>Identify "safe zones" to aim for rather than just avoiding hazards</li>
+  </ul>
+
+  <h3>Shot Shaping for Hazards</h3>
+  <ul>
+    <li><strong>Hyzer:</strong> Useful for fighting headwinds near hazards</li>
+    <li><strong>Anhyzer:</strong> Can curve around obstacle hazards</li>
+    <li><strong>Flat:</strong> Most predictable for hazard avoidance</li>
+    <li><strong>OVERHAND:</strong> Vertical clearance for height-based hazards</li>
+  </ul>
+
+  <h2>Related Documentation</h2>
+  <ul>
+    <li><a href={`${baseUrl}guide/gameplay`}>Gameplay Mechanics</a></li>
+    <li><a href={`${baseUrl}guide/biome-courses`}>Biome Course Guide</a></li>
+    <li><a href={`${baseUrl}features/physics`}>Physics System</a></li>
+    <li><a href={`${baseUrl}features/enchantments`}>Disc Enchantments</a></li>
+  </ul>
+</GuideLayout>

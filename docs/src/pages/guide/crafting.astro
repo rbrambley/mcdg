@@ -1,0 +1,576 @@
+---
+import GuideLayout from '../../layouts/GuideLayout.astro';
+import ScreenshotPlaceholder from '../../components/ui/ScreenshotPlaceholder.astro';
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+---
+
+<GuideLayout 
+  title="Crafting and Recipes"
+  guideType="crafting"
+>
+  <h1>Crafting and Recipes</h1>
+  
+  <p>Complete crafting reference for all MCDG equipment including discs, bags, accessories, and enchantments. Progress through the crafting tiers from basic training equipment to master-level netherite gear.</p>
+
+  <h2>Crafting Progression</h2>
+
+  <h3>Tier Overview</h3>
+  <ul>
+    <li><strong>Tier 0:</strong> Training Equipment (entry-level)</li>
+    <li><strong>Tier 1:</strong> Beginner Equipment (basic)</li>
+    <li><strong>Tier 2:</strong> Standard Equipment (intermediate)</li>
+    <li><strong>Tier 3:</strong> Advanced Equipment (advanced)</li>
+    <li><strong>Tier 4:</strong> Master Equipment (expert)</li>
+  </ul>
+
+  <h3>Unlock Requirements</h3>
+  <ul>
+    <li><strong>Material Requirements:</strong> Minecraft materials needed for crafting</li>
+    <li><strong>Skill Unlocks:</strong> Some items require skill achievements</li>
+    <li><strong>Progression:</strong> Higher tiers require lower-tier items as upgrades</li>
+  </ul>
+
+  <ScreenshotPlaceholder 
+    title="Crafting Interface"
+    description="Minecraft crafting table showing disc recipes"
+    width="100%"
+    height="300px"
+  />
+
+  <h2>Tier 0: Training Equipment</h2>
+
+  <h3>Training Disc</h3>
+  <p>Permanent reusable disc for learning mechanics with no durability loss.</p>
+  
+  <h4>Recipe</h4>
+  <pre><code>┌─────────┬─────────┐
+│ Arrow   │ Arrow   │
+│ Arrow   │ Copper  │
+│ Arrow   │ Arrow   │
+└─────────┴─────────┘</code></pre>
+
+  <h4>Materials</h4>
+  <ul>
+    <li>8x Arrows</li>
+    <li>1x Copper Ingot</li>
+  </ul>
+
+  <h4>Stats</h4>
+  <ul>
+    <li><strong>Glide:</strong> Standard</li>
+    <li><strong>Stability:</strong> Standard</li>
+    <li><strong>Durability:</strong> Infinite (no durability loss)</li>
+    <li><strong>Special:</strong> Permanent, survives round cleanup</li>
+  </ul>
+
+  <h4>Unlock</h4>
+  <ul>
+    <li>Available from start</li>
+    <li>No skill requirements</li>
+  </ul>
+
+  <h2>Tier 1: Beginner Equipment</h2>
+
+  <h3>Wooden Disc</h3>
+  <p>Basic learning tool with limited performance.</p>
+  
+  <h4>Recipe</h4>
+  <pre><code>┌─────────┬─────────┐
+│ Plank   │ Plank   │
+│ Plank   │ Plank   │
+└─────────┴─────────┘</code></pre>
+
+  <h4>Materials</h4>
+  <ul>
+    <li>4x Planks (any wood type)</li>
+  </ul>
+
+  <h4>Stats</h4>
+  <ul>
+    <li><strong>Glide:</strong> 0.8x</li>
+    <li><strong>Stability:</strong> 0.8x</li>
+    <li><strong>Durability:</strong> 50</li>
+  </ul>
+
+  <h4>Unlock</h4>
+  <ul>
+    <li>Available from start</li>
+    <li>No skill requirements</li>
+  </ul>
+
+  <h3>Basic Disc Bag</h3>
+  <p>Carry multiple discs for variety.</p>
+  
+  <h4>Recipe</h4>
+  <pre><code>┌─────────┬─────────┬─────────┐
+│ Leather  │ Leather  │ Leather  │
+│ Leather  │ String   │ String   │
+└─────────┴─────────┴─────────┘</code></pre>
+
+  <h4>Materials</h4>
+  <ul>
+    <li>4x Leather</li>
+    <li>2x String</li>
+  </ul>
+
+  <h4>Stats</h4>
+  <ul>
+    <li><strong>Capacity:</strong> 3 disc slots</li>
+    <li><strong>Features:</strong> Basic storage, no special abilities</li>
+  </ul>
+
+  <h2>Tier 2: Standard Equipment</h2>
+
+  <h3>Stone Disc</h3>
+  <p>Improved consistency and durability.</p>
+  
+  <h4>Recipe</h4>
+  <pre><code>┌─────────┬─────────┬─────────┐
+│ Cobble  │ Cobble  │ Cobble  │
+│         │ Wooden  │         │
+│         │ Disc    │         │
+└─────────┴─────────┴─────────┘</code></pre>
+
+  <h4>Materials</h4>
+  <ul>
+    <li>3x Cobblestone</li>
+    <li>1x Wooden Disc (upgrade)</li>
+  </ul>
+
+  <h4>Stats</h4>
+  <ul>
+    <li><strong>Glide:</strong> 0.9x</li>
+    <li><strong>Stability:</strong> 0.9x</li>
+    <li><strong>Durability:</strong> 100</li>
+  </ul>
+
+  <h4>Unlock</h4>
+  <ul>
+    <li>Craft workbench</li>
+  </ul>
+
+  <h3>Iron Disc</h3>
+  <p>Standard performance baseline.</p>
+  
+  <h4>Recipe</h4>
+  <pre><code>┌─────────┬─────────┬─────────┐
+│ Iron    │ Iron    │ Iron    │
+│         │ Stone   │         │
+│         │ Disc    │         │
+└─────────┴─────────┴─────────┘</code></pre>
+
+  <h4>Materials</h4>
+  <ul>
+    <li>3x Iron Ingots</li>
+    <li>1x Stone Disc (upgrade)</li>
+  </ul>
+
+  <h4>Stats</h4>
+  <ul>
+    <li><strong>Glide:</strong> 1.0x</li>
+    <li><strong>Stability:</strong> 1.0x</li>
+    <li><strong>Durability:</strong> 200</li>
+  </ul>
+
+  <h4>Unlock</h4>
+  <ul>
+    <li>Smelt iron</li>
+  </ul>
+
+  <h3>Standard Disc Bag</h3>
+  <p>Carry more discs for variety.</p>
+  
+  <h4>Recipe</h4>
+  <pre><code>┌─────────┬─────────┬─────────┐
+│ Leather  │ Leather  │ Leather  │
+│ Leather  │ Iron    │ Iron    │
+│ Leather  │ Leather  │ Leather  │
+└─────────┴─────────┴─────────┘</code></pre>
+
+  <h4>Materials</h4>
+  <ul>
+    <li>6x Leather</li>
+    <li>2x Iron Ingots</li>
+  </ul>
+
+  <h4>Stats</h4>
+  <ul>
+    <li><strong>Capacity:</strong> 6 disc slots</li>
+    <li><strong>Features:</strong> Quick slot access, durability display</li>
+  </ul>
+
+  <h4>Unlock</h4>
+  <ul>
+    <li>Craft iron ingots</li>
+  </ul>
+
+  <h2>Tier 3: Advanced Equipment</h2>
+
+  <h3>Gold Disc</h3>
+  <p>Faster gameplay with increased throw speed.</p>
+  
+  <h4>Recipe</h4>
+  <pre><code>┌─────────┬─────────┬─────────┐
+│ Gold    │ Gold    │ Gold    │
+│         │ Iron    │         │
+│         │ Disc    │         │
+└─────────┴─────────┴─────────┘</code></pre>
+
+  <h4>Materials</h4>
+  <ul>
+    <li>3x Gold Ingots</li>
+    <li>1x Iron Disc (upgrade)</li>
+  </ul>
+
+  <h4>Stats</h4>
+  <ul>
+    <li><strong>Glide:</strong> 1.1x</li>
+    <li><strong>Stability:</strong> 0.9x</li>
+    <li><strong>Durability:</strong> 150</li>
+    <li><strong>Special:</strong> +10% throw speed (faster charge)</li>
+  </ul>
+
+  <h4>Unlock</h4>
+  <ul>
+    <li>Mine gold (requires iron pickaxe)</li>
+  </ul>
+
+  <h3>Diamond Disc</h3>
+  <p>High-level performance for all conditions.</p>
+  
+  <h4>Recipe</h4>
+  <pre><code>┌─────────┬─────────┬─────────┐
+│ Diamond │ Diamond │ Diamond │
+│         │ Gold    │         │
+│         │ Disc    │         │
+└─────────┴─────────┴─────────┘</code></pre>
+
+  <h4>Materials</h4>
+  <ul>
+    <li>3x Diamonds</li>
+    <li>1x Gold Disc (upgrade)</li>
+  </ul>
+
+  <h4>Stats</h4>
+  <ul>
+    <li><strong>Glide:</strong> 1.2x</li>
+    <li><strong>Stability:</strong> 1.2x</li>
+    <li><strong>Durability:</strong> 400</li>
+    <li><strong>Special:</strong> Wind resistance (50% wind effect reduction)</li>
+  </ul>
+
+  <h4>Unlock</h4>
+  <ul>
+    <li>Mine diamonds (requires iron pickaxe)</li>
+  </ul>
+
+  <h3>Advanced Disc Bag</h3>
+  <p>Professional equipment management.</p>
+  
+  <h4>Recipe</h4>
+  <pre><code>┌─────────┬─────────┬─────────┐
+│ Leather  │ Leather  │ Leather  │
+│ Leather  │ Diamond │ Diamond │
+│ Leather  │ Leather  │ Gold    │
+└─────────┴─────────┴─────────┘</code></pre>
+
+  <h4>Materials</h4>
+  <ul>
+    <li>6x Leather</li>
+    <li>2x Diamonds</li>
+    <li>1x Gold Ingot</li>
+  </ul>
+
+  <h4>Stats</h4>
+  <ul>
+    <li><strong>Capacity:</strong> 9 disc slots</li>
+    <li><strong>Features:</strong> Auto-sort, durability display</li>
+  </ul>
+
+  <h4>Unlock</h4>
+  <ul>
+    <li>Craft diamonds</li>
+  </ul>
+
+  <h2>Tier 4: Master Equipment</h2>
+
+  <h3>Netherite Disc</h3>
+  <p>Ultimate performance for all conditions.</p>
+  
+  <h4>Smithing Recipe</h4>
+  <pre><code>Smithing Table:
+[Netherite Ingot] + [Diamond Disc]</code></pre>
+
+  <h4>Materials</h4>
+  <ul>
+    <li>1x Netherite Ingot</li>
+    <li>1x Diamond Disc (smithing template)</li>
+  </ul>
+
+  <h4>Stats</h4>
+  <ul>
+    <li><strong>Glide:</strong> 1.3x</li>
+    <li><strong>Stability:</strong> 1.3x</li>
+    <li><strong>Durability:</strong> 600</li>
+    <li><strong>Special:</strong> Fire resistance, knockback resistance, 75% wind resistance</li>
+  </ul>
+
+  <h4>Unlock</h4>
+  <ul>
+    <li>Ancient debris mining (requires diamond pickaxe)</li>
+  </ul>
+
+  <h3>Legendary Disc Bag</h3>
+  <p>Master-level equipment management.</p>
+  
+  <h4>Recipe</h4>
+  <pre><code>┌─────────┬─────────┬─────────┐
+│ Leather  │ Leather  │ Leather  │
+│ Leather  │ Netherite│ Netherite│
+│ Leather  │ Leather  │ Ender    │
+│         │         │ Pearl    │
+└─────────┴─────────┴─────────┘</code></pre>
+
+  <h4>Materials</h4>
+  <ul>
+    <li>6x Leather</li>
+    <li>2x Netherite Ingots</li>
+    <li>1x Ender Pearl</li>
+  </ul>
+
+  <h4>Stats</h4>
+  <ul>
+    <li><strong>Capacity:</strong> 12 disc slots</li>
+    <li><strong>Features:</strong> Instant access, teleport to bag</li>
+  </ul>
+
+  <h4>Unlock</h4>
+  <ul>
+    <li>Craft netherite</li>
+  </ul>
+
+  <h2>Accessories</h2>
+
+  <h3>Disc Glove</h3>
+  <p>Improves grip and control for more consistent throws.</p>
+  
+  <h4>Recipe</h4>
+  <pre><code>┌─────────┬─────────┐
+│ Leather  │ Leather  │
+│         │ Iron    │
+└─────────┴─────────┘</code></pre>
+
+  <h4>Materials</h4>
+  <ul>
+    <li>2x Leather</li>
+    <li>1x Iron Ingot</li>
+  </ul>
+
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Grip Bonus:</strong> Reduced chance of grip failures</li>
+    <li><strong>Control:</strong> Slightly improved throw accuracy</li>
+    <li><strong>Comfort:</strong> Reduced stamina drain on overcharge</li>
+  </ul>
+
+  <h4>Unlock</h4>
+  <ul>
+    <li>Craft iron ingots</li>
+  </ul>
+
+  <h3>Disc Towel</h3>
+  <p>Cleans discs to maintain optimal flight characteristics.</p>
+  
+  <h4>Recipe</h4>
+  <pre><code>┌─────────┬─────────┬─────────┐
+│ Wool    │ Wool    │ Wool    │
+│         │ String  │         │
+└─────────┴─────────┴─────────┘</code></pre>
+
+  <h4>Materials</h4>
+  <ul>
+    <li>3x Wool</li>
+    <li>1x String</li>
+  </ul>
+
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Cleaning:</strong> Removes debris and moisture from discs</li>
+    <li><strong>Performance:</strong> Maintains consistent disc flight</li>
+    <li><strong>Durability:</strong> Reduces disc wear from environmental factors</li>
+  </ul>
+
+  <h4>Unlock</h4>
+  <ul>
+    <li>Available from start</li>
+  </ul>
+
+  <h3>Range Finder</h3>
+  <p>Calculates optimal disc, stance, angle, and power for current shot.</p>
+  
+  <h4>Recipe</h4>
+  <pre><code>┌─────────┬─────────┬─────────┐
+│ Iron    │ Iron    │         │
+│ Redstone│ Glass   │         │
+└─────────┴─────────┴─────────┘</code></pre>
+
+  <h4>Materials</h4>
+  <ul>
+    <li>2x Iron Ingots</li>
+    <li>1x Redstone</li>
+    <li>1x Glass</li>
+  </ul>
+
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Distance Calculation:</strong> Shows exact distance to basket</li>
+    <li><strong>Disc Recommendation:</strong> Suggests optimal disc for the shot</li>
+    <li><strong>Stance Advice:</strong> Recommends best throw stance</li>
+    <li><strong>Angle Guidance:</strong> Suggests optimal release angle</li>
+  </ul>
+
+  <h4>Unlock</h4>
+  <ul>
+    <li>Craft iron ingots and redstone</li>
+  </ul>
+
+  <h3>Disc Retriever</h3>
+  <p>Tool to recover discs from hazards and out-of-bounds areas.</p>
+  
+  <h4>Recipe</h4>
+  <pre><code>┌─────────┬─────────┬─────────┐
+│ Iron    │ Iron    │ Iron    │
+│ String  │ Stick   │ String  │
+└─────────┴─────────┴─────────┘</code></pre>
+
+  <h4>Materials</h4>
+  <ul>
+    <li>3x Iron Ingots</li>
+    <li>2x String</li>
+    <li>1x Stick</li>
+  </ul>
+
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Hazard Recovery:</strong> Retrieve discs from water, lava, and other hazards</li>
+    <li><strong>Range:</strong> Extended reach for difficult recoveries</li>
+    <li><strong>Durability:</strong> Uses durability for each recovery</li>
+  </ul>
+
+  <h4>Unlock</h4>
+  <ul>
+    <li>Craft iron ingots</li>
+  </ul>
+
+  <h3>Disc Compass</h3>
+  <p>Points to nearest basket or lost disc for navigation assistance.</p>
+  
+  <h4>Recipe</h4>
+  <pre><code>┌─────────┬─────────┐
+│ Compass │ Iron    │
+│ Redstone│         │
+└─────────┴─────────┘</code></pre>
+
+  <h4>Materials</h4>
+  <ul>
+    <li>1x Compass</li>
+    <li>1x Iron Ingot</li>
+    <li>1x Redstone</li>
+  </ul>
+
+  <h4>Effects</h4>
+  <ul>
+    <li><strong>Basket Location:</strong> Points to current hole's basket</li>
+    <li><strong>Lost Disc:</strong> Points to your most recent lost disc</li>
+    <li><strong>Waypoint Integration:</strong> Can mark custom waypoints</li>
+  </ul>
+
+  <h4>Unlock</h4>
+  <ul>
+    <li>Craft compass and redstone</li>
+  </ul>
+
+  <h2>Enchantment Crafting</h2>
+
+  <h3>Disc Workbench</h3>
+  <p>Special crafting table for applying disc enchantments.</p>
+  
+  <h4>Usage</h4>
+  <ol>
+    <li>Place a Disc Workbench in your world</li>
+    <li>Right-click to open the workbench interface</li>
+    <li>Place the disc you want to enchant in the disc slot</li>
+    <li>Place a Disc Enchanted Book in the enchantment slot</li>
+    <li>Confirm the enchantment application</li>
+  </ol>
+
+  <h3>Disc Enchanted Books</h3>
+  <p>Special books that contain disc-specific enchantments.</p>
+
+  <h4>Obtaining Enchanted Books</h4>
+  <ul>
+    <li><strong>Round Completion:</strong> Earned based on round performance</li>
+    <li><strong>Boss Drops:</strong> Dropped by boss mobs in challenge courses</li>
+    <li><strong>Under Par:</strong> Higher chance for better enchantments</li>
+    <li><strong>Aces:</strong> Guaranteed high-level enchantment book</li>
+  </ul>
+
+  <h4>Enchantment Types</h4>
+  <ul>
+    <li><strong>GLIDE:</strong> Increases hang time for extended distance</li>
+    <li><strong>STABILITY:</strong> Reduces fade for straighter flight</li>
+    <li><strong>PIERCE:</strong> Ignores vegetation collisions</li>
+    <li><strong>DURABILITY:</strong> Slows disc wear rate</li>
+    <li><strong>RANGE:</strong> Increases maximum throw distance</li>
+  </ul>
+
+  <h3>Anvil Integration</h3>
+  <ul>
+    <li><strong>Disc + Disc:</strong> Combine enchantments from two discs</li>
+    <li><strong>Disc + Book:</strong> Add enchantment from book to disc</li>
+    <li><strong>Book + Book:</strong> Combine enchantment levels</li>
+  </ul>
+
+  <h2>Material Requirements Summary</h2>
+
+  <h3>Common Materials</h3>
+  <ul>
+    <li><strong>Leather:</strong> Bags, gloves, towels</li>
+    <li><strong>Iron:</strong> Standard discs, accessories</li>
+    <li><strong>String:</strong> Bags, retrievers, towels</li>
+    <li><strong>Redstone:</strong> Range finder, compass</li>
+  </ul>
+
+  <h3>Rare Materials</h3>
+  <ul>
+    <li><strong>Gold:</strong> Gold disc, advanced bag</li>
+    <li><strong>Diamond:</strong> Diamond disc, advanced bag</li>
+    <li><strong>Netherite:</strong> Netherite disc, legendary bag</li>
+    <li><strong>Ender Pearl:</strong> Legendary bag</li>
+  </ul>
+
+  <h2>Crafting Strategy</h2>
+
+  <h3>Progression Path</h3>
+  <ul>
+    <li><strong>Start:</strong> Training disc → Wooden disc</li>
+    <li><strong>Early:</strong> Stone disc → Iron disc</li>
+    <li><strong>Mid:</strong> Gold disc → Diamond disc</li>
+    <li><strong>Late:</strong> Netherite disc</li>
+  </ul>
+
+  <h3>Equipment Planning</h3>
+  <ul>
+    <li><strong>Bags:</strong> Upgrade bags as disc collection grows</li>
+    <li><strong>Accessories:</strong> Prioritize based on playstyle</li>
+    <li><strong>Enchantments:</strong> Focus on most-used discs first</li>
+  </ul>
+
+  <h2>Related Documentation</h2>
+  <ul>
+    <li><a href={`${baseUrl}guide/progression`}>Progression System</a></li>
+    <li><a href={`${baseUrl}progression/skill-unlocks`}>Skill Unlocks</a></li>
+    <li><a href={`${baseUrl}features/enchantments`}>Disc Enchantments</a></li>
+    <li><a href={`${baseUrl}features/accessories`}>Disc Accessories</a></li>
+  </ul>
+</GuideLayout>

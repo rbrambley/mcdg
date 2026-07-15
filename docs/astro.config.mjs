@@ -1,9 +1,19 @@
 import { defineConfig } from 'astro/config';
+import mdx from '@astrojs/mdx';
+import tailwind from '@astrojs/tailwind';
+import sitemap from '@astrojs/sitemap';
 
-// https://astro.build/config
 export default defineConfig({
   site: 'https://rbrambley.github.io',
-  base: '/mcdg/',
-  outDir: './dist',
-  trailingSlash: 'ignore',
+  base: '/mcdg',
+  integrations: [
+    mdx(),
+    tailwind({
+      applyBaseStyles: false,
+    }),
+    sitemap(),
+  ],
+  build: {
+    format: 'directory',
+  },
 });

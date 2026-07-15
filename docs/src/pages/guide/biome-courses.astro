@@ -1,0 +1,297 @@
+---
+import GuideLayout from '../../layouts/GuideLayout.astro';
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+---
+
+<GuideLayout 
+  title="Biome Courses Guide"
+  guideType="biome-courses"
+>
+  <h1>Biome Courses Guide</h1>
+  
+  <p>MCDG's procedural course generator adapts to different biomes, creating unique course characteristics based on the environment. Each biome type offers distinct challenges, hazards, and strategic considerations.</p>
+
+  <h2>Biome Course Profiles</h2>
+
+  <h3>Plains Links</h3>
+  <p>Open grassland courses with forgiving terrain and minimal obstacles.</p>
+  
+  <h4>Characteristics</h4>
+  <ul>
+    <li><strong>Hazard multiplier:</strong> 0.8 (fewer hazards)</li>
+    <li><strong>Elevation variation:</strong> 0.5 (relatively flat)</li>
+    <li><strong>Water frequency:</strong> 0.3 (occasional water features)</li>
+    <li><strong>Vegetation density:</strong> 0.4 (light vegetation)</li>
+    <li><strong>Preferred blocks:</strong> Grass block, dirt, oak logs</li>
+  </ul>
+
+  <h4>Difficulty</h4>
+  <p><span class="tag">Beginner</span> - Most forgiving biome for new players</p>
+
+  <h4>Strategy</h4>
+  <ul>
+    <li>Aggressive play is viable due to open fairways</li>
+    <li>Focus on distance and power rather than precision</li>
+    <li>Use backhand drives for maximum distance</li>
+    <li>Minimal hazard threat allows for riskier shots</li>
+  </ul>
+
+  <h4>Best Discs</h4>
+  <ul>
+    <li><strong>Drivers:</strong> High-speed distance discs (Diamond, Netherite)</li>
+    <li><strong>Approach:</strong> Stable mid-range discs (Iron, Stone)</li>
+    <li><strong>Putter:</strong> Any putter, minimal wind impact</li>
+  </ul>
+
+  <h3>Forest Woods</h3>
+  <p>Dense woodland courses with tree-lined fairways and vegetation hazards.</p>
+  
+  <h4>Characteristics</h4>
+  <ul>
+    <li><strong>Hazard multiplier:</strong> 1.2 (more hazards)</li>
+    <li><strong>Elevation variation:</strong> 0.8 (moderate elevation changes)</li>
+    <li><strong>Water frequency:</strong> 0.2 (few water features)</li>
+    <li><strong>Vegetation density:</strong> 1.2 (dense vegetation)</li>
+    <li><strong>Preferred blocks:</strong> Grass block, oak logs, leaves</li>
+  </ul>
+
+  <h4>Difficulty</h4>
+  <p><span class="tag">Intermediate</span> - Requires shot shaping and precision</p>
+
+  <h4>Strategy</h4>
+  <ul>
+    <li>Precision over power - hit gaps in tree lines</li>
+    <li>Use hyzer and anhyzer to shape shots around vegetation</li>
+    <li>OVERHAND stance for vertical clearance over trees</li>
+    <li>Play conservatively - forest punishment is severe</li>
+  </ul>
+
+  <h4>Best Discs</h4>
+  <ul>
+    <li><strong>Drivers:</strong> Stable, controllable discs (Iron, Gold)</li>
+    <li><strong>Approach:</strong> Mid-range discs with good glide (Stone, Iron)</li>
+    <li><strong>Putter:</strong> Stable putters for precise approaches</li>
+  </ul>
+
+  <h3>Desert Dunes</h3>
+  <p>Arid desert courses with sand hazards, cactus fields, and extreme terrain.</p>
+  
+  <h4>Characteristics</h4>
+  <ul>
+    <li><strong>Hazard multiplier:</strong> 1.0 (standard hazards)</li>
+    <li><strong>Elevation variation:</strong> 0.6 (dunes and ridges)</li>
+    <li><strong>Water frequency:</strong> 0.1 (rare oasis features)</li>
+    <li><strong>Vegetation density:</strong> 0.1 (minimal vegetation)</li>
+    <li><strong>Preferred blocks:</strong> Sand, sandstone, terracotta</li>
+  </ul>
+
+  <h4>Difficulty</h4>
+  <p><span class="tag">Advanced</span> - Punishing sand hazards require careful play</p>
+
+  <h4>Strategy</h4>
+  <ul>
+    <li>Avoid sand at all costs - it's a stroke killer</li>
+    <li>Play away from cactus fields rather than through them</li>
+    <li>Use elevation changes to your advantage on dunes</li>
+    <li>Accept penalty strokes rather than risking desert hazards</li>
+  </ul>
+
+  <h4>Best Discs</h4>
+  <ul>
+    <li><strong>Drivers:</strong> High-speed discs with PIERCE enchantment</li>
+    <li><strong>Approach:</strong> Stable discs that won't drift into sand</li>
+    <li><strong>Putter:</strong> Overstable putters for wind resistance</li>
+  </ul>
+
+  <h3>Alpine Ridge</h3>
+  <p>Mountain courses with dramatic elevation changes, cliffs, and rocky terrain.</p>
+  
+  <h4>Characteristics</h4>
+  <ul>
+    <li><strong>Hazard multiplier:</strong> 1.5 (many hazards)</li>
+    <li><strong>Elevation variation:</strong> 1.5 (extreme elevation changes)</li>
+    <li><strong>Water frequency:</strong> 0.4 (mountain lakes and streams)</li>
+    <li><strong>Vegetation density:</strong> 0.6 (moderate alpine vegetation)</li>
+    <li><strong>Preferred blocks:</strong> Stone, gravel, snow block</li>
+  </ul>
+
+  <h4>Difficulty</h4>
+  <p><span class="tag">Expert</span> - Elevation management is critical</p>
+
+  <h4>Strategy</h4>
+  <ul>
+    <li>Account for elevation on every shot - uphill plays longer, downhill shorter</li>
+    <li>Use cliff edges strategically - backspin to stop near drops</li>
+    <li>Manage slope carefully - discs roll significantly on alpine terrain</li>
+    <li>Consider going around obstacles rather than over them</li>
+  </ul>
+
+  <h4>Best Discs</h4>
+  <ul>
+    <li><strong>Drivers:</strong> Versatile discs for various elevation situations</li>
+    <li><strong>Approach:</strong> High-glide discs for elevation gains</li>
+    <li><strong>Putter:</strong> Stable putters that handle slope well</li>
+  </ul>
+
+  <h3>Jungle Adventure</h3>
+  <p>Dense tropical courses with swamp hazards, thick vegetation, and challenging navigation.</p>
+  
+  <h4>Characteristics</h4>
+  <ul>
+    <li><strong>Hazard multiplier:</strong> 1.3 (many hazards)</li>
+    <li><strong>Elevation variation:</strong> 1.0 (moderate terrain changes)</li>
+    <li><strong>Water frequency:</strong> 0.5 (swamps and water features)</li>
+    <li><strong>Vegetation density:</strong> 1.5 (very dense vegetation)</li>
+    <li><strong>Preferred blocks:</strong> Grass block, jungle logs, vines</li>
+  </ul>
+
+  <h4>Difficulty</h4>
+  <p><span class="tag">Expert</span> - Extreme precision required</p>
+
+  <h4>Strategy</h4>
+  <ul>
+    <li>Extreme precision required - gaps in vegetation are tight</li>
+    <li>Avoid swamps entirely - they're essentially unplayable</li>
+    <li>Use every shot shape - hyzer, anhyzer, and OVERHAND all needed</li>
+    <li>Accept that bogeys are good scores on jungle courses</li>
+  </ul>
+
+  <h4>Best Discs</h4>
+  <ul>
+    <li><strong>Drivers:</strong> Stable, controllable discs with PIERCE enchantment</li>
+    <li><strong>Approach:</strong> Mid-range discs for precise gap hitting</li>
+    <li><strong>Putter:</strong> Overstable putters for wind and vegetation</li>
+  </ul>
+
+  <h3>Coastal Links</h3>
+  <p>Ocean-side courses with water hazards, sandy terrain, and coastal winds.</p>
+  
+  <h4>Characteristics</h4>
+  <ul>
+    <li><strong>Hazard multiplier:</strong> 0.9 (fewer hazards)</li>
+    <li><strong>Elevation variation:</strong> 0.3 (relatively flat)</li>
+    <li><strong>Water frequency:</strong> 1.5 (abundant water features)</li>
+    <li><strong>Vegetation density:</strong> 0.2 (minimal vegetation)</li>
+    <li><strong>Preferred blocks:</strong> Sand, water, prismarine</li>
+  </ul>
+
+  <h4>Difficulty</h4>
+  <p><span class="tag">Intermediate</span> - Water management is key</p>
+
+  <h4>Strategy</h4>
+  <ul>
+    <li>Water is the primary threat - avoid it at all costs</li>
+    <li>Account for coastal winds - they can be strong and variable</li>
+    <li>Play away from water edges rather than risking marginal carries</li>
+    <li>Sand is less threatening than water but still problematic</li>
+  </ul>
+
+  <h4>Best Discs</h4>
+  <ul>
+    <li><strong>Drivers:</strong> Wind-resistant discs (Diamond, Netherite)</li>
+    <li><strong>Approach:</strong> Stable discs that won't drift in coastal winds</li>
+    <li><strong>Putter:</strong> Heavy, overstable putters for wind resistance</li>
+  </ul>
+
+  <h3>Frozen Tundra</h3>
+  <p>Icy courses with frozen hazards, slippery terrain, and extreme conditions.</p>
+  
+  <h4>Characteristics</h4>
+  <ul>
+    <li><strong>Hazard multiplier:</strong> 1.1 (moderate hazards)</li>
+    <li><strong>Elevation variation:</strong> 0.7 (moderate terrain changes)</li>
+    <li><strong>Water frequency:</strong> 0.8 (frozen lakes and rivers)</li>
+    <li><strong>Vegetation density:</strong> 0.3 (minimal vegetation)</li>
+    <li><strong>Preferred blocks:</strong> Ice, snow block, packed ice</li>
+  </ul>
+
+  <h4>Difficulty</h4>
+  <p><span class="tag">Advanced</span> - Ice physics require adaptation</p>
+
+  <h4>Strategy</h4>
+  <ul>
+    <li>Account for extreme slide distance on ice surfaces</li>
+    <li>Ice can be advantageous for long slides if positioned well</li>
+    <li>Use lower power to maintain control on icy terrain</li>
+    <li>Frozen water is still hazardous - treat it like regular water</li>
+  </ul>
+
+  <h4>Best Discs</h4>
+  <ul>
+    <li><strong>Drivers:</strong> Controllable discs for ice management</li>
+    <li><strong>Approach:</strong> Low-glide discs for predictable ice behavior</li>
+    <li><strong>Putter:</strong> Stable putters that handle ice well</li>
+  </ul>
+
+  <h2>Mod Integration</h2>
+
+  <h3>Biomes O' Plenty</h3>
+  <p>When Biomes O' Plenty is installed, additional biome types become available:</p>
+  <ul>
+    <li><strong>Redwood Forest:</strong> Giant trees with unique navigation challenges</li>
+    <li><strong>Bamboo Forest:</strong> Dense bamboo with different collision properties</li>
+    <li><strong>Origin Valley:</strong> Spring-like conditions with varied terrain</li>
+    <li><strong>Volcano:</strong> Extreme lava hazards and volcanic terrain</li>
+  </ul>
+
+  <h3>Serene Seasons</h3>
+  <p>Seasonal changes affect course characteristics:</p>
+  <ul>
+    <li><strong>Spring:</strong> Lush vegetation, occasional rain, moderate conditions</li>
+    <li><strong>Summer:</strong> Peak vegetation, dry conditions, standard hazards</li>
+    <li><strong>Autumn:</strong> Falling leaves, moderate vegetation, variable conditions</li>
+    <li><strong>Winter:</strong> Snow cover, ice hazards, extreme conditions</li>
+  </ul>
+
+  <h2>Biome Selection Strategy</h2>
+
+  <h3>For Beginners</h3>
+  <ul>
+    <li>Start with Plains courses for learning basic mechanics</li>
+    <li>Progress to Forest courses for shot shaping practice</li>
+    <li>Avoid Desert, Jungle, and Alpine until advanced</li>
+    <li>Use Coastal courses to learn water management</li>
+  </ul>
+
+  <h3>For Intermediate Players</h3>
+  <ul>
+    <li>Forest courses for precision shot development</li>
+    <li>Coastal courses for wind and water management</li>
+    <li>Desert courses for hazard avoidance practice</li>
+    <li>Frozen Tundra for ice physics adaptation</li>
+  </ul>
+
+  <h3>For Advanced Players</h3>
+  <ul>
+    <li>Alpine courses for elevation mastery</li>
+    <li>Jungle courses for extreme precision challenges</li>
+    <li>Desert courses for hazard management</li>
+    <li>All biomes with mod integration for variety</li>
+  </ul>
+
+  <h2>Course Generation Tips</h2>
+
+  <h3>Choosing Biomes</h3>
+  <ul>
+    <li>Consider player skill level when selecting course biome</li>
+    <li>Match biome to desired difficulty and challenge type</li>
+    <li>Use biome variety to keep gameplay interesting</li>
+    <li>Test courses in each biome before using for events</li>
+  </ul>
+
+  <h3>Customizing Biome Settings</h3>
+  <ul>
+    <li>Seed selection can influence terrain generation within biomes</li>
+    <li>Admin commands can adjust hazard multipliers</li>
+    <li>Course size affects how biome characteristics are expressed</li>
+    <li>Hole count influences overall biome challenge exposure</li>
+  </ul>
+
+  <h2>Related Documentation</h2>
+  <ul>
+    <li><a href={`${baseUrl}guide/hazards`}>Hazards Guide</a></li>
+    <li><a href={`${baseUrl}features/courses`}>Course Generation System</a></li>
+    <li><a href={`${baseUrl}features/physics`}>Physics System</a></li>
+    <li><a href={`${baseUrl}guide/gameplay`}>Gameplay Mechanics</a></li>
+  </ul>
+</GuideLayout>

@@ -1,0 +1,309 @@
+---
+import FeatureLayout from '../../layouts/FeatureLayout.astro';
+import CommandBlock from '../../components/content/CommandBlock.astro';
+const baseUrl = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : import.meta.env.BASE_URL + '/';
+---
+
+<FeatureLayout 
+  title="Resort System"
+  featureName="Resort and World Spawn"
+  description="Auto-build central resorts with housing, courtyards, and surrounding courses for a complete disc golf experience."
+>
+  <h1>Resort System</h1>
+  
+  <p>The MCDG resort system provides a central hub for disc golf activities. Resorts are automatically built on new worlds and can be manually constructed on existing worlds, featuring housing, courtyards, and automatically generated surrounding courses.</p>
+
+  <h2>Resort Overview</h2>
+
+  <h3>Purpose</h3>
+  <ul>
+    <li><strong>Central Hub:</strong> Provides a central location for disc golf activities</li>
+    <li><strong>Player Housing:</strong> Individual rooms or bunks for player accommodation</li>
+    <li><strong>Course Access:</strong> Three surrounding courses for immediate play</li>
+    <li><strong>Spawn Point:</strong> Serves as world spawn for new players</li>
+  </ul>
+
+  <h3>Automatic Behavior</h3>
+  <ul>
+    <li><strong>New Worlds:</strong> Resorts auto-build on fresh world start</li>
+    <li><strong>Spawn Integration:</strong> World spawn set to resort lobby</li>
+    <li><strong>Course Generation:</strong> Three courses auto-generated around resort</li>
+    <li><strong>Waypoint System:</strong> Resort waypoint broadcast to joining players</li>
+  </ul>
+
+  <h2>Resort Structure</h2>
+
+  <h3>Layout Components</h3>
+
+  <h4>Lobby</h4>
+  <ul>
+    <li><strong>Purpose:</strong> Player arrival point and information center</li>
+    <li><strong>Features:</strong> Information signs, course directory, rules display</li>
+    <li><strong>Design:</strong> Welcoming entrance with clear navigation</li>
+    <li><strong>Spawn Point:</strong> World spawn location set to lobby interior</li>
+  </ul>
+
+  <h4>Player Housing</h4>
+  <ul>
+    <li><strong>Purpose:</strong> Individual accommodation for players</li>
+    <li><strong>Types:</strong> Small individual rooms or shared bunks</li>
+    <li><strong>Features:</strong> Storage, bed, basic amenities</li>
+    <li><strong>Access:</strong> Private rooms with player-specific access</li>
+  </ul>
+
+  <h4>Central Courtyard</h4>
+  <ul>
+    <li><strong>Purpose:</strong> Open outdoor space connecting all zones</li>
+    <li><strong>Features:</strong> Fountain, seating area, decorative elements</li>
+    <li><strong>Design:</strong> Central gathering space for players</li>
+    <li><strong>Connection:</strong> Links lobby, housing, and course entrances</li>
+  </ul>
+
+  <h4>Perimeter Wall</h4>
+  <ul>
+    <li><strong>Purpose:</strong> Defines resort boundaries and protection</li>
+    <li><strong>Features:</strong> Secure wall with entrance gates</li>
+    <li><strong>Protection:</strong> Resort area protected from course cleanup</li>
+    <li><strong>Marker:</strong> Resort marker block at center for detection</li>
+  </ul>
+
+  <h3>Design Notes</h3>
+  <ul>
+    <li><strong>Block Palette:</strong> Reuses camp builder blocks where appropriate</li>
+    <li><strong>Terrain Preparation:</strong> Uses course placement infrastructure for terrain work</li>
+    <li><strong>Fire Protection:</strong> Resort structures protected from fire damage</li>
+    <li><strong>Lighting:</strong> Complete lighting system for night-time visibility</li>
+  </ul>
+
+  <h2>Surrounding Courses</h2>
+
+  <h3>Auto-Generation</h3>
+  <ul>
+    <li><strong>Quantity:</strong> Three courses generated around each resort</li>
+    <li><strong>Placement:</strong> One at a time after resort construction</li>
+    <li><strong>Distance:</strong> Minimum 30 blocks from resort wall</li>
+    <li><strong>Sides:</strong> Three sides chosen dynamically based on terrain</li>
+  </ul>
+
+  <h3>Terrain Awareness</h3>
+  <ul>
+    <li><strong>Side Selection:</strong> Chooses best sides based on terrain analysis</li>
+    <li><strong>Obstacle Avoidance:</strong> Avoids water, steep slopes, and obstructions</li>
+    <li><strong>Overlap Prevention:</strong> Courses do not intersect each other or resort</li>
+    <li><strong>Biome Consideration:</strong> Accounts for biome characteristics in placement</li>
+  </ul>
+
+  <h3>Course Characteristics</h3>
+  <ul>
+    <li><strong>Deterministic:</strong> Uses specific seeds for reproducible generation</li>
+    <li><strong>Catalog Storage:</strong> Saved to practice course storage catalog</li>
+    <li><strong>Accessibility:</strong> Clear paths from resort to each course</li>
+    <li><strong>Variety:</strong> Different biomes and terrain for each course</li>
+  </ul>
+
+  <h2>Resort Commands</h2>
+
+  <h3>Build Resort</h3>
+  <p>Build a resort at current or specified location.</p>
+  <CommandBlock 
+    command="/mcdg buildresort"
+    description="Build resort at current player position"
+  />
+  <CommandBlock 
+    command="/mcdg buildresort [x] [z]"
+    description="Build resort at specified coordinates"
+  />
+
+  <h4>Behavior</h4>
+  <ol>
+    <li><strong>Existing Resort Check:</strong> Searches for existing resort marker</li>
+    <li><strong>Conflict Detection:</strong> Ensures no other resort within exclusion radius</li>
+    <li><strong>Location Validation:</strong> Surface-resolves anchor point</li>
+    <li><strong>Construction:</strong> Builds resort structure using ResortBuilder</li>
+    <li><strong>Course Generation:</strong> Generates three surrounding courses</li>
+    <li><strong>Spawn Update:</strong> Optionally updates world spawn to resort lobby</li>
+  </ol>
+
+  <h4>Existing Resort Handling</h4>
+  <ul>
+    <li><strong>Detection:</strong> Finds existing resort within search radius</li>
+    <li><strong>Prompt:</strong> Shows existing resort location and options</li>
+    <li><strong>Overwrite:</strong> Option to destroy old resort and build new</li>
+    <li><strong>New Location:</strong> Option to build at different coordinates</li>
+    <li><strong>Spawn Choice:</strong> Option to update world spawn to new resort</li>
+  </ul>
+
+  <h3>Build Camp (Deprecated)</h3>
+  <p>Legacy command for building camp structures, now deprecated in favor of resorts.</p>
+  <CommandBlock 
+    command="/mcdg buildcamp"
+    description="Build camp (deprecated, use buildresort)"
+  />
+  <ul>
+    <li><strong>Status:</strong> Deprecated but functional for backward compatibility</li>
+    <li><strong>Redirect:</strong> Players directed to use buildresort instead</li>
+    <li><strong>Existing Camps:</strong> Left intact in existing worlds</li>
+  </ul>
+
+  <h2>World Spawn Behavior</h2>
+
+  <h3>New Worlds</h3>
+  <ul>
+    <li><strong>Detection:</strong> Detects fresh world on server start</li>
+    <li><strong>Auto-Build:</strong> Generates resort at world spawn coordinates</li>
+    <li><strong>Spawn Update:</strong> Sets world spawn to resort lobby interior</li>
+    <li><strong>Lost Course Generation:</strong> Only generates lost course entrances on fresh worlds</li>
+  </ul>
+
+  <h3>Existing Worlds</h3>
+  <ul>
+    <li><strong>No Auto-Build:</strong> Resorts not automatically built on existing worlds</li>
+    <li><strong>Manual Trigger:</strong> Admin must run buildresort command</li>
+    <li><strong>Lost Course Behavior:</strong> Skips lost course generation to avoid conflicts</li>
+    <li><strong>Compatibility:</strong> Preserves existing builds and structures</li>
+  </ul>
+
+  <h3>Spawn Management</h3>
+  <ul>
+    <li><strong>Default:</strong> New worlds spawn in resort lobby</li>
+    <li><strong>Manual Override:</strong> Admins can change spawn location</li>
+    <li><strong>Resort Rebuild:</strong> Option to update spawn when rebuilding resort</li>
+    <li><strong>Waypoint Sync:</strong> Resort waypoint broadcast to joining players</li>
+  </ul>
+
+  <h2>Resort Protection</h2>
+
+  <h3>Cleanup Protection</h3>
+  <ul>
+    <li><strong>Course Cleanup:</strong> Resort blocks protected from cleanupcourse command</li>
+    <li><strong>Marker System:</strong> Resort marker block defines protected area</li>
+    <li><strong>Radius:</strong> Protection extends around resort structure</li>
+    <li><strong>Course Integration:</strong> Surrounding courses have separate protection</li>
+  </ul>
+
+  <h3>Player Protection</h3>
+  <ul>
+    <li><strong>Grief Prevention:</strong> Resort area can be integrated with protection plugins</li>
+    <li><strong>Access Control:</strong> Housing rooms can have player-specific access</li>
+    <li><strong>PvP Safety:</strong> Resort typically configured as safe zone</li>
+    <li><strong>Mob Spawning:</strong> Hostile mobs prevented in resort area</li>
+  </ul>
+
+  <h2>Resort Customization</h2>
+
+  <h3>Location Selection</h3>
+  <ul>
+    <li><strong>Current Position:</strong> Build at player's current location</li>
+    <li><strong>Coordinates:</strong> Specify exact X, Z coordinates for precision</li>
+    <li><strong>Terrain Analysis:</strong> System evaluates terrain suitability</li>
+    <li><strong>Biome Consideration:</strong> Different biomes offer different aesthetics</li>
+  </ul>
+
+  <h3>Rebuilding Options</h3>
+  <ul>
+    <li><strong>Overwrite:</strong> Destroy existing resort and build new one</li>
+    <li><strong>Relocation:</strong> Build new resort at different location</li>
+    <li><strong>Spawn Update:</strong> Choice to update world spawn or keep existing</li>
+    <li><strong>Course Regeneration:</strong> Option to regenerate surrounding courses</li>
+  </ul>
+
+  <h2>Multiplayer Considerations</h2>
+
+  <h3>Server Setup</h3>
+  <ul>
+    <li><strong>First Join:</strong> New players spawn in resort lobby</li>
+    <li><strong>Information:</strong> Signs explain mod features and commands</li>
+    <li><strong>Course Access:</strong> Three courses immediately available for play</li>
+    <li><strong>Housing:</strong> Players can claim housing rooms</li>
+  </ul>
+
+  <h3>Community Building</h3>
+  <ul>
+    <li><strong>Central Hub:</strong> Resort serves as community gathering point</li>
+    <li><strong>Event Hosting:</strong> Courtyard suitable for events and tournaments</li>
+    <li><strong>Course Variety:</strong> Three different courses offer variety for regular play</li>
+    <li><strong>Expansion:</strong> Additional resorts can be built for larger servers</li>
+  </ul>
+
+  <h2>Advanced Features</h2>
+
+  <h3>Waypoint System</h3>
+  <ul>
+    <li><strong>Auto-Broadcast:</strong> Resort waypoint sent to players on join</li>
+    <li><strong>Navigation:</strong> Players can easily find resort from anywhere</li>
+    <li><strong>Custom Waypoints:</strong> Players can add personal waypoints</li>
+    <li><strong>Minimap Integration:</strong> Resort appears on minimap with special marker</li>
+  </ul>
+
+  <h3>Lost Course Integration</h3>
+  <ul>
+    <li><strong>Fresh Worlds Only:</strong> Lost course entrances only generated on new worlds</li>
+    <li><strong>Conflict Avoidance:</strong> Prevents conflicts with existing builds</li>
+    <li><strong>Exploration:</strong> Encourages exploration beyond resort area</li>
+    <li><strong>Discovery:</strong> Players can discover hidden courses in the world</li>
+  </ul>
+
+  <h2>Troubleshooting</h2>
+
+  <h3>Common Issues</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Issue</th>
+        <th>Solution</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Resort not auto-building on new world</td>
+        <td>Check server logs, verify fresh world detection, ensure no conflicts</td>
+      </tr>
+      <tr>
+        <td>Course generation failing</td>
+        <td>Check terrain suitability, try different location, verify available space</td>
+      </tr>
+      <tr>
+        <td>Spawn not updating to resort</td>
+        <td>Verify spawn update option selected, check permissions, test manually</td>
+      </tr>
+      <tr>
+        <td>Resort blocks being cleaned up</td>
+        <td>Verify marker block placement, check protection system, report bug</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Performance Considerations</h3>
+  <ul>
+    <li><strong>Build Time:</strong> Resort construction may take time on large servers</li>
+    <li><strong>Course Generation:</strong> Three courses generated sequentially to prevent lag</li>
+    <li><strong>Chunk Loading:</strong> Resort may require additional chunk loading</li>
+    <li><strong>Entity Count:</strong> Minimal entity impact from resort structures</li>
+  </ul>
+
+  <h2>Best Practices</h2>
+
+  <h3>For Server Admins</h3>
+  <ul>
+    <li><strong>Location:</strong> Choose flat, central location for main resort</li>
+    <li><strong>Testing:</strong> Test resort build in singleplayer before deploying</li>
+    <li><strong>Communication:</strong> Inform players of resort location and features</li>
+    <li><strong>Maintenance:</strong> Monitor resort integrity after updates</li>
+  </ul>
+
+  <h3>For Players</h3>
+  <ul>
+    <li><strong>Housing:</strong> Respect housing assignments and don't grief</li>
+    <li><strong>Courses:</strong> Use resort courses for practice and warmup</li>
+    <li><strong>Navigation:</strong> Use waypoint system to find resort easily</li>
+    <li><strong>Community:</strong> Use courtyard for community events and meetings</li>
+  </ul>
+
+  <h2>Related Documentation</h2>
+  <ul>
+    <li><a href={`${baseUrl}guide/admin-commands`}>Admin Commands Reference</a></li>
+    <li><a href={`${baseUrl}features/courses`}>Course Generation System</a></li>
+    <li><a href={`${baseUrl}guide/multiplayer`}>Multiplayer Guide</a></li>
+    <li><a href={`${baseUrl}admin/server-setup`}>Server Setup Guide</a></li>
+  </ul>
+</FeatureLayout>
