@@ -1,4 +1,5 @@
 ---
+import '../styles/global.css';
 import Header from '../components/layout/Header.astro';
 import Footer from '../components/layout/Footer.astro';
 
@@ -20,7 +21,6 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
     <link rel="canonical" href={canonicalURL} />
-    <link rel="stylesheet" href={`${import.meta.env.BASE_URL}styles/global.css`} />
   </head>
   <body>
     <div class="site-wrapper">

@@ -33,5 +33,6 @@ logs/
 # Astro website build artifacts
 docs/node_modules/
 docs/dist/
+docs/.astro/
 
 !src/main/java/com/mcdg/net/
