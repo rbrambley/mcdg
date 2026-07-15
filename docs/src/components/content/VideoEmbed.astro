@@ -1,0 +1,13 @@
+---
+interface Props {
+  src: string;
+  title?: string;
+}
+
+const { src, title } = Astro.props;
+---
+
+<figure class="video-embed">
+  <iframe src={src} title={title ?? 'Video'} allowfullscreen loading="lazy"></iframe>
+  {title && <figcaption>{title}</figcaption>}
+</figure>

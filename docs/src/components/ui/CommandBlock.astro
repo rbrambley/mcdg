@@ -1,0 +1,9 @@
+---
+interface Props {
+  command: string;
+}
+
+const { command } = Astro.props;
+---
+
+<pre class="command-block"><code>{command}</code></pre>
