@@ -11,6 +11,13 @@ const nav = [
 <header class="site-header">
   <div class="container header-inner">
     <a href={`${base}`} class="logo">
+      <span class="logo-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M8 12s1.5-2 4-2 4 2 4 2"></path>
+          <path d="M12 12v4"></path>
+        </svg>
+      </span>
       <span class="logo-accent">MCDG</span>
       <span class="logo-text">Minecraft Disc Golf</span>
     </a>
@@ -24,8 +31,7 @@ const nav = [
 
 <style>
   .site-header {
-    background: rgba(15, 15, 26, 0.85);
-    backdrop-filter: blur(10px);
+    background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
     border-bottom: 1px solid var(--border);
     position: sticky;
     top: 0;
@@ -41,11 +47,18 @@ const nav = [
 
   .logo {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 0.5rem;
     font-weight: 800;
     font-size: 1.25rem;
     text-decoration: none;
+  }
+
+  .logo-icon {
+    display: flex;
+    color: var(--accent);
+    width: 1.5rem;
+    height: 1.5rem;
   }
 
   .logo-accent {
