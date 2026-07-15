@@ -1,0 +1,100 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+
+const base = import.meta.env.BASE_URL;
+
+const features = [
+  {
+    title: 'Procedural Courses',
+    description: 'Generate biome-aware disc golf courses across varied terrain, from rolling meadows to challenging hazard layouts.',
+    href: `${base}features/courses/`,
+  },
+  {
+    title: 'Calculated Flight Physics',
+    description: 'A dedicated trajectory system models stance, release angle, wind, fade, and disc glide ratings.',
+    href: `${base}features/physics/`,
+  },
+  {
+    title: 'Resort System',
+    description: 'Build and manage a central resort with lobbies, housing, lighting, and multiple course anchors.',
+    href: `${base}features/resort/`,
+  },
+  {
+    title: 'Multiplayer Rounds',
+    description: 'Run stroke-play rounds with turn order enforcement, strict landing rules, and live scoreboards.',
+    href: `${base}guide/multiplayer/`,
+  },
+  {
+    title: 'Disc Enchantments',
+    description: 'Upgrade discs and earn enchanted equipment through challenge courses and boss holes.',
+    href: `${base}features/enchantments/`,
+  },
+  {
+    title: 'Progression & Skills',
+    description: 'Unlock crafting tiers, skills, and accessories as you advance from wooden to netherite discs.',
+    href: `${base}progression/skill-unlocks/`,
+  },
+];
+---
+
+<MainLayout title="MCDG — Minecraft Disc Golf" description="A Fabric mod for Minecraft 1.20.6 that brings procedural disc golf courses, multiplayer rounds, and a full resort system to your world.">
+  <section class="hero">
+    <div class="container">
+      <h1><span>MCDG</span> — Minecraft Disc Golf</h1>
+      <p>Build procedural courses, compete with friends, and manage your own disc golf resort in Minecraft 1.20.6.</p>
+      <div class="hero-actions">
+        <a href={`${base}guide/installation/`} class="btn">Get Started</a>
+        <a href={`${base}guide/gameplay/`} class="btn btn-secondary">How to Play</a>
+        <a href="https://github.com/rbrambley/mcdg" class="btn btn-secondary">GitHub</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="container">
+    <h2>Features</h2>
+    <div class="card-grid">
+      {features.map(feature => (
+        <a href={feature.href} class="card feature-card">
+          <h3>{feature.title}</h3>
+          <p>{feature.description}</p>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <section class="container">
+    <h2>Quick Start</h2>
+    <div class="card">
+      <ol>
+        <li>Install Fabric for Minecraft <strong>1.20.6</strong> and Java <strong>21</strong>.</li>
+        <li>Download the latest test pack from the <a href="https://github.com/rbrambley/mcdg/releases">releases page</a>.</li>
+        <li>Merge the client pack into your Minecraft instance.</li>
+        <li>Join a world or server, press <kbd>G</kbd>, and choose <strong>Auto Build Course</strong>.</li>
+        <li>Start a round, invite other players, and throw!</li>
+      </ol>
+      <p><a href={`${base}guide/installation/`} class="btn">Full Installation Guide</a></p>
+    </div>
+  </section>
+</MainLayout>
+
+<style>
+  .feature-card {
+    display: block;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+
+  .feature-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+    text-decoration: none;
+  }
+
+  .feature-card h3 {
+    color: var(--accent);
+  }
+
+  section.container {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+</style>

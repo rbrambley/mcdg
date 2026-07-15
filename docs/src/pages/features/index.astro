@@ -1,0 +1,60 @@
+---
+import MainLayout from '../../layouts/MainLayout.astro';
+import Sidebar from '../../components/layout/Sidebar.astro';
+
+const base = import.meta.env.BASE_URL;
+
+const features = [
+  { title: 'Flight Physics', href: `${base}features/physics/`, description: 'Stance, angle, glide, wind, and fade calculations.' },
+  { title: 'Course Generation', href: `${base}features/courses/`, description: 'Procedural, biome-aware courses and challenge layouts.' },
+  { title: 'Wind System', href: `${base}features/wind-system/`, description: 'Dynamic wind effects during throws.' },
+  { title: 'Enchantments', href: `${base}features/enchantments/`, description: 'Disc enchantments and boss-hole reward gear.' },
+  { title: 'Accessories', href: `${base}features/accessories/`, description: 'Disc bags and accessory items.' },
+  { title: 'Round Rewards', href: `${base}features/round-rewards/`, description: 'Survival-mode rewards for throws and rounds.' },
+  { title: 'Resort System', href: `${base}features/resort/`, description: 'Resort structures and course anchors.' },
+  { title: 'Progression', href: `${base}features/progression/`, description: 'Crafting tiers and skill unlocks.' },
+];
+---
+
+<MainLayout title="Features | MCDG" description="Overview of MCDG features: physics, courses, wind, enchantments, and progression.">
+  <div class="container page-layout">
+    <Sidebar />
+    <article class="content card">
+      <h1>Features</h1>
+      <p>MCDG is built around procedural courses, calculated disc flight, multiplayer rounds, and long-term progression.</p>
+      <div class="card-grid">
+        {features.map(f => (
+          <a href={f.href} class="card feature-card">
+            <h3>{f.title}</h3>
+            <p>{f.description}</p>
+          </a>
+        ))}
+      </div>
+    </article>
+  </div>
+</MainLayout>
+
+<style>
+  .content {
+    max-width: 100%;
+  }
+
+  .content h1 {
+    margin-top: 0;
+  }
+
+  .feature-card {
+    display: block;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+
+  .feature-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+    text-decoration: none;
+  }
+
+  .feature-card h3 {
+    color: var(--accent);
+  }
+</style>

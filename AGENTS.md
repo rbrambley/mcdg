@@ -130,42 +130,103 @@ Planned GitHub-hosted site for the MCDG Modpack using Astro + GitHub Pages. The 
 ### Decisions
 - **Framework:** Astro (free, open-source, fast, excellent for content-heavy sites)
 - **Hosting:** GitHub Pages (free, works with public repos, custom-domain support)
+- **Repository:** Site source lives in the existing `rbrambley/mcdg` repo
+- **URLs:**
+  - **Local dev:** `http://localhost:4321/mcdg/`
+  - **GitHub Pages:** `https://rbrambley.github.io/mcdg/`
 - **Design:** Gaming-focused dark theme with tier-based accent colors
 - **Primary content:** Existing project documentation plus new landing-page copy
 - **Total cost:** $0
 
-### Proposed Site Structure
+### Expanded Site Structure
 ```
-mcdg-website/
+docs/                          # Site source folder for GitHub Pages
 ├── src/
 │   ├── pages/
-│   │   ├── index.astro              # Landing page
+│   │   ├── index.astro                      # Landing page
 │   │   ├── guide/
-│   │   │   ├── installation.astro
-│   │   │   ├── gameplay.astro
-│   │   │   ├── progression.astro
-│   │   │   └── multiplayer.astro
+│   │   │   ├── installation.astro           # Installation guide
+│   │   │   ├── gameplay.astro               # Core gameplay mechanics
+│   │   │   ├── stances-angles.astro         # Throw stances and release angles
+│   │   │   ├── progression.astro            # Crafting and skill progression
+│   │   │   ├── multiplayer.astro            # Multiplayer setup
+│   │   │   ├── admin-commands.astro         # Complete admin command reference
+│   │   │   ├── hazards.astro                # Hazard types and strategies
+│   │   │   ├── biome-courses.astro          # Biome-specific course characteristics
+│   │   │   └── challenge-courses.astro       # Challenge courses and boss holes
 │   │   ├── features/
-│   │   │   ├── physics.astro
-│   │   │   ├── courses.astro
-│   │   │   ├── wind-system.astro
-│   │   │   └── progression.astro
-│   │   └── about.astro
+│   │   │   ├── physics.astro                 # Physics system deep-dive
+│   │   │   ├── courses.astro                 # Course generation and types
+│   │   │   ├── wind-system.astro            # Wind system mechanics
+│   │   │   ├── enchantments.astro            # Disc enchantment system
+│   │   │   ├── accessories.astro             # Disc bags and accessories
+│   │   │   ├── round-rewards.astro          # Survival mode rewards
+│   │   │   ├── resort.astro                 # Resort system
+│   │   │   └── progression.astro             # Progression systems
+│   │   ├── admin/
+│   │   │   ├── server-setup.astro           # Enhanced server setup guide
+│   │   │   ├── permissions.astro             # Permission system guide
+│   │   │   └── course-management.astro       # Course admin deep-dive
+│   │   ├── progression/
+│   │   │   ├── skill-unlocks.astro          # Skill-based unlock system
+│   │   │   ├── questline.astro              # Quest system guide
+│   │   │   └── crafting-tree.astro           # Interactive crafting tree
+│   │   ├── reference/
+│   │   │   ├── physics.astro                # Complete physics reference
+│   │   │   ├── config.astro                 # Configuration options
+│   │   │   └── api.astro                    # API reference for modders
+│   │   ├── community/
+│   │   │   ├── showcase.astro               # Player and server showcase
+│   │   │   ├── contributing.astro           # Contribution guide
+│   │   │   └── faq.astro                    # Comprehensive FAQ
+│   │   └── about.astro                      # About the project
 │   ├── components/
-│   │   ├── layout/Header.astro
-│   │   ├── layout/Footer.astro
-│   │   ├── ui/Hero.astro
-│   │   ├── ui/FeatureCard.astro
-│   │   ├── ui/DiscStats.astro
-│   │   ├── ui/TierComparison.astro
-│   │   └── content/CommandBlock.astro
+│   │   ├── layout/
+│   │   │   ├── Header.astro
+│   │   │   ├── Footer.astro
+│   │   │   └── Sidebar.astro                # Quick reference sidebar
+│   │   ├── ui/
+│   │   │   ├── Hero.astro
+│   │   │   ├── FeatureCard.astro
+│   │   │   ├── DiscStats.astro
+│   │   │   ├── TierComparison.astro
+│   │   │   ├── CommandBlock.astro
+│   │   │   ├── FlightCalculator.astro       # Interactive disc flight calculator
+│   │   │   ├── CoursePlanner.astro          # Visual course layout designer
+│   │   │   ├── TierWizard.astro             # Disc tier comparison wizard
+│   │   │   ├── ScoreTracker.astro           # Personal score logging
+│   │   │   └── CraftingTree.astro           # Interactive crafting tree
+│   │   ├── content/
+│   │   │   ├── CourseGallery.astro          # User-submitted course screenshots
+│   │   │   ├── ScreenshotCarousel.astro     # Feature screenshot gallery
+│   │   │   └── VideoEmbed.astro             # Video tutorial component
+│   │   └── search/
+│   │       ├── SearchBar.astro              # Full-text search
+│   │       └── TagFilter.astro              # Tag-based content filtering
 │   ├── layouts/
 │   │   ├── MainLayout.astro
 │   │   ├── GuideLayout.astro
-│   │   └── FeatureLayout.astro
-│   └── styles/global.css
-├── public/images/
-└── .github/workflows/deploy.yml
+│   │   ├── FeatureLayout.astro
+│   │   ├── AdminLayout.astro
+│   │   └── ReferenceLayout.astro
+│   └── styles/
+│       ├── global.css
+│       ├── themes/
+│       │   ├── dark.css
+│       │   └── tier-colors.css
+│       └── components/
+│           ├── interactive.css
+│           └── mobile.css
+├── public/
+│   ├── images/
+│   │   ├── screenshots/                    # In-game screenshots
+│   │   ├── textures/                       # Disc/block/GUI textures
+│   │   ├── diagrams/                       # Physics diagrams, course layouts
+│   │   └── hero/                           # Landing page graphics
+│   └── videos/                             # Tutorial videos
+└── .github/
+    └── workflows/
+        └── deploy.yml
 ```
 
 ### Content Sources to Migrate
@@ -178,13 +239,39 @@ mcdg-website/
 - **RESORT-PLAN.md** → resort feature page
 - **TOURNAMENT-PLAN.md** → future tournament feature page
 - **FEATURE-STATUS.md** → current roadmap / feature overview
+- **DISC-GOLF-QUESTLINE-PLAN.md** → quest system guide
+- **SURVIVAL-ENHANCEMENTS-PLAN.md** → survival mode features
+- **DISC-GLIDE-PHYSICS.md** → stance and angle mechanics
+
+### New Content to Create
+- **Admin command reference** - Complete `/mcdg` command documentation
+- **Hazard strategy guide** - How to play each hazard type
+- **Biome course guide** - Biome-specific course characteristics
+- **Challenge course guide** - Boss holes and lost courses
+- **Enchantment system guide** - Disc enchanting mechanics
+- **Accessories guide** - Disc bags and accessory items
+- **Round rewards guide** - Survival mode reward system
+- **Skill unlock guide** - Achievement-based progression
+- **Quest system guide** - Storyline and exploration quests
+- **Server admin guides** - Permissions, course management, troubleshooting
+- **Physics reference** - Complete physics constants and formulas
+- **Configuration guide** - All server and client config options
+- **API documentation** - For modders integrating with MCDG
+- **FAQ** - Common gameplay and technical questions
+- **Community showcase** - Featured servers and builds
 
 ### Visual Assets to Reuse
 - Disc textures: `src/main/resources/assets/mcdg/textures/item/`
 - Block textures: `src/main/resources/assets/mcdg/textures/block/`
 - GUI textures: `src/main/resources/assets/mcdg/textures/gui/`
 - Item names/descriptions: `src/main/resources/assets/mcdg/lang/en_us.json`
-- New in-game screenshots will be needed for hero/course gallery sections
+- New in-game screenshots needed for:
+  - Hero section and course gallery
+  - Feature showcases (stances, angles, hazards)
+  - UI element close-ups
+  - Before/after comparisons
+  - Biome course examples
+  - Challenge course highlights
 
 ### Design Direction
 - Dark background (`#0f0f1a`) with neon green accent (`#00ff88`)
@@ -197,18 +284,64 @@ mcdg-website/
   - Diamond: cyan (`#00ffff`)
   - Netherite: dark purple (`#1a1a2e`)
 - Interactive components: disc flight calculator, tier comparison table, feature cards
+- Mobile-responsive design with collapsible navigation
+- Touch-friendly interactive tools for mobile users
+
+### Interactive Features
+- **Disc Flight Calculator** - Enhanced with wind effects, enchantments, terrain impact
+- **Course Planner Tool** - Visual course layout designer with distance/par calculator
+- **Tier Comparison Wizard** - Interactive disc tier comparison with upgrade recommendations
+- **Score Tracker** - Personal score logging with local storage
+- **Crafting Tree** - Interactive crafting progression visualization
+- **Course Gallery** - User-submitted course screenshots with ratings
+- **Full-text Search** - Search across all guides with tag filtering
+- **Contextual Help** - Tooltip definitions and related content suggestions
 
 ### Implementation Phases
+
+#### Phase 1: Core Player Experience (High Priority)
 1. **Project Setup** — Initialize Astro, Tailwind, sitemap, GitHub Pages config
 2. **Design System** — Create global styles, color variables, core UI components
-3. **Content Migration** — Convert existing docs to Astro pages
-4. **Interactive Features** — Build disc flight calculator, tier comparison, course gallery
-5. **Asset Preparation** — Copy textures, optimize images, create hero graphics
-6. **Deployment & Testing** — Set up GitHub Actions CI/CD, test build and deploy
+3. **Content Migration** — Convert existing docs to Astro pages (README, USERGUIDE, SERVER-SETUP)
+4. **Core Guides** — Enhanced gameplay guide with stances, angles, and hazards
+5. **Interactive Calculator** - Disc flight calculator with enchantments
+6. **Admin Reference** - Comprehensive admin command reference
+7. **Progression Guide** - Tier comparison and crafting progression
+8. **Asset Preparation** - Copy textures, optimize images, create hero graphics
+9. **Deployment & Testing** — Set up GitHub Actions CI/CD, test build and deploy
+
+#### Phase 2: Advanced Features (Medium Priority)
+1. **Challenge Courses Guide** - Boss holes and lost courses documentation
+2. **Resort System** - Resort feature page with screenshots
+3. **Enchantments Deep-Dive** - Complete enchantment system guide
+4. **Accessories Guide** - Disc bags and accessories documentation
+5. **Biome Courses** - Biome-specific course characteristics
+6. **Course Planner Tool** - Visual course layout designer
+7. **Tier Wizard** - Interactive disc tier comparison
+8. **Video Tutorials** - Installation and gameplay walkthrough videos
+
+#### Phase 3: Community & Tools (Medium Priority)
+1. **Course Gallery** - User-submitted course screenshots
+2. **Score Tracker** - Personal score logging tool
+3. **FAQ** - Comprehensive troubleshooting FAQ
+4. **Community Guide** - Contribution and showcase pages
+5. **Search Implementation** - Full-text search with filtering
+6. **Mobile Optimization** - Touch-friendly tools and responsive design
+7. **Contextual Help** - Tooltips and related content suggestions
+
+#### Phase 4: Technical & Reference (Low Priority)
+1. **Physics Reference** - Complete physics constants and formulas
+2. **API Documentation** - Modder integration guide
+3. **Configuration Guide** - All server and client config options
+4. **Architecture Overview** - Internal system documentation
+5. **Advanced Admin** - Permissions, course management, security
 
 ### Deployment
 - Use GitHub Actions to build on push to `main` and deploy to GitHub Pages
 - `.github/workflows/deploy.yml` with `actions/upload-pages-artifact` and `actions/deploy-pages`
+- Astro config (`docs/astro.config.mjs`) uses `site: 'https://rbrambley.github.io'` and `base: '/mcdg/'` so dev and production URLs resolve correctly
+- Automated content sync from markdown docs
+- Release notes integration with mod releases
 
 ### Verification
 - Lighthouse score 90+ on all metrics
@@ -216,14 +349,23 @@ mcdg-website/
 - All navigation and interactive components functional
 - Images and assets load correctly
 - GitHub Pages URL live and accessible
+- Search functionality working across all content
+- Interactive tools functioning correctly
+- Mobile touch interactions working properly
 
 ### Maintenance
 - Update download links when new releases ship
 - Sync feature pages with new design docs as systems evolve
 - Add new screenshots when new visual features are added
-- Add blog/news section if regular updates begin
+- Version-specific guides matching mod releases
+- Migration guides between versions
+- Automated content sync from markdown documentation
+- Feature status dashboard with real-time implementation status
+- Changelog integration with release notes
 
 ### Notes
 - No code changes to the MCDG mod itself are required for the website
-- In-game screenshots are the main missing asset; textures can be used as placeholders
+- In-game screenshots are the main missing asset; textures can be used as placeholders initially
 - Astro, GitHub Pages, and all recommended tools are free for public repositories
+- Progressive enhancement approach: core content first, interactive features second
+- Community contributions can expand course gallery and FAQ sections over time

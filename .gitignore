@@ -30,4 +30,8 @@ releases/test-packs/*/
 # Runtime logs
 logs/
 
+# Astro website build artifacts
+docs/node_modules/
+docs/dist/
+
 !src/main/java/com/mcdg/net/
